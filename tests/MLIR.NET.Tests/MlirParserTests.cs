@@ -45,4 +45,44 @@ public sealed class MlirParserTests
 
         Assert.Contains("operand list", exception.Message);
     }
+
+    [Fact]
+    public void ReportsLexerErrorForUnexpectedCharacter()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"arith.addi\"(%lhs) !"));
+
+        Assert.Equal("Unexpected character '!'.", exception.Diagnostic.Message);
+        Assert.Equal(1, exception.Diagnostic.Line);
+        Assert.Equal(20, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void ReportsLexerErrorForUnterminatedStringLiteral()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"arith.addi"));
+
+        Assert.Equal("Unterminated string literal.", exception.Diagnostic.Message);
+        Assert.Equal(1, exception.Diagnostic.Line);
+        Assert.Equal(1, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void ReportsParserErrorForMissingOperationName()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("%0 = (%lhs)"));
+
+        Assert.Equal("Expected an operation name.", exception.Diagnostic.Message);
+        Assert.Equal(1, exception.Diagnostic.Line);
+        Assert.Equal(6, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void ReportsParserErrorForMissingRegionTerminator()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"scf.if\"(%cond) {\n  \"func.return\"() : () -> ()"));
+
+        Assert.Equal("Expected an operation name.", exception.Diagnostic.Message);
+        Assert.Equal(2, exception.Diagnostic.Line);
+        Assert.Equal(29, exception.Diagnostic.Column);
+    }
 }
