@@ -243,6 +243,7 @@ internal static class TableGenLexer
                 ')' => TableGenTokenKind.RParen,
                 '[' => TableGenTokenKind.LBracket,
                 ']' => TableGenTokenKind.RBracket,
+                '$' => TableGenTokenKind.Dollar,
                 _ => throw Error($"Unexpected character '{c}'."),
             };
         }

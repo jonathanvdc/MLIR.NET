@@ -16,7 +16,10 @@ public sealed class OdsOperationModel
         IReadOnlyList<string>? operands = null,
         IReadOnlyList<string>? results = null,
         IReadOnlyList<string>? attributes = null,
-        bool hasCustomAssemblyFormat = false)
+        bool hasCustomAssemblyFormat = false,
+        string? summary = null,
+        string? assemblyFormat = null,
+        IReadOnlyList<string>? traits = null)
     {
         Name = name;
         ClassName = className;
@@ -24,6 +27,9 @@ public sealed class OdsOperationModel
         Results = results ?? EmptyItems;
         Attributes = attributes ?? EmptyItems;
         HasCustomAssemblyFormat = hasCustomAssemblyFormat;
+        Summary = summary;
+        AssemblyFormat = assemblyFormat;
+        Traits = traits ?? EmptyItems;
     }
 
     /// <summary>
@@ -55,6 +61,21 @@ public sealed class OdsOperationModel
     /// Gets a value indicating whether the operation declares a custom assembly format.
     /// </summary>
     public bool HasCustomAssemblyFormat { get; }
+
+    /// <summary>
+    /// Gets the operation summary, if known.
+    /// </summary>
+    public string? Summary { get; }
+
+    /// <summary>
+    /// Gets the declarative assembly format, if known.
+    /// </summary>
+    public string? AssemblyFormat { get; }
+
+    /// <summary>
+    /// Gets the declared trait names.
+    /// </summary>
+    public IReadOnlyList<string> Traits { get; }
 
     private static readonly IReadOnlyList<string> EmptyItems = new string[0];
 }

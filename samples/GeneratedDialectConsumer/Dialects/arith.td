@@ -1,35 +1,9 @@
-class Dialect {
-  string name;
-  string cppNamespace;
-  string summary;
-  string description;
-  bit hasConstantMaterializer = 0;
-};
+class MiniArith_Op<string mnemonic, list<Trait> traits = []> :
+    Op<MiniArith_Dialect, mnemonic, traits>;
 
-class Op<string dialectName, string mnemonic> {
-  string dialectName = dialectName;
-  string mnemonic = mnemonic;
-  string cppClassName;
-  list<string> operands;
-  list<string> results;
-  bit hasCustomAssemblyFormat = 0;
-};
-
-class AttrDef<string dialectName, string attrName> {
-  string dialectName = dialectName;
-  string attrName = attrName;
-  string cppClassName;
-};
-
-class TypeDef<string dialectName, string typeName> {
-  string dialectName = dialectName;
-  string typeName = typeName;
-  string cppClassName;
-};
-
-def Arith_Dialect : Dialect {
-  let name = "arith";
-  let cppNamespace = "::mlir::arith";
+def MiniArith_Dialect : Dialect {
+  let name = "miniarith";
+  let cppNamespace = "::mlir::miniarith";
   let summary = "Arithmetic dialect";
   let description = [{
     This dialect defines basic integer and floating point arithmetic ops.
@@ -37,17 +11,20 @@ def Arith_Dialect : Dialect {
   let hasConstantMaterializer = 1;
 };
 
-def AddIOp : Op<"arith", "addi"> {
-  let cppClassName = "AddIOperation";
-  let operands = ["lhs", "rhs"];
-  let results = ["result"];
-  let hasCustomAssemblyFormat = 1;
+def MiniArith_ConstantOp : MiniArith_Op<"constant", [Pure]> {
+  let summary = "integer constant";
+
+  let arguments = (ins I32Attr:$value);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value attr-dict";
 };
 
-def FastMathAttr : AttrDef<"arith", "fastmath"> {
-  let cppClassName = "FastMathAttributeValue";
-};
+def MiniArith_AddIOp : MiniArith_Op<"addi", [Pure, Commutative]> {
+  let summary = "integer addition";
 
-def I32Type : TypeDef<"arith", "i32"> {
-  let cppClassName = "I32TypeReference";
+  let arguments = (ins I32:$lhs, I32:$rhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
 };

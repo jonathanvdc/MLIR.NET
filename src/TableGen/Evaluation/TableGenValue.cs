@@ -52,3 +52,57 @@ public sealed class ListValue(IReadOnlyList<TableGenValue> items) : TableGenValu
     /// </summary>
     public IReadOnlyList<TableGenValue> Items { get; } = items;
 }
+
+/// <summary>
+/// Represents a reference to another TableGen record.
+/// </summary>
+public sealed class RecordReferenceValue(string recordName) : TableGenValue
+{
+    /// <summary>
+    /// Gets the referenced record name.
+    /// </summary>
+    public string RecordName { get; } = recordName;
+}
+
+/// <summary>
+/// Represents a symbolic reference that could not be resolved to a local value.
+/// </summary>
+public sealed class SymbolReferenceValue(string symbolName) : TableGenValue
+{
+    /// <summary>
+    /// Gets the symbolic name.
+    /// </summary>
+    public string SymbolName { get; } = symbolName;
+}
+
+/// <summary>
+/// Represents an evaluated dag argument.
+/// </summary>
+public sealed class DagArgumentValue(TableGenValue value, string? name)
+{
+    /// <summary>
+    /// Gets the argument value.
+    /// </summary>
+    public TableGenValue Value { get; } = value;
+
+    /// <summary>
+    /// Gets the optional argument name.
+    /// </summary>
+    public string? Name { get; } = name;
+}
+
+/// <summary>
+/// Represents an evaluated dag expression.
+/// </summary>
+public sealed class DagValue(string operatorName, IReadOnlyList<DagArgumentValue> arguments) : TableGenValue
+{
+    /// <summary>
+    /// Gets the dag operator name.
+    /// </summary>
+    public string OperatorName { get; } = operatorName;
+
+    /// <summary>
+    /// Gets the dag arguments.
+    /// </summary>
+    public IReadOnlyList<DagArgumentValue> Arguments { get; } = arguments;
+}

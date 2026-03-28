@@ -23,4 +23,5 @@ internal enum TableGenTokenKind
     RParen,
     LBracket,
     RBracket,
+    Dollar,
 }

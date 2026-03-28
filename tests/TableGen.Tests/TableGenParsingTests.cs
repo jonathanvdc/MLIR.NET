@@ -89,6 +89,25 @@ public sealed class TableGenParsingTests
     }
 
     [Fact]
+    public void ParsesDagExpressions()
+    {
+        const string source =
+            "def Example {\n" +
+            "  dag Arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "};";
+
+        var document = TableGenDocument.Parse(source);
+        var def = Assert.IsType<TableGenDefSyntax>(document.Syntax.Declarations[0]);
+        var field = Assert.IsType<TableGenFieldSyntax>(def.BodyItems[0]);
+        var dag = Assert.IsType<TableGenDagSyntax>(field.Initializer);
+
+        Assert.Equal("ins", dag.OperatorName);
+        Assert.Equal(2, dag.Arguments.Count);
+        Assert.Equal("lhs", dag.Arguments[0].Name);
+        Assert.Equal("rhs", dag.Arguments[1].Name);
+    }
+
+    [Fact]
     public void ReportsUnexpectedTopLevelTokens()
     {
         var exception = Assert.Throws<TableGenParseException>(() => TableGenDocument.Parse("int Width = 1;"));

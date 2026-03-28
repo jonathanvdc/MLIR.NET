@@ -2,7 +2,7 @@ namespace DialectTests;
 
 using MLIR;
 using MLIR.Dialects;
-using MLIR.Arith;
+using MLIR.Miniarith;
 using Xunit;
 
 public sealed class DialectIntegrationTests
@@ -10,61 +10,50 @@ public sealed class DialectIntegrationTests
     [Fact]
     public void GeneratedDialectRegistrationExposesTypedDefinitions()
     {
-        var dialect = ArithDialectRegistration.Create();
+        var dialect = MiniarithDialectRegistration.Create();
         var registry = new DialectRegistry();
         registry.RegisterDialect(dialect);
 
-        Assert.Equal("arith", dialect.Name);
+        Assert.Equal("miniarith", dialect.Name);
 
-        Assert.True(registry.TryGetOperation("arith.addi", out var operationDefinition));
+        Assert.True(registry.TryGetOperation("miniarith.addi", out var operationDefinition));
         Assert.NotNull(operationDefinition);
         Assert.NotNull(operationDefinition!.AssemblyFormat);
-
-        Assert.True(registry.TryGetAttribute("fastmath", out var attributeDefinition));
-        Assert.NotNull(attributeDefinition);
-
-        Assert.True(registry.TryGetType("i32", out var typeDefinition));
-        Assert.NotNull(typeDefinition);
     }
 
     [Fact]
     public void BindingGenericSyntaxProducesGeneratedOperationAndSemanticMembers()
     {
         var registry = new DialectRegistry();
-        registry.RegisterDialect(ArithDialectRegistration.Create());
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
 
-        var document = Document.Parse("%result = \"arith.addi\"(%lhs, %rhs) {fastmath = #fastmath} : i32");
+        var document = Document.Parse("%result = \"miniarith.addi\"(%lhs, %rhs) : i32");
         var module = document.Bind(registry);
 
-        var operation = Assert.IsType<AddIOperation>(Assert.Single(module.Operations));
-        Assert.Equal("arith.addi", operation.Name);
+        var operation = Assert.IsType<MiniArith_AddIOp>(Assert.Single(module.Operations));
+        Assert.Equal("miniarith.addi", operation.Name);
         Assert.Equal("%lhs", operation.Lhs.Name);
         Assert.Equal("%rhs", operation.Rhs.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
-        Assert.IsType<I32TypeReference>(operation.TypeSignatureReference);
-
-        var attribute = operation.GetAttribute("fastmath");
-        Assert.IsType<FastMathAttributeValue>(attribute.ValueReference);
+        Assert.NotNull(operation.TypeSignatureReference);
     }
 
     [Fact]
     public void GeneratedTypesAreUsableFromNormalRuntimeCode()
     {
-        var dialect = ArithDialectRegistration.Create();
-        var operationType = typeof(AddIOperation);
-        var attributeType = typeof(FastMathAttributeValue);
-        var typeReferenceType = typeof(I32TypeReference);
+        var dialect = MiniarithDialectRegistration.Create();
+        var addType = typeof(MiniArith_AddIOp);
+        var constantType = typeof(MiniArith_ConstantOp);
 
-        Assert.Equal("arith", dialect.Name);
-        Assert.Equal("AddIOperation", operationType.Name);
-        Assert.Equal("FastMathAttributeValue", attributeType.Name);
-        Assert.Equal("I32TypeReference", typeReferenceType.Name);
+        Assert.Equal("miniarith", dialect.Name);
+        Assert.Equal("MiniArith_AddIOp", addType.Name);
+        Assert.Equal("MiniArith_ConstantOp", constantType.Name);
     }
 
     [Fact]
     public void GeneratedDialectCanReadAndWriteDocuments()
     {
-        const string source = "%result = \"arith.addi\"(%lhs, %rhs) {fastmath = #fastmath} : i32";
+        const string source = "%result = \"miniarith.addi\"(%lhs, %rhs) : i32";
 
         var document = Document.Parse(source);
 
@@ -74,10 +63,10 @@ public sealed class DialectIntegrationTests
     [Fact]
     public void GeneratedDialectCanReadAndWriteBoundModules()
     {
-        const string source = "%result = \"arith.addi\"(%lhs, %rhs) {fastmath = #fastmath} : i32";
+        const string source = "%result = \"miniarith.addi\"(%lhs, %rhs) : i32";
 
         var registry = new DialectRegistry();
-        registry.RegisterDialect(ArithDialectRegistration.Create());
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
 
         var module = Document.Parse(source).Bind(registry);
 

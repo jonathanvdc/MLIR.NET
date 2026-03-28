@@ -246,6 +246,32 @@ internal sealed class TableGenParser
             return new TableGenListSyntax(items);
         }
 
+        if (TryMatch(TableGenTokenKind.LParen))
+        {
+            var operatorName = Expect(TableGenTokenKind.Identifier, "Expected a dag operator name.").Text;
+            var arguments = new List<TableGenDagArgumentSyntax>();
+            while (!TryMatch(TableGenTokenKind.RParen))
+            {
+                var value = ParseExpression();
+                string? name = null;
+                if (TryMatch(TableGenTokenKind.Colon))
+                {
+                    TryMatch(TableGenTokenKind.Dollar);
+                    name = Expect(TableGenTokenKind.Identifier, "Expected a dag argument name.").Text;
+                }
+
+                arguments.Add(new TableGenDagArgumentSyntax(value, name));
+                if (TryMatch(TableGenTokenKind.RParen))
+                {
+                    break;
+                }
+
+                Expect(TableGenTokenKind.Comma, "Expected ',' or ')' in the dag argument list.");
+            }
+
+            return new TableGenDagSyntax(operatorName, arguments);
+        }
+
         throw Error("Expected an expression.");
     }
 

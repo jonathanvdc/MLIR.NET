@@ -1,9 +1,8 @@
 using MLIR.Dialects;
-using MLIR.Arith;
+using MLIR.Miniarith;
 
-Dialect dialect = ArithDialectRegistration.Create();
-System.Type operationType = typeof(AddIOperation);
-System.Type attributeType = typeof(FastMathAttributeValue);
-System.Type typeReferenceType = typeof(I32TypeReference);
+Dialect dialect = MiniarithDialectRegistration.Create();
+System.Type addType = typeof(MiniArith_AddIOp);
+System.Type constantType = typeof(MiniArith_ConstantOp);
 
-System.Console.WriteLine($"{dialect.Name}: {operationType.Name}, {attributeType.Name}, {typeReferenceType.Name}");
+System.Console.WriteLine($"{dialect.Name}: {addType.Name}, {constantType.Name}");

@@ -126,6 +126,32 @@ public sealed class TableGenEvaluationTests
     }
 
     [Fact]
+    public void EvaluatesDagExpressionsAndRecordReferences()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> : Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "};\n" +
+            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {\n" +
+            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "};";
+
+        var record = TableGenDocument.Parse(source).Evaluate().Records.Single(static record => record.Name == "MiniArith_AddIOp");
+
+        Assert.Contains("MiniArith_Op", record.BaseClasses);
+        Assert.Contains("Op", record.BaseClasses);
+        Assert.Equal("addi", Assert.IsType<StringValue>(record.GetField("mnemonic")).Value);
+        Assert.Equal("MiniArith_Dialect", Assert.IsType<RecordReferenceValue>(record.GetField("dialect")).RecordName);
+        var traits = Assert.IsType<ListValue>(record.GetField("traits"));
+        Assert.Equal(["Pure", "Commutative"], traits.Items.Cast<SymbolReferenceValue>().Select(static trait => trait.SymbolName).ToArray());
+        var arguments = Assert.IsType<DagValue>(record.GetField("arguments"));
+        Assert.Equal("ins", arguments.OperatorName);
+        Assert.Equal("lhs", arguments.Arguments[0].Name);
+        Assert.Equal("rhs", arguments.Arguments[1].Name);
+    }
+
+    [Fact]
     public void ReportsMissingTemplateArgumentsWhenNoDefaultExists()
     {
         const string source =
@@ -147,10 +173,10 @@ public sealed class TableGenEvaluationTests
     }
 
     [Fact]
-    public void ReportsUnknownIdentifiers()
+    public void ReportsTypeMismatchesForUnknownIdentifiersInTypedFields()
     {
-        var exception = Assert.Throws<KeyNotFoundException>(() => TableGenDocument.Parse("def Example { int Width = missing; };").Evaluate());
+        var exception = Assert.Throws<InvalidOperationException>(() => TableGenDocument.Parse("def Example { int Width = missing; };").Evaluate());
 
-        Assert.Contains("Unknown TableGen identifier 'missing'.", exception.Message);
+        Assert.Contains("Expected an integer value", exception.Message);
     }
 }

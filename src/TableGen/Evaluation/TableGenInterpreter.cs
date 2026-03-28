@@ -23,13 +23,23 @@ public static class TableGenInterpreter
     private sealed class Evaluator
     {
         private readonly Dictionary<string, TableGenClassSyntax> classes;
+        private readonly Dictionary<string, TableGenDefSyntax> definitionsByName;
 
         public Evaluator(TableGenDocumentSyntax document)
         {
             classes = document.Declarations
                 .OfType<TableGenClassSyntax>()
                 .ToDictionary(static c => c.Name, static c => c);
+            foreach (var builtin in CreateBuiltinClasses())
+            {
+                if (!classes.ContainsKey(builtin.Name))
+                {
+                    classes.Add(builtin.Name, builtin);
+                }
+            }
+
             Definitions = document.Declarations.OfType<TableGenDefSyntax>().ToList();
+            definitionsByName = Definitions.ToDictionary(static definition => definition.Name, static definition => definition);
         }
 
         private IReadOnlyList<TableGenDefSyntax> Definitions { get; }
@@ -173,6 +183,7 @@ public static class TableGenInterpreter
                 TableGenStringSyntax str => new StringValue(str.Value),
                 TableGenIdentifierSyntax identifier => ResolveIdentifier(identifier.Name, scope),
                 TableGenListSyntax list => new ListValue(list.Items.Select(item => EvaluateExpression(item, scope)).ToList()),
+                TableGenDagSyntax dag => new DagValue(dag.OperatorName, dag.Arguments.Select(argument => new DagArgumentValue(EvaluateExpression(argument.Value, scope), argument.Name)).ToList()),
                 _ => throw new InvalidOperationException("Unknown TableGen expression."),
             };
         }
@@ -194,15 +205,24 @@ public static class TableGenInterpreter
                 return new BitValue(false);
             }
 
-            throw new KeyNotFoundException($"Unknown TableGen identifier '{name}'.");
+            if (definitionsByName.ContainsKey(name))
+            {
+                return new RecordReferenceValue(name);
+            }
+
+            return new SymbolReferenceValue(name);
         }
 
         private TableGenValue CoerceValue(string typeName, TableGenValue value)
         {
             return typeName switch
             {
+                "int" when value is not IntegerValue => throw new InvalidOperationException($"Expected an integer value for '{typeName}'."),
+                "string" when value is not StringValue => throw new InvalidOperationException($"Expected a string value for '{typeName}'."),
                 "bit" when value is IntegerValue integer => new BitValue(integer.Value != 0),
                 "bit" when value is BitValue => value,
+                "bit" => throw new InvalidOperationException($"Expected a bit value for '{typeName}'."),
+                "dag" when value is not DagValue => throw new InvalidOperationException($"Expected a dag value for '{typeName}'."),
                 _ => value,
             };
         }
@@ -215,6 +235,66 @@ public static class TableGenInterpreter
                 BitValue when replacementValue is BitValue => replacementValue,
                 _ => replacementValue,
             };
+        }
+
+        private static IReadOnlyList<TableGenClassSyntax> CreateBuiltinClasses()
+        {
+            return
+            [
+                new TableGenClassSyntax(
+                    "Dialect",
+                    [],
+                    [],
+                    [
+                        new TableGenFieldSyntax("string", "name", null),
+                        new TableGenFieldSyntax("string", "cppNamespace", null),
+                        new TableGenFieldSyntax("string", "summary", null),
+                        new TableGenFieldSyntax("string", "description", null),
+                        new TableGenFieldSyntax("bit", "hasConstantMaterializer", new TableGenIntegerSyntax(0)),
+                    ]),
+                new TableGenClassSyntax(
+                    "Op",
+                    [
+                        new TableGenTemplateParameterSyntax("Dialect", "dialect", null),
+                        new TableGenTemplateParameterSyntax("string", "mnemonic", null),
+                        new TableGenTemplateParameterSyntax("list<Trait>", "traits", new TableGenListSyntax([])),
+                    ],
+                    [],
+                    [
+                        new TableGenFieldSyntax("Dialect", "dialect", new TableGenIdentifierSyntax("dialect")),
+                        new TableGenFieldSyntax("string", "mnemonic", new TableGenIdentifierSyntax("mnemonic")),
+                        new TableGenFieldSyntax("list<Trait>", "traits", new TableGenIdentifierSyntax("traits")),
+                        new TableGenFieldSyntax("string", "summary", null),
+                        new TableGenFieldSyntax("dag", "arguments", null),
+                        new TableGenFieldSyntax("dag", "results", null),
+                        new TableGenFieldSyntax("string", "assemblyFormat", null),
+                        new TableGenFieldSyntax("string", "cppClassName", null),
+                    ]),
+                new TableGenClassSyntax(
+                    "AttrDef",
+                    [
+                        new TableGenTemplateParameterSyntax("Dialect", "dialect", null),
+                        new TableGenTemplateParameterSyntax("string", "attrName", null),
+                    ],
+                    [],
+                    [
+                        new TableGenFieldSyntax("Dialect", "dialect", new TableGenIdentifierSyntax("dialect")),
+                        new TableGenFieldSyntax("string", "attrName", new TableGenIdentifierSyntax("attrName")),
+                        new TableGenFieldSyntax("string", "cppClassName", null),
+                    ]),
+                new TableGenClassSyntax(
+                    "TypeDef",
+                    [
+                        new TableGenTemplateParameterSyntax("Dialect", "dialect", null),
+                        new TableGenTemplateParameterSyntax("string", "typeName", null),
+                    ],
+                    [],
+                    [
+                        new TableGenFieldSyntax("Dialect", "dialect", new TableGenIdentifierSyntax("dialect")),
+                        new TableGenFieldSyntax("string", "typeName", new TableGenIdentifierSyntax("typeName")),
+                        new TableGenFieldSyntax("string", "cppClassName", null),
+                    ]),
+            ];
         }
     }
 }

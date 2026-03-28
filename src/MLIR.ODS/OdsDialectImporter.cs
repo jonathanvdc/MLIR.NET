@@ -2,7 +2,6 @@ namespace MLIR.ODS;
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using MLIR.ODS.Model;
 using TableGen.Evaluation;
@@ -47,36 +46,41 @@ public static class OdsDialectImporter
             }
 
             if (record.HasBaseClass("Op")
-                && TryGetStringField(record, "dialectName", out var opDialectName)
+                && TryGetDialectName(record, document.Records, out var opDialectName)
                 && TryGetStringField(record, "mnemonic", out var mnemonic))
             {
                 var dialect = GetOrCreateDialect(dialectsByName, opDialectName);
+                var argumentMembers = GetDagMembers(record, "arguments");
+                var resultMembers = GetDagMembers(record, "results");
                 dialect.Operations.Add(
                     new OdsOperationModel(
                         opDialectName + "." + mnemonic,
-                        GetOptionalStringField(record, "cppClassName"),
-                        GetStringListField(record, "operands"),
-                        GetStringListField(record, "results"),
-                        GetStringListField(record, "attributes"),
-                        GetOptionalBitField(record, "hasCustomAssemblyFormat")));
+                        GetOptionalStringField(record, "cppClassName") ?? record.Name,
+                        argumentMembers.Where(static member => member.Kind == DagMemberKind.Operand).Select(static member => member.Name).ToArray(),
+                        resultMembers.Where(static member => member.Kind == DagMemberKind.Result).Select(static member => member.Name).ToArray(),
+                        argumentMembers.Where(static member => member.Kind == DagMemberKind.Attribute).Select(static member => member.Name).ToArray(),
+                        !string.IsNullOrEmpty(GetOptionalStringField(record, "assemblyFormat")),
+                        GetOptionalStringField(record, "summary"),
+                        GetOptionalStringField(record, "assemblyFormat"),
+                        GetStringListField(record, "traits")));
                 continue;
             }
 
             if (record.HasBaseClass("AttrDef")
-                && TryGetStringField(record, "dialectName", out var attrDialectName)
+                && TryGetDialectName(record, document.Records, out var attrDialectName)
                 && TryGetStringField(record, "attrName", out var attributeName))
             {
                 var dialect = GetOrCreateDialect(dialectsByName, attrDialectName);
-                dialect.Attributes.Add(new OdsAttributeModel(attributeName, GetOptionalStringField(record, "cppClassName")));
+                dialect.Attributes.Add(new OdsAttributeModel(attributeName, GetOptionalStringField(record, "cppClassName") ?? record.Name));
                 continue;
             }
 
             if (record.HasBaseClass("TypeDef")
-                && TryGetStringField(record, "dialectName", out var typeDialectName)
+                && TryGetDialectName(record, document.Records, out var typeDialectName)
                 && TryGetStringField(record, "typeName", out var typeName))
             {
                 var dialect = GetOrCreateDialect(dialectsByName, typeDialectName);
-                dialect.Types.Add(new OdsTypeModel(typeName, GetOptionalStringField(record, "cppClassName")));
+                dialect.Types.Add(new OdsTypeModel(typeName, GetOptionalStringField(record, "cppClassName") ?? record.Name));
             }
         }
 
@@ -113,9 +117,18 @@ public static class OdsDialectImporter
 
     private static string? GetOptionalStringField(TableGenRecord record, string fieldName)
     {
-        return record.Fields.TryGetValue(fieldName, out var field) && field is StringValue stringValue
-            ? stringValue.Value
-            : null;
+        if (!record.Fields.TryGetValue(fieldName, out var field))
+        {
+            return null;
+        }
+
+        return field switch
+        {
+            StringValue stringValue => stringValue.Value,
+            SymbolReferenceValue symbol => symbol.SymbolName,
+            RecordReferenceValue recordReference => recordReference.RecordName,
+            _ => null,
+        };
     }
 
     private static IReadOnlyList<string> GetStringListField(TableGenRecord record, string fieldName)
@@ -128,13 +141,94 @@ public static class OdsDialectImporter
         var values = new List<string>(list.Items.Count);
         foreach (var item in list.Items)
         {
-            if (item is StringValue stringValue)
+            switch (item)
             {
-                values.Add(stringValue.Value);
+                case StringValue stringValue:
+                    values.Add(stringValue.Value);
+                    break;
+                case SymbolReferenceValue symbol:
+                    values.Add(symbol.SymbolName);
+                    break;
+                case RecordReferenceValue recordReference:
+                    values.Add(recordReference.RecordName);
+                    break;
             }
         }
 
         return values;
+    }
+
+    private static bool TryGetDialectName(TableGenRecord record, IReadOnlyList<TableGenRecord> allRecords, out string dialectName)
+    {
+        if (!record.Fields.TryGetValue("dialect", out var dialectField))
+        {
+            dialectName = string.Empty;
+            return false;
+        }
+
+        if (dialectField is RecordReferenceValue recordReference)
+        {
+            var dialectRecord = allRecords.FirstOrDefault(candidate => candidate.Name == recordReference.RecordName);
+            if (dialectRecord != null && TryGetStringField(dialectRecord, "name", out dialectName))
+            {
+                return true;
+            }
+        }
+
+        if (dialectField is StringValue stringValue)
+        {
+            dialectName = stringValue.Value;
+            return true;
+        }
+
+        dialectName = string.Empty;
+        return false;
+    }
+
+    private static IReadOnlyList<DagMember> GetDagMembers(TableGenRecord record, string fieldName)
+    {
+        if (!record.Fields.TryGetValue(fieldName, out var field) || field is not DagValue dag)
+        {
+            return EmptyDagMembers;
+        }
+
+        var kind = dag.OperatorName switch
+        {
+            "ins" => DagMemberKind.Operand,
+            "outs" => DagMemberKind.Result,
+            _ => DagMemberKind.Operand,
+        };
+
+        var members = new List<DagMember>(dag.Arguments.Count);
+        foreach (var argument in dag.Arguments)
+        {
+            if (argument.Name == null)
+            {
+                continue;
+            }
+
+            var constraintName = GetConstraintName(argument.Value);
+            var memberKind = kind;
+            if (kind == DagMemberKind.Operand && constraintName != null && constraintName.EndsWith("Attr", StringComparison.Ordinal))
+            {
+                memberKind = DagMemberKind.Attribute;
+            }
+
+            members.Add(new DagMember(argument.Name, constraintName, memberKind));
+        }
+
+        return members;
+    }
+
+    private static string? GetConstraintName(TableGenValue value)
+    {
+        return value switch
+        {
+            SymbolReferenceValue symbol => symbol.SymbolName,
+            RecordReferenceValue record => record.RecordName,
+            StringValue str => str.Value,
+            _ => null,
+        };
     }
 
     private static bool GetOptionalBitField(TableGenRecord record, string fieldName)
@@ -175,4 +269,28 @@ public static class OdsDialectImporter
     }
 
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];
+    private static readonly IReadOnlyList<DagMember> EmptyDagMembers = new DagMember[0];
+
+    private readonly struct DagMember
+    {
+        public DagMember(string name, string? constraintName, DagMemberKind kind)
+        {
+            Name = name;
+            ConstraintName = constraintName;
+            Kind = kind;
+        }
+
+        public string Name { get; }
+
+        public string? ConstraintName { get; }
+
+        public DagMemberKind Kind { get; }
+    }
+
+    private enum DagMemberKind
+    {
+        Operand,
+        Result,
+        Attribute,
+    }
 }
