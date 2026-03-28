@@ -7,46 +7,38 @@ using System.Collections.Generic;
 /// Represents a delimited separated list of syntax items.
 /// </summary>
 /// <typeparam name="T">The item type.</typeparam>
-public sealed class DelimitedSyntaxList<T> : IReadOnlyList<T>
+/// <remarks>
+/// Initializes a new instance of the <see cref="DelimitedSyntaxList{T}"/> class.
+/// </remarks>
+/// <param name="openToken">The opening delimiter token.</param>
+/// <param name="items">The list items.</param>
+/// <param name="separatorTokens">The separator tokens between items.</param>
+/// <param name="closeToken">The closing delimiter token.</param>
+public sealed class DelimitedSyntaxList<T>(
+    SyntaxToken? openToken,
+    IReadOnlyList<T> items,
+    IReadOnlyList<SyntaxToken> separatorTokens,
+    SyntaxToken? closeToken) : IReadOnlyList<T>
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DelimitedSyntaxList{T}"/> class.
-    /// </summary>
-    /// <param name="openToken">The opening delimiter token.</param>
-    /// <param name="items">The list items.</param>
-    /// <param name="separatorTokens">The separator tokens between items.</param>
-    /// <param name="closeToken">The closing delimiter token.</param>
-    public DelimitedSyntaxList(
-        SyntaxToken? openToken,
-        IReadOnlyList<T> items,
-        IReadOnlyList<SyntaxToken> separatorTokens,
-        SyntaxToken? closeToken)
-    {
-        OpenToken = openToken;
-        Items = items;
-        SeparatorTokens = separatorTokens;
-        CloseToken = closeToken;
-    }
-
     /// <summary>
     /// Gets the opening delimiter token.
     /// </summary>
-    public SyntaxToken? OpenToken { get; }
+    public SyntaxToken? OpenToken { get; } = openToken;
 
     /// <summary>
     /// Gets the list items.
     /// </summary>
-    public IReadOnlyList<T> Items { get; }
+    public IReadOnlyList<T> Items { get; } = items;
 
     /// <summary>
     /// Gets the separator tokens between items.
     /// </summary>
-    public IReadOnlyList<SyntaxToken> SeparatorTokens { get; }
+    public IReadOnlyList<SyntaxToken> SeparatorTokens { get; } = separatorTokens;
 
     /// <summary>
     /// Gets the closing delimiter token.
     /// </summary>
-    public SyntaxToken? CloseToken { get; }
+    public SyntaxToken? CloseToken { get; } = closeToken;
 
     /// <summary>
     /// Gets the number of items in the list.

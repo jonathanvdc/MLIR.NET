@@ -3,35 +3,28 @@ namespace MLIR.Text;
 /// <summary>
 /// Describes a parser diagnostic at a specific source location.
 /// </summary>
-public sealed class MlirDiagnostic
+/// <remarks>
+/// Initializes a new instance of the <see cref="MlirDiagnostic"/> class.
+/// </remarks>
+/// <param name="message">The diagnostic message.</param>
+/// <param name="line">The 1-based source line.</param>
+/// <param name="column">The 1-based source column.</param>
+public sealed class MlirDiagnostic(string message, int line, int column)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MlirDiagnostic"/> class.
-    /// </summary>
-    /// <param name="message">The diagnostic message.</param>
-    /// <param name="line">The 1-based source line.</param>
-    /// <param name="column">The 1-based source column.</param>
-    public MlirDiagnostic(string message, int line, int column)
-    {
-        Message = message;
-        Line = line;
-        Column = column;
-    }
-
     /// <summary>
     /// Gets the diagnostic message.
     /// </summary>
-    public string Message { get; }
+    public string Message { get; } = message;
 
     /// <summary>
     /// Gets the 1-based source line.
     /// </summary>
-    public int Line { get; }
+    public int Line { get; } = line;
 
     /// <summary>
     /// Gets the 1-based source column.
     /// </summary>
-    public int Column { get; }
+    public int Column { get; } = column;
 
     /// <summary>
     /// Formats the diagnostic as a human-readable string.

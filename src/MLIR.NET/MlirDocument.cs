@@ -6,21 +6,16 @@ using MLIR.Text;
 /// <summary>
 /// Represents a parsed MLIR document and provides entry points for text conversion.
 /// </summary>
-public sealed class MlirDocument
+/// <remarks>
+/// Initializes a new instance of the <see cref="MlirDocument"/> class.
+/// </remarks>
+/// <param name="module">The root module syntax.</param>
+public sealed class MlirDocument(ModuleSyntax module)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MlirDocument"/> class.
-    /// </summary>
-    /// <param name="module">The root module syntax.</param>
-    public MlirDocument(ModuleSyntax module)
-    {
-        Module = module;
-    }
-
     /// <summary>
     /// Gets the root module syntax.
     /// </summary>
-    public ModuleSyntax Module { get; }
+    public ModuleSyntax Module { get; } = module;
 
     /// <summary>
     /// Parses MLIR text into a document.

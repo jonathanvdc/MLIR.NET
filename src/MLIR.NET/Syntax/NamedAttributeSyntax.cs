@@ -3,7 +3,13 @@ namespace MLIR.Syntax;
 /// <summary>
 /// Represents a named attribute entry in an operation attribute dictionary.
 /// </summary>
-public sealed class NamedAttributeSyntax
+/// <remarks>
+/// Initializes a new instance of the <see cref="NamedAttributeSyntax"/> class.
+/// </remarks>
+/// <param name="nameToken">The attribute name token.</param>
+/// <param name="equalsToken">The equals token.</param>
+/// <param name="value">The raw attribute value text.</param>
+public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equalsToken, RawSyntaxText value)
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="NamedAttributeSyntax"/> class.
@@ -16,27 +22,14 @@ public sealed class NamedAttributeSyntax
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="NamedAttributeSyntax"/> class.
-    /// </summary>
-    /// <param name="nameToken">The attribute name token.</param>
-    /// <param name="equalsToken">The equals token.</param>
-    /// <param name="value">The raw attribute value text.</param>
-    public NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equalsToken, RawSyntaxText value)
-    {
-        NameToken = nameToken;
-        EqualsToken = equalsToken;
-        Value = value;
-    }
-
-    /// <summary>
     /// Gets the attribute name token.
     /// </summary>
-    public SyntaxToken NameToken { get; }
+    public SyntaxToken NameToken { get; } = nameToken;
 
     /// <summary>
     /// Gets the equals token.
     /// </summary>
-    public SyntaxToken EqualsToken { get; }
+    public SyntaxToken EqualsToken { get; } = equalsToken;
 
     /// <summary>
     /// Gets the attribute name.
@@ -46,5 +39,5 @@ public sealed class NamedAttributeSyntax
     /// <summary>
     /// Gets the raw attribute value text.
     /// </summary>
-    public RawSyntaxText Value { get; }
+    public RawSyntaxText Value { get; } = value;
 }
