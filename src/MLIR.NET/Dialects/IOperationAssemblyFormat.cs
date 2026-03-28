@@ -1,11 +1,12 @@
 namespace MLIR.Dialects;
 
 using MLIR.Semantics;
-using MLIR.Text;
 using MLIR.Syntax;
+using MLIR.Text;
+using MLIR.Transforms;
 
 /// <summary>
-/// Parses, binds, and prints a dialect-specific operation assembly format.
+/// Parses, binds, and rewrites a dialect-specific operation assembly format.
 /// </summary>
 /// <remarks>
 /// Generic operation syntax and custom operation bodies both preserve source text.
@@ -40,9 +41,10 @@ public interface IOperationAssemblyFormat
     void Bind(Operation operation, OperationAssemblyBindingContext context);
 
     /// <summary>
-    /// Prints the supplied operation.
+    /// Rewrites the supplied operation into custom concrete syntax.
     /// </summary>
-    /// <param name="operation">The operation to print.</param>
-    /// <param name="context">The printing context.</param>
-    void Print(Operation operation, OperationPrintingContext context);
+    /// <param name="operation">The operation to rewrite.</param>
+    /// <param name="context">The CST transformation context.</param>
+    /// <returns>The rewritten operation syntax.</returns>
+    OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context);
 }

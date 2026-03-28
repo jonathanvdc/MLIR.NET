@@ -5,6 +5,7 @@ using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Text;
+using MLIR.Transforms;
 using Xunit;
 
 public sealed class SemanticTests
@@ -101,28 +102,17 @@ public sealed class SemanticTests
             }
         }
 
-        public void Print(Operation operation, OperationPrintingContext context)
+        public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
         {
-            context.WriteOperationPrefix();
-
-            if (operation.Results.Count > 0)
-            {
-                context.Write(string.Join(", ", operation.Results));
-                context.Write(" = ");
-            }
-
-            context.Write(operation.Name);
-            if (operation.Attributes.Count > 0)
-            {
-                context.Write(" ");
-                context.Write(operation.Attributes[0].Value.Text);
-            }
-
-            if (operation.TypeSignature != null)
-            {
-                context.Write(" : ");
-                context.Write(operation.TypeSignature.Text);
-            }
+            var genericBody = context.TransformGenericBody(operation);
+            var body = new PrefixConstantBodySyntax(
+                operation.HasAttribute("value") ? operation.GetAttribute("value").Value : new RawSyntaxText(string.Empty),
+                genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
+                operation.TypeSignature ?? new RawSyntaxText(string.Empty),
+                genericBody.Attributes);
+            var sourceNameToken = operation.Syntax.NameToken;
+            var rewrittenNameToken = new SyntaxToken(operation.Name, sourceNameToken.LeadingTrivia, sourceNameToken.Line, sourceNameToken.Column);
+            return context.RewriteOperation(operation, body, rewrittenNameToken);
         }
     }
 
