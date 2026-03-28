@@ -1,6 +1,6 @@
 namespace MLIR.Tests;
 
-using System.Collections.Generic;
+using MLIR.Construction;
 using MLIR.Syntax;
 using MLIR.Text;
 using Xunit;
@@ -142,12 +142,11 @@ public sealed class MlirParserTests
     {
         var block = new BlockSyntax(
             "^bb0",
-            new List<BlockArgumentSyntax>
-            {
+            [
                 new("%arg0", new RawSyntaxText("i32")),
                 new("%arg1", new RawSyntaxText("i64")),
-            },
-            new List<OperationSyntax>());
+            ],
+            []);
 
         var names = new List<string>();
         foreach (var argument in block.Arguments)
@@ -159,6 +158,20 @@ public sealed class MlirParserTests
         Assert.Equal("(", block.Arguments.OpenToken!.Text);
         Assert.Equal(")", block.Arguments.CloseToken!.Text);
         Assert.Single(block.Arguments.SeparatorTokens);
+    }
+
+    [Fact]
+    public void FactoryHelpersQuoteOperationNamesAndBuildAttributes()
+    {
+        var module = MlirFactory.Module(
+            MlirFactory.Op(
+                name: "arith.constant",
+                attributes: [MlirFactory.Attr("value", "0 : i32")],
+                type: "() -> i32"));
+
+        var text = MlirPrinter.Print(module);
+
+        Assert.Equal("\"arith.constant\"() {value = 0 : i32} : () -> i32", text);
     }
 
     [Fact]
@@ -177,46 +190,30 @@ public sealed class MlirParserTests
     [Fact]
     public void FormatsProgrammaticallyGeneratedModuleWhenTriviaIsAbsent()
     {
-        var module = new MlirModuleSyntax(
-            new List<OperationSyntax>
-            {
-                new(
-                    new List<string> { "%sum" },
-                    "\"arith.addi\"",
-                    new List<string> { "%lhs", "%rhs" },
-                    new List<string>(),
-                    new List<RegionSyntax>(),
-                    new List<NamedAttributeSyntax>(),
-                    new RawSyntaxText("(i32, i32) -> i32")),
-                new(
-                    new List<string>(),
-                    "\"scf.if\"",
-                    new List<string> { "%cond" },
-                    new List<string>(),
-                    new List<RegionSyntax>
-                    {
-                        new(
-                            new List<BlockSyntax>
-                            {
-                                new(
-                                    "^bb0",
-                                    new List<BlockArgumentSyntax> { new("%arg0", new RawSyntaxText("i32")) },
-                                    new List<OperationSyntax>
-                                    {
-                                        new(
-                                            new List<string>(),
-                                            "\"func.return\"",
-                                            new List<string> { "%arg0" },
-                                            new List<string>(),
-                                            new List<RegionSyntax>(),
-                                            new List<NamedAttributeSyntax>(),
-                                            new RawSyntaxText("(i32) -> ()"))
-                                    })
-                            })
-                    },
-                    new List<NamedAttributeSyntax>(),
-                    new RawSyntaxText("(i1) -> ()"))
-            });
+        var module = MlirFactory.Module(
+            MlirFactory.Op(
+                name: "arith.addi",
+                results: ["%sum"],
+                operands: ["%lhs", "%rhs"],
+                type: "(i32, i32) -> i32"),
+            MlirFactory.Op(
+                name: "scf.if",
+                operands: ["%cond"],
+                regions:
+                [
+                    MlirFactory.Region(
+                        MlirFactory.Block(
+                            "^bb0",
+                            args: [MlirFactory.Arg("%arg0", "i32")],
+                            ops:
+                            [
+                                MlirFactory.Op(
+                                    name: "func.return",
+                                    operands: ["%arg0"],
+                                    type: "(i32) -> ()")
+                            ]))
+                ],
+                type: "(i1) -> ()"));
 
         var text = MlirPrinter.Print(module);
 
