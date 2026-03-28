@@ -19,6 +19,7 @@ public static class OdsDialectImporter
     /// The currently supported subset is convention-based rather than full MLIR ODS. Records are
     /// grouped by a required <c>DialectName</c> string field, and may describe one of:
     /// <list type="bullet">
+    /// <item><description>a dialect definition with optional <c>DialectClassName</c></description></item>
     /// <item><description>an operation with <c>OperationName</c>, optional <c>ClassName</c>, optional <c>Operands</c>/<c>Results</c>/<c>Attributes</c> string lists, and optional <c>HasCustomAssemblyFormat</c> bit</description></item>
     /// <item><description>an attribute with <c>AttributeName</c> and optional <c>ClassName</c></description></item>
     /// <item><description>a type with <c>TypeName</c> and optional <c>ClassName</c></description></item>
@@ -39,6 +40,17 @@ public static class OdsDialectImporter
             {
                 dialect = new MutableDialectModel(dialectName);
                 dialectsByName.Add(dialectName, dialect);
+            }
+
+            if (!HasMemberDefinition(record))
+            {
+                var dialectClassName = GetOptionalStringField(record, "DialectClassName");
+                if (dialectClassName != null)
+                {
+                    dialect.ClassName = dialectClassName;
+                }
+
+                continue;
             }
 
             if (TryGetStringField(record, "OperationName", out var operationName))
@@ -70,6 +82,13 @@ public static class OdsDialectImporter
             .Select(static dialect => dialect.ToImmutable())
             .OrderBy(static dialect => dialect.Name, StringComparer.Ordinal)
             .ToArray();
+    }
+
+    private static bool HasMemberDefinition(TableGenRecord record)
+    {
+        return record.Fields.ContainsKey("OperationName")
+            || record.Fields.ContainsKey("AttributeName")
+            || record.Fields.ContainsKey("TypeName");
     }
 
     private static bool TryGetStringField(TableGenRecord record, string fieldName, out string value)
@@ -133,13 +152,14 @@ public static class OdsDialectImporter
         }
 
         public string Name { get; }
+        public string? ClassName { get; set; }
         public List<OdsOperationModel> Operations { get; } = new List<OdsOperationModel>();
         public List<OdsAttributeModel> Attributes { get; } = new List<OdsAttributeModel>();
         public List<OdsTypeModel> Types { get; } = new List<OdsTypeModel>();
 
         public OdsDialectModel ToImmutable()
         {
-            return new OdsDialectModel(Name, Operations, Attributes, Types);
+            return new OdsDialectModel(Name, ClassName, Operations, Attributes, Types);
         }
     }
 

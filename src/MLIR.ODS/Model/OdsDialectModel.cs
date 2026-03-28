@@ -12,11 +12,13 @@ public sealed class OdsDialectModel
     /// </summary>
     public OdsDialectModel(
         string name,
+        string? className = null,
         IReadOnlyList<OdsOperationModel>? operations = null,
         IReadOnlyList<OdsAttributeModel>? attributes = null,
         IReadOnlyList<OdsTypeModel>? types = null)
     {
         Name = name;
+        ClassName = className;
         Operations = operations ?? EmptyOperations;
         Attributes = attributes ?? EmptyAttributes;
         Types = types ?? EmptyTypes;
@@ -26,6 +28,11 @@ public sealed class OdsDialectModel
     /// Gets the canonical dialect namespace.
     /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// Gets the generated registration class name, if the dialect definition specified one.
+    /// </summary>
+    public string? ClassName { get; }
 
     /// <summary>
     /// Gets the operation descriptions defined by the dialect.

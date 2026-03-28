@@ -1,3 +1,8 @@
+def ArithDialect {
+  string DialectName = "arith";
+  string DialectClassName = "ArithDialectRegistration";
+};
+
 def AddI {
   string DialectName = "arith";
   string OperationName = "arith.addi";

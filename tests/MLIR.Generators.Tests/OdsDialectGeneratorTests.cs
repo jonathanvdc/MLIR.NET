@@ -10,6 +10,10 @@ public sealed class OdsDialectGeneratorTests
     public void GeneratesDialectRegistrationTypedNodesAndCustomAssemblyStubs()
     {
         const string source =
+            "def ArithDialect {\n" +
+            "  string DialectName = \"arith\";\n" +
+            "  string DialectClassName = \"ArithDialectRegistration\";\n" +
+            "};\n" +
             "def AddI {\n" +
             "  string DialectName = \"arith\";\n" +
             "  string OperationName = \"arith.addi\";\n" +

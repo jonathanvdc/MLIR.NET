@@ -11,14 +11,16 @@ internal static class OdsDialectGeneratorModel
         var operations = new List<OdsOperationModel>();
         var attributes = new List<OdsAttributeModel>();
         var types = new List<OdsTypeModel>();
+        string? className = null;
 
         foreach (var dialect in group)
         {
+            className ??= dialect.ClassName;
             operations.AddRange(dialect.Operations);
             attributes.AddRange(dialect.Attributes);
             types.AddRange(dialect.Types);
         }
 
-        return new OdsDialectModel(group.Key, operations, attributes, types);
+        return new OdsDialectModel(group.Key, className, operations, attributes, types);
     }
 }

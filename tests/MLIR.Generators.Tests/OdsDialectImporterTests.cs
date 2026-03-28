@@ -11,6 +11,10 @@ public sealed class OdsDialectImporterTests
     public void ImportsConventionBasedDialectOperationAttributeAndTypeRecords()
     {
         const string source =
+            "def ArithDialect {\n" +
+            "  string DialectName = \"arith\";\n" +
+            "  string DialectClassName = \"ArithDialectRegistration\";\n" +
+            "};\n" +
             "def ArithDialectOp {\n" +
             "  string DialectName = \"arith\";\n" +
             "  string OperationName = \"arith.addi\";\n" +
@@ -37,6 +41,7 @@ public sealed class OdsDialectImporterTests
         var op = Assert.Single(arith.Operations);
         var attribute = Assert.Single(arith.Attributes);
 
+        Assert.Equal("ArithDialectRegistration", arith.ClassName);
         Assert.Equal("arith.addi", op.Name);
         Assert.Equal("AddIOperation", op.ClassName);
         Assert.Equal(["lhs", "rhs"], op.Operands);
@@ -47,6 +52,7 @@ public sealed class OdsDialectImporterTests
         Assert.Equal("FastMathAttributeValue", attribute.ClassName);
 
         var builtin = Assert.Single(dialects, static dialect => dialect.Name == "builtin");
+        Assert.Null(builtin.ClassName);
         var type = Assert.Single(builtin.Types);
         Assert.Equal("i32", type.Name);
         Assert.Equal("I32TypeReference", type.ClassName);

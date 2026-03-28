@@ -17,7 +17,7 @@ internal static class OdsDialectGeneratorNaming
 
     public static string GetDialectRegistrationClassName(OdsDialectModel dialect)
     {
-        return ToPascalCase(dialect.Name) + "DialectRegistration";
+        return dialect.ClassName ?? ToPascalCase(dialect.Name) + "DialectRegistration";
     }
 
     public static string GetOperationClassName(OdsOperationModel operation)
