@@ -1,6 +1,8 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
+using System;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a single block within an MLIR region.
@@ -69,6 +71,46 @@ public sealed class BlockSyntax
     /// Gets the block label, including the leading <c>^</c>.
     /// </summary>
     public string Label => LabelToken.Text;
+
+    internal void WriteTo(
+        SyntaxWriter writer,
+        int regionIndentLevel,
+        Action<SyntaxWriter, OperationSyntax, int, string> writeOperation)
+    {
+        // Synthetic entry blocks are a parser implementation detail. Omit their labels when
+        // printing unless the block carries arguments that require an explicit header.
+        var blockHasExplicitLabel = Label != "^entry" || Arguments.Count > 0;
+        var blockIndentLevel = regionIndentLevel + 1;
+
+        if (blockHasExplicitLabel)
+        {
+            writer.WriteToken(LabelToken, "\n", blockIndentLevel);
+
+            if (Arguments.OpenToken != null)
+            {
+                writer.WriteToken(Arguments.OpenToken.Value, string.Empty);
+                for (var i = 0; i < Arguments.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        writer.WriteToken(Arguments.SeparatorTokens[i - 1], string.Empty);
+                    }
+
+                    Arguments[i].WriteTo(writer, i > 0 ? " " : string.Empty);
+                }
+
+                writer.WriteToken(Arguments.CloseToken!.Value, string.Empty);
+            }
+
+            writer.WriteToken(ColonToken, string.Empty);
+        }
+
+        var operationIndentLevel = blockHasExplicitLabel ? regionIndentLevel + 2 : regionIndentLevel + 1;
+        foreach (var operation in Operations)
+        {
+            writeOperation(writer, operation, operationIndentLevel, "\n");
+        }
+    }
 
     private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)
     {

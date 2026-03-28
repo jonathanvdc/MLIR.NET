@@ -1,6 +1,8 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
+using System;
+using MLIR.Text;
 
 /// <summary>
 /// Represents an MLIR operation.
@@ -218,6 +220,35 @@ public sealed class OperationSyntax
     /// Gets a value indicating whether the operation uses a custom assembly body.
     /// </summary>
     public bool HasCustomAssemblyBody => Body is not GenericOperationBodySyntax;
+
+    internal void WriteTo(
+        SyntaxWriter writer,
+        int indentLevel,
+        string defaultLeadingTrivia,
+        Action<SyntaxWriter, RegionSyntax, int> writeRegion)
+    {
+        if (ResultTokens.Count > 0)
+        {
+            for (var i = 0; i < ResultTokens.Count; i++)
+            {
+                if (i > 0)
+                {
+                    writer.WriteToken(ResultCommaTokens[i - 1], string.Empty);
+                }
+
+                writer.WriteToken(ResultTokens[i], i > 0 ? " " : defaultLeadingTrivia, i == 0 ? indentLevel : null);
+            }
+
+            writer.WriteToken(EqualsToken!.Value, " ");
+            writer.WriteToken(NameToken, " ");
+        }
+        else
+        {
+            writer.WriteToken(NameToken, defaultLeadingTrivia, indentLevel);
+        }
+
+        Body.WriteTo(writer, indentLevel, writeRegion);
+    }
 
     private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)
     {

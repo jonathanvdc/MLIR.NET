@@ -1,6 +1,5 @@
 namespace MLIR.Text;
 
-using System.Text;
 using MLIR.Semantics;
 using MLIR.Syntax;
 
@@ -10,12 +9,12 @@ using MLIR.Syntax;
 public sealed class OperationPrintingContext
 {
     private readonly SemanticPrinter printer;
-    private readonly StringBuilder builder;
+    private readonly SyntaxWriter writer;
 
-    internal OperationPrintingContext(SemanticPrinter printer, StringBuilder builder, int indentLevel, string defaultLeadingTrivia)
+    internal OperationPrintingContext(SemanticPrinter printer, SyntaxWriter writer, int indentLevel, string defaultLeadingTrivia)
     {
         this.printer = printer;
-        this.builder = builder;
+        this.writer = writer;
         IndentLevel = indentLevel;
         DefaultLeadingTrivia = defaultLeadingTrivia;
     }
@@ -35,8 +34,8 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void WriteOperationPrefix()
     {
-        builder.Append(DefaultLeadingTrivia);
-        PrintWriter.AppendIndent(builder, IndentLevel);
+        writer.Write(DefaultLeadingTrivia);
+        writer.WriteIndent(IndentLevel);
     }
 
     /// <summary>
@@ -44,7 +43,7 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void Write(string text)
     {
-        builder.Append(text);
+        writer.Write(text);
     }
 
     /// <summary>
@@ -52,7 +51,7 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void WriteToken(SyntaxToken token, string defaultLeadingTrivia, int? indentLevel = null)
     {
-        PrintWriter.AppendToken(builder, token, defaultLeadingTrivia, indentLevel);
+        writer.WriteToken(token, defaultLeadingTrivia, indentLevel);
     }
 
     /// <summary>
@@ -60,7 +59,7 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void WriteRaw(RawSyntaxText rawText, string defaultLeadingTrivia)
     {
-        PrintWriter.AppendRaw(builder, rawText, defaultLeadingTrivia);
+        writer.WriteRaw(rawText, defaultLeadingTrivia);
     }
 
     /// <summary>
@@ -68,7 +67,7 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void PrintRegion(Region region)
     {
-        printer.AppendRegion(builder, region, IndentLevel);
+        printer.AppendRegion(writer, region, IndentLevel);
     }
 
     /// <summary>
@@ -76,6 +75,6 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void PrintGenericOperation(Operation operation)
     {
-        printer.AppendGenericOperation(builder, operation, IndentLevel, DefaultLeadingTrivia);
+        printer.AppendGenericOperation(writer, operation, IndentLevel, DefaultLeadingTrivia);
     }
 }

@@ -1,7 +1,5 @@
 namespace MLIR.Syntax;
 
-using MLIR.Text;
-
 /// <summary>
 /// Represents the syntax of an attribute value.
 /// </summary>
@@ -26,7 +24,7 @@ public abstract class AttributeValueSyntax
     }
 
     /// <summary>
-    /// Prints the attribute value.
+    /// Writes the attribute value to the supplied syntax writer.
     /// </summary>
-    public abstract void Print(SyntaxFragmentPrintingContext context);
+    public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
 }

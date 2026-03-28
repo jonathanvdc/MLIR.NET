@@ -1,0 +1,132 @@
+namespace MLIR.Text;
+
+using System;
+using System.Text;
+using MLIR.Syntax;
+
+/// <summary>
+/// Provides token-aware, trivia-preserving writing services for MLIR syntax nodes.
+/// </summary>
+public sealed class SyntaxWriter
+{
+    private readonly StringBuilder builder;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SyntaxWriter"/> class.
+    /// </summary>
+    public SyntaxWriter()
+        : this(new StringBuilder())
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SyntaxWriter"/> class.
+    /// </summary>
+    /// <param name="builder">The underlying text builder to append to.</param>
+    public SyntaxWriter(StringBuilder builder)
+    {
+        this.builder = builder;
+    }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// Appends raw text directly to the output.
+    /// </summary>
+    /// <param name="text">The text to append.</param>
+    public void Write(string text)
+    {
+        builder.Append(text);
+    }
+
+    /// <summary>
+    /// Writes a full module syntax tree.
+    /// </summary>
+    /// <param name="module">The module to write.</param>
+    public void WriteModule(ModuleSyntax module)
+    {
+        module.WriteTo(this);
+    }
+
+    /// <summary>
+    /// Writes an operation syntax node.
+    /// </summary>
+    /// <param name="operation">The operation to write.</param>
+    /// <param name="indentLevel">The indentation level to use when indentation is synthesized.</param>
+    /// <param name="defaultLeadingTrivia">The fallback leading trivia to use when syntax does not carry explicit trivia.</param>
+    public void WriteOperation(OperationSyntax operation, int indentLevel, string defaultLeadingTrivia)
+    {
+        operation.WriteTo(this, indentLevel, defaultLeadingTrivia, static (writer, region, innerIndentLevel) =>
+            writer.WriteRegion(region, innerIndentLevel));
+    }
+
+    /// <summary>
+    /// Writes a region syntax node.
+    /// </summary>
+    /// <param name="region">The region to write.</param>
+    /// <param name="indentLevel">The indentation level of the containing operation.</param>
+    public void WriteRegion(RegionSyntax region, int indentLevel)
+    {
+        region.WriteTo(this, indentLevel, static (writer, operation, operationIndentLevel, operationLeadingTrivia) =>
+            writer.WriteOperation(operation, operationIndentLevel, operationLeadingTrivia));
+    }
+
+    /// <summary>
+    /// Writes a block syntax node.
+    /// </summary>
+    /// <param name="block">The block to write.</param>
+    /// <param name="regionIndentLevel">The indentation level of the containing region.</param>
+    public void WriteBlock(BlockSyntax block, int regionIndentLevel)
+    {
+        block.WriteTo(this, regionIndentLevel, static (writer, operation, operationIndentLevel, operationLeadingTrivia) =>
+            writer.WriteOperation(operation, operationIndentLevel, operationLeadingTrivia));
+    }
+
+    /// <summary>
+    /// Writes a token using its preserved trivia when present, or synthesized trivia otherwise.
+    /// </summary>
+    /// <param name="token">The token to write.</param>
+    /// <param name="defaultLeadingTrivia">The fallback leading trivia.</param>
+    /// <param name="indentLevel">The indentation level to apply when trivia is synthesized.</param>
+    public void WriteToken(SyntaxToken token, string defaultLeadingTrivia, int? indentLevel = null)
+    {
+        if (token.LeadingTrivia.Length > 0)
+        {
+            builder.Append(token.LeadingTrivia);
+            builder.Append(token.Text);
+            return;
+        }
+
+        builder.Append(defaultLeadingTrivia);
+        if (indentLevel.HasValue)
+        {
+            WriteIndent(indentLevel.Value);
+        }
+
+        builder.Append(token.Text);
+    }
+
+    /// <summary>
+    /// Writes preserved raw syntax text.
+    /// </summary>
+    /// <param name="rawText">The raw syntax text to write.</param>
+    /// <param name="defaultLeadingTrivia">The fallback leading trivia.</param>
+    public void WriteRaw(RawSyntaxText rawText, string defaultLeadingTrivia)
+    {
+        builder.Append(rawText.HasLeadingTrivia ? rawText.LeadingTrivia : defaultLeadingTrivia);
+        builder.Append(rawText.Text);
+    }
+
+    /// <summary>
+    /// Writes indentation using the library's standard two-space indent width.
+    /// </summary>
+    /// <param name="indentLevel">The indentation level to write.</param>
+    public void WriteIndent(int indentLevel)
+    {
+        builder.Append(' ', indentLevel * 2);
+    }
+}

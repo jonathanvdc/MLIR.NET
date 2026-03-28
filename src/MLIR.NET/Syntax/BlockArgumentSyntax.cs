@@ -1,5 +1,7 @@
 namespace MLIR.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a block argument in a region block header.
 /// </summary>
@@ -53,4 +55,11 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     /// Gets the declared type as raw syntax text.
     /// </summary>
     public RawSyntaxText RawType => TypeSyntax.GetRawText();
+
+    internal void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+    {
+        writer.WriteToken(NameToken, defaultLeadingTrivia);
+        writer.WriteToken(ColonToken, string.Empty);
+        TypeSyntax.WriteTo(writer, " ");
+    }
 }

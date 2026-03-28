@@ -1,6 +1,7 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents the top-level generic MLIR concrete syntax tree.
@@ -30,4 +31,14 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
     /// Gets the end-of-file token that carries trailing trivia.
     /// </summary>
     public SyntaxToken EndOfFileToken { get; } = endOfFileToken;
+
+    internal void WriteTo(SyntaxWriter writer)
+    {
+        for (var i = 0; i < Operations.Count; i++)
+        {
+            writer.WriteOperation(Operations[i], 0, i > 0 ? "\n" : string.Empty);
+        }
+
+        writer.Write(EndOfFileToken.LeadingTrivia);
+    }
 }

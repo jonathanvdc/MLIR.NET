@@ -1,6 +1,8 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
+using System;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a region nested under an MLIR operation.
@@ -36,4 +38,19 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
     /// Gets the closing brace token.
     /// </summary>
     public SyntaxToken CloseBraceToken { get; } = closeBraceToken;
+
+    internal void WriteTo(
+        SyntaxWriter writer,
+        int indentLevel,
+        Action<SyntaxWriter, OperationSyntax, int, string> writeOperation)
+    {
+        writer.WriteToken(OpenBraceToken, " ");
+
+        foreach (var block in Blocks)
+        {
+            block.WriteTo(writer, indentLevel, writeOperation);
+        }
+
+        writer.WriteToken(CloseBraceToken, "\n", indentLevel);
+    }
 }

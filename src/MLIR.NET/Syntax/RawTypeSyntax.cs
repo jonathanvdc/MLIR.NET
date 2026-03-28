@@ -1,7 +1,5 @@
 namespace MLIR.Syntax;
 
-using MLIR.Text;
-
 /// <summary>
 /// Represents a type preserved as raw syntax text.
 /// </summary>
@@ -24,8 +22,8 @@ public sealed class RawTypeSyntax(RawSyntaxText rawText) : TypeSyntax
     }
 
     /// <inheritdoc/>
-    public override void Print(SyntaxFragmentPrintingContext context)
+    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
     {
-        context.WriteRaw(RawText, context.DefaultLeadingTrivia);
+        writer.WriteRaw(RawText, defaultLeadingTrivia);
     }
 }

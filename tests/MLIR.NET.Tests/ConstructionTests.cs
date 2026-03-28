@@ -40,11 +40,11 @@ public sealed class ConstructionTests
             return true;
         }
 
-        public override void Print(OperationBodyPrintingContext context)
+        public override void WriteTo(SyntaxWriter writer, int indentLevel, System.Action<SyntaxWriter, RegionSyntax, int> writeRegion)
         {
-            context.WriteRaw(Value, " ");
-            context.WriteToken(ColonToken, " ");
-            context.WriteRaw(typeSignature, " ");
+            writer.WriteRaw(Value, " ");
+            writer.WriteToken(ColonToken, " ");
+            writer.WriteRaw(typeSignature, " ");
         }
     }
 

@@ -1,5 +1,7 @@
 namespace MLIR.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a named attribute entry in an operation attribute dictionary.
 /// </summary>
@@ -53,4 +55,11 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// Gets the attribute value as raw syntax text.
     /// </summary>
     public RawSyntaxText RawValue => ValueSyntax.GetRawText();
+
+    internal void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+    {
+        writer.WriteToken(NameToken, defaultLeadingTrivia);
+        writer.WriteToken(EqualsToken, " ");
+        ValueSyntax.WriteTo(writer, " ");
+    }
 }

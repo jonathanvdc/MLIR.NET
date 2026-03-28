@@ -1,7 +1,5 @@
 namespace MLIR.Syntax;
 
-using MLIR.Text;
-
 /// <summary>
 /// Represents the syntax of a type.
 /// </summary>
@@ -26,7 +24,7 @@ public abstract class TypeSyntax
     }
 
     /// <summary>
-    /// Prints the type syntax.
+    /// Writes the type syntax to the supplied syntax writer.
     /// </summary>
-    public abstract void Print(SyntaxFragmentPrintingContext context);
+    public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
 }

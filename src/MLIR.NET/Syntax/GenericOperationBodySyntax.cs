@@ -1,7 +1,5 @@
 namespace MLIR.Syntax;
 
-using MLIR.Text;
-
 /// <summary>
 /// Represents the generic MLIR operation body syntax.
 /// </summary>
@@ -79,62 +77,62 @@ public sealed class GenericOperationBodySyntax(
     }
 
     /// <inheritdoc/>
-    public override void Print(OperationBodyPrintingContext context)
+    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel, System.Action<Text.SyntaxWriter, RegionSyntax, int> writeRegion)
     {
-        context.WriteToken(OperandList.OpenToken!.Value, string.Empty);
+        writer.WriteToken(OperandList.OpenToken!.Value, string.Empty);
         for (var i = 0; i < OperandList.Count; i++)
         {
             if (i > 0)
             {
-                context.WriteToken(OperandList.SeparatorTokens[i - 1], string.Empty);
+                writer.WriteToken(OperandList.SeparatorTokens[i - 1], string.Empty);
             }
 
-            context.WriteToken(OperandList[i], i > 0 ? " " : string.Empty);
+            writer.WriteToken(OperandList[i], i > 0 ? " " : string.Empty);
         }
 
-        context.WriteToken(OperandList.CloseToken!.Value, string.Empty);
+        writer.WriteToken(OperandList.CloseToken!.Value, string.Empty);
 
         if (SuccessorList.OpenToken != null)
         {
-            context.WriteToken(SuccessorList.OpenToken.Value, " ");
+            writer.WriteToken(SuccessorList.OpenToken.Value, " ");
             for (var i = 0; i < SuccessorList.Count; i++)
             {
                 if (i > 0)
                 {
-                    context.WriteToken(SuccessorList.SeparatorTokens[i - 1], string.Empty);
+                    writer.WriteToken(SuccessorList.SeparatorTokens[i - 1], string.Empty);
                 }
 
-                context.WriteToken(SuccessorList[i], i > 0 ? " " : string.Empty);
+                writer.WriteToken(SuccessorList[i], i > 0 ? " " : string.Empty);
             }
 
-            context.WriteToken(SuccessorList.CloseToken!.Value, string.Empty);
+            writer.WriteToken(SuccessorList.CloseToken!.Value, string.Empty);
         }
 
         foreach (var region in Regions)
         {
-            context.WriteRegion(region);
+            writeRegion(writer, region, indentLevel);
         }
 
         if (Attributes.OpenToken != null)
         {
-            context.WriteToken(Attributes.OpenToken.Value, " ");
+            writer.WriteToken(Attributes.OpenToken.Value, " ");
             for (var i = 0; i < Attributes.Count; i++)
             {
                 if (i > 0)
                 {
-                    context.WriteToken(Attributes.SeparatorTokens[i - 1], string.Empty);
+                    writer.WriteToken(Attributes.SeparatorTokens[i - 1], string.Empty);
                 }
 
-                context.WriteAttribute(Attributes[i], i > 0 ? " " : string.Empty);
+                Attributes[i].WriteTo(writer, i > 0 ? " " : string.Empty);
             }
 
-            context.WriteToken(Attributes.CloseToken!.Value, string.Empty);
+            writer.WriteToken(Attributes.CloseToken!.Value, string.Empty);
         }
 
         if (TypeSignatureColonToken != null && TypeSignatureSyntax != null)
         {
-            context.WriteToken(TypeSignatureColonToken.Value, " ");
-            context.WriteType(TypeSignatureSyntax, " ");
+            writer.WriteToken(TypeSignatureColonToken.Value, " ");
+            TypeSignatureSyntax.WriteTo(writer, " ");
         }
     }
 }

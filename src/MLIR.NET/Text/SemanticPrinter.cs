@@ -1,6 +1,5 @@
 namespace MLIR.Text;
 
-using System.Text;
 using MLIR.Semantics;
 
 /// <summary>
@@ -16,44 +15,93 @@ public sealed class SemanticPrinter
     public static string Print(Module module)
     {
         var printer = new SemanticPrinter();
-        var builder = new StringBuilder();
-        StructuralPrinter.AppendModule(builder, module.Operations, module.Syntax.EndOfFileToken, printer.AppendOperation);
-        return builder.ToString();
+        var writer = new SyntaxWriter();
+        printer.AppendModule(writer, module);
+        return writer.ToString();
     }
 
-    internal void AppendOperation(StringBuilder builder, Operation operation, int indentLevel, string defaultLeadingTrivia)
+    internal void AppendModule(SyntaxWriter writer, Module module)
+    {
+        for (var i = 0; i < module.Operations.Count; i++)
+        {
+            AppendOperation(writer, module.Operations[i], 0, i > 0 ? "\n" : string.Empty);
+        }
+
+        writer.Write(module.Syntax.EndOfFileToken.LeadingTrivia);
+    }
+
+    internal void AppendOperation(SyntaxWriter writer, Operation operation, int indentLevel, string defaultLeadingTrivia)
     {
         if (operation.Definition?.AssemblyFormat != null)
         {
             operation.Definition.AssemblyFormat.Print(
                 operation,
-                new OperationPrintingContext(this, builder, indentLevel, defaultLeadingTrivia));
+                new OperationPrintingContext(this, writer, indentLevel, defaultLeadingTrivia));
             return;
         }
 
-        AppendGenericOperation(builder, operation, indentLevel, defaultLeadingTrivia);
+        AppendGenericOperation(writer, operation, indentLevel, defaultLeadingTrivia);
     }
 
-    internal void AppendGenericOperation(StringBuilder builder, Operation operation, int indentLevel, string defaultLeadingTrivia)
+    internal void AppendGenericOperation(SyntaxWriter writer, Operation operation, int indentLevel, string defaultLeadingTrivia)
     {
-        Printer.AppendOperation(
-            builder,
-            operation.Syntax,
+        var regionIndex = 0;
+        operation.Syntax.WriteTo(
+            writer,
             indentLevel,
             defaultLeadingTrivia,
-            (innerBuilder, _, regionIndex, innerIndentLevel) =>
+            (innerWriter, _, innerIndentLevel) =>
             {
-                AppendRegion(innerBuilder, operation.Regions[regionIndex], innerIndentLevel);
+                AppendRegion(innerWriter, operation.Regions[regionIndex], innerIndentLevel);
+                regionIndex++;
             });
     }
 
-    internal void AppendGenericOperation(StringBuilder builder, Syntax.OperationSyntax operation, int indentLevel, string defaultLeadingTrivia)
+    internal void AppendGenericOperation(SyntaxWriter writer, Syntax.OperationSyntax operation, int indentLevel, string defaultLeadingTrivia)
     {
-        Printer.AppendOperation(builder, operation, indentLevel, defaultLeadingTrivia);
+        writer.WriteOperation(operation, indentLevel, defaultLeadingTrivia);
     }
 
-    internal void AppendRegion(StringBuilder builder, Region region, int indentLevel)
+    internal void AppendRegion(SyntaxWriter writer, Region region, int indentLevel)
     {
-        StructuralPrinter.AppendRegion(builder, region.Syntax, region.Blocks, indentLevel, static block => block.Syntax, static block => block.Operations, AppendOperation);
+        writer.WriteToken(region.Syntax.OpenBraceToken, " ");
+
+        foreach (var block in region.Blocks)
+        {
+            var syntax = block.Syntax;
+            var blockHasExplicitLabel = syntax.Label != "^entry" || syntax.Arguments.Count > 0;
+            var blockIndentLevel = indentLevel + 1;
+
+            if (blockHasExplicitLabel)
+            {
+                writer.WriteToken(syntax.LabelToken, "\n", blockIndentLevel);
+
+                if (syntax.Arguments.OpenToken != null)
+                {
+                    writer.WriteToken(syntax.Arguments.OpenToken.Value, string.Empty);
+                    for (var i = 0; i < syntax.Arguments.Count; i++)
+                    {
+                        if (i > 0)
+                        {
+                            writer.WriteToken(syntax.Arguments.SeparatorTokens[i - 1], string.Empty);
+                        }
+
+                        syntax.Arguments[i].WriteTo(writer, i > 0 ? " " : string.Empty);
+                    }
+
+                    writer.WriteToken(syntax.Arguments.CloseToken!.Value, string.Empty);
+                }
+
+                writer.WriteToken(syntax.ColonToken, string.Empty);
+            }
+
+            var operationIndentLevel = blockHasExplicitLabel ? indentLevel + 2 : indentLevel + 1;
+            foreach (var operation in block.Operations)
+            {
+                AppendOperation(writer, operation, operationIndentLevel, "\n");
+            }
+        }
+
+        writer.WriteToken(region.Syntax.CloseBraceToken, "\n", indentLevel);
     }
 }

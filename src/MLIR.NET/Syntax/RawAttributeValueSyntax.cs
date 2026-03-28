@@ -1,7 +1,5 @@
 namespace MLIR.Syntax;
 
-using MLIR.Text;
-
 /// <summary>
 /// Represents an attribute value preserved as raw syntax text.
 /// </summary>
@@ -24,8 +22,8 @@ public sealed class RawAttributeValueSyntax(RawSyntaxText rawText) : AttributeVa
     }
 
     /// <inheritdoc/>
-    public override void Print(SyntaxFragmentPrintingContext context)
+    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
     {
-        context.WriteRaw(RawText, context.DefaultLeadingTrivia);
+        writer.WriteRaw(RawText, defaultLeadingTrivia);
     }
 }

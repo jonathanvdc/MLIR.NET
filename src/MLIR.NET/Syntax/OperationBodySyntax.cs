@@ -1,7 +1,5 @@
 namespace MLIR.Syntax;
 
-using MLIR.Text;
-
 /// <summary>
 /// Represents the body of an MLIR operation.
 /// </summary>
@@ -35,8 +33,7 @@ public abstract class OperationBodySyntax
     }
 
     /// <summary>
-    /// Prints the operation body.
+    /// Writes the operation body to the supplied syntax writer.
     /// </summary>
-    /// <param name="context">The printing context.</param>
-    public abstract void Print(OperationBodyPrintingContext context);
+    public abstract void WriteTo(Text.SyntaxWriter writer, int indentLevel, System.Action<Text.SyntaxWriter, RegionSyntax, int> writeRegion);
 }
