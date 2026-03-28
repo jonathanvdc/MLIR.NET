@@ -59,4 +59,27 @@ public sealed class GeneratedDialectIntegrationTests
         Assert.Equal("FastMathAttributeValue", attributeType.Name);
         Assert.Equal("I32TypeReference", typeReferenceType.Name);
     }
+
+    [Fact]
+    public void GeneratedDialectCanReadAndWriteDocuments()
+    {
+        const string source = "%result = \"arith.addi\"(%lhs, %rhs) {fastmath = #fastmath} : i32";
+
+        var document = Document.Parse(source);
+
+        Assert.Equal(source, document.ToText());
+    }
+
+    [Fact]
+    public void GeneratedDialectCanReadAndWriteBoundModules()
+    {
+        const string source = "%result = \"arith.addi\"(%lhs, %rhs) {fastmath = #fastmath} : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(ArithDialectRegistration.Create());
+
+        var module = Document.Parse(source).Bind(registry);
+
+        Assert.Equal(source, module.ToText());
+    }
 }
