@@ -31,18 +31,18 @@ public static class AssemblySyntaxBuilder
             return new ModuleSyntax(operations, module.Syntax.EndOfFileToken);
         }
 
-        public OperationSyntax BuildOperation(OperationBase operation)
+        public OperationSyntax BuildOperation(Operation operation)
         {
             return operation.Definition?.AssemblyFormat?.Rewrite(operation, new OperationSyntaxTransformContext(this))
                 ?? RewriteOperation(operation, BuildGenericBody(operation));
         }
 
-        public OperationSyntax WithBody(OperationBase operation, OperationBodySyntax body)
+        public OperationSyntax WithBody(Operation operation, OperationBodySyntax body)
         {
             return RewriteOperation(operation, body);
         }
 
-        public OperationSyntax RewriteOperation(OperationBase operation, OperationBodySyntax body, SyntaxToken? nameToken = null)
+        public OperationSyntax RewriteOperation(Operation operation, OperationBodySyntax body, SyntaxToken? nameToken = null)
         {
             return new OperationSyntax(
                 operation.Syntax.ResultTokens,
@@ -52,7 +52,7 @@ public static class AssemblySyntaxBuilder
                 body);
         }
 
-        public GenericOperationBodySyntax BuildGenericBody(OperationBase operation)
+        public GenericOperationBodySyntax BuildGenericBody(Operation operation)
         {
             var genericBody = operation.Syntax.GenericBody;
             var regions = new List<RegionSyntax>(operation.Regions.Count);

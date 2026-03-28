@@ -6,7 +6,7 @@ using MLIR.Syntax;
 /// <summary>
 /// Represents a bound operation whose dialect-specific semantic type is unknown.
 /// </summary>
-public sealed class UnknownOperation : OperationBase
+public sealed class UnknownOperation : Operation
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="UnknownOperation"/> class.
@@ -14,6 +14,7 @@ public sealed class UnknownOperation : OperationBase
     public UnknownOperation(
         OperationSyntax syntax,
         string name,
+        Dialects.OperationDefinition? definition,
         IReadOnlyList<Region> regions,
         IReadOnlyList<NamedAttribute> attributes,
         TypeReference? typeSignatureReference,
@@ -24,7 +25,7 @@ public sealed class UnknownOperation : OperationBase
         : base(
             syntax,
             name,
-            null,
+            definition,
             regions,
             attributes,
             typeSignatureReference,

@@ -11,7 +11,7 @@ public sealed class OperationAssemblyBindingContext
     private readonly Dictionary<string, object?> properties;
     private readonly List<AssemblyDiagnostic> diagnostics;
 
-    internal OperationAssemblyBindingContext(OperationBase operation, Dictionary<string, object?> properties, List<AssemblyDiagnostic> diagnostics)
+    internal OperationAssemblyBindingContext(Operation operation, Dictionary<string, object?> properties, List<AssemblyDiagnostic> diagnostics)
     {
         Operation = operation;
         this.properties = properties;
@@ -21,7 +21,7 @@ public sealed class OperationAssemblyBindingContext
     /// <summary>
     /// Gets the operation currently being interpreted.
     /// </summary>
-    public OperationBase Operation { get; }
+    public Operation Operation { get; }
 
     /// <summary>
     /// Stores a semantic property for the current operation.

@@ -34,7 +34,7 @@ public sealed class OperationSyntaxTransformContext
     /// <summary>
     /// Transforms a semantic operation to syntax, recursively applying custom assembly rewrites.
     /// </summary>
-    public OperationSyntax TransformOperation(OperationBase operation)
+    public OperationSyntax TransformOperation(Operation operation)
     {
         return builder.BuildOperation(operation);
     }
@@ -42,7 +42,7 @@ public sealed class OperationSyntaxTransformContext
     /// <summary>
     /// Builds the generic MLIR operation body for the supplied operation, recursively rewriting nested regions.
     /// </summary>
-    public GenericOperationBodySyntax TransformGenericBody(OperationBase operation)
+    public GenericOperationBodySyntax TransformGenericBody(Operation operation)
     {
         return builder.BuildGenericBody(operation);
     }
@@ -50,7 +50,7 @@ public sealed class OperationSyntaxTransformContext
     /// <summary>
     /// Replaces the body of an operation while preserving its outer shell tokens.
     /// </summary>
-    public OperationSyntax WithBody(OperationBase operation, OperationBodySyntax body)
+    public OperationSyntax WithBody(Operation operation, OperationBodySyntax body)
     {
         return builder.WithBody(operation, body);
     }
@@ -58,7 +58,7 @@ public sealed class OperationSyntaxTransformContext
     /// <summary>
     /// Rewrites an operation while preserving its outer shell tokens except where replacements are supplied.
     /// </summary>
-    public OperationSyntax RewriteOperation(OperationBase operation, OperationBodySyntax body, SyntaxToken? nameToken = null)
+    public OperationSyntax RewriteOperation(Operation operation, OperationBodySyntax body, SyntaxToken? nameToken = null)
     {
         return builder.RewriteOperation(operation, body, nameToken);
     }

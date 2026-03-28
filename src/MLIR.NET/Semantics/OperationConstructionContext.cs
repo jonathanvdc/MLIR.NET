@@ -83,21 +83,4 @@ public sealed class OperationConstructionContext
     /// </summary>
     public Dictionary<string, object?> Properties { get; }
 
-    /// <summary>
-    /// Creates the default generic known-operation node.
-    /// </summary>
-    public Operation CreateDefaultOperation()
-    {
-        return new Operation(
-            Syntax,
-            Name,
-            Definition,
-            Regions,
-            Attributes,
-            TypeSignatureReference,
-            ResultValues,
-            OperandValues,
-            SuccessorReferences,
-            Properties);
-    }
 }

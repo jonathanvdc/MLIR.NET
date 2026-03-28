@@ -13,7 +13,7 @@ using MLIR.Text;
 /// <param name="syntax">The concrete syntax tree that produced the semantic module.</param>
 /// <param name="operations">The top-level operations contained in the module.</param>
 /// <param name="assemblyDiagnostics">The diagnostics reported while interpreting custom assembly.</param>
-public sealed class Module(ModuleSyntax syntax, IReadOnlyList<OperationBase> operations, IReadOnlyList<AssemblyDiagnostic> assemblyDiagnostics)
+public sealed class Module(ModuleSyntax syntax, IReadOnlyList<Operation> operations, IReadOnlyList<AssemblyDiagnostic> assemblyDiagnostics)
 {
     /// <summary>
     /// Gets the concrete syntax tree that produced the semantic module.
@@ -23,7 +23,7 @@ public sealed class Module(ModuleSyntax syntax, IReadOnlyList<OperationBase> ope
     /// <summary>
     /// Gets the top-level operations contained in the module.
     /// </summary>
-    public IReadOnlyList<OperationBase> Operations { get; } = operations;
+    public IReadOnlyList<Operation> Operations { get; } = operations;
 
     /// <summary>
     /// Gets the diagnostics reported while interpreting custom assembly.

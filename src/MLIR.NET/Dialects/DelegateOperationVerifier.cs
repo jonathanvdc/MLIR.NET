@@ -8,19 +8,19 @@ using MLIR.Semantics;
 /// </summary>
 public sealed class DelegateOperationVerifier : IOperationVerifier
 {
-    private readonly Action<OperationBase, VerificationContext> action;
+    private readonly Action<Operation, VerificationContext> action;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DelegateOperationVerifier"/> class.
     /// </summary>
     /// <param name="action">The delegate to invoke when verifying an operation.</param>
-    public DelegateOperationVerifier(Action<OperationBase, VerificationContext> action)
+    public DelegateOperationVerifier(Action<Operation, VerificationContext> action)
     {
         this.action = action;
     }
 
     /// <inheritdoc/>
-    public void Verify(OperationBase operation, VerificationContext context)
+    public void Verify(Operation operation, VerificationContext context)
     {
         action(operation, context);
     }

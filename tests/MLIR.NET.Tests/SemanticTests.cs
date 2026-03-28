@@ -52,7 +52,7 @@ public sealed class SemanticTests
 
     private sealed class ArithConstantView : OperationView
     {
-        public ArithConstantView(OperationBase operation)
+        public ArithConstantView(Operation operation)
             : base(operation, "arith.constant")
         {
         }
@@ -109,7 +109,7 @@ public sealed class SemanticTests
             return true;
         }
 
-        public void Bind(OperationBase operation, OperationAssemblyBindingContext context)
+        public void Bind(Operation operation, OperationAssemblyBindingContext context)
         {
             if (!operation.HasAttribute("value"))
             {
@@ -124,7 +124,7 @@ public sealed class SemanticTests
             }
         }
 
-        public OperationSyntax Rewrite(OperationBase operation, OperationSyntaxTransformContext context)
+        public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
         {
             var genericBody = context.TransformGenericBody(operation);
             var body = new PrefixConstantBodySyntax(
@@ -170,7 +170,7 @@ public sealed class SemanticTests
 
         var operation = module.Operations[0];
         Assert.True(operation.IsKnown);
-        Assert.IsType<Operation>(operation);
+        Assert.IsType<UnknownOperation>(operation);
         Assert.Equal("arith.addi", operation.Name);
         Assert.Equal("\"arith.addi\"", operation.SyntaxName);
         Assert.Equal("arith", operation.DialectName);

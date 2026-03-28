@@ -71,11 +71,11 @@ public sealed class ParsingTests
             return true;
         }
 
-        public void Bind(OperationBase operation, OperationAssemblyBindingContext context)
+        public void Bind(Operation operation, OperationAssemblyBindingContext context)
         {
         }
 
-        public OperationSyntax Rewrite(OperationBase operation, OperationSyntaxTransformContext context)
+        public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
         {
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }

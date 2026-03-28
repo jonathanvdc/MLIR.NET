@@ -37,7 +37,7 @@ public sealed class OperationDefinition(
     IReadOnlyList<string>? requiredAttributes = null,
     IOperationVerifier? verifier = null,
     IOperationAssemblyFormat? assemblyFormat = null,
-    System.Func<OperationConstructionContext, OperationBase>? factory = null)
+    System.Func<OperationConstructionContext, Operation>? factory = null)
 {
     /// <summary>
     /// Gets the canonical operation name without MLIR string-literal quoting.
@@ -107,7 +107,7 @@ public sealed class OperationDefinition(
     /// <summary>
     /// Gets the typed operation factory for the operation, if one is registered.
     /// </summary>
-    public System.Func<OperationConstructionContext, OperationBase>? Factory { get; } = factory;
+    public System.Func<OperationConstructionContext, Operation>? Factory { get; } = factory;
 
     private static readonly IReadOnlyList<OperationSegmentDefinition> EmptySegmentDefinitions = new OperationSegmentDefinition[0];
     private static readonly IReadOnlyList<OperationAttributeDefinition> EmptyAttributeDefinitions = new OperationAttributeDefinition[0];

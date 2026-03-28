@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using MLIR.Syntax;
 
 /// <summary>
-/// Provides a lightweight typed wrapper over a semantic <see cref="OperationBase"/>.
+/// Provides a lightweight typed wrapper over a semantic <see cref="Operation"/>.
 /// </summary>
 public abstract class OperationView
 {
@@ -15,7 +15,7 @@ public abstract class OperationView
     /// <param name="operation">The wrapped semantic operation.</param>
     /// <param name="expectedName">The canonical operation name expected by the view.</param>
     /// <exception cref="ArgumentException">Thrown when the operation does not match the expected name.</exception>
-    protected OperationView(OperationBase operation, string expectedName)
+    protected OperationView(Operation operation, string expectedName)
     {
         if (!string.Equals(operation.Name, expectedName, StringComparison.Ordinal))
         {
@@ -28,7 +28,7 @@ public abstract class OperationView
     /// <summary>
     /// Gets the wrapped semantic operation.
     /// </summary>
-    public OperationBase Operation { get; }
+    public Operation Operation { get; }
 
     /// <summary>
     /// Gets the operation's SSA results.

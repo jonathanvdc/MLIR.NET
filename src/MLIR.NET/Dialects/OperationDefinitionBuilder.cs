@@ -22,7 +22,7 @@ public sealed class OperationDefinitionBuilder
     private int? successorCount;
     private IOperationVerifier? verifier;
     private IOperationAssemblyFormat? assemblyFormat;
-    private Func<OperationConstructionContext, OperationBase>? factory;
+    private Func<OperationConstructionContext, Operation>? factory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationDefinitionBuilder"/> class.
@@ -172,7 +172,7 @@ public sealed class OperationDefinitionBuilder
     /// <summary>
     /// Registers a custom verifier delegate.
     /// </summary>
-    public OperationDefinitionBuilder WithVerifier(Action<OperationBase, VerificationContext> action)
+    public OperationDefinitionBuilder WithVerifier(Action<Operation, VerificationContext> action)
     {
         verifier = new DelegateOperationVerifier(action);
         return this;
@@ -190,7 +190,7 @@ public sealed class OperationDefinitionBuilder
     /// <summary>
     /// Registers a typed operation factory.
     /// </summary>
-    public OperationDefinitionBuilder WithFactory(Func<OperationConstructionContext, OperationBase> operationFactory)
+    public OperationDefinitionBuilder WithFactory(Func<OperationConstructionContext, Operation> operationFactory)
     {
         factory = operationFactory;
         return this;
