@@ -73,6 +73,11 @@ internal sealed class TableGenParser
             return parameters;
         }
 
+        if (TryMatch(TableGenTokenKind.GreaterThan))
+        {
+            return parameters;
+        }
+
         do
         {
             var typeName = ParseTypeName();
@@ -244,7 +249,7 @@ internal sealed class TableGenParser
         return Current.Kind == kind;
     }
 
-    private TableGenToken Current => tokens[position];
+    private TableGenToken Current => position < tokens.Count ? tokens[position] : tokens[tokens.Count - 1];
 
     private bool TryMatch(TableGenTokenKind kind)
     {
@@ -281,7 +286,7 @@ internal sealed class TableGenParser
 
     private TableGenToken Consume()
     {
-        return tokens[position++];
+        return position < tokens.Count ? tokens[position++] : tokens[tokens.Count - 1];
     }
 
     private TableGenParseException Error(string message)
