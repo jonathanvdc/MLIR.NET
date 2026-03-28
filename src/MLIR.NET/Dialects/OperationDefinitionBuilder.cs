@@ -27,8 +27,7 @@ public sealed class OperationDefinitionBuilder
         context.TypeSignatureReference,
         context.ResultValues,
         context.OperandValues,
-        context.SuccessorReferences,
-        context.Properties);
+        context.SuccessorReferences);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationDefinitionBuilder"/> class.

@@ -18,8 +18,7 @@ public sealed class OperationConstructionContext
         TypeReference? typeSignatureReference,
         IReadOnlyList<ValueReference> resultValues,
         IReadOnlyList<ValueReference> operandValues,
-        IReadOnlyList<BlockReference> successorReferences,
-        Dictionary<string, object?> properties)
+        IReadOnlyList<BlockReference> successorReferences)
     {
         Syntax = syntax;
         Name = name;
@@ -30,7 +29,6 @@ public sealed class OperationConstructionContext
         ResultValues = resultValues;
         OperandValues = operandValues;
         SuccessorReferences = successorReferences;
-        Properties = properties;
     }
 
     /// <summary>
@@ -77,10 +75,5 @@ public sealed class OperationConstructionContext
     /// Gets the typed block successor references.
     /// </summary>
     public IReadOnlyList<BlockReference> SuccessorReferences { get; }
-
-    /// <summary>
-    /// Gets the mutable semantic property bag shared with custom assembly binding.
-    /// </summary>
-    public Dictionary<string, object?> Properties { get; }
 
 }

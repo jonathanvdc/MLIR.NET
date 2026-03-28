@@ -11,6 +11,20 @@ using Xunit;
 
 public sealed class SemanticTests
 {
+    private static Dialect CreateArithConstantDialect()
+    {
+        return Dialect.Create(
+            "arith",
+            dialect =>
+            {
+                dialect.AddOperation(
+                    "arith.constant",
+                    operation => operation
+                        .WithFactory(static context => new GeneratedConstantOperation(context))
+                        .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+            });
+    }
+
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
     {
         private readonly GenericOperationBodySyntax genericBody;
@@ -56,11 +70,54 @@ public sealed class SemanticTests
         public ArithConstantView(Operation operation)
             : base(operation, "arith.constant")
         {
+            typedOperation = operation as GeneratedConstantOperation;
         }
 
+        private readonly GeneratedConstantOperation? typedOperation;
         public NamedAttribute ValueAttribute => GetAttribute("value");
-        public string ParsedValueText => GetProperty<string>("parsed.value");
+        public string? ParsedValueText => typedOperation?.ParsedValueText;
+        public string? ParsedTypeText => typedOperation?.ParsedTypeText;
         public ValueReference ResultValue => ResultValues[0];
+    }
+
+    private sealed class GeneratedConstantOperation : Operation
+    {
+        private readonly IReadOnlyList<Region> regions;
+        private readonly IReadOnlyList<NamedAttribute> attributes;
+        private readonly TypeReference? typeSignatureReference;
+        private readonly IReadOnlyList<ValueReference> resultValues;
+        private readonly IReadOnlyList<ValueReference> operandValues;
+        private readonly IReadOnlyList<BlockReference> successorReferences;
+
+        public GeneratedConstantOperation(OperationConstructionContext context)
+            : base(
+                context.Syntax,
+                context.Name,
+                context.Definition)
+        {
+            regions = context.Regions;
+            attributes = context.Attributes;
+            typeSignatureReference = context.TypeSignatureReference;
+            resultValues = context.ResultValues;
+            operandValues = context.OperandValues;
+            successorReferences = context.SuccessorReferences;
+        }
+
+        public override IReadOnlyList<Region> Regions => regions;
+        public override IReadOnlyList<NamedAttribute> Attributes => attributes;
+        public override TypeReference? TypeSignatureReference => typeSignatureReference;
+        public override IReadOnlyList<ValueReference> ResultValues => resultValues;
+        public override IReadOnlyList<ValueReference> OperandValues => operandValues;
+        public override IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;
+
+        public string? ParsedValueText { get; private set; }
+        public string? ParsedTypeText { get; private set; }
+
+        public void BindCustomAssembly(string valueText, string? typeText)
+        {
+            ParsedValueText = valueText;
+            ParsedTypeText = typeText;
+        }
     }
 
     private sealed class GeneratedAddIOperation : Operation
@@ -68,7 +125,6 @@ public sealed class SemanticTests
         private static readonly IReadOnlyList<Region> EmptyRegions = [];
         private static readonly IReadOnlyList<NamedAttribute> EmptyAttributes = [];
         private static readonly IReadOnlyList<BlockReference> EmptySuccessors = [];
-        private static readonly IReadOnlyDictionary<string, object?> EmptyProperties = new Dictionary<string, object?>();
 
         public GeneratedAddIOperation(OperationConstructionContext context)
             : base(
@@ -87,7 +143,6 @@ public sealed class SemanticTests
         public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
         public override IReadOnlyList<ValueReference> OperandValues => [LeftOperand, RightOperand];
         public override IReadOnlyList<BlockReference> SuccessorReferences => EmptySuccessors;
-        public override IReadOnlyDictionary<string, object?> Properties => EmptyProperties;
 
         public ValueReference LeftOperand { get; }
         public ValueReference RightOperand { get; }
@@ -127,10 +182,11 @@ public sealed class SemanticTests
                 return;
             }
 
-            context.SetProperty("parsed.value", operation.GetAttribute("value").Value.Text);
-            if (operation.TypeSignature != null)
+            if (operation is GeneratedConstantOperation constant)
             {
-                context.SetProperty("parsed.type", operation.TypeSignature.Text);
+                constant.BindCustomAssembly(
+                    operation.GetAttribute("value").Value.Text,
+                    operation.TypeSignature?.Text);
             }
         }
 
@@ -520,15 +576,19 @@ public sealed class SemanticTests
     [Fact]
     public void OperationViewProvidesTypedWrapperOverSemanticOperation()
     {
-        var module = Binder.BindModule(
-            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(CreateArithConstantDialect());
 
-        var view = new ArithConstantView(module.Operations[0]);
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"),
+            registry);
+
+        var view = new ArithConstantView(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]));
 
         Assert.Equal("%0", view.Results[0]);
         Assert.Equal("%0", view.ResultValue.Name);
         Assert.Equal("0 : i32", view.ValueAttribute.Value.Text);
-        Assert.False(view.HasProperty("missing"));
+        Assert.Equal("0 : i32", view.ParsedValueText);
     }
 
     [Fact]
@@ -558,6 +618,7 @@ public sealed class SemanticTests
                         {
                             operation.Result("result")
                                 .RequiredAttribute("value")
+                                .WithFactory(static context => new GeneratedConstantOperation(context))
                                 .WithVerifier(static (semanticOperation, context) =>
                                 {
                                     if (semanticOperation.Results.Count != 1)
@@ -599,6 +660,7 @@ public sealed class SemanticTests
                         {
                             operation.Result("result")
                                 .RequiredAttribute("value")
+                                .WithFactory(static context => new GeneratedConstantOperation(context))
                                 .WithAssemblyFormat(new PrefixConstantAssemblyFormat());
                         });
                 }));
@@ -621,7 +683,9 @@ public sealed class SemanticTests
                 {
                     dialect.AddOperation(
                         "arith.constant",
-                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                        operation => operation
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
         var module = Parser.ParseModule("%0 = arith.constant 0 : i32", registry);
@@ -647,7 +711,9 @@ public sealed class SemanticTests
                 {
                     dialect.AddOperation(
                         "arith.constant",
-                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                        operation => operation
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
         var document = Document.Parse("%0 = arith.constant 0 : i32", registry);
@@ -668,7 +734,9 @@ public sealed class SemanticTests
                 {
                     dialect.AddOperation(
                         "arith.constant",
-                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                        operation => operation
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
         const string source = "%0 = arith.constant  0  :  i32\n";
@@ -683,24 +751,15 @@ public sealed class SemanticTests
     public void AssemblyBindingCanPopulateTypedSemanticProperties()
     {
         var registry = new DialectRegistry();
-        registry.RegisterDialect(
-            Dialect.Create(
-                "arith",
-                dialect =>
-                {
-                    dialect.AddOperation(
-                        "arith.constant",
-                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
-                }));
+        registry.RegisterDialect(CreateArithConstantDialect());
 
         var module = Binder.BindModule(
             Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"),
             registry);
-        var view = new ArithConstantView(module.Operations[0]);
+        var view = new ArithConstantView(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]));
 
-        Assert.True(module.Operations[0].HasProperty("parsed.value"));
         Assert.Equal("0 : i32", view.ParsedValueText);
-        Assert.Equal("() -> i32", module.Operations[0].GetProperty<string>("parsed.type"));
+        Assert.Equal("() -> i32", view.ParsedTypeText);
         Assert.Empty(module.AssemblyDiagnostics);
     }
 
@@ -715,7 +774,9 @@ public sealed class SemanticTests
                 {
                     dialect.AddOperation(
                         "arith.constant",
-                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                        operation => operation
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
         var module = Binder.BindModule(
@@ -769,7 +830,9 @@ public sealed class SemanticTests
                 {
                     dialect.AddOperation(
                         "arith.constant",
-                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                        operation => operation
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
         var module = Binder.BindModule(

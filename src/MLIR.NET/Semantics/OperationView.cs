@@ -1,7 +1,6 @@
 namespace MLIR.Semantics;
 
 using System;
-using System.Collections.Generic;
 using MLIR.Syntax;
 
 /// <summary>
@@ -104,19 +103,4 @@ public abstract class OperationView
         return Operation.GetAttribute(name);
     }
 
-    /// <summary>
-    /// Determines whether the wrapped operation has a semantic property with the supplied name.
-    /// </summary>
-    public bool HasProperty(string name)
-    {
-        return Operation.HasProperty(name);
-    }
-
-    /// <summary>
-    /// Gets a semantic property by name.
-    /// </summary>
-    public T GetProperty<T>(string name)
-    {
-        return Operation.GetProperty<T>(name);
-    }
 }

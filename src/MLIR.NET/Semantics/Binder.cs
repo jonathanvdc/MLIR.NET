@@ -59,7 +59,6 @@ public static class Binder
             typeSignatureReference = BindTypeReference(genericBody.RawTypeSignature, location, dialectRegistry, diagnostics);
         }
 
-        var properties = new Dictionary<string, object?>();
         var resultValues = CreateValueReferences(syntax.ResultTokens);
         var operandValues = CreateValueReferences(genericBody.OperandList.Items);
         var successorReferences = CreateBlockReferences(genericBody.SuccessorList.Items);
@@ -75,10 +74,9 @@ public static class Binder
                 typeSignatureReference,
                 resultValues,
                 operandValues,
-                successorReferences,
-                properties);
+                successorReferences);
             operation = definition.Factory(constructionContext);
-            definition.AssemblyFormat?.Bind(operation, new OperationAssemblyBindingContext(operation, properties, diagnostics));
+            definition.AssemblyFormat?.Bind(operation, new OperationAssemblyBindingContext(operation, diagnostics));
         }
         else
         {
@@ -91,8 +89,7 @@ public static class Binder
                 typeSignatureReference,
                 resultValues,
                 operandValues,
-                successorReferences,
-                properties);
+                successorReferences);
         }
 
         return operation;

@@ -69,11 +69,6 @@ public abstract class Operation
     public abstract IReadOnlyList<BlockReference> SuccessorReferences { get; }
 
     /// <summary>
-    /// Gets the semantic properties interpreted from dialect-specific assembly.
-    /// </summary>
-    public abstract IReadOnlyDictionary<string, object?> Properties { get; }
-
-    /// <summary>
     /// Gets a value indicating whether the operation was recognized by a registered dialect.
     /// </summary>
     public bool IsKnown => Definition != null;
@@ -150,32 +145,6 @@ public abstract class Operation
         }
 
         throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");
-    }
-
-    /// <summary>
-    /// Determines whether the operation has a semantic property with the supplied name.
-    /// </summary>
-    public bool HasProperty(string name)
-    {
-        return Properties.ContainsKey(name);
-    }
-
-    /// <summary>
-    /// Gets a semantic property by name.
-    /// </summary>
-    public T GetProperty<T>(string name)
-    {
-        if (!Properties.TryGetValue(name, out var value))
-        {
-            throw new KeyNotFoundException($"The operation '{Name}' does not have a property named '{name}'.");
-        }
-
-        if (value is T typedValue)
-        {
-            return typedValue;
-        }
-
-        throw new InvalidCastException($"The property '{name}' on operation '{Name}' is not a '{typeof(T).FullName}'.");
     }
 
     private static IReadOnlyList<string> GetNames(IReadOnlyList<ValueReference> values)

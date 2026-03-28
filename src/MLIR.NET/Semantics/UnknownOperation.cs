@@ -14,8 +14,6 @@ public sealed class UnknownOperation : Operation
     private readonly IReadOnlyList<ValueReference> resultValues;
     private readonly IReadOnlyList<ValueReference> operandValues;
     private readonly IReadOnlyList<BlockReference> successorReferences;
-    private readonly IReadOnlyDictionary<string, object?> properties;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="UnknownOperation"/> class.
     /// </summary>
@@ -28,8 +26,7 @@ public sealed class UnknownOperation : Operation
         TypeReference? typeSignatureReference,
         IReadOnlyList<ValueReference> resultValues,
         IReadOnlyList<ValueReference> operandValues,
-        IReadOnlyList<BlockReference> successorReferences,
-        IReadOnlyDictionary<string, object?> properties)
+        IReadOnlyList<BlockReference> successorReferences)
         : base(
             syntax,
             name,
@@ -41,7 +38,6 @@ public sealed class UnknownOperation : Operation
         this.resultValues = resultValues;
         this.operandValues = operandValues;
         this.successorReferences = successorReferences;
-        this.properties = properties;
     }
 
     /// <inheritdoc/>
@@ -62,6 +58,4 @@ public sealed class UnknownOperation : Operation
     /// <inheritdoc/>
     public override IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;
 
-    /// <inheritdoc/>
-    public override IReadOnlyDictionary<string, object?> Properties => properties;
 }
