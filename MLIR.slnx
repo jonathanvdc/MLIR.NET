@@ -1,10 +1,10 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/MLIR.NET/MLIR.NET.csproj" />
+    <Project Path="src/MLIR/MLIR.csproj" />
     <Project Path="src/TableGen/TableGen.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/MLIR.NET.Tests/MLIR.NET.Tests.csproj" />
+    <Project Path="tests/MLIR.Tests/MLIR.Tests.csproj" />
     <Project Path="tests/TableGen.Tests/TableGen.Tests.csproj" />
   </Folder>
 </Solution>

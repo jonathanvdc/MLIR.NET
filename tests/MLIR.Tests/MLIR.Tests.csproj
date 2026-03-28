@@ -12,6 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\MLIR.NET\MLIR.NET.csproj" />
+    <ProjectReference Include="..\..\src\MLIR\MLIR.csproj" />
   </ItemGroup>
 </Project>

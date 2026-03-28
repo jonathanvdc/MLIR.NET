@@ -21,10 +21,10 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore MLIR.NET.slnx
+        run: dotnet restore MLIR.slnx
 
       - name: Build
-        run: dotnet build MLIR.NET.slnx --configuration Release --no-restore
+        run: dotnet build MLIR.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test MLIR.NET.slnx --configuration Release --no-build
+        run: dotnet test MLIR.slnx --configuration Release --no-build
