@@ -30,7 +30,7 @@ public sealed class BlockArgument(BlockArgumentSyntax syntax, TypeReference type
     /// <summary>
     /// Gets the declared type text for the block argument.
     /// </summary>
-    public RawSyntaxText Type => Syntax.Type;
+    public RawSyntaxText Type => Syntax.RawType;
 
     /// <summary>
     /// Gets the semantic type reference for the block argument.

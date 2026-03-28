@@ -8,8 +8,8 @@ namespace MLIR.Syntax;
 /// </remarks>
 /// <param name="nameToken">The SSA name token.</param>
 /// <param name="colonToken">The separating colon token.</param>
-/// <param name="type">The declared argument type.</param>
-public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colonToken, RawSyntaxText type)
+/// <param name="typeSyntax">The declared argument type syntax.</param>
+public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colonToken, TypeSyntax typeSyntax)
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="BlockArgumentSyntax"/> class.
@@ -17,7 +17,7 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     /// <param name="name">The SSA name of the block argument.</param>
     /// <param name="type">The declared argument type.</param>
     public BlockArgumentSyntax(string name, RawSyntaxText type)
-        : this(new SyntaxToken(name), new SyntaxToken(":"), type)
+        : this(new SyntaxToken(name), new SyntaxToken(":"), new RawTypeSyntax(type))
     {
     }
 
@@ -37,7 +37,20 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     public string Name => NameToken.Text;
 
     /// <summary>
-    /// Gets the declared type text for the block argument.
+    /// Gets the declared type syntax for the block argument.
     /// </summary>
-    public RawSyntaxText Type { get; } = type;
+    public TypeSyntax TypeSyntax { get; } = typeSyntax;
+
+    /// <summary>
+    /// Attempts to get the declared type as raw syntax text.
+    /// </summary>
+    public bool TryGetRawType(out RawSyntaxText? rawType)
+    {
+        return TypeSyntax.TryGetRawText(out rawType);
+    }
+
+    /// <summary>
+    /// Gets the declared type as raw syntax text.
+    /// </summary>
+    public RawSyntaxText RawType => TypeSyntax.GetRawText();
 }

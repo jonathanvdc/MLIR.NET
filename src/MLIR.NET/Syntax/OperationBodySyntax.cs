@@ -1,6 +1,5 @@
 namespace MLIR.Syntax;
 
-using System.Collections.Generic;
 using MLIR.Text;
 
 /// <summary>
@@ -9,34 +8,31 @@ using MLIR.Text;
 public abstract class OperationBodySyntax
 {
     /// <summary>
-    /// Gets the operand tokens referenced by the operation body.
+    /// Attempts to project this body into the generic MLIR operation-body shape.
     /// </summary>
-    public abstract IReadOnlyList<SyntaxToken> OperandTokens { get; }
+    /// <param name="genericBody">
+    /// When this method returns, contains the generic projection of the body when the
+    /// projection succeeded; otherwise, <see langword="null"/>.
+    /// </param>
+    /// <returns><see langword="true"/> when a generic projection is available; otherwise, <see langword="false"/>.</returns>
+    public abstract bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody);
 
     /// <summary>
-    /// Gets the successor block label tokens referenced by the operation body.
+    /// Gets the generic MLIR operation-body projection for this body.
     /// </summary>
-    public abstract IReadOnlyList<SyntaxToken> SuccessorTokens { get; }
+    /// <returns>The generic body projection.</returns>
+    /// <exception cref="System.InvalidOperationException">
+    /// Thrown when the body does not provide a generic projection.
+    /// </exception>
+    public GenericOperationBodySyntax GetGenericBody()
+    {
+        if (TryGetGenericBody(out var genericBody))
+        {
+            return genericBody!;
+        }
 
-    /// <summary>
-    /// Gets the regions nested under the operation.
-    /// </summary>
-    public abstract IReadOnlyList<RegionSyntax> Regions { get; }
-
-    /// <summary>
-    /// Gets the attribute dictionary projected by the operation body.
-    /// </summary>
-    public abstract DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
-
-    /// <summary>
-    /// Gets the colon token that introduces the type signature, if present.
-    /// </summary>
-    public abstract SyntaxToken? TypeSignatureColonToken { get; }
-
-    /// <summary>
-    /// Gets the raw trailing type signature, if present.
-    /// </summary>
-    public abstract RawSyntaxText? TypeSignature { get; }
+        throw new System.InvalidOperationException("This operation body does not provide a generic MLIR body projection.");
+    }
 
     /// <summary>
     /// Prints the operation body.

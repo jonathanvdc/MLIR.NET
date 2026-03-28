@@ -123,7 +123,7 @@ public sealed class Operation(
     /// <summary>
     /// Gets the raw type signature text, if present.
     /// </summary>
-    public RawSyntaxText? TypeSignature => Syntax.TypeSignature;
+    public RawSyntaxText? TypeSignature => Syntax.RawTypeSignature;
 
     /// <summary>
     /// Gets the source location of the operation name, if known.

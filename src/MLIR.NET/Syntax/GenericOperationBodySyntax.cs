@@ -1,6 +1,5 @@
 namespace MLIR.Syntax;
 
-using System.Collections.Generic;
 using MLIR.Text;
 
 /// <summary>
@@ -14,14 +13,14 @@ using MLIR.Text;
 /// <param name="regions">The regions nested under the operation.</param>
 /// <param name="attributes">The delimited attribute dictionary.</param>
 /// <param name="typeSignatureColonToken">The colon token that introduces the type signature, if present.</param>
-/// <param name="typeSignature">The raw trailing type signature, if present.</param>
+/// <param name="typeSignatureSyntax">The trailing type signature syntax, if present.</param>
 public sealed class GenericOperationBodySyntax(
     DelimitedSyntaxList<SyntaxToken> operandList,
     DelimitedSyntaxList<SyntaxToken> successorList,
     IReadOnlyList<RegionSyntax> regions,
     DelimitedSyntaxList<NamedAttributeSyntax> attributes,
     SyntaxToken? typeSignatureColonToken,
-    RawSyntaxText? typeSignature) : OperationBodySyntax
+    TypeSyntax? typeSignatureSyntax) : OperationBodySyntax
 {
     /// <summary>
     /// Gets the delimited operand list.
@@ -33,23 +32,51 @@ public sealed class GenericOperationBodySyntax(
     /// </summary>
     public DelimitedSyntaxList<SyntaxToken> SuccessorList { get; } = successorList;
 
-    /// <inheritdoc/>
-    public override IReadOnlyList<SyntaxToken> OperandTokens => OperandList.Items;
+    /// <summary>
+    /// Gets the regions nested under the operation.
+    /// </summary>
+    public IReadOnlyList<RegionSyntax> Regions { get; } = regions;
+
+    /// <summary>
+    /// Gets the delimited attribute dictionary.
+    /// </summary>
+    public DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; } = attributes;
+
+    /// <summary>
+    /// Gets the colon token that introduces the type signature, if present.
+    /// </summary>
+    public SyntaxToken? TypeSignatureColonToken { get; } = typeSignatureColonToken;
+
+    /// <summary>
+    /// Gets the trailing type signature syntax, if present.
+    /// </summary>
+    public TypeSyntax? TypeSignatureSyntax { get; } = typeSignatureSyntax;
+
+    /// <summary>
+    /// Attempts to get the trailing type signature as raw syntax text.
+    /// </summary>
+    public bool TryGetRawTypeSignature(out RawSyntaxText? rawTypeSignature)
+    {
+        if (TypeSignatureSyntax != null)
+        {
+            return TypeSignatureSyntax.TryGetRawText(out rawTypeSignature);
+        }
+
+        rawTypeSignature = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the trailing type signature as raw syntax text.
+    /// </summary>
+    public RawSyntaxText? RawTypeSignature => TypeSignatureSyntax?.GetRawText();
 
     /// <inheritdoc/>
-    public override IReadOnlyList<SyntaxToken> SuccessorTokens => SuccessorList.Items;
-
-    /// <inheritdoc/>
-    public override IReadOnlyList<RegionSyntax> Regions { get; } = regions;
-
-    /// <inheritdoc/>
-    public override DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; } = attributes;
-
-    /// <inheritdoc/>
-    public override SyntaxToken? TypeSignatureColonToken { get; } = typeSignatureColonToken;
-
-    /// <inheritdoc/>
-    public override RawSyntaxText? TypeSignature { get; } = typeSignature;
+    public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
+    {
+        genericBody = this;
+        return true;
+    }
 
     /// <inheritdoc/>
     public override void Print(OperationBodyPrintingContext context)
@@ -104,10 +131,10 @@ public sealed class GenericOperationBodySyntax(
             context.WriteToken(Attributes.CloseToken!.Value, string.Empty);
         }
 
-        if (TypeSignatureColonToken != null && TypeSignature != null)
+        if (TypeSignatureColonToken != null && TypeSignatureSyntax != null)
         {
             context.WriteToken(TypeSignatureColonToken.Value, " ");
-            context.WriteRaw(TypeSignature, " ");
+            context.WriteType(TypeSignatureSyntax, " ");
         }
     }
 }

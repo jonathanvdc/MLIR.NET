@@ -8,8 +8,8 @@ namespace MLIR.Syntax;
 /// </remarks>
 /// <param name="nameToken">The attribute name token.</param>
 /// <param name="equalsToken">The equals token.</param>
-/// <param name="value">The raw attribute value text.</param>
-public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equalsToken, RawSyntaxText value)
+/// <param name="valueSyntax">The attribute value syntax.</param>
+public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equalsToken, AttributeValueSyntax valueSyntax)
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="NamedAttributeSyntax"/> class.
@@ -17,7 +17,7 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// <param name="name">The attribute name.</param>
     /// <param name="value">The raw attribute value text.</param>
     public NamedAttributeSyntax(string name, RawSyntaxText value)
-        : this(new SyntaxToken(name), new SyntaxToken("="), value)
+        : this(new SyntaxToken(name), new SyntaxToken("="), new RawAttributeValueSyntax(value))
     {
     }
 
@@ -37,7 +37,20 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     public string Name => NameToken.Text;
 
     /// <summary>
-    /// Gets the raw attribute value text.
+    /// Gets the attribute value syntax.
     /// </summary>
-    public RawSyntaxText Value { get; } = value;
+    public AttributeValueSyntax ValueSyntax { get; } = valueSyntax;
+
+    /// <summary>
+    /// Attempts to get the attribute value as raw syntax text.
+    /// </summary>
+    public bool TryGetRawValue(out RawSyntaxText? rawValue)
+    {
+        return ValueSyntax.TryGetRawText(out rawValue);
+    }
+
+    /// <summary>
+    /// Gets the attribute value as raw syntax text.
+    /// </summary>
+    public RawSyntaxText RawValue => ValueSyntax.GetRawText();
 }

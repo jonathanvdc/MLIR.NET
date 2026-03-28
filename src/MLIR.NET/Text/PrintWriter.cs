@@ -38,13 +38,13 @@ internal static class PrintWriter
     {
         AppendToken(builder, argument.NameToken, defaultLeadingTrivia);
         AppendToken(builder, argument.ColonToken, string.Empty);
-        AppendRaw(builder, argument.Type, " ");
+        argument.TypeSyntax.Print(new SyntaxFragmentPrintingContext(builder, " "));
     }
 
     public static void AppendAttribute(StringBuilder builder, NamedAttributeSyntax attribute, string defaultLeadingTrivia)
     {
         AppendToken(builder, attribute.NameToken, defaultLeadingTrivia);
         AppendToken(builder, attribute.EqualsToken, " ");
-        AppendRaw(builder, attribute.Value, " ");
+        attribute.ValueSyntax.Print(new SyntaxFragmentPrintingContext(builder, " "));
     }
 }

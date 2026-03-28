@@ -52,6 +52,14 @@ public sealed class OperationBodyPrintingContext
     }
 
     /// <summary>
+    /// Appends a type syntax node using the generic formatting rules.
+    /// </summary>
+    public void WriteType(TypeSyntax typeSyntax, string defaultLeadingTrivia)
+    {
+        typeSyntax.Print(new SyntaxFragmentPrintingContext(builder, defaultLeadingTrivia));
+    }
+
+    /// <summary>
     /// Appends a named attribute using the generic formatting rules.
     /// </summary>
     public void WriteAttribute(NamedAttributeSyntax attribute, string defaultLeadingTrivia)

@@ -48,7 +48,7 @@ public sealed class OperationSyntax
                     CreateDefaultCommaTokens(attributes.Count),
                     attributes.Count > 0 ? new SyntaxToken("}") : null),
                 typeSignature != null ? new SyntaxToken(":") : null,
-                typeSignature))
+                typeSignature != null ? new RawTypeSyntax(typeSignature) : null))
     {
     }
 
@@ -109,7 +109,7 @@ public sealed class OperationSyntax
                 regions,
                 attributes,
                 typeSignatureColonToken,
-                typeSignature))
+                typeSignature != null ? new RawTypeSyntax(typeSignature) : null))
     {
     }
 
@@ -139,40 +139,60 @@ public sealed class OperationSyntax
     public OperationBodySyntax Body { get; }
 
     /// <summary>
+    /// Attempts to get the operation body as a generic MLIR body.
+    /// </summary>
+    public bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
+    {
+        return Body.TryGetGenericBody(out genericBody);
+    }
+
+    /// <summary>
+    /// Gets the operation body as a generic MLIR body.
+    /// </summary>
+    public GenericOperationBodySyntax GenericBody => Body.GetGenericBody();
+
+    /// <summary>
     /// Gets the delimited operand list.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> OperandList =>
-        Body is GenericOperationBodySyntax generic
-            ? generic.OperandList
-            : new DelimitedSyntaxList<SyntaxToken>(null, Body.OperandTokens, CreateDefaultCommaTokens(Body.OperandTokens.Count), null);
+    public DelimitedSyntaxList<SyntaxToken> OperandList => GenericBody.OperandList;
 
     /// <summary>
     /// Gets the delimited successor list.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> SuccessorList =>
-        Body is GenericOperationBodySyntax generic
-            ? generic.SuccessorList
-            : new DelimitedSyntaxList<SyntaxToken>(null, Body.SuccessorTokens, CreateDefaultCommaTokens(Body.SuccessorTokens.Count), null);
+    public DelimitedSyntaxList<SyntaxToken> SuccessorList => GenericBody.SuccessorList;
 
     /// <summary>
     /// Gets the regions nested under the operation.
     /// </summary>
-    public IReadOnlyList<RegionSyntax> Regions => Body.Regions;
+    public IReadOnlyList<RegionSyntax> Regions => GenericBody.Regions;
 
     /// <summary>
     /// Gets the delimited attribute dictionary.
     /// </summary>
-    public DelimitedSyntaxList<NamedAttributeSyntax> Attributes => Body.Attributes;
+    public DelimitedSyntaxList<NamedAttributeSyntax> Attributes => GenericBody.Attributes;
 
     /// <summary>
     /// Gets the colon token that introduces the type signature, if present.
     /// </summary>
-    public SyntaxToken? TypeSignatureColonToken => Body.TypeSignatureColonToken;
+    public SyntaxToken? TypeSignatureColonToken => GenericBody.TypeSignatureColonToken;
 
     /// <summary>
-    /// Gets the raw trailing type signature, if present.
+    /// Gets the trailing type signature syntax, if present.
     /// </summary>
-    public RawSyntaxText? TypeSignature => Body.TypeSignature;
+    public TypeSyntax? TypeSignatureSyntax => GenericBody.TypeSignatureSyntax;
+
+    /// <summary>
+    /// Attempts to get the trailing type signature as raw syntax text.
+    /// </summary>
+    public bool TryGetRawTypeSignature(out RawSyntaxText? rawTypeSignature)
+    {
+        return GenericBody.TryGetRawTypeSignature(out rawTypeSignature);
+    }
+
+    /// <summary>
+    /// Gets the trailing type signature as raw syntax text.
+    /// </summary>
+    public RawSyntaxText? RawTypeSignature => GenericBody.RawTypeSignature;
 
     /// <summary>
     /// Gets the SSA results produced by the operation.
@@ -187,12 +207,12 @@ public sealed class OperationSyntax
     /// <summary>
     /// Gets the SSA operands passed to the operation.
     /// </summary>
-    public IReadOnlyList<string> Operands => GetTexts(Body.OperandTokens);
+    public IReadOnlyList<string> Operands => GetTexts(OperandList.Items);
 
     /// <summary>
     /// Gets the successor block labels referenced by the operation.
     /// </summary>
-    public IReadOnlyList<string> Successors => GetTexts(Body.SuccessorTokens);
+    public IReadOnlyList<string> Successors => GetTexts(SuccessorList.Items);
 
     /// <summary>
     /// Gets a value indicating whether the operation uses a custom assembly body.

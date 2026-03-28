@@ -37,7 +37,7 @@ public sealed class ParsingTests
 
         var module = Parser.ParseModule(source);
 
-        Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", module.Operations[0].TypeSignature!.Text);
+        Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", module.Operations[0].RawTypeSignature!.Text);
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public sealed class ParsingTests
         var module = Parser.ParseModule(source);
         var attribute = module.Operations[0].Attributes[0];
 
-        Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.Value.Text);
+        Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.RawValue.Text);
         Assert.Equal(source, Printer.Print(module));
     }
 }

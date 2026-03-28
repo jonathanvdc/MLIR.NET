@@ -11,6 +11,9 @@ public sealed class SemanticTests
 {
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
     {
+        private readonly GenericOperationBodySyntax genericBody;
+        private readonly RawSyntaxText typeSignature;
+
         public PrefixConstantBodySyntax(
             RawSyntaxText value,
             SyntaxToken colonToken,
@@ -19,24 +22,30 @@ public sealed class SemanticTests
         {
             Value = value;
             ColonToken = colonToken;
-            TypeSignature = typeSignature;
-            Attributes = attributes;
+            this.typeSignature = typeSignature;
+            genericBody = new GenericOperationBodySyntax(
+                new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), [], [], new SyntaxToken(")")),
+                new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
+                [],
+                attributes,
+                colonToken,
+                new RawTypeSyntax(typeSignature));
         }
 
         public RawSyntaxText Value { get; }
         public SyntaxToken ColonToken { get; }
-        public override IReadOnlyList<SyntaxToken> OperandTokens { get; } = [];
-        public override IReadOnlyList<SyntaxToken> SuccessorTokens { get; } = [];
-        public override IReadOnlyList<RegionSyntax> Regions { get; } = [];
-        public override DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
-        public override SyntaxToken? TypeSignatureColonToken => ColonToken;
-        public override RawSyntaxText? TypeSignature { get; }
+
+        public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
+        {
+            genericBody = this.genericBody;
+            return true;
+        }
 
         public override void Print(OperationBodyPrintingContext context)
         {
             context.WriteRaw(Value, " ");
             context.WriteToken(ColonToken, " ");
-            context.WriteRaw(TypeSignature!, " ");
+            context.WriteRaw(typeSignature, " ");
         }
     }
 
@@ -71,7 +80,7 @@ public sealed class SemanticTests
             var value = context.ParseRawUntilDelimiter(TokenKind.Colon);
             var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
             var type = context.ParseRawUntilOperationBoundary();
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), value)]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(value))]);
 
             body = new PrefixConstantBodySyntax(value, colonToken, type, attributes);
             return true;
@@ -563,8 +572,8 @@ public sealed class SemanticTests
         Assert.Empty(module.Operations[0].Operands);
         Assert.Single(module.Operations[0].Attributes);
         Assert.Equal("value", module.Operations[0].Attributes[0].Name);
-        Assert.Equal("0", module.Operations[0].Attributes[0].Value.Text);
-        Assert.Equal("i32", module.Operations[0].TypeSignature!.Text);
+        Assert.Equal("0", module.Operations[0].Attributes[0].RawValue.Text);
+        Assert.Equal("i32", module.Operations[0].RawTypeSignature!.Text);
     }
 
     [Fact]

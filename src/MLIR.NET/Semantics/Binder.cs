@@ -30,16 +30,17 @@ public static class Binder
 
     private static Operation BindOperation(OperationSyntax syntax, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
     {
+        var genericBody = syntax.GenericBody;
         var regions = new List<Region>();
-        foreach (var region in syntax.Regions)
+        foreach (var region in genericBody.Regions)
         {
             regions.Add(BindRegion(region, dialectRegistry, diagnostics));
         }
 
         var attributes = new List<NamedAttribute>();
-        foreach (var attribute in syntax.Attributes)
+        foreach (var attribute in genericBody.Attributes)
         {
-            attributes.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.Value, attribute.NameToken, dialectRegistry, diagnostics)));
+            attributes.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.RawValue, attribute.NameToken, dialectRegistry, diagnostics)));
         }
 
         var name = NormalizeOperationName(syntax.Name);
@@ -50,18 +51,18 @@ public static class Binder
         }
 
         TypeReference? typeSignatureReference = null;
-        if (syntax.TypeSignature != null)
+        if (genericBody.RawTypeSignature != null)
         {
-            var location = syntax.TypeSignatureColonToken != null
-                ? SourceLocation.FromToken(syntax.TypeSignatureColonToken.Value)
+            var location = genericBody.TypeSignatureColonToken != null
+                ? SourceLocation.FromToken(genericBody.TypeSignatureColonToken.Value)
                 : default;
-            typeSignatureReference = BindTypeReference(syntax.TypeSignature, location, dialectRegistry, diagnostics);
+            typeSignatureReference = BindTypeReference(genericBody.RawTypeSignature, location, dialectRegistry, diagnostics);
         }
 
         var properties = new Dictionary<string, object?>();
         var resultValues = CreateValueReferences(syntax.ResultTokens);
-        var operandValues = CreateValueReferences(syntax.Body.OperandTokens);
-        var successorReferences = CreateBlockReferences(syntax.Body.SuccessorTokens);
+        var operandValues = CreateValueReferences(genericBody.OperandList.Items);
+        var successorReferences = CreateBlockReferences(genericBody.SuccessorList.Items);
         var operation = new Operation(syntax, name, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences, properties);
         if (definition?.AssemblyFormat != null)
         {
@@ -87,7 +88,7 @@ public static class Binder
         var arguments = new List<BlockArgument>();
         foreach (var argument in syntax.Arguments)
         {
-            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.Type, SourceLocation.FromToken(argument.NameToken), dialectRegistry, diagnostics)));
+            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.RawType, SourceLocation.FromToken(argument.NameToken), dialectRegistry, diagnostics)));
         }
 
         var operations = new List<Operation>();

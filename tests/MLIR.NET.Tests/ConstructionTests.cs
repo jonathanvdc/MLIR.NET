@@ -10,6 +10,9 @@ public sealed class ConstructionTests
 {
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
     {
+        private readonly GenericOperationBodySyntax genericBody;
+        private readonly RawSyntaxText typeSignature;
+
         public PrefixConstantBodySyntax(
             RawSyntaxText value,
             SyntaxToken colonToken,
@@ -18,24 +21,30 @@ public sealed class ConstructionTests
         {
             Value = value;
             ColonToken = colonToken;
-            TypeSignature = typeSignature;
-            Attributes = attributes;
+            this.typeSignature = typeSignature;
+            genericBody = new GenericOperationBodySyntax(
+                new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), [], [], new SyntaxToken(")")),
+                new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
+                [],
+                attributes,
+                colonToken,
+                new RawTypeSyntax(typeSignature));
         }
 
         public RawSyntaxText Value { get; }
         public SyntaxToken ColonToken { get; }
-        public override IReadOnlyList<SyntaxToken> OperandTokens { get; } = [];
-        public override IReadOnlyList<SyntaxToken> SuccessorTokens { get; } = [];
-        public override IReadOnlyList<RegionSyntax> Regions { get; } = [];
-        public override DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
-        public override SyntaxToken? TypeSignatureColonToken => ColonToken;
-        public override RawSyntaxText? TypeSignature { get; }
+
+        public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
+        {
+            genericBody = this.genericBody;
+            return true;
+        }
 
         public override void Print(OperationBodyPrintingContext context)
         {
             context.WriteRaw(Value, " ");
             context.WriteToken(ColonToken, " ");
-            context.WriteRaw(TypeSignature!, " ");
+            context.WriteRaw(typeSignature, " ");
         }
     }
 
@@ -185,6 +194,6 @@ public sealed class ConstructionTests
 
         Assert.Equal("%0 = arith.constant 0 : i32", text);
         Assert.True(module.Operations[0].HasCustomAssemblyBody);
-        Assert.Equal("0", module.Operations[0].Attributes[0].Value.Text);
+        Assert.Equal("0", module.Operations[0].Attributes[0].RawValue.Text);
     }
 }

@@ -157,11 +157,11 @@ public sealed class Parser
         }
 
         SyntaxToken? typeSignatureColonToken = null;
-        RawSyntaxText? typeSignature = null;
+        TypeSyntax? typeSignatureSyntax = null;
         if (Is(TokenKind.Colon))
         {
             typeSignatureColonToken = ExpectToken(TokenKind.Colon, "Expected ':' before the type signature.");
-            typeSignature = ParseRawUntilOperationBoundary();
+            typeSignatureSyntax = new RawTypeSyntax(ParseRawUntilOperationBoundary());
         }
 
         return new OperationSyntax(
@@ -186,7 +186,7 @@ public sealed class Parser
                 attributeCommaTokens,
                 hasAttributes ? closeAttributeBraceToken : null),
             typeSignatureColonToken,
-            typeSignature);
+            typeSignatureSyntax?.GetRawText());
     }
 
     private bool TryParseCustomAssembly(
@@ -316,7 +316,7 @@ public sealed class Parser
         var nameToken = ParseSsaToken();
         var colonToken = ExpectToken(TokenKind.Colon, "Expected ':' after block argument name.");
         var type = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RParen);
-        return new BlockArgumentSyntax(nameToken, colonToken, type);
+        return new BlockArgumentSyntax(nameToken, colonToken, new RawTypeSyntax(type));
     }
 
     private NamedAttributeSyntax ParseAttribute()
@@ -333,7 +333,7 @@ public sealed class Parser
 
         var equalsToken = ExpectToken(TokenKind.Equal, "Expected '=' after attribute name.");
         var value = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RBrace);
-        return new NamedAttributeSyntax(nameToken, equalsToken, value);
+        return new NamedAttributeSyntax(nameToken, equalsToken, new RawAttributeValueSyntax(value));
     }
 
     private SyntaxToken ParseOperationNameToken()

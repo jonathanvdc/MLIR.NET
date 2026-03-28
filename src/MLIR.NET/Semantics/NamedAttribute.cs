@@ -25,7 +25,7 @@ public sealed class NamedAttribute(NamedAttributeSyntax syntax, AttributeValue v
     /// <summary>
     /// Gets the raw attribute value text.
     /// </summary>
-    public RawSyntaxText Value => Syntax.Value;
+    public RawSyntaxText Value => Syntax.RawValue;
 
     /// <summary>
     /// Gets the semantic attribute value bound from the raw text.
