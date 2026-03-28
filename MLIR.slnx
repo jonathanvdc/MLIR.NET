@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/MLIR/MLIR.csproj" />
+    <Project Path="src/MLIR.Generators/MLIR.Generators.csproj" />
+    <Project Path="src/MLIR.ODS/MLIR.ODS.csproj" />
     <Project Path="src/TableGen/TableGen.csproj" />
   </Folder>
   <Folder Name="/tests/">
