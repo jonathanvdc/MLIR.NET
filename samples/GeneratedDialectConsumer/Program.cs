@@ -1,5 +1,5 @@
 using MLIR.Dialects;
-using MLIR.Generated.Arith;
+using MLIR.Arith;
 
 Dialect dialect = ArithDialectRegistration.Create();
 System.Type operationType = typeof(AddIOperation);

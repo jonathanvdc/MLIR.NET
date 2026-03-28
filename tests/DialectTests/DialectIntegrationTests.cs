@@ -2,7 +2,7 @@ namespace DialectTests;
 
 using MLIR;
 using MLIR.Dialects;
-using MLIR.Generated.Arith;
+using MLIR.Arith;
 using Xunit;
 
 public sealed class DialectIntegrationTests

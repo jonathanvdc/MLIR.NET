@@ -54,6 +54,7 @@ public sealed class OdsDialectGeneratorTests
             ("arith.td", source));
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "ArithDialectRegistration.g.cs")).SourceText.ToString();
 
+        Assert.Contains("namespace MLIR.Arith;", registrationSource);
         Assert.Contains("public static class ArithDialectRegistration", registrationSource);
         Assert.Contains("public sealed class AddIOperation : Operation", registrationSource);
         Assert.Contains("public sealed class FastMathAttributeValue : AttributeValue", registrationSource);
