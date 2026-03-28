@@ -1,12 +1,85 @@
 namespace MLIR.Tests;
 
 using MLIR;
+using MLIR.Dialects;
 using MLIR.Syntax;
 using MLIR.Text;
+using MLIR.Transforms;
 using Xunit;
 
 public sealed class ParsingTests
 {
+    private sealed class PrefixConstantBodySyntax : OperationBodySyntax
+    {
+        private readonly GenericOperationBodySyntax genericBody;
+        private readonly RawSyntaxText value;
+        private readonly RawSyntaxText typeSignature;
+
+        public PrefixConstantBodySyntax(
+            RawSyntaxText value,
+            SyntaxToken colonToken,
+            RawSyntaxText typeSignature,
+            DelimitedSyntaxList<NamedAttributeSyntax> attributes)
+        {
+            this.value = value;
+            this.typeSignature = typeSignature;
+            genericBody = new GenericOperationBodySyntax(
+                new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), [], [], new SyntaxToken(")")),
+                new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
+                [],
+                attributes,
+                colonToken,
+                new RawTypeSyntax(typeSignature));
+        }
+
+        public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
+        {
+            genericBody = this.genericBody;
+            return true;
+        }
+
+        public override void WriteTo(SyntaxWriter writer, int indentLevel, System.Action<SyntaxWriter, RegionSyntax, int> writeRegion)
+        {
+            writer.WriteRaw(value, " ");
+            writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"), " ");
+            writer.WriteRaw(typeSignature, " ");
+        }
+    }
+
+    private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
+    {
+        public bool TryParse(
+            SyntaxToken nameToken,
+            IReadOnlyList<SyntaxToken> resultTokens,
+            IReadOnlyList<SyntaxToken> resultCommaTokens,
+            SyntaxToken? equalsToken,
+            OperationParsingContext context,
+            out OperationBodySyntax? body)
+        {
+            if (context.Is(TokenKind.LParen))
+            {
+                body = null;
+                return false;
+            }
+
+            var value = context.ParseRawUntilDelimiter(TokenKind.Colon);
+            var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
+            var type = context.ParseRawUntilOperationBoundary();
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(value))]);
+            body = new PrefixConstantBodySyntax(value, colonToken, type, attributes);
+            return true;
+        }
+
+        public void Bind(Semantics.Operation operation, OperationAssemblyBindingContext context)
+        {
+        }
+
+        public OperationSyntax Rewrite(Semantics.Operation operation, OperationSyntaxTransformContext context)
+        {
+            return context.RewriteOperation(operation, context.TransformGenericBody(operation));
+        }
+    }
+
     [Fact]
     public void ParsesAndPrintsSimpleGenericOperation()
     {
@@ -197,5 +270,60 @@ public sealed class ParsingTests
 
         Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.RawValue.Text);
         Assert.Equal(source, Printer.Print(module));
+    }
+
+    [Fact]
+    public void CanRewriteCustomAssemblySyntaxToGenericSyntax()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                }));
+
+        var module = Parser.ParseModule("%0 = arith.constant 0 : i32", registry);
+        var genericModule = GenericSyntaxBuilder.BuildModule(module);
+
+        Assert.True(module.Operations[0].HasCustomAssemblyBody);
+        Assert.False(genericModule.Operations[0].HasCustomAssemblyBody);
+        Assert.Equal("%0 = arith.constant() {value = 0} : i32", Printer.Print(genericModule));
+    }
+
+    [Fact]
+    public void RewritesNestedCustomAssemblySyntaxToGenericSyntaxRecursively()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                }));
+
+        var module = Parser.ParseModule(
+            "\"scf.if\"(%cond) {\n" +
+            "  %0 = arith.constant 0 : i32\n" +
+            "  \"func.return\"(%0) : (i32) -> ()\n" +
+            "} : (i1) -> ()",
+            registry);
+
+        var genericModule = GenericSyntaxBuilder.BuildModule(module);
+
+        Assert.True(module.Operations[0].Regions[0].Blocks[0].Operations[0].HasCustomAssemblyBody);
+        Assert.False(genericModule.Operations[0].Regions[0].Blocks[0].Operations[0].HasCustomAssemblyBody);
+        Assert.Equal(
+            "\"scf.if\"(%cond) {\n" +
+            "  %0 = arith.constant() {value = 0} : i32\n" +
+            "  \"func.return\"(%0) : (i32) -> ()\n" +
+            "} : (i1) -> ()",
+            Printer.Print(genericModule));
     }
 }
