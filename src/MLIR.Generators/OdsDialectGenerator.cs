@@ -1,11 +1,18 @@
 namespace MLIR.Generators;
 
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using MLIR.ODS;
+using MLIR.ODS.Model;
+using TableGen;
 
 /// <summary>
-/// Minimal incremental generator scaffold for MLIR dialect generation from TableGen/ODS inputs.
+/// Incremental generator for convention-based MLIR dialect generation from TableGen/ODS inputs.
 /// </summary>
 [Generator]
 public sealed class OdsDialectGenerator : IIncrementalGenerator
@@ -14,30 +21,339 @@ public sealed class OdsDialectGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var tableGenFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(".td", System.StringComparison.OrdinalIgnoreCase))
+            .Where(static file => file.Path.EndsWith(".td", StringComparison.OrdinalIgnoreCase))
+            .Select(static (file, cancellationToken) => ParseFile(file, cancellationToken))
             .Collect();
 
-        context.RegisterSourceOutput(tableGenFiles, static (productionContext, files) =>
+        context.RegisterSourceOutput(tableGenFiles, static (productionContext, results) =>
         {
-            var source = GeneratePlaceholder(files);
-            productionContext.AddSource("OdsDialectGenerator.g.cs", SourceText.From(source, Encoding.UTF8));
+            var dialects = new List<OdsDialectModel>();
+            foreach (var result in results)
+            {
+                if (result.ErrorMessage != null)
+                {
+                    productionContext.ReportDiagnostic(
+                        Diagnostic.Create(
+                            InvalidTableGenInput,
+                            Location.None,
+                            result.Path,
+                            result.ErrorMessage));
+                    continue;
+                }
+
+                dialects.AddRange(result.Dialects);
+            }
+
+            foreach (var dialect in dialects
+                .GroupBy(static dialect => dialect.Name, StringComparer.Ordinal)
+                .Select(MergeDialectGroup)
+                .OrderBy(static dialect => dialect.Name, StringComparer.Ordinal))
+            {
+                productionContext.AddSource(
+                    GetHintName(dialect),
+                    SourceText.From(GenerateDialectSource(dialect), Encoding.UTF8));
+            }
         });
     }
 
-    private static string GeneratePlaceholder(System.Collections.Immutable.ImmutableArray<AdditionalText> files)
+    private static ParsedDialectFile ParseFile(AdditionalText file, System.Threading.CancellationToken cancellationToken)
     {
-        return
-            "namespace MLIR.Generated;\n" +
-            "\n" +
-            "/// <summary>\n" +
-            "/// Tracks the additional TableGen inputs seen by the incremental generator.\n" +
-            "/// </summary>\n" +
-            "internal static class OdsGeneratorInputs\n" +
-            "{\n" +
-            "    /// <summary>\n" +
-            "    /// Gets the number of `.td` files currently visible to the generator.\n" +
-            "    /// </summary>\n" +
-            "    public const int TableGenFileCount = " + files.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + ";\n" +
-            "}\n";
+        var text = file.GetText(cancellationToken);
+        if (text == null)
+        {
+            return new ParsedDialectFile(file.Path, EmptyDialects, "Could not read the additional text.");
+        }
+
+        try
+        {
+            var document = TableGenDocument.Parse(text.ToString());
+            var dialects = OdsDialectImporter.Import(document.Evaluate());
+            return new ParsedDialectFile(file.Path, dialects, null);
+        }
+        catch (Exception exception)
+        {
+            return new ParsedDialectFile(file.Path, EmptyDialects, exception.Message);
+        }
+    }
+
+    private static OdsDialectModel MergeDialectGroup(IGrouping<string, OdsDialectModel> group)
+    {
+        var operations = new List<OdsOperationModel>();
+        var attributes = new List<OdsAttributeModel>();
+        var types = new List<OdsTypeModel>();
+
+        foreach (var dialect in group)
+        {
+            operations.AddRange(dialect.Operations);
+            attributes.AddRange(dialect.Attributes);
+            types.AddRange(dialect.Types);
+        }
+
+        return new OdsDialectModel(group.Key, operations, attributes, types);
+    }
+
+    private static string GetHintName(OdsDialectModel dialect)
+    {
+        return ToPascalCase(dialect.Name) + "DialectRegistration.g.cs";
+    }
+
+    private static string GenerateDialectSource(OdsDialectModel dialect)
+    {
+        var builder = new StringBuilder();
+        var dialectClassName = ToPascalCase(dialect.Name) + "DialectRegistration";
+        var generatedNamespace = "MLIR.Generated." + ToPascalCase(dialect.Name);
+
+        builder.AppendLine("// <auto-generated/>");
+        builder.AppendLine("#nullable enable");
+        builder.AppendLine();
+        builder.AppendLine("namespace " + generatedNamespace + ";");
+        builder.AppendLine();
+        builder.AppendLine("using System.Collections.Generic;");
+        builder.AppendLine("using MLIR.Dialects;");
+        builder.AppendLine("using MLIR.Semantics;");
+        builder.AppendLine("using MLIR.Syntax;");
+        builder.AppendLine("using MLIR.Text;");
+        builder.AppendLine("using MLIR.Transforms;");
+        builder.AppendLine();
+
+        foreach (var operation in dialect.Operations)
+        {
+            AppendOperationClass(builder, operation);
+            builder.AppendLine();
+
+            if (operation.HasCustomAssemblyFormat)
+            {
+                AppendAssemblyFormatClass(builder, operation);
+                builder.AppendLine();
+            }
+        }
+
+        foreach (var attribute in dialect.Attributes)
+        {
+            AppendAttributeClass(builder, attribute);
+            builder.AppendLine();
+        }
+
+        foreach (var type in dialect.Types)
+        {
+            AppendTypeClass(builder, type);
+            builder.AppendLine();
+        }
+
+        builder.AppendLine("public static class " + dialectClassName);
+        builder.AppendLine("{");
+        builder.AppendLine("    public static Dialect Create()");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return Dialect.Create(\"" + dialect.Name + "\", dialect =>");
+        builder.AppendLine("        {");
+
+        foreach (var operation in dialect.Operations)
+        {
+            var operationClassName = GetOperationClassName(operation);
+            builder.AppendLine("            dialect.AddOperation(\"" + operation.Name + "\", operation =>");
+            builder.AppendLine("            {");
+            foreach (var operand in operation.Operands)
+            {
+                builder.AppendLine("                operation.Operand(\"" + operand + "\");");
+            }
+
+            foreach (var result in operation.Results)
+            {
+                builder.AppendLine("                operation.Result(\"" + result + "\");");
+            }
+
+            foreach (var attribute in operation.Attributes)
+            {
+                builder.AppendLine("                operation.OptionalAttribute(\"" + attribute + "\");");
+            }
+
+            builder.AppendLine("                operation.WithFactory(static context => new " + operationClassName + "(context));");
+            if (operation.HasCustomAssemblyFormat)
+            {
+                builder.AppendLine("                operation.WithAssemblyFormat(new " + operationClassName + "AssemblyFormat());");
+            }
+
+            builder.AppendLine("            });");
+        }
+
+        foreach (var attribute in dialect.Attributes)
+        {
+            var attributeClassName = GetAttributeClassName(attribute);
+            builder.AppendLine(
+                "            dialect.AddAttribute(new AttributeDefinition(\"" + attribute.Name + "\", factory: static context => new " + attributeClassName + "(context)));");
+        }
+
+        foreach (var type in dialect.Types)
+        {
+            var typeClassName = GetTypeClassName(type);
+            builder.AppendLine(
+                "            dialect.AddType(new TypeDefinition(\"" + type.Name + "\", factory: static context => new " + typeClassName + "(context)));");
+        }
+
+        builder.AppendLine("        });");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+
+        return builder.ToString();
+    }
+
+    private static void AppendOperationClass(StringBuilder builder, OdsOperationModel operation)
+    {
+        var className = GetOperationClassName(operation);
+        var resultReferenceName = operation.Results.Count == 1 ? "ResultValue" : null;
+
+        builder.AppendLine("public sealed class " + className + " : Operation");
+        builder.AppendLine("{");
+        builder.AppendLine("    private readonly IReadOnlyList<Region> regions;");
+        builder.AppendLine("    private readonly IReadOnlyList<NamedAttribute> attributes;");
+        builder.AppendLine("    private readonly TypeReference? typeSignatureReference;");
+        builder.AppendLine("    private readonly IReadOnlyList<ValueReference> resultValues;");
+        builder.AppendLine("    private readonly IReadOnlyList<ValueReference> operandValues;");
+        builder.AppendLine("    private readonly IReadOnlyList<BlockReference> successorReferences;");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(OperationConstructionContext context)");
+        builder.AppendLine("        : base(context.Syntax, context.Name, context.Definition)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        regions = context.Regions;");
+        builder.AppendLine("        attributes = context.Attributes;");
+        builder.AppendLine("        typeSignatureReference = context.TypeSignatureReference;");
+        builder.AppendLine("        resultValues = context.ResultValues;");
+        builder.AppendLine("        operandValues = context.OperandValues;");
+        builder.AppendLine("        successorReferences = context.SuccessorReferences;");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public override IReadOnlyList<Region> Regions => regions;");
+        builder.AppendLine("    public override IReadOnlyList<NamedAttribute> Attributes => attributes;");
+        builder.AppendLine("    public override TypeReference? TypeSignatureReference => typeSignatureReference;");
+        builder.AppendLine("    public override IReadOnlyList<ValueReference> ResultValues => resultValues;");
+        builder.AppendLine("    public override IReadOnlyList<ValueReference> OperandValues => operandValues;");
+        builder.AppendLine("    public override IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;");
+        builder.AppendLine();
+
+        for (var i = 0; i < operation.Operands.Count; i++)
+        {
+            builder.AppendLine("    public ValueReference " + ToPascalCase(operation.Operands[i]) + " => OperandValues[" + i.ToString(CultureInfo.InvariantCulture) + "];");
+        }
+
+        for (var i = 0; i < operation.Results.Count; i++)
+        {
+            var propertyName = operation.Results.Count == 1
+                ? "ResultValue"
+                : ToPascalCase(operation.Results[i]);
+            builder.AppendLine("    public ValueReference " + propertyName + " => ResultValues[" + i.ToString(CultureInfo.InvariantCulture) + "];");
+        }
+
+        if (resultReferenceName != null && operation.Results[0] != "result")
+        {
+            builder.AppendLine("    public ValueReference " + ToPascalCase(operation.Results[0]) + " => " + resultReferenceName + ";");
+        }
+
+        builder.AppendLine("}");
+    }
+
+    private static void AppendAssemblyFormatClass(StringBuilder builder, OdsOperationModel operation)
+    {
+        var className = GetOperationClassName(operation);
+        builder.AppendLine("public sealed class " + className + "AssemblyFormat : IOperationAssemblyFormat");
+        builder.AppendLine("{");
+        builder.AppendLine("    public bool TryParse(SyntaxToken nameToken, IReadOnlyList<SyntaxToken> resultTokens, IReadOnlyList<SyntaxToken> resultCommaTokens, SyntaxToken? equalsToken, OperationParsingContext context, out OperationBodySyntax? body)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        body = null;");
+        builder.AppendLine("        return false;");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public void Bind(Operation operation, OperationAssemblyBindingContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return context.RewriteOperation(operation, context.TransformGenericBody(operation));");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private static void AppendAttributeClass(StringBuilder builder, OdsAttributeModel attribute)
+    {
+        var className = GetAttributeClassName(attribute);
+        builder.AppendLine("public sealed class " + className + " : AttributeValue");
+        builder.AppendLine("{");
+        builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
+        builder.AppendLine("        : base(context.Syntax, context.Name, context.Definition, context.Location)");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private static void AppendTypeClass(StringBuilder builder, OdsTypeModel type)
+    {
+        var className = GetTypeClassName(type);
+        builder.AppendLine("public sealed class " + className + " : TypeReference");
+        builder.AppendLine("{");
+        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
+        builder.AppendLine("        : base(context.Syntax, context.Name, context.Definition, context.Location)");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private static string GetOperationClassName(OdsOperationModel operation)
+    {
+        return operation.ClassName ?? ToPascalCase(operation.Name.Replace('.', '_')) + "Operation";
+    }
+
+    private static string GetAttributeClassName(OdsAttributeModel attribute)
+    {
+        return attribute.ClassName ?? ToPascalCase(attribute.Name.Replace('.', '_')) + "AttributeValue";
+    }
+
+    private static string GetTypeClassName(OdsTypeModel type)
+    {
+        return type.ClassName ?? ToPascalCase(type.Name.Replace('.', '_')) + "TypeReference";
+    }
+
+    private static string ToPascalCase(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        var capitalize = true;
+        foreach (var c in value)
+        {
+            if (!char.IsLetterOrDigit(c))
+            {
+                capitalize = true;
+                continue;
+            }
+
+            builder.Append(capitalize ? char.ToUpperInvariant(c) : c);
+            capitalize = false;
+        }
+
+        return builder.Length == 0 ? "Generated" : builder.ToString();
+    }
+
+    private static readonly IReadOnlyList<OdsDialectModel> EmptyDialects = new OdsDialectModel[0];
+
+    private static readonly DiagnosticDescriptor InvalidTableGenInput = new DiagnosticDescriptor(
+        id: "MLIRGEN001",
+        title: "Invalid TableGen input",
+        messageFormat: "Could not process TableGen input '{0}': {1}",
+        category: "MLIR.Generators",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    private readonly struct ParsedDialectFile
+    {
+        public ParsedDialectFile(string path, IReadOnlyList<OdsDialectModel> dialects, string? errorMessage)
+        {
+            Path = path;
+            Dialects = dialects;
+            ErrorMessage = errorMessage;
+        }
+
+        public string Path { get; }
+
+        public IReadOnlyList<OdsDialectModel> Dialects { get; }
+
+        public string? ErrorMessage { get; }
     }
 }

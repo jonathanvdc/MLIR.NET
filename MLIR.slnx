@@ -5,7 +5,11 @@
     <Project Path="src/MLIR.ODS/MLIR.ODS.csproj" />
     <Project Path="src/TableGen/TableGen.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/GeneratedDialectConsumer/GeneratedDialectConsumer.csproj" />
+  </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/MLIR.Generators.Tests/MLIR.Generators.Tests.csproj" />
     <Project Path="tests/MLIR.Tests/MLIR.Tests.csproj" />
     <Project Path="tests/TableGen.Tests/TableGen.Tests.csproj" />
   </Folder>

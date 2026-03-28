@@ -12,12 +12,14 @@ public sealed class OdsOperationModel
     /// </summary>
     public OdsOperationModel(
         string name,
+        string? className = null,
         IReadOnlyList<string>? operands = null,
         IReadOnlyList<string>? results = null,
         IReadOnlyList<string>? attributes = null,
         bool hasCustomAssemblyFormat = false)
     {
         Name = name;
+        ClassName = className;
         Operands = operands ?? EmptyItems;
         Results = results ?? EmptyItems;
         Attributes = attributes ?? EmptyItems;
@@ -28,6 +30,11 @@ public sealed class OdsOperationModel
     /// Gets the canonical operation name.
     /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// Gets the generated C# class name, if one was specified explicitly.
+    /// </summary>
+    public string? ClassName { get; }
 
     /// <summary>
     /// Gets the declared operand segment names.
