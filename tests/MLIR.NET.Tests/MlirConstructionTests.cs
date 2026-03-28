@@ -21,9 +21,9 @@ public sealed class MlirConstructionTests
         Assert.Equal("// leading comment\n", operation.ResultTokens[0].LeadingTrivia);
         Assert.Equal(",", operation.ResultCommaTokens[0].Text);
         Assert.Equal("  ", operation.ResultTokens[1].LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList.OpenToken!.LeadingTrivia);
+        Assert.Equal(" ", operation.SuccessorList.OpenToken!.Value.LeadingTrivia);
         Assert.Equal(" ", operation.SuccessorList[0].LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList.CloseToken!.LeadingTrivia);
+        Assert.Equal(" ", operation.SuccessorList.CloseToken!.Value.LeadingTrivia);
         Assert.Equal("%0", operation.Results[0]);
         Assert.Equal("\"test.op\"", operation.Name);
         Assert.Equal("%lhs", operation.Operands[0]);
@@ -48,8 +48,8 @@ public sealed class MlirConstructionTests
         }
 
         Assert.Equal(new[] { "%arg0", "%arg1" }, names);
-        Assert.Equal("(", block.Arguments.OpenToken!.Text);
-        Assert.Equal(")", block.Arguments.CloseToken!.Text);
+        Assert.Equal("(", block.Arguments.OpenToken!.Value.Text);
+        Assert.Equal(")", block.Arguments.CloseToken!.Value.Text);
         Assert.Single(block.Arguments.SeparatorTokens);
     }
 

@@ -3,7 +3,7 @@ namespace MLIR.Syntax;
 /// <summary>
 /// Represents a single syntax token together with the trivia that precedes it.
 /// </summary>
-public sealed class SyntaxToken
+public readonly struct SyntaxToken
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SyntaxToken"/> class.
@@ -12,8 +12,8 @@ public sealed class SyntaxToken
     /// <param name="leadingTrivia">The whitespace and comments that precede the token.</param>
     public SyntaxToken(string text, string leadingTrivia = "")
     {
-        Text = text;
-        LeadingTrivia = leadingTrivia;
+        Text = text ?? string.Empty;
+        LeadingTrivia = leadingTrivia ?? string.Empty;
     }
 
     /// <summary>

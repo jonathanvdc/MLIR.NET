@@ -39,7 +39,7 @@ public sealed class MlirPrinter
                 AppendToken(builder, operation.ResultTokens[i], i > 0 ? " " : defaultLeadingTrivia, i == 0 ? indentLevel : null);
             }
 
-            AppendToken(builder, operation.EqualsToken!, " ");
+            AppendToken(builder, operation.EqualsToken!.Value, " ");
             AppendToken(builder, operation.NameToken, " ");
         }
         else
@@ -47,7 +47,7 @@ public sealed class MlirPrinter
             AppendToken(builder, operation.NameToken, defaultLeadingTrivia, indentLevel);
         }
 
-        AppendToken(builder, operation.OperandList.OpenToken!, string.Empty);
+        AppendToken(builder, operation.OperandList.OpenToken!.Value, string.Empty);
         for (var i = 0; i < operation.OperandList.Count; i++)
         {
             if (i > 0)
@@ -58,11 +58,11 @@ public sealed class MlirPrinter
             AppendToken(builder, operation.OperandList[i], i > 0 ? " " : string.Empty);
         }
 
-        AppendToken(builder, operation.OperandList.CloseToken!, string.Empty);
+        AppendToken(builder, operation.OperandList.CloseToken!.Value, string.Empty);
 
         if (operation.SuccessorList.OpenToken != null)
         {
-            AppendToken(builder, operation.SuccessorList.OpenToken, " ");
+            AppendToken(builder, operation.SuccessorList.OpenToken.Value, " ");
             for (var i = 0; i < operation.SuccessorList.Count; i++)
             {
                 if (i > 0)
@@ -73,7 +73,7 @@ public sealed class MlirPrinter
                 AppendToken(builder, operation.SuccessorList[i], i > 0 ? " " : string.Empty);
             }
 
-            AppendToken(builder, operation.SuccessorList.CloseToken!, string.Empty);
+            AppendToken(builder, operation.SuccessorList.CloseToken!.Value, string.Empty);
         }
 
         foreach (var region in operation.Regions)
@@ -83,7 +83,7 @@ public sealed class MlirPrinter
 
         if (operation.Attributes.OpenToken != null)
         {
-            AppendToken(builder, operation.Attributes.OpenToken, " ");
+            AppendToken(builder, operation.Attributes.OpenToken.Value, " ");
             for (var i = 0; i < operation.Attributes.Count; i++)
             {
                 if (i > 0)
@@ -94,12 +94,12 @@ public sealed class MlirPrinter
                 AppendAttribute(builder, operation.Attributes[i], i > 0 ? " " : string.Empty);
             }
 
-            AppendToken(builder, operation.Attributes.CloseToken!, string.Empty);
+            AppendToken(builder, operation.Attributes.CloseToken!.Value, string.Empty);
         }
 
         if (operation.TypeSignatureColonToken != null && operation.TypeSignature != null)
         {
-            AppendToken(builder, operation.TypeSignatureColonToken, " ");
+            AppendToken(builder, operation.TypeSignatureColonToken.Value, " ");
             AppendRaw(builder, operation.TypeSignature, " ");
         }
     }
@@ -127,7 +127,7 @@ public sealed class MlirPrinter
 
             if (block.Arguments.OpenToken != null)
             {
-                AppendToken(builder, block.Arguments.OpenToken, string.Empty);
+                AppendToken(builder, block.Arguments.OpenToken.Value, string.Empty);
                 for (var i = 0; i < block.Arguments.Count; i++)
                 {
                     if (i > 0)
@@ -138,7 +138,7 @@ public sealed class MlirPrinter
                     AppendBlockArgument(builder, block.Arguments[i], i > 0 ? " " : string.Empty);
                 }
 
-                AppendToken(builder, block.Arguments.CloseToken!, string.Empty);
+                AppendToken(builder, block.Arguments.CloseToken!.Value, string.Empty);
             }
 
             AppendToken(builder, block.ColonToken, string.Empty);
