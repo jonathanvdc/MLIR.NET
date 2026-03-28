@@ -6,16 +6,10 @@ namespace MLIR.Semantics;
 /// <remarks>
 /// Initializes a new instance of the <see cref="AssemblyDiagnostic"/> class.
 /// </remarks>
-/// <param name="operation">The operation that triggered the diagnostic.</param>
-/// <param name="message">The diagnostic message.</param>
 /// <param name="location">The source location of the diagnostic, if known.</param>
-public sealed class AssemblyDiagnostic(Operation operation, string message, SourceLocation location)
+/// <param name="message">The diagnostic message.</param>
+public sealed class AssemblyDiagnostic(SourceLocation location, string message)
 {
-    /// <summary>
-    /// Gets the operation that triggered the diagnostic.
-    /// </summary>
-    public Operation Operation { get; } = operation;
-
     /// <summary>
     /// Gets the diagnostic message.
     /// </summary>

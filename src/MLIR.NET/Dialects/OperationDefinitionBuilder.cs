@@ -14,7 +14,7 @@ public sealed class OperationDefinitionBuilder
     private readonly List<OperationSegmentDefinition> resultDefinitions = new List<OperationSegmentDefinition>();
     private readonly List<OperationSegmentDefinition> regionDefinitions = new List<OperationSegmentDefinition>();
     private readonly List<OperationSegmentDefinition> successorDefinitions = new List<OperationSegmentDefinition>();
-    private readonly List<AttributeDefinition> attributeDefinitions = new List<AttributeDefinition>();
+    private readonly List<OperationAttributeDefinition> attributeDefinitions = new List<OperationAttributeDefinition>();
     private readonly List<string> requiredAttributes = new List<string>();
     private int? operandCount;
     private int? resultCount;
@@ -109,7 +109,7 @@ public sealed class OperationDefinitionBuilder
     /// </summary>
     public OperationDefinitionBuilder RequiredAttribute(string name)
     {
-        attributeDefinitions.Add(new AttributeDefinition(name));
+        attributeDefinitions.Add(new OperationAttributeDefinition(name));
         requiredAttributes.Add(name);
         return this;
     }
@@ -119,7 +119,7 @@ public sealed class OperationDefinitionBuilder
     /// </summary>
     public OperationDefinitionBuilder OptionalAttribute(string name)
     {
-        attributeDefinitions.Add(new AttributeDefinition(name, isRequired: false));
+        attributeDefinitions.Add(new OperationAttributeDefinition(name, isRequired: false));
         return this;
     }
 

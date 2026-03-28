@@ -9,7 +9,8 @@ using MLIR.Syntax;
 /// Initializes a new instance of the <see cref="NamedAttribute"/> class.
 /// </remarks>
 /// <param name="syntax">The concrete syntax node for the attribute.</param>
-public sealed class NamedAttribute(NamedAttributeSyntax syntax)
+/// <param name="valueReference">The semantic attribute value.</param>
+public sealed class NamedAttribute(NamedAttributeSyntax syntax, AttributeValue valueReference)
 {
     /// <summary>
     /// Gets the concrete syntax node for the attribute.
@@ -25,6 +26,11 @@ public sealed class NamedAttribute(NamedAttributeSyntax syntax)
     /// Gets the raw attribute value text.
     /// </summary>
     public RawSyntaxText Value => Syntax.Value;
+
+    /// <summary>
+    /// Gets the semantic attribute value bound from the raw text.
+    /// </summary>
+    public AttributeValue ValueReference { get; } = valueReference;
 
     /// <summary>
     /// Gets the source location of the attribute name, if known.

@@ -76,6 +76,11 @@ public abstract class OperationView
     public RawSyntaxText? TypeSignature => Operation.TypeSignature;
 
     /// <summary>
+    /// Gets the semantic type reference for the operation's trailing type signature, if one was recognized.
+    /// </summary>
+    public TypeReference? TypeSignatureReference => Operation.TypeSignatureReference;
+
+    /// <summary>
     /// Gets the source location of the operation, if known.
     /// </summary>
     public SourceLocation Location => Operation.Location;

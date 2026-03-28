@@ -9,7 +9,8 @@ using MLIR.Syntax;
 /// Initializes a new instance of the <see cref="BlockArgument"/> class.
 /// </remarks>
 /// <param name="syntax">The concrete syntax node for the block argument.</param>
-public sealed class BlockArgument(BlockArgumentSyntax syntax)
+/// <param name="typeReference">The semantic type reference for the argument type.</param>
+public sealed class BlockArgument(BlockArgumentSyntax syntax, TypeReference typeReference)
 {
     /// <summary>
     /// Gets the concrete syntax node for the block argument.
@@ -30,6 +31,11 @@ public sealed class BlockArgument(BlockArgumentSyntax syntax)
     /// Gets the declared type text for the block argument.
     /// </summary>
     public RawSyntaxText Type => Syntax.Type;
+
+    /// <summary>
+    /// Gets the semantic type reference for the block argument.
+    /// </summary>
+    public TypeReference TypeReference { get; } = typeReference;
 
     /// <summary>
     /// Gets the source location of the block argument name, if known.

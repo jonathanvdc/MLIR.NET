@@ -13,7 +13,7 @@ using System.Collections.Generic;
 /// <param name="resultDefinitions">The declarative result segments, if available.</param>
 /// <param name="regionDefinitions">The declarative region segments, if available.</param>
 /// <param name="successorDefinitions">The declarative successor segments, if available.</param>
-/// <param name="attributeDefinitions">The declarative attribute definitions, if available.</param>
+/// <param name="attributeDefinitions">The declarative operation attribute definitions, if available.</param>
 /// <param name="operandCount">The exact number of operands expected by the operation, if constrained.</param>
 /// <param name="resultCount">The exact number of results expected by the operation, if constrained.</param>
 /// <param name="regionCount">The exact number of regions expected by the operation, if constrained.</param>
@@ -27,7 +27,7 @@ public sealed class OperationDefinition(
     IReadOnlyList<OperationSegmentDefinition>? resultDefinitions = null,
     IReadOnlyList<OperationSegmentDefinition>? regionDefinitions = null,
     IReadOnlyList<OperationSegmentDefinition>? successorDefinitions = null,
-    IReadOnlyList<AttributeDefinition>? attributeDefinitions = null,
+    IReadOnlyList<OperationAttributeDefinition>? attributeDefinitions = null,
     int? operandCount = null,
     int? resultCount = null,
     int? regionCount = null,
@@ -64,7 +64,7 @@ public sealed class OperationDefinition(
     /// <summary>
     /// Gets the declarative attribute definitions, if available.
     /// </summary>
-    public IReadOnlyList<AttributeDefinition> AttributeDefinitions { get; } = attributeDefinitions ?? EmptyAttributeDefinitions;
+    public IReadOnlyList<OperationAttributeDefinition> AttributeDefinitions { get; } = attributeDefinitions ?? EmptyAttributeDefinitions;
 
     /// <summary>
     /// Gets the exact number of operands expected by the operation, if constrained.
@@ -102,6 +102,6 @@ public sealed class OperationDefinition(
     public IOperationAssemblyFormat? AssemblyFormat { get; } = assemblyFormat;
 
     private static readonly IReadOnlyList<OperationSegmentDefinition> EmptySegmentDefinitions = new OperationSegmentDefinition[0];
-    private static readonly IReadOnlyList<AttributeDefinition> EmptyAttributeDefinitions = new AttributeDefinition[0];
+    private static readonly IReadOnlyList<OperationAttributeDefinition> EmptyAttributeDefinitions = new OperationAttributeDefinition[0];
     private static readonly IReadOnlyList<string> EmptyRequiredAttributes = new string[0];
 }

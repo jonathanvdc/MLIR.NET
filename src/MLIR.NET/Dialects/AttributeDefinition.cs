@@ -1,22 +1,22 @@
 namespace MLIR.Dialects;
 
 /// <summary>
-/// Describes a named operation attribute.
+/// Describes a dialect-defined attribute value.
 /// </summary>
 /// <remarks>
 /// Initializes a new instance of the <see cref="AttributeDefinition"/> class.
 /// </remarks>
-/// <param name="name">The attribute name.</param>
-/// <param name="isRequired">Indicates whether the attribute must be present.</param>
-public sealed class AttributeDefinition(string name, bool isRequired = true)
+/// <param name="name">The canonical attribute name.</param>
+/// <param name="assemblyFormat">The optional custom assembly interpretation hook.</param>
+public sealed class AttributeDefinition(string name, IAttributeAssemblyFormat? assemblyFormat = null)
 {
     /// <summary>
-    /// Gets the attribute name.
+    /// Gets the canonical attribute name.
     /// </summary>
     public string Name { get; } = name;
 
     /// <summary>
-    /// Gets a value indicating whether the attribute must be present.
+    /// Gets the custom assembly interpretation hook, if one is registered.
     /// </summary>
-    public bool IsRequired { get; } = isRequired;
+    public IAttributeAssemblyFormat? AssemblyFormat { get; } = assemblyFormat;
 }

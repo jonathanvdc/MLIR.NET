@@ -39,7 +39,7 @@ public static class MlirBinder
         var attributes = new List<NamedAttribute>();
         foreach (var attribute in syntax.Attributes)
         {
-            attributes.Add(new NamedAttribute(attribute));
+            attributes.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.Value, attribute.NameToken, dialectRegistry, diagnostics)));
         }
 
         var name = NormalizeOperationName(syntax.Name);
@@ -49,11 +49,20 @@ public static class MlirBinder
             dialectRegistry.TryGetOperation(name, out definition);
         }
 
+        TypeReference? typeSignatureReference = null;
+        if (syntax.TypeSignature != null)
+        {
+            var location = syntax.TypeSignatureColonToken != null
+                ? SourceLocation.FromToken(syntax.TypeSignatureColonToken.Value)
+                : default;
+            typeSignatureReference = BindTypeReference(syntax.TypeSignature, location, dialectRegistry, diagnostics);
+        }
+
         var properties = new Dictionary<string, object?>();
         var resultValues = CreateValueReferences(syntax.ResultTokens);
         var operandValues = CreateValueReferences(syntax.OperandList.Items);
         var successorReferences = CreateBlockReferences(syntax.SuccessorList.Items);
-        var operation = new Operation(syntax, name, definition, regions, attributes, resultValues, operandValues, successorReferences, properties);
+        var operation = new Operation(syntax, name, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences, properties);
         if (definition?.AssemblyFormat != null)
         {
             definition.AssemblyFormat.Bind(operation, new OperationAssemblyBindingContext(operation, properties, diagnostics));
@@ -78,7 +87,7 @@ public static class MlirBinder
         var arguments = new List<BlockArgument>();
         foreach (var argument in syntax.Arguments)
         {
-            arguments.Add(new BlockArgument(argument));
+            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.Type, SourceLocation.FromToken(argument.NameToken), dialectRegistry, diagnostics)));
         }
 
         var operations = new List<Operation>();
@@ -120,5 +129,87 @@ public static class MlirBinder
         }
 
         return values;
+    }
+
+    private static AttributeValue BindAttributeValue(RawSyntaxText syntax, SyntaxToken nameToken, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    {
+        var canonicalName = TryGetAttributeDefinitionName(syntax.Text);
+        AttributeDefinition? definition = null;
+        if (canonicalName != null && dialectRegistry != null)
+        {
+            dialectRegistry.TryGetAttribute(canonicalName, out definition);
+        }
+
+        var properties = new Dictionary<string, object?>();
+        var attribute = new AttributeValue(syntax, canonicalName, definition, SourceLocation.FromToken(nameToken), properties);
+        definition?.AssemblyFormat?.Bind(attribute, new AttributeAssemblyBindingContext(attribute, diagnostics, properties));
+        return attribute;
+    }
+
+    private static TypeReference BindTypeReference(RawSyntaxText syntax, SourceLocation location, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    {
+        var canonicalName = TryGetTypeDefinitionName(syntax.Text);
+        TypeDefinition? definition = null;
+        if (canonicalName != null && dialectRegistry != null)
+        {
+            dialectRegistry.TryGetType(canonicalName, out definition);
+        }
+
+        var properties = new Dictionary<string, object?>();
+        var type = new TypeReference(syntax, canonicalName, definition, location, properties);
+        definition?.AssemblyFormat?.Bind(type, new TypeAssemblyBindingContext(type, diagnostics, properties));
+        return type;
+    }
+
+    private static string? TryGetAttributeDefinitionName(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text[0] != '#')
+        {
+            return null;
+        }
+
+        return ReadQualifiedName(text, 1);
+    }
+
+    private static string? TryGetTypeDefinitionName(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        if (text[0] == '!')
+        {
+            return ReadQualifiedName(text, 1);
+        }
+
+        if (char.IsLetter(text[0]) || text[0] == '_')
+        {
+            return ReadBareName(text);
+        }
+
+        return null;
+    }
+
+    private static string? ReadQualifiedName(string text, int startIndex)
+    {
+        var index = startIndex;
+        while (index < text.Length && (char.IsLetterOrDigit(text[index]) || text[index] == '_' || text[index] == '.'))
+        {
+            index++;
+        }
+
+        return index > startIndex ? text.Substring(startIndex, index - startIndex) : null;
+    }
+
+    private static string? ReadBareName(string text)
+    {
+        var index = 0;
+        while (index < text.Length && (char.IsLetterOrDigit(text[index]) || text[index] == '_' || text[index] == '.'))
+        {
+            index++;
+        }
+
+        return index > 0 ? text.Substring(0, index) : null;
     }
 }

@@ -16,4 +16,14 @@ public interface IMlirDialect
     /// Gets the operation definitions exported by the dialect.
     /// </summary>
     IReadOnlyList<OperationDefinition> Operations { get; }
+
+    /// <summary>
+    /// Gets the attribute definitions exported by the dialect.
+    /// </summary>
+    IReadOnlyList<AttributeDefinition> Attributes { get; }
+
+    /// <summary>
+    /// Gets the type definitions exported by the dialect.
+    /// </summary>
+    IReadOnlyList<TypeDefinition> Types { get; }
 }

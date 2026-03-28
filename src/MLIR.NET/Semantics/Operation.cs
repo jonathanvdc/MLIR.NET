@@ -16,6 +16,7 @@ using MLIR.Syntax;
 /// <param name="definition">The registered operation definition, if one exists.</param>
 /// <param name="regions">The semantic regions nested under the operation.</param>
 /// <param name="attributes">The semantic attributes attached to the operation.</param>
+/// <param name="typeSignatureReference">The semantic type reference for the raw trailing type signature, if one was recognized.</param>
 /// <param name="resultValues">The typed SSA result references produced by the operation.</param>
 /// <param name="operandValues">The typed SSA operand references passed to the operation.</param>
 /// <param name="successorReferences">The typed block successor references used by the operation.</param>
@@ -26,6 +27,7 @@ public sealed class Operation(
     OperationDefinition? definition,
     IReadOnlyList<Region> regions,
     IReadOnlyList<NamedAttribute> attributes,
+    TypeReference? typeSignatureReference,
     IReadOnlyList<ValueReference> resultValues,
     IReadOnlyList<ValueReference> operandValues,
     IReadOnlyList<BlockReference> successorReferences,
@@ -55,6 +57,11 @@ public sealed class Operation(
     /// Gets the semantic attributes attached to the operation.
     /// </summary>
     public IReadOnlyList<NamedAttribute> Attributes { get; } = attributes;
+
+    /// <summary>
+    /// Gets the semantic type reference for the raw trailing type signature, if one was recognized.
+    /// </summary>
+    public TypeReference? TypeSignatureReference { get; } = typeSignatureReference;
 
     /// <summary>
     /// Gets the typed SSA result references produced by the operation.

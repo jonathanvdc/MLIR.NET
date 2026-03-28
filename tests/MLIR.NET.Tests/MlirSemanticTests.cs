@@ -62,6 +62,26 @@ public sealed class MlirSemanticTests
         }
     }
 
+    private sealed class DenseAttributeAssemblyFormat : IAttributeAssemblyFormat
+    {
+        public void Bind(AttributeValue attribute, AttributeAssemblyBindingContext context)
+        {
+            context.SetProperty("kind", "dense");
+            if (!attribute.Syntax.Text.Contains("tensor<"))
+            {
+                context.Report("dense attribute literals should mention a tensor type.");
+            }
+        }
+    }
+
+    private sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
+    {
+        public void Bind(TypeReference type, TypeAssemblyBindingContext context)
+        {
+            context.SetProperty("width", int.Parse(type.Name![1..]));
+        }
+    }
+
     [Fact]
     public void BindsRegisteredOperationsToDefinitions()
     {
@@ -116,6 +136,33 @@ public sealed class MlirSemanticTests
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
         Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Text);
         Assert.Equal("%arg0", block.Arguments[0].Value.Name);
+        Assert.Equal("i32", block.Arguments[0].TypeReference.Name);
+    }
+
+    [Fact]
+    public void BindsAttributeAndTypeDefinitionsFromTheRegistry()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            new Dialect(
+                "builtin",
+                [],
+                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
+
+        var module = MlirBinder.BindModule(
+            MlirParser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32"),
+            registry);
+
+        var operation = module.Operations[0];
+
+        Assert.True(operation.Attributes[0].ValueReference.IsKnown);
+        Assert.Equal("dense", operation.Attributes[0].ValueReference.Name);
+        Assert.Equal("dense", operation.Attributes[0].ValueReference.GetProperty<string>("kind"));
+        Assert.NotNull(operation.TypeSignatureReference);
+        Assert.True(operation.TypeSignatureReference!.IsKnown);
+        Assert.Equal("i32", operation.TypeSignatureReference.Name);
+        Assert.Equal(32, operation.TypeSignatureReference.GetProperty<int>("width"));
     }
 
     [Fact]
@@ -302,8 +349,8 @@ public sealed class MlirSemanticTests
                         "test.attrs",
                         attributeDefinitions:
                         [
-                            new AttributeDefinition("required"),
-                            new AttributeDefinition("optional", isRequired: false),
+                            new OperationAttributeDefinition("required"),
+                            new OperationAttributeDefinition("optional", isRequired: false),
                         ]),
                 ]));
 
@@ -484,10 +531,29 @@ public sealed class MlirSemanticTests
 
         Assert.Single(module.AssemblyDiagnostics);
         Assert.Equal("arith.constant custom assembly expects a 'value' attribute.", module.AssemblyDiagnostics[0].Message);
-        Assert.Equal("arith.constant", module.AssemblyDiagnostics[0].Operation.Name);
         Assert.True(module.AssemblyDiagnostics[0].Location.IsKnown);
         Assert.Equal(1, module.AssemblyDiagnostics[0].Location.Line);
         Assert.Equal(6, module.AssemblyDiagnostics[0].Location.Column);
+    }
+
+    [Fact]
+    public void AttributeAndTypeBindingCanReportDiagnostics()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            new Dialect(
+                "builtin",
+                [],
+                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
+
+        var module = MlirBinder.BindModule(
+            MlirParser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32"),
+            registry);
+
+        Assert.Single(module.AssemblyDiagnostics);
+        Assert.Equal("dense attribute literals should mention a tensor type.", module.AssemblyDiagnostics[0].Message);
+        Assert.True(module.AssemblyDiagnostics[0].Location.IsKnown);
     }
 
     [Fact]
@@ -594,5 +660,20 @@ public sealed class MlirSemanticTests
             () => registry.RegisterDialect(new Dialect("arithx", [new OperationDefinition("arith.addi")])));
 
         Assert.Contains("already registered", exception.Message);
+    }
+
+    [Fact]
+    public void RegistryRejectsDuplicateAttributeAndTypeRegistrations()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(new Dialect("builtin", [], [new AttributeDefinition("dense")], [new TypeDefinition("i32")]));
+
+        var attributeException = Assert.Throws<ArgumentException>(
+            () => registry.RegisterDialect(new Dialect("builtin_attr", [], [new AttributeDefinition("dense")], [])));
+        var typeException = Assert.Throws<ArgumentException>(
+            () => registry.RegisterDialect(new Dialect("builtin_type", [], [], [new TypeDefinition("i32")])));
+
+        Assert.Contains("already registered", attributeException.Message);
+        Assert.Contains("already registered", typeException.Message);
     }
 }

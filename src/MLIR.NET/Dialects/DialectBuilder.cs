@@ -10,6 +10,8 @@ public sealed class DialectBuilder
 {
     private readonly string name;
     private readonly List<OperationDefinition> operations = new List<OperationDefinition>();
+    private readonly List<AttributeDefinition> attributes = new List<AttributeDefinition>();
+    private readonly List<TypeDefinition> types = new List<TypeDefinition>();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DialectBuilder"/> class.
@@ -41,10 +43,28 @@ public sealed class DialectBuilder
     }
 
     /// <summary>
+    /// Adds an attribute definition.
+    /// </summary>
+    public DialectBuilder AddAttribute(AttributeDefinition attribute)
+    {
+        attributes.Add(attribute);
+        return this;
+    }
+
+    /// <summary>
+    /// Adds a type definition.
+    /// </summary>
+    public DialectBuilder AddType(TypeDefinition type)
+    {
+        types.Add(type);
+        return this;
+    }
+
+    /// <summary>
     /// Builds the dialect.
     /// </summary>
     public Dialect Build()
     {
-        return new Dialect(name, operations);
+        return new Dialect(name, operations, attributes, types);
     }
 }
