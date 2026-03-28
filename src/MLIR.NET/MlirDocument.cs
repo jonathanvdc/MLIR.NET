@@ -1,5 +1,7 @@
 namespace MLIR;
 
+using MLIR.Dialects;
+using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Text;
 
@@ -16,6 +18,16 @@ public sealed class MlirDocument(ModuleSyntax module)
     /// Gets the root module syntax.
     /// </summary>
     public ModuleSyntax Module { get; } = module;
+
+    /// <summary>
+    /// Binds the document's concrete syntax tree to a semantic module.
+    /// </summary>
+    /// <param name="dialectRegistry">The dialect registry used to resolve known operations.</param>
+    /// <returns>The semantic module.</returns>
+    public Semantics.Module Bind(DialectRegistry? dialectRegistry = null)
+    {
+        return MlirBinder.BindModule(Module, dialectRegistry);
+    }
 
     /// <summary>
     /// Parses MLIR text into a document.
