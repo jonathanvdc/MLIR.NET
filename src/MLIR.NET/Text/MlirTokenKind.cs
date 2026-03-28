@@ -1,0 +1,31 @@
+namespace MLIR.Text;
+
+internal enum MlirTokenKind
+{
+    EndOfFile,
+    NewLine,
+    Identifier,
+    Integer,
+    StringLiteral,
+    Percent,
+    Caret,
+    At,
+    Hash,
+    Colon,
+    Comma,
+    Equal,
+    Arrow,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    LBracket,
+    RBracket,
+    LessThan,
+    GreaterThan,
+    Question,
+    Star,
+    Plus,
+    Minus,
+    Dot,
+}
