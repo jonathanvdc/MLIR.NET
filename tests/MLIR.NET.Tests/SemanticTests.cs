@@ -315,7 +315,11 @@ public sealed class SemanticTests
                 [
                     new OperationDefinition(
                         "arith.addi",
-                        operandCount: 2,
+                        operandDefinitions:
+                        [
+                            new OperationSegmentDefinition("lhs"),
+                            new OperationSegmentDefinition("rhs"),
+                        ],
                         verifier: new DelegateOperationVerifier(
                             static (operation, context) =>
                             {
@@ -346,11 +350,15 @@ public sealed class SemanticTests
                 [
                     new OperationDefinition(
                         "arith.constant",
-                        resultCount: 1),
+                        resultDefinitions: [new OperationSegmentDefinition("result")]),
                     new OperationDefinition(
                         "arith.addi",
-                        operandCount: 2,
-                        resultCount: 1),
+                        operandDefinitions:
+                        [
+                            new OperationSegmentDefinition("lhs"),
+                            new OperationSegmentDefinition("rhs"),
+                        ],
+                        resultDefinitions: [new OperationSegmentDefinition("result")]),
                 ]));
 
         var module = Binder.BindModule(
@@ -374,7 +382,7 @@ public sealed class SemanticTests
                 [
                     new OperationDefinition(
                         "arith.constant",
-                        resultCount: 1,
+                        resultDefinitions: [new OperationSegmentDefinition("result")],
                         requiredAttributes: ["value"]),
                 ]));
 

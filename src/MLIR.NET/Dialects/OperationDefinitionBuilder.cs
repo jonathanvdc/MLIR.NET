@@ -16,13 +16,19 @@ public sealed class OperationDefinitionBuilder
     private readonly List<OperationSegmentDefinition> successorDefinitions = new List<OperationSegmentDefinition>();
     private readonly List<OperationAttributeDefinition> attributeDefinitions = new List<OperationAttributeDefinition>();
     private readonly List<string> requiredAttributes = new List<string>();
-    private int? operandCount;
-    private int? resultCount;
-    private int? regionCount;
-    private int? successorCount;
     private IOperationVerifier? verifier;
     private IOperationAssemblyFormat? assemblyFormat;
-    private Func<OperationConstructionContext, Operation>? factory;
+    private Func<OperationConstructionContext, Operation> factory = static context => new UnknownOperation(
+        context.Syntax,
+        context.Name,
+        context.Definition,
+        context.Regions,
+        context.Attributes,
+        context.TypeSignatureReference,
+        context.ResultValues,
+        context.OperandValues,
+        context.SuccessorReferences,
+        context.Properties);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationDefinitionBuilder"/> class.
@@ -129,7 +135,12 @@ public sealed class OperationDefinitionBuilder
     /// </summary>
     public OperationDefinitionBuilder WithOperandCount(int count)
     {
-        operandCount = count;
+        operandDefinitions.Clear();
+        for (var i = 0; i < count; i++)
+        {
+            operandDefinitions.Add(new OperationSegmentDefinition("operand" + i));
+        }
+
         return this;
     }
 
@@ -138,7 +149,12 @@ public sealed class OperationDefinitionBuilder
     /// </summary>
     public OperationDefinitionBuilder WithResultCount(int count)
     {
-        resultCount = count;
+        resultDefinitions.Clear();
+        for (var i = 0; i < count; i++)
+        {
+            resultDefinitions.Add(new OperationSegmentDefinition("result" + i));
+        }
+
         return this;
     }
 
@@ -147,7 +163,12 @@ public sealed class OperationDefinitionBuilder
     /// </summary>
     public OperationDefinitionBuilder WithRegionCount(int count)
     {
-        regionCount = count;
+        regionDefinitions.Clear();
+        for (var i = 0; i < count; i++)
+        {
+            regionDefinitions.Add(new OperationSegmentDefinition("region" + i));
+        }
+
         return this;
     }
 
@@ -156,7 +177,12 @@ public sealed class OperationDefinitionBuilder
     /// </summary>
     public OperationDefinitionBuilder WithSuccessorCount(int count)
     {
-        successorCount = count;
+        successorDefinitions.Clear();
+        for (var i = 0; i < count; i++)
+        {
+            successorDefinitions.Add(new OperationSegmentDefinition("successor" + i));
+        }
+
         return this;
     }
 
@@ -208,10 +234,6 @@ public sealed class OperationDefinitionBuilder
             regionDefinitions,
             successorDefinitions,
             attributeDefinitions,
-            operandCount,
-            resultCount,
-            regionCount,
-            successorCount,
             requiredAttributes,
             verifier,
             assemblyFormat,

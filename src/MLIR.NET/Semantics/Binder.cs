@@ -64,7 +64,7 @@ public static class Binder
         var operandValues = CreateValueReferences(genericBody.OperandList.Items);
         var successorReferences = CreateBlockReferences(genericBody.SuccessorList.Items);
         Operation operation;
-        if (definition?.Factory != null)
+        if (definition != null)
         {
             var constructionContext = new OperationConstructionContext(
                 syntax,
