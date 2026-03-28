@@ -9,6 +9,37 @@ using Xunit;
 
 public sealed class SemanticTests
 {
+    private sealed class PrefixConstantBodySyntax : OperationBodySyntax
+    {
+        public PrefixConstantBodySyntax(
+            RawSyntaxText value,
+            SyntaxToken colonToken,
+            RawSyntaxText typeSignature,
+            DelimitedSyntaxList<NamedAttributeSyntax> attributes)
+        {
+            Value = value;
+            ColonToken = colonToken;
+            TypeSignature = typeSignature;
+            Attributes = attributes;
+        }
+
+        public RawSyntaxText Value { get; }
+        public SyntaxToken ColonToken { get; }
+        public override IReadOnlyList<SyntaxToken> OperandTokens { get; } = [];
+        public override IReadOnlyList<SyntaxToken> SuccessorTokens { get; } = [];
+        public override IReadOnlyList<RegionSyntax> Regions { get; } = [];
+        public override DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
+        public override SyntaxToken? TypeSignatureColonToken => ColonToken;
+        public override RawSyntaxText? TypeSignature { get; }
+
+        public override void Print(OperationBodyPrintingContext context)
+        {
+            context.WriteRaw(Value, " ");
+            context.WriteToken(ColonToken, " ");
+            context.WriteRaw(TypeSignature!, " ");
+        }
+    }
+
     private sealed class ArithConstantView : OperationView
     {
         public ArithConstantView(Operation operation)
@@ -29,7 +60,7 @@ public sealed class SemanticTests
             IReadOnlyList<SyntaxToken> resultCommaTokens,
             SyntaxToken? equalsToken,
             OperationParsingContext context,
-            out CustomOperationBodySyntax? body)
+            out OperationBodySyntax? body)
         {
             if (context.Is(TokenKind.LParen))
             {
@@ -42,18 +73,7 @@ public sealed class SemanticTests
             var type = context.ParseRawUntilOperationBoundary();
             var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), value)]);
 
-            body = context.CreateCustomBody(
-                [
-                    context.Raw(value),
-                    context.Token(colonToken),
-                    context.Raw(type),
-                ],
-                operandTokens: [],
-                successorTokens: [],
-                regions: [],
-                attributes: attributes,
-                typeSignatureColonToken: colonToken,
-                typeSignature: type);
+            body = new PrefixConstantBodySyntax(value, colonToken, type, attributes);
             return true;
         }
 

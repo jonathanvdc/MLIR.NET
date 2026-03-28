@@ -1,6 +1,7 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents the body of an MLIR operation.
@@ -36,4 +37,10 @@ public abstract class OperationBodySyntax
     /// Gets the raw trailing type signature, if present.
     /// </summary>
     public abstract RawSyntaxText? TypeSignature { get; }
+
+    /// <summary>
+    /// Prints the operation body.
+    /// </summary>
+    /// <param name="context">The printing context.</param>
+    public abstract void Print(OperationBodyPrintingContext context);
 }

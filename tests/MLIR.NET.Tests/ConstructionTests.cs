@@ -8,6 +8,37 @@ using Xunit;
 
 public sealed class ConstructionTests
 {
+    private sealed class PrefixConstantBodySyntax : OperationBodySyntax
+    {
+        public PrefixConstantBodySyntax(
+            RawSyntaxText value,
+            SyntaxToken colonToken,
+            RawSyntaxText typeSignature,
+            DelimitedSyntaxList<NamedAttributeSyntax> attributes)
+        {
+            Value = value;
+            ColonToken = colonToken;
+            TypeSignature = typeSignature;
+            Attributes = attributes;
+        }
+
+        public RawSyntaxText Value { get; }
+        public SyntaxToken ColonToken { get; }
+        public override IReadOnlyList<SyntaxToken> OperandTokens { get; } = [];
+        public override IReadOnlyList<SyntaxToken> SuccessorTokens { get; } = [];
+        public override IReadOnlyList<RegionSyntax> Regions { get; } = [];
+        public override DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
+        public override SyntaxToken? TypeSignatureColonToken => ColonToken;
+        public override RawSyntaxText? TypeSignature { get; }
+
+        public override void Print(OperationBodyPrintingContext context)
+        {
+            context.WriteRaw(Value, " ");
+            context.WriteToken(ColonToken, " ");
+            context.WriteRaw(TypeSignature!, " ");
+        }
+    }
+
     [Fact]
     public void ExposesPreservedTokenTriviaInTheCst()
     {
@@ -139,19 +170,15 @@ public sealed class ConstructionTests
                     [],
                     new SyntaxToken("="),
                     new SyntaxToken("arith.constant"),
-                    new CustomOperationBodySyntax(
-                        [
-                            new CustomRawSyntax(new RawSyntaxText("0")),
-                            new CustomTokenSyntax(new SyntaxToken(":")),
-                            new CustomRawSyntax(new RawSyntaxText("i32")),
-                        ],
-                        attributes: new DelimitedSyntaxList<NamedAttributeSyntax>(
+                    new PrefixConstantBodySyntax(
+                        new RawSyntaxText("0"),
+                        new SyntaxToken(":"),
+                        new RawSyntaxText("i32"),
+                        new DelimitedSyntaxList<NamedAttributeSyntax>(
                             new SyntaxToken("{"),
                             [new NamedAttributeSyntax("value", new RawSyntaxText("0"))],
                             [],
-                            new SyntaxToken("}")),
-                        typeSignatureColonToken: new SyntaxToken(":"),
-                        typeSignature: new RawSyntaxText("i32"))),
+                            new SyntaxToken("}")))),
             ]);
 
         var text = Printer.Print(module);

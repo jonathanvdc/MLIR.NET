@@ -197,7 +197,7 @@ public sealed class OperationSyntax
     /// <summary>
     /// Gets a value indicating whether the operation uses a custom assembly body.
     /// </summary>
-    public bool HasCustomAssemblyBody => Body is CustomOperationBodySyntax;
+    public bool HasCustomAssemblyBody => Body is not GenericOperationBodySyntax;
 
     private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)
     {

@@ -22,7 +22,7 @@ public interface IOperationAssemblyFormat
     /// <param name="resultCommaTokens">The parsed comma tokens between results.</param>
     /// <param name="equalsToken">The parsed equals token, if present.</param>
     /// <param name="context">The parsing context.</param>
-    /// <param name="body">When this method returns, contains the parsed custom operation body when custom parsing succeeded.</param>
+    /// <param name="body">When this method returns, contains the parsed operation body when custom parsing succeeded.</param>
     /// <returns><see langword="true"/> when a custom assembly form was parsed; otherwise, <see langword="false"/>.</returns>
     bool TryParse(
         SyntaxToken nameToken,
@@ -30,7 +30,7 @@ public interface IOperationAssemblyFormat
         IReadOnlyList<SyntaxToken> resultCommaTokens,
         SyntaxToken? equalsToken,
         OperationParsingContext context,
-        out CustomOperationBodySyntax? body);
+        out OperationBodySyntax? body);
 
     /// <summary>
     /// Interprets the generic concrete syntax of the supplied operation into semantic properties.

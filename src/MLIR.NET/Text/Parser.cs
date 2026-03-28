@@ -194,7 +194,7 @@ public sealed class Parser
         IReadOnlyList<SyntaxToken> resultTokens,
         IReadOnlyList<SyntaxToken> resultCommaTokens,
         SyntaxToken? equalsToken,
-        out CustomOperationBodySyntax body)
+        out OperationBodySyntax body)
     {
         body = null!;
         if (dialectRegistry == null)
