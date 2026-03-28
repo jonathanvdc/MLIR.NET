@@ -1,6 +1,5 @@
 namespace MLIR.Text;
 
-using System.Linq;
 using System.Text;
 using MLIR.Syntax;
 
@@ -19,97 +18,175 @@ public sealed class MlirPrinter
         var builder = new StringBuilder();
         for (var i = 0; i < module.Operations.Count; i++)
         {
-            if (i > 0)
-            {
-                builder.AppendLine();
-            }
-
-            AppendOperation(builder, module.Operations[i], 0);
+            AppendOperation(builder, module.Operations[i], 0, i > 0 ? "\n" : string.Empty);
         }
 
+        builder.Append(module.EndOfFileToken.LeadingTrivia);
         return builder.ToString();
     }
 
-    private static void AppendOperation(StringBuilder builder, OperationSyntax operation, int indentLevel)
+    private static void AppendOperation(StringBuilder builder, OperationSyntax operation, int indentLevel, string defaultLeadingTrivia)
     {
-        AppendIndent(builder, indentLevel);
-
-        if (operation.Results.Count > 0)
+        if (operation.ResultTokens.Count > 0)
         {
-            builder.Append(string.Join(", ", operation.Results));
-            builder.Append(" = ");
+            for (var i = 0; i < operation.ResultTokens.Count; i++)
+            {
+                if (i > 0)
+                {
+                    AppendToken(builder, operation.ResultCommaTokens[i - 1], string.Empty);
+                }
+
+                AppendToken(builder, operation.ResultTokens[i], i > 0 ? " " : defaultLeadingTrivia, i == 0 ? indentLevel : null);
+            }
+
+            AppendToken(builder, operation.EqualsToken!, " ");
+            AppendToken(builder, operation.NameToken, " ");
+        }
+        else
+        {
+            AppendToken(builder, operation.NameToken, defaultLeadingTrivia, indentLevel);
         }
 
-        builder.Append(operation.Name);
-        builder.Append('(');
-        builder.Append(string.Join(", ", operation.Operands));
-        builder.Append(')');
-
-        if (operation.Successors.Count > 0)
+        AppendToken(builder, operation.OperandList.OpenToken!, string.Empty);
+        for (var i = 0; i < operation.OperandList.Count; i++)
         {
-            builder.Append(" [");
-            builder.Append(string.Join(", ", operation.Successors));
-            builder.Append(']');
+            if (i > 0)
+            {
+                AppendToken(builder, operation.OperandList.SeparatorTokens[i - 1], string.Empty);
+            }
+
+            AppendToken(builder, operation.OperandList[i], i > 0 ? " " : string.Empty);
+        }
+
+        AppendToken(builder, operation.OperandList.CloseToken!, string.Empty);
+
+        if (operation.SuccessorList.OpenToken != null)
+        {
+            AppendToken(builder, operation.SuccessorList.OpenToken, " ");
+            for (var i = 0; i < operation.SuccessorList.Count; i++)
+            {
+                if (i > 0)
+                {
+                    AppendToken(builder, operation.SuccessorList.SeparatorTokens[i - 1], string.Empty);
+                }
+
+                AppendToken(builder, operation.SuccessorList[i], i > 0 ? " " : string.Empty);
+            }
+
+            AppendToken(builder, operation.SuccessorList.CloseToken!, string.Empty);
         }
 
         foreach (var region in operation.Regions)
         {
-            builder.Append(' ');
             AppendRegion(builder, region, indentLevel);
         }
 
-        if (operation.Attributes.Count > 0)
+        if (operation.Attributes.OpenToken != null)
         {
-            builder.Append(" {");
-            builder.Append(string.Join(", ", operation.Attributes.Select(static attribute => $"{attribute.Name} = {attribute.Value.Text}")));
-            builder.Append('}');
+            AppendToken(builder, operation.Attributes.OpenToken, " ");
+            for (var i = 0; i < operation.Attributes.Count; i++)
+            {
+                if (i > 0)
+                {
+                    AppendToken(builder, operation.Attributes.SeparatorTokens[i - 1], string.Empty);
+                }
+
+                AppendAttribute(builder, operation.Attributes[i], i > 0 ? " " : string.Empty);
+            }
+
+            AppendToken(builder, operation.Attributes.CloseToken!, string.Empty);
         }
 
-        if (operation.TypeSignature != null)
+        if (operation.TypeSignatureColonToken != null && operation.TypeSignature != null)
         {
-            builder.Append(" : ");
-            builder.Append(operation.TypeSignature.Text);
+            AppendToken(builder, operation.TypeSignatureColonToken, " ");
+            AppendRaw(builder, operation.TypeSignature, " ");
         }
     }
 
     private static void AppendRegion(StringBuilder builder, RegionSyntax region, int indentLevel)
     {
-        builder.AppendLine("{");
+        AppendToken(builder, region.OpenBraceToken, " ");
 
-        foreach (var block in region.Blocks)
+        for (var i = 0; i < region.Blocks.Count; i++)
         {
-            // Synthetic entry blocks are used to model unlabeled region bodies and should not
-            // be emitted back as an explicit ^entry label.
-            var blockHasExplicitLabel = block.Label != "^entry" || block.Arguments.Count > 0;
-            if (blockHasExplicitLabel)
+            AppendBlock(builder, region.Blocks[i], indentLevel);
+        }
+
+        AppendToken(builder, region.CloseBraceToken, "\n", indentLevel);
+    }
+
+    private static void AppendBlock(StringBuilder builder, BlockSyntax block, int regionIndentLevel)
+    {
+        var blockHasExplicitLabel = block.Label != "^entry" || block.Arguments.Count > 0;
+        var blockIndentLevel = regionIndentLevel + 1;
+
+        if (blockHasExplicitLabel)
+        {
+            AppendToken(builder, block.LabelToken, "\n", blockIndentLevel);
+
+            if (block.Arguments.OpenToken != null)
             {
-                AppendIndent(builder, indentLevel + 1);
-                builder.Append(block.Label);
-                if (block.Arguments.Count > 0)
+                AppendToken(builder, block.Arguments.OpenToken, string.Empty);
+                for (var i = 0; i < block.Arguments.Count; i++)
                 {
-                    builder.Append('(');
-                    builder.Append(string.Join(", ", block.Arguments.Select(static argument => $"{argument.Name}: {argument.Type.Text}")));
-                    builder.Append(')');
+                    if (i > 0)
+                    {
+                        AppendToken(builder, block.Arguments.SeparatorTokens[i - 1], string.Empty);
+                    }
+
+                    AppendBlockArgument(builder, block.Arguments[i], i > 0 ? " " : string.Empty);
                 }
 
-                builder.AppendLine(":");
+                AppendToken(builder, block.Arguments.CloseToken!, string.Empty);
             }
 
-            foreach (var operation in block.Operations)
-            {
-                AppendOperation(builder, operation, indentLevel + 2 - (blockHasExplicitLabel ? 0 : 1));
-                builder.AppendLine();
-            }
+            AppendToken(builder, block.ColonToken, string.Empty);
         }
 
-        if (builder.Length > 0 && builder[builder.Length - 1] == '\n')
+        var operationIndentLevel = blockHasExplicitLabel ? regionIndentLevel + 2 : regionIndentLevel + 1;
+        for (var i = 0; i < block.Operations.Count; i++)
         {
-            builder.Length--;
+            AppendOperation(builder, block.Operations[i], operationIndentLevel, "\n");
+        }
+    }
+
+    private static void AppendBlockArgument(StringBuilder builder, BlockArgumentSyntax argument, string defaultLeadingTrivia)
+    {
+        AppendToken(builder, argument.NameToken, defaultLeadingTrivia);
+        AppendToken(builder, argument.ColonToken, string.Empty);
+        AppendRaw(builder, argument.Type, " ");
+    }
+
+    private static void AppendAttribute(StringBuilder builder, NamedAttributeSyntax attribute, string defaultLeadingTrivia)
+    {
+        AppendToken(builder, attribute.NameToken, defaultLeadingTrivia);
+        AppendToken(builder, attribute.EqualsToken, " ");
+        AppendRaw(builder, attribute.Value, " ");
+    }
+
+    private static void AppendToken(StringBuilder builder, SyntaxToken token, string defaultLeadingTrivia, int? indentLevel = null)
+    {
+        if (token.LeadingTrivia.Length > 0)
+        {
+            builder.Append(token.LeadingTrivia);
+            builder.Append(token.Text);
+            return;
         }
 
-        builder.AppendLine();
-        AppendIndent(builder, indentLevel);
-        builder.Append('}');
+        builder.Append(defaultLeadingTrivia);
+        if (indentLevel.HasValue)
+        {
+            AppendIndent(builder, indentLevel.Value);
+        }
+
+        builder.Append(token.Text);
+    }
+
+    private static void AppendRaw(StringBuilder builder, RawSyntaxText rawText, string defaultLeadingTrivia)
+    {
+        builder.Append(rawText.HasLeadingTrivia ? rawText.LeadingTrivia : defaultLeadingTrivia);
+        builder.Append(rawText.Text);
     }
 
     private static void AppendIndent(StringBuilder builder, int indentLevel)

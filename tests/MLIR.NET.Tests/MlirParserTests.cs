@@ -1,5 +1,7 @@
 namespace MLIR.Tests;
 
+using System.Collections.Generic;
+using MLIR.Syntax;
 using MLIR.Text;
 using Xunit;
 
@@ -96,10 +98,134 @@ public sealed class MlirParserTests
         var text = MlirPrinter.Print(module);
 
         Assert.Equal(3, module.Operations.Count);
+        Assert.Equal(source, text);
+    }
+
+    [Fact]
+    public void PreservesCommentsAndSpacingInsideRegions()
+    {
+        const string source =
+            "\"scf.if\"(%cond) {\n" +
+            "  // then branch\n" +
+            "  %0 = \"arith.addi\"(%lhs, %rhs) : (i32, i32) -> i32\n" +
+            "\n" +
+            "  // terminate\n" +
+            "  \"func.return\"(%0) : (i32) -> ()\n" +
+            "} : (i1) -> ()";
+
+        var module = MlirParser.ParseModule(source);
+        var text = MlirPrinter.Print(module);
+
+        Assert.Equal(source, text);
+    }
+
+    [Fact]
+    public void ExposesPreservedTokenTriviaInTheCst()
+    {
+        const string source =
+            "// leading comment\n" +
+            "%0,  %1 = \"test.op\"(%lhs,  %rhs) [ ^bb1 ] : (i32, i32) -> i32";
+
+        var module = MlirParser.ParseModule(source);
+        var operation = module.Operations[0];
+
+        Assert.Equal("// leading comment\n", operation.ResultTokens[0].LeadingTrivia);
+        Assert.Equal(",", operation.ResultCommaTokens[0].Text);
+        Assert.Equal("  ", operation.ResultTokens[1].LeadingTrivia);
+        Assert.Equal(" ", operation.SuccessorList.OpenToken!.LeadingTrivia);
+        Assert.Equal(" ", operation.SuccessorList[0].LeadingTrivia);
+        Assert.Equal(" ", operation.SuccessorList.CloseToken!.LeadingTrivia);
+    }
+
+    [Fact]
+    public void DelimitedListsEnumerateItemsByDefault()
+    {
+        var block = new BlockSyntax(
+            "^bb0",
+            new List<BlockArgumentSyntax>
+            {
+                new("%arg0", new RawSyntaxText("i32")),
+                new("%arg1", new RawSyntaxText("i64")),
+            },
+            new List<OperationSyntax>());
+
+        var names = new List<string>();
+        foreach (var argument in block.Arguments)
+        {
+            names.Add(argument.Name);
+        }
+
+        Assert.Equal(new[] { "%arg0", "%arg1" }, names);
+        Assert.Equal("(", block.Arguments.OpenToken!.Text);
+        Assert.Equal(")", block.Arguments.CloseToken!.Text);
+        Assert.Single(block.Arguments.SeparatorTokens);
+    }
+
+    [Fact]
+    public void PreservesTrailingTriviaOnEndOfFileToken()
+    {
+        const string source =
+            "\"func.return\"() : () -> ()\n" +
+            "// trailing note";
+
+        var module = MlirParser.ParseModule(source);
+
+        Assert.Equal("\n// trailing note", module.EndOfFileToken.LeadingTrivia);
+        Assert.Equal(source, MlirPrinter.Print(module));
+    }
+
+    [Fact]
+    public void FormatsProgrammaticallyGeneratedModuleWhenTriviaIsAbsent()
+    {
+        var module = new MlirModuleSyntax(
+            new List<OperationSyntax>
+            {
+                new(
+                    new List<string> { "%sum" },
+                    "\"arith.addi\"",
+                    new List<string> { "%lhs", "%rhs" },
+                    new List<string>(),
+                    new List<RegionSyntax>(),
+                    new List<NamedAttributeSyntax>(),
+                    new RawSyntaxText("(i32, i32) -> i32")),
+                new(
+                    new List<string>(),
+                    "\"scf.if\"",
+                    new List<string> { "%cond" },
+                    new List<string>(),
+                    new List<RegionSyntax>
+                    {
+                        new(
+                            new List<BlockSyntax>
+                            {
+                                new(
+                                    "^bb0",
+                                    new List<BlockArgumentSyntax> { new("%arg0", new RawSyntaxText("i32")) },
+                                    new List<OperationSyntax>
+                                    {
+                                        new(
+                                            new List<string>(),
+                                            "\"func.return\"",
+                                            new List<string> { "%arg0" },
+                                            new List<string>(),
+                                            new List<RegionSyntax>(),
+                                            new List<NamedAttributeSyntax>(),
+                                            new RawSyntaxText("(i32) -> ()"))
+                                    })
+                            })
+                    },
+                    new List<NamedAttributeSyntax>(),
+                    new RawSyntaxText("(i1) -> ()"))
+            });
+
+        var text = MlirPrinter.Print(module);
+
         Assert.Equal(
-            "%c0 = \"arith.constant\"() {value = 0 : i32} : () -> i32\n" +
-            "%c1 = \"arith.constant\"() {value = 1 : i32} : () -> i32\n" +
-            "%sum = \"arith.addi\"(%c0, %c1) : (i32, i32) -> i32",
+            "%sum = \"arith.addi\"(%lhs, %rhs) : (i32, i32) -> i32\n" +
+            "\"scf.if\"(%cond) {\n" +
+            "  ^bb0(%arg0: i32):\n" +
+            "    \"func.return\"(%arg0) : (i32) -> ()\n" +
+            "} : (i1) -> ()",
             text);
     }
 

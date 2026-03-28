@@ -25,35 +25,98 @@ public sealed class OperationSyntax
         IReadOnlyList<RegionSyntax> regions,
         IReadOnlyList<NamedAttributeSyntax> attributes,
         RawSyntaxText? typeSignature)
+        : this(
+            CreateValueTokens(results),
+            CreateDefaultCommaTokens(results.Count),
+            results.Count > 0 ? new SyntaxToken("=") : null,
+            new SyntaxToken(name),
+            new DelimitedSyntaxList<SyntaxToken>(
+                new SyntaxToken("("),
+                CreateValueTokens(operands),
+                CreateDefaultCommaTokens(operands.Count),
+                new SyntaxToken(")")),
+            new DelimitedSyntaxList<SyntaxToken>(
+                successors.Count > 0 ? new SyntaxToken("[") : null,
+                CreateValueTokens(successors),
+                CreateDefaultCommaTokens(successors.Count),
+                successors.Count > 0 ? new SyntaxToken("]") : null),
+            regions,
+            new DelimitedSyntaxList<NamedAttributeSyntax>(
+                attributes.Count > 0 ? new SyntaxToken("{") : null,
+                attributes,
+                CreateDefaultCommaTokens(attributes.Count),
+                attributes.Count > 0 ? new SyntaxToken("}") : null),
+            typeSignature != null ? new SyntaxToken(":") : null,
+            typeSignature)
     {
-        Results = results;
-        Name = name;
-        Operands = operands;
-        Successors = successors;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OperationSyntax"/> class.
+    /// </summary>
+    /// <param name="resultTokens">The SSA result tokens produced by the operation.</param>
+    /// <param name="resultCommaTokens">The comma tokens between results.</param>
+    /// <param name="equalsToken">The equals token, if present.</param>
+    /// <param name="nameToken">The operation name token.</param>
+    /// <param name="operandList">The delimited operand list.</param>
+    /// <param name="successorList">The delimited successor list.</param>
+    /// <param name="regions">The regions nested under the operation.</param>
+    /// <param name="attributes">The delimited attribute dictionary.</param>
+    /// <param name="typeSignatureColonToken">The colon token that introduces the type signature, if present.</param>
+    /// <param name="typeSignature">The raw trailing type signature, if present.</param>
+    public OperationSyntax(
+        IReadOnlyList<SyntaxToken> resultTokens,
+        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SyntaxToken? equalsToken,
+        SyntaxToken nameToken,
+        DelimitedSyntaxList<SyntaxToken> operandList,
+        DelimitedSyntaxList<SyntaxToken> successorList,
+        IReadOnlyList<RegionSyntax> regions,
+        DelimitedSyntaxList<NamedAttributeSyntax> attributes,
+        SyntaxToken? typeSignatureColonToken,
+        RawSyntaxText? typeSignature)
+    {
+        ResultTokens = resultTokens;
+        ResultCommaTokens = resultCommaTokens;
+        EqualsToken = equalsToken;
+        NameToken = nameToken;
+        OperandList = operandList;
+        SuccessorList = successorList;
         Regions = regions;
         Attributes = attributes;
+        TypeSignatureColonToken = typeSignatureColonToken;
         TypeSignature = typeSignature;
     }
 
     /// <summary>
-    /// Gets the SSA results produced by the operation.
+    /// Gets the SSA result tokens.
     /// </summary>
-    public IReadOnlyList<string> Results { get; }
+    public IReadOnlyList<SyntaxToken> ResultTokens { get; }
 
     /// <summary>
-    /// Gets the operation name as written in the source.
+    /// Gets the comma tokens between results.
     /// </summary>
-    public string Name { get; }
+    public IReadOnlyList<SyntaxToken> ResultCommaTokens { get; }
 
     /// <summary>
-    /// Gets the SSA operands passed to the operation.
+    /// Gets the equals token, if present.
     /// </summary>
-    public IReadOnlyList<string> Operands { get; }
+    public SyntaxToken? EqualsToken { get; }
 
     /// <summary>
-    /// Gets the successor block labels referenced by the operation.
+    /// Gets the operation name token.
     /// </summary>
-    public IReadOnlyList<string> Successors { get; }
+    public SyntaxToken NameToken { get; }
+
+    /// <summary>
+    /// Gets the delimited operand list.
+    /// </summary>
+    public DelimitedSyntaxList<SyntaxToken> OperandList { get; }
+
+    /// <summary>
+    /// Gets the delimited successor list.
+    /// </summary>
+    public DelimitedSyntaxList<SyntaxToken> SuccessorList { get; }
 
     /// <summary>
     /// Gets the regions nested under the operation.
@@ -61,12 +124,70 @@ public sealed class OperationSyntax
     public IReadOnlyList<RegionSyntax> Regions { get; }
 
     /// <summary>
-    /// Gets the named attributes attached to the operation.
+    /// Gets the delimited attribute dictionary.
     /// </summary>
-    public IReadOnlyList<NamedAttributeSyntax> Attributes { get; }
+    public DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
+
+    /// <summary>
+    /// Gets the colon token that introduces the type signature, if present.
+    /// </summary>
+    public SyntaxToken? TypeSignatureColonToken { get; }
 
     /// <summary>
     /// Gets the raw trailing type signature, if present.
     /// </summary>
     public RawSyntaxText? TypeSignature { get; }
+
+    /// <summary>
+    /// Gets the SSA results produced by the operation.
+    /// </summary>
+    public IReadOnlyList<string> Results => GetTexts(ResultTokens);
+
+    /// <summary>
+    /// Gets the operation name as written in the source.
+    /// </summary>
+    public string Name => NameToken.Text;
+
+    /// <summary>
+    /// Gets the SSA operands passed to the operation.
+    /// </summary>
+    public IReadOnlyList<string> Operands => GetTexts(OperandList.Items);
+
+    /// <summary>
+    /// Gets the successor block labels referenced by the operation.
+    /// </summary>
+    public IReadOnlyList<string> Successors => GetTexts(SuccessorList.Items);
+
+    private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)
+    {
+        var tokens = new List<SyntaxToken>();
+        foreach (var value in values)
+        {
+            tokens.Add(new SyntaxToken(value));
+        }
+
+        return tokens;
+    }
+
+    private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)
+    {
+        var separators = new List<SyntaxToken>();
+        for (var i = 1; i < count; i++)
+        {
+            separators.Add(new SyntaxToken(","));
+        }
+
+        return separators;
+    }
+
+    private static IReadOnlyList<string> GetTexts(IReadOnlyList<SyntaxToken> tokens)
+    {
+        var values = new List<string>();
+        foreach (var token in tokens)
+        {
+            values.Add(token.Text);
+        }
+
+        return values;
+    }
 }

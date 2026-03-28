@@ -3,12 +3,11 @@ namespace MLIR.Text;
 internal enum MlirTokenKind
 {
     EndOfFile,
-    NewLine,
     Identifier,
     Integer,
     StringLiteral,
-    Percent,
-    Caret,
+    SsaName,
+    BlockLabel,
     At,
     Hash,
     Colon,

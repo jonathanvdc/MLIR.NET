@@ -14,24 +14,70 @@ public sealed class BlockSyntax
     /// <param name="arguments">The block arguments.</param>
     /// <param name="operations">The operations contained in the block.</param>
     public BlockSyntax(string label, IReadOnlyList<BlockArgumentSyntax> arguments, IReadOnlyList<OperationSyntax> operations)
+        : this(
+            new SyntaxToken(label),
+            new DelimitedSyntaxList<BlockArgumentSyntax>(
+                arguments.Count > 0 ? new SyntaxToken("(") : null,
+                arguments,
+                CreateDefaultCommaTokens(arguments.Count),
+                arguments.Count > 0 ? new SyntaxToken(")") : null),
+            new SyntaxToken(":"),
+            operations)
     {
-        Label = label;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BlockSyntax"/> class.
+    /// </summary>
+    /// <param name="labelToken">The block label token.</param>
+    /// <param name="arguments">The delimited block argument list.</param>
+    /// <param name="colonToken">The colon token after the block header.</param>
+    /// <param name="operations">The operations contained in the block.</param>
+    public BlockSyntax(
+        SyntaxToken labelToken,
+        DelimitedSyntaxList<BlockArgumentSyntax> arguments,
+        SyntaxToken colonToken,
+        IReadOnlyList<OperationSyntax> operations)
+    {
+        LabelToken = labelToken;
         Arguments = arguments;
+        ColonToken = colonToken;
         Operations = operations;
     }
 
     /// <summary>
-    /// Gets the block label, including the leading <c>^</c>.
+    /// Gets the block label token.
     /// </summary>
-    public string Label { get; }
+    public SyntaxToken LabelToken { get; }
 
     /// <summary>
-    /// Gets the block arguments.
+    /// Gets the delimited block argument list.
     /// </summary>
-    public IReadOnlyList<BlockArgumentSyntax> Arguments { get; }
+    public DelimitedSyntaxList<BlockArgumentSyntax> Arguments { get; }
+
+    /// <summary>
+    /// Gets the colon token after the block header.
+    /// </summary>
+    public SyntaxToken ColonToken { get; }
 
     /// <summary>
     /// Gets the operations contained in the block.
     /// </summary>
     public IReadOnlyList<OperationSyntax> Operations { get; }
+
+    /// <summary>
+    /// Gets the block label, including the leading <c>^</c>.
+    /// </summary>
+    public string Label => LabelToken.Text;
+
+    private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)
+    {
+        var separators = new List<SyntaxToken>();
+        for (var i = 1; i < count; i++)
+        {
+            separators.Add(new SyntaxToken(","));
+        }
+
+        return separators;
+    }
 }

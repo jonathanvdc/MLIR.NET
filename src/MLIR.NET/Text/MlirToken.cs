@@ -2,10 +2,21 @@ namespace MLIR.Text;
 
 internal readonly struct MlirToken
 {
-    public MlirToken(MlirTokenKind kind, int start, int end, int line, int column)
+    public MlirToken(
+        MlirTokenKind kind,
+        string leadingTrivia,
+        string text,
+        int fullStart,
+        int tokenStart,
+        int end,
+        int line,
+        int column)
     {
         Kind = kind;
-        Start = start;
+        LeadingTrivia = leadingTrivia;
+        Text = text;
+        FullStart = fullStart;
+        TokenStart = tokenStart;
         End = end;
         Line = line;
         Column = column;
@@ -13,7 +24,13 @@ internal readonly struct MlirToken
 
     public MlirTokenKind Kind { get; }
 
-    public int Start { get; }
+    public string LeadingTrivia { get; }
+
+    public string Text { get; }
+
+    public int FullStart { get; }
+
+    public int TokenStart { get; }
 
     public int End { get; }
 

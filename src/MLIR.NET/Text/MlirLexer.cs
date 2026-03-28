@@ -1,6 +1,5 @@
 namespace MLIR.Text;
 
-using System;
 using System.Collections.Generic;
 
 internal static class MlirLexer
@@ -12,77 +11,96 @@ internal static class MlirLexer
         var line = 1;
         var column = 1;
 
-        while (index < source.Length)
+        while (true)
         {
-            var ch = source[index];
-            if (ch == ' ' || ch == '\t' || ch == '\r')
-            {
-                Advance(ch, ref index, ref line, ref column);
-                continue;
-            }
+            var triviaStart = index;
+            var triviaLine = line;
+            var triviaColumn = column;
 
-            if (ch == '\n')
+            while (index < source.Length)
             {
-                tokens.Add(new MlirToken(MlirTokenKind.NewLine, index, index + 1, line, column));
-                Advance(ch, ref index, ref line, ref column);
-                continue;
-            }
-
-            if (ch == '/' && index + 1 < source.Length && source[index + 1] == '/')
-            {
-                while (index < source.Length && source[index] != '\n')
+                var ch = source[index];
+                if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n')
                 {
-                    Advance(source[index], ref index, ref line, ref column);
+                    Advance(ch, ref index, ref line, ref column);
+                    continue;
                 }
 
-                continue;
+                if (ch == '/' && index + 1 < source.Length && source[index + 1] == '/')
+                {
+                    while (index < source.Length && source[index] != '\n')
+                    {
+                        Advance(source[index], ref index, ref line, ref column);
+                    }
+
+                    continue;
+                }
+
+                break;
             }
 
-            if (IsIdentifierStart(ch))
+            var leadingTrivia = source.Substring(triviaStart, index - triviaStart);
+            if (index >= source.Length)
             {
-                var start = index;
-                var tokenLine = line;
-                var tokenColumn = column;
-                Advance(ch, ref index, ref line, ref column);
+                tokens.Add(new MlirToken(MlirTokenKind.EndOfFile, leadingTrivia, string.Empty, triviaStart, index, index, line, column));
+                return tokens;
+            }
+
+            var tokenStart = index;
+            var tokenLine = line;
+            var tokenColumn = column;
+            var chAtToken = source[index];
+
+            if (chAtToken == '%' || chAtToken == '^')
+            {
+                var tokenKind = chAtToken == '%' ? MlirTokenKind.SsaName : MlirTokenKind.BlockLabel;
+                Advance(chAtToken, ref index, ref line, ref column);
+                if (index >= source.Length || (!IsIdentifierStart(source[index]) && !char.IsDigit(source[index])))
+                {
+                    throw new MlirParseException(new MlirDiagnostic($"Expected a name after '{chAtToken}'.", tokenLine, tokenColumn));
+                }
 
                 while (index < source.Length && IsIdentifierPart(source[index]))
                 {
                     Advance(source[index], ref index, ref line, ref column);
                 }
 
-                tokens.Add(new MlirToken(MlirTokenKind.Identifier, start, index, tokenLine, tokenColumn));
+                tokens.Add(new MlirToken(tokenKind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
                 continue;
             }
 
-            if (char.IsDigit(ch))
+            if (IsIdentifierStart(chAtToken))
             {
-                var start = index;
-                var tokenLine = line;
-                var tokenColumn = column;
-                Advance(ch, ref index, ref line, ref column);
+                Advance(chAtToken, ref index, ref line, ref column);
+                while (index < source.Length && IsIdentifierPart(source[index]))
+                {
+                    Advance(source[index], ref index, ref line, ref column);
+                }
 
+                tokens.Add(new MlirToken(MlirTokenKind.Identifier, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                continue;
+            }
+
+            if (char.IsDigit(chAtToken))
+            {
+                Advance(chAtToken, ref index, ref line, ref column);
                 while (index < source.Length && char.IsDigit(source[index]))
                 {
                     Advance(source[index], ref index, ref line, ref column);
                 }
 
-                tokens.Add(new MlirToken(MlirTokenKind.Integer, start, index, tokenLine, tokenColumn));
+                tokens.Add(new MlirToken(MlirTokenKind.Integer, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
                 continue;
             }
 
-            if (ch == '"')
+            if (chAtToken == '"')
             {
-                var start = index;
-                var tokenLine = line;
-                var tokenColumn = column;
-                Advance(ch, ref index, ref line, ref column);
-
+                Advance(chAtToken, ref index, ref line, ref column);
                 var escaped = false;
                 while (index < source.Length)
                 {
                     var current = source[index];
                     Advance(current, ref index, ref line, ref column);
-
                     if (escaped)
                     {
                         escaped = false;
@@ -101,19 +119,17 @@ internal static class MlirLexer
                     }
                 }
 
-                if (source[index - 1] != '"')
+                if (index == tokenStart + 1 || source[index - 1] != '"')
                 {
                     throw new MlirParseException(new MlirDiagnostic("Unterminated string literal.", tokenLine, tokenColumn));
                 }
 
-                tokens.Add(new MlirToken(MlirTokenKind.StringLiteral, start, index, tokenLine, tokenColumn));
+                tokens.Add(new MlirToken(MlirTokenKind.StringLiteral, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
                 continue;
             }
 
-            var punctuation = ch switch
+            var kind = chAtToken switch
             {
-                '%' => MlirTokenKind.Percent,
-                '^' => MlirTokenKind.Caret,
                 '@' => MlirTokenKind.At,
                 '#' => MlirTokenKind.Hash,
                 ':' => MlirTokenKind.Colon,
@@ -132,27 +148,17 @@ internal static class MlirLexer
                 '+' => MlirTokenKind.Plus,
                 '.' => MlirTokenKind.Dot,
                 '-' => index + 1 < source.Length && source[index + 1] == '>' ? MlirTokenKind.Arrow : MlirTokenKind.Minus,
-                _ => throw new MlirParseException(new MlirDiagnostic($"Unexpected character '{ch}'.", line, column)),
+                _ => throw new MlirParseException(new MlirDiagnostic($"Unexpected character '{chAtToken}'.", tokenLine, tokenColumn)),
             };
 
-            var tokenStart = index;
-            var tokenLineValue = line;
-            var tokenColumnValue = column;
-            Advance(ch, ref index, ref line, ref column);
-
-            if (punctuation == MlirTokenKind.Arrow)
+            Advance(chAtToken, ref index, ref line, ref column);
+            if (kind == MlirTokenKind.Arrow)
             {
                 Advance(source[index], ref index, ref line, ref column);
-                tokens.Add(new MlirToken(MlirTokenKind.Arrow, tokenStart, index, tokenLineValue, tokenColumnValue));
             }
-            else
-            {
-                tokens.Add(new MlirToken(punctuation, tokenStart, index, tokenLineValue, tokenColumnValue));
-            }
-        }
 
-        tokens.Add(new MlirToken(MlirTokenKind.EndOfFile, source.Length, source.Length, line, column));
-        return tokens;
+            tokens.Add(new MlirToken(kind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+        }
     }
 
     private static bool IsIdentifierStart(char ch)
