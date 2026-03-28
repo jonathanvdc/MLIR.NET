@@ -1,21 +1,19 @@
 namespace MLIR.Semantics;
 
-using System;
 using System.Collections.Generic;
-using MLIR.Dialects;
+using MLIR.Syntax;
 
 /// <summary>
-/// Represents the default semantic node for a recognized operation when no generated typed node is registered.
+/// Represents a bound operation whose dialect-specific semantic type is unknown.
 /// </summary>
-public class Operation : OperationBase
+public sealed class UnknownOperation : OperationBase
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="Operation"/> class.
+    /// Initializes a new instance of the <see cref="UnknownOperation"/> class.
     /// </summary>
-    public Operation(
-        Syntax.OperationSyntax syntax,
+    public UnknownOperation(
+        OperationSyntax syntax,
         string name,
-        OperationDefinition definition,
         IReadOnlyList<Region> regions,
         IReadOnlyList<NamedAttribute> attributes,
         TypeReference? typeSignatureReference,
@@ -26,7 +24,7 @@ public class Operation : OperationBase
         : base(
             syntax,
             name,
-            definition,
+            null,
             regions,
             attributes,
             typeSignatureReference,

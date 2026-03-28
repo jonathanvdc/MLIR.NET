@@ -52,13 +52,35 @@ public sealed class SemanticTests
 
     private sealed class ArithConstantView : OperationView
     {
-        public ArithConstantView(Operation operation)
+        public ArithConstantView(OperationBase operation)
             : base(operation, "arith.constant")
         {
         }
 
         public NamedAttribute ValueAttribute => GetAttribute("value");
         public string ParsedValueText => GetProperty<string>("parsed.value");
+        public ValueReference ResultValue => ResultValues[0];
+    }
+
+    private sealed class GeneratedAddIOperation : Operation
+    {
+        public GeneratedAddIOperation(OperationConstructionContext context)
+            : base(
+                context.Syntax,
+                context.Name,
+                context.Definition,
+                context.Regions,
+                context.Attributes,
+                context.TypeSignatureReference,
+                context.ResultValues,
+                context.OperandValues,
+                context.SuccessorReferences,
+                context.Properties)
+        {
+        }
+
+        public ValueReference LeftOperand => OperandValues[0];
+        public ValueReference RightOperand => OperandValues[1];
         public ValueReference ResultValue => ResultValues[0];
     }
 
@@ -87,7 +109,7 @@ public sealed class SemanticTests
             return true;
         }
 
-        public void Bind(Operation operation, OperationAssemblyBindingContext context)
+        public void Bind(OperationBase operation, OperationAssemblyBindingContext context)
         {
             if (!operation.HasAttribute("value"))
             {
@@ -102,7 +124,7 @@ public sealed class SemanticTests
             }
         }
 
-        public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
+        public OperationSyntax Rewrite(OperationBase operation, OperationSyntaxTransformContext context)
         {
             var genericBody = context.TransformGenericBody(operation);
             var body = new PrefixConstantBodySyntax(
@@ -148,6 +170,7 @@ public sealed class SemanticTests
 
         var operation = module.Operations[0];
         Assert.True(operation.IsKnown);
+        Assert.IsType<Operation>(operation);
         Assert.Equal("arith.addi", operation.Name);
         Assert.Equal("\"arith.addi\"", operation.SyntaxName);
         Assert.Equal("arith", operation.DialectName);
@@ -163,8 +186,37 @@ public sealed class SemanticTests
 
         var operation = module.Operations[0];
         Assert.False(operation.IsKnown);
+        Assert.IsType<UnknownOperation>(operation);
         Assert.Null(operation.Definition);
         Assert.Equal("test.unknown", operation.Name);
+    }
+
+    [Fact]
+    public void BinderCanConstructGeneratedTypedOperations()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.addi",
+                        operation => operation
+                            .Operand("lhs")
+                            .Operand("rhs")
+                            .Result("result")
+                            .WithFactory(static context => new GeneratedAddIOperation(context)));
+                }));
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("%sum = \"arith.addi\"(%lhs, %rhs) : (i32, i32) -> i32"),
+            registry);
+
+        var operation = Assert.IsType<GeneratedAddIOperation>(module.Operations[0]);
+        Assert.Equal("%lhs", operation.LeftOperand.Name);
+        Assert.Equal("%rhs", operation.RightOperand.Name);
+        Assert.Equal("%sum", operation.ResultValue.Name);
     }
 
     [Fact]

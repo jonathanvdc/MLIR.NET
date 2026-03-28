@@ -12,7 +12,7 @@ using MLIR.Syntax;
 /// <param name="syntax">The concrete syntax node for the block.</param>
 /// <param name="arguments">The semantic block arguments.</param>
 /// <param name="operations">The operations contained in the block.</param>
-public sealed class Block(BlockSyntax syntax, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
+public sealed class Block(BlockSyntax syntax, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<OperationBase> operations)
 {
     /// <summary>
     /// Gets the concrete syntax node for the block.
@@ -27,7 +27,7 @@ public sealed class Block(BlockSyntax syntax, IReadOnlyList<BlockArgument> argum
     /// <summary>
     /// Gets the operations contained in the block.
     /// </summary>
-    public IReadOnlyList<Operation> Operations { get; } = operations;
+    public IReadOnlyList<OperationBase> Operations { get; } = operations;
 
     /// <summary>
     /// Gets the block label, including the leading <c>^</c>.

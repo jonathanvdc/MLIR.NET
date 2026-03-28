@@ -19,7 +19,7 @@ public static class Binder
     public static Module BindModule(ModuleSyntax syntax, DialectRegistry? dialectRegistry = null)
     {
         var diagnostics = new List<AssemblyDiagnostic>();
-        var operations = new List<Operation>();
+        var operations = new List<OperationBase>();
         foreach (var operation in syntax.Operations)
         {
             operations.Add(BindOperation(operation, dialectRegistry, diagnostics));
@@ -28,7 +28,7 @@ public static class Binder
         return new Module(syntax, operations, diagnostics);
     }
 
-    private static Operation BindOperation(OperationSyntax syntax, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    private static OperationBase BindOperation(OperationSyntax syntax, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
     {
         var genericBody = syntax.GenericBody;
         var regions = new List<Region>();
@@ -63,10 +63,35 @@ public static class Binder
         var resultValues = CreateValueReferences(syntax.ResultTokens);
         var operandValues = CreateValueReferences(genericBody.OperandList.Items);
         var successorReferences = CreateBlockReferences(genericBody.SuccessorList.Items);
-        var operation = new Operation(syntax, name, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences, properties);
-        if (definition?.AssemblyFormat != null)
+        OperationBase operation;
+        if (definition != null)
         {
-            definition.AssemblyFormat.Bind(operation, new OperationAssemblyBindingContext(operation, properties, diagnostics));
+            var constructionContext = new OperationConstructionContext(
+                syntax,
+                name,
+                definition,
+                regions,
+                attributes,
+                typeSignatureReference,
+                resultValues,
+                operandValues,
+                successorReferences,
+                properties);
+            operation = definition.Factory?.Invoke(constructionContext) ?? constructionContext.CreateDefaultOperation();
+            definition.AssemblyFormat?.Bind(operation, new OperationAssemblyBindingContext(operation, properties, diagnostics));
+        }
+        else
+        {
+            operation = new UnknownOperation(
+                syntax,
+                name,
+                regions,
+                attributes,
+                typeSignatureReference,
+                resultValues,
+                operandValues,
+                successorReferences,
+                properties);
         }
 
         return operation;
@@ -91,7 +116,7 @@ public static class Binder
             arguments.Add(new BlockArgument(argument, BindTypeReference(argument.RawType, SourceLocation.FromToken(argument.NameToken), dialectRegistry, diagnostics)));
         }
 
-        var operations = new List<Operation>();
+        var operations = new List<OperationBase>();
         foreach (var operation in syntax.Operations)
         {
             operations.Add(BindOperation(operation, dialectRegistry, diagnostics));

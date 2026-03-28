@@ -38,7 +38,7 @@ public interface IOperationAssemblyFormat
     /// </summary>
     /// <param name="operation">The operation to interpret.</param>
     /// <param name="context">The binding context.</param>
-    void Bind(Operation operation, OperationAssemblyBindingContext context);
+    void Bind(OperationBase operation, OperationAssemblyBindingContext context);
 
     /// <summary>
     /// Rewrites the supplied operation into custom concrete syntax.
@@ -46,5 +46,5 @@ public interface IOperationAssemblyFormat
     /// <param name="operation">The operation to rewrite.</param>
     /// <param name="context">The CST transformation context.</param>
     /// <returns>The rewritten operation syntax.</returns>
-    OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context);
+    OperationSyntax Rewrite(OperationBase operation, OperationSyntaxTransformContext context);
 }

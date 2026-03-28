@@ -12,5 +12,5 @@ public interface IOperationVerifier
     /// </summary>
     /// <param name="operation">The operation to verify.</param>
     /// <param name="context">The verification context used to report diagnostics.</param>
-    void Verify(Operation operation, VerificationContext context);
+    void Verify(OperationBase operation, VerificationContext context);
 }

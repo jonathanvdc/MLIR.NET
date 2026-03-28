@@ -1,6 +1,7 @@
 namespace MLIR.Dialects;
 
 using System.Collections.Generic;
+using MLIR.Semantics;
 
 /// <summary>
 /// Describes the semantic behavior of a dialect operation.
@@ -21,6 +22,7 @@ using System.Collections.Generic;
 /// <param name="requiredAttributes">The attribute names that must be present on the operation.</param>
 /// <param name="verifier">The optional verifier for the operation.</param>
 /// <param name="assemblyFormat">The optional custom assembly format.</param>
+/// <param name="factory">The optional typed operation factory.</param>
 public sealed class OperationDefinition(
     string name,
     IReadOnlyList<OperationSegmentDefinition>? operandDefinitions = null,
@@ -34,7 +36,8 @@ public sealed class OperationDefinition(
     int? successorCount = null,
     IReadOnlyList<string>? requiredAttributes = null,
     IOperationVerifier? verifier = null,
-    IOperationAssemblyFormat? assemblyFormat = null)
+    IOperationAssemblyFormat? assemblyFormat = null,
+    System.Func<OperationConstructionContext, OperationBase>? factory = null)
 {
     /// <summary>
     /// Gets the canonical operation name without MLIR string-literal quoting.
@@ -100,6 +103,11 @@ public sealed class OperationDefinition(
     /// Gets the custom assembly format for the operation, if one is registered.
     /// </summary>
     public IOperationAssemblyFormat? AssemblyFormat { get; } = assemblyFormat;
+
+    /// <summary>
+    /// Gets the typed operation factory for the operation, if one is registered.
+    /// </summary>
+    public System.Func<OperationConstructionContext, OperationBase>? Factory { get; } = factory;
 
     private static readonly IReadOnlyList<OperationSegmentDefinition> EmptySegmentDefinitions = new OperationSegmentDefinition[0];
     private static readonly IReadOnlyList<OperationAttributeDefinition> EmptyAttributeDefinitions = new OperationAttributeDefinition[0];

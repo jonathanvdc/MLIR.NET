@@ -24,7 +24,7 @@ public static class Verifier
         return new VerificationResult(diagnostics);
     }
 
-    private static void VerifyOperation(Operation operation, List<VerificationDiagnostic> diagnostics)
+    private static void VerifyOperation(OperationBase operation, List<VerificationDiagnostic> diagnostics)
     {
         if (operation.Definition != null)
         {
@@ -45,7 +45,7 @@ public static class Verifier
         }
     }
 
-    private static void VerifyStructuralConstraints(Operation operation, OperationDefinition definition, VerificationContext context)
+    private static void VerifyStructuralConstraints(OperationBase operation, OperationDefinition definition, VerificationContext context)
     {
         VerifyCount("operand", definition.OperandDefinitions, definition.OperandCount, operation.Operands.Count, operation, context);
         VerifyCount("result", definition.ResultDefinitions, definition.ResultCount, operation.Results.Count, operation, context);
@@ -74,7 +74,7 @@ public static class Verifier
         IReadOnlyList<OperationSegmentDefinition> segmentDefinitions,
         int? exactCount,
         int actualCount,
-        Operation operation,
+        OperationBase operation,
         VerificationContext context)
     {
         if (segmentDefinitions.Count > 0)
@@ -86,7 +86,7 @@ public static class Verifier
         VerifyExactCount(noun, exactCount, actualCount, operation, context);
     }
 
-    private static void VerifyExactCount(string noun, int? expectedCount, int actualCount, Operation operation, VerificationContext context)
+    private static void VerifyExactCount(string noun, int? expectedCount, int actualCount, OperationBase operation, VerificationContext context)
     {
         if (!expectedCount.HasValue || expectedCount.Value == actualCount)
         {
@@ -100,7 +100,7 @@ public static class Verifier
         string noun,
         IReadOnlyList<OperationSegmentDefinition> segmentDefinitions,
         int actualCount,
-        Operation operation,
+        OperationBase operation,
         VerificationContext context)
     {
         var minimumCount = 0;

@@ -14,7 +14,7 @@ public sealed class VerificationContext
     /// </summary>
     /// <param name="operation">The operation being verified.</param>
     /// <param name="diagnostics">The shared diagnostic sink.</param>
-    public VerificationContext(Operation operation, List<VerificationDiagnostic> diagnostics)
+    public VerificationContext(OperationBase operation, List<VerificationDiagnostic> diagnostics)
     {
         Operation = operation;
         this.diagnostics = diagnostics;
@@ -23,7 +23,7 @@ public sealed class VerificationContext
     /// <summary>
     /// Gets the operation being verified.
     /// </summary>
-    public Operation Operation { get; }
+    public OperationBase Operation { get; }
 
     /// <summary>
     /// Reports a verification diagnostic for the current operation.
