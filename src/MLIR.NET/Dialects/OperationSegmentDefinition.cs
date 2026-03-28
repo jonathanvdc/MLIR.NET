@@ -8,12 +8,12 @@ namespace MLIR.Dialects;
 /// </remarks>
 /// <param name="name">The segment name.</param>
 /// <param name="isVariadic">Indicates whether the segment may consume zero or more entries.</param>
-public sealed class OperationSegmentDefinition(string name, bool isVariadic = false)
+public readonly struct OperationSegmentDefinition(string name, bool isVariadic = false)
 {
     /// <summary>
     /// Gets the segment name.
     /// </summary>
-    public string Name { get; } = name;
+    public string Name { get; } = name ?? string.Empty;
 
     /// <summary>
     /// Gets a value indicating whether the segment may consume zero or more entries.
