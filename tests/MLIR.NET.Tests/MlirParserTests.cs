@@ -1,5 +1,6 @@
 namespace MLIR.Tests;
 
+using MLIR;
 using MLIR.Construction;
 using MLIR.Syntax;
 using MLIR.Text;
@@ -38,6 +39,17 @@ public sealed class MlirParserTests
         var module = MlirParser.ParseModule(source);
 
         Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", module.Operations[0].TypeSignature!.Text);
+    }
+
+    [Fact]
+    public void MlirDocumentParsesAndPrints()
+    {
+        const string source = "\"func.return\"() : () -> ()";
+
+        var document = MlirDocument.Parse(source);
+
+        Assert.Equal(source, document.ToText());
+        Assert.Single(document.Module.Operations);
     }
 
     [Fact]
@@ -120,6 +132,49 @@ public sealed class MlirParserTests
     }
 
     [Fact]
+    public void ParsesEmptyAttributeDictionary()
+    {
+        const string source = "\"test.empty_attr_dict\"() {} : () -> ()";
+
+        var module = MlirParser.ParseModule(source);
+        var operation = module.Operations[0];
+
+        Assert.Empty(operation.Regions);
+        Assert.Empty(operation.Attributes);
+        Assert.Equal(source, MlirPrinter.Print(module));
+    }
+
+    [Fact]
+    public void ParsesUnlabeledEntryBlockBeforeExplicitLabeledBlock()
+    {
+        const string source =
+            "\"test.region\"() {\n" +
+            "  \"cf.br\"() [^bb1] : () -> ()\n" +
+            "^bb1:\n" +
+            "  \"func.return\"() : () -> ()\n" +
+            "} : () -> ()";
+
+        var module = MlirParser.ParseModule(source);
+        var blocks = module.Operations[0].Regions[0].Blocks;
+
+        Assert.Equal(2, blocks.Count);
+        Assert.Equal("^entry", blocks[0].Label);
+        Assert.Equal("^bb1", blocks[1].Label);
+        Assert.Equal(source, MlirPrinter.Print(module));
+    }
+
+    [Fact]
+    public void ParsesIdentifierOperationNames()
+    {
+        const string source = "test.op(%arg0) : (i32) -> i32";
+
+        var module = MlirParser.ParseModule(source);
+
+        Assert.Equal("test.op", module.Operations[0].Name);
+        Assert.Equal(source, MlirPrinter.Print(module));
+    }
+
+    [Fact]
     public void ExposesPreservedTokenTriviaInTheCst()
     {
         const string source =
@@ -135,6 +190,10 @@ public sealed class MlirParserTests
         Assert.Equal(" ", operation.SuccessorList.OpenToken!.LeadingTrivia);
         Assert.Equal(" ", operation.SuccessorList[0].LeadingTrivia);
         Assert.Equal(" ", operation.SuccessorList.CloseToken!.LeadingTrivia);
+        Assert.Equal("%0", operation.Results[0]);
+        Assert.Equal("\"test.op\"", operation.Name);
+        Assert.Equal("%lhs", operation.Operands[0]);
+        Assert.Equal("^bb1", operation.Successors[0]);
     }
 
     [Fact]
@@ -161,6 +220,19 @@ public sealed class MlirParserTests
     }
 
     [Fact]
+    public void SyntaxTokenAndRawSyntaxTextExposeFullText()
+    {
+        var token = new SyntaxToken("value", "  ");
+        var raw = new RawSyntaxText("i32", " ");
+
+        Assert.Equal("  value", token.FullText);
+        Assert.Equal("  value", token.ToString());
+        Assert.Equal(" i32", raw.FullText);
+        Assert.Equal(" i32", raw.ToString());
+        Assert.True(raw.HasLeadingTrivia);
+    }
+
+    [Fact]
     public void FactoryHelpersQuoteOperationNamesAndBuildAttributes()
     {
         var module = MlirFactory.Module(
@@ -172,6 +244,16 @@ public sealed class MlirParserTests
         var text = MlirPrinter.Print(module);
 
         Assert.Equal("\"arith.constant\"() {value = 0 : i32} : () -> i32", text);
+    }
+
+    [Fact]
+    public void FactoryHelpersSupportRawAndDefaultEmptyLists()
+    {
+        var raw = MlirFactory.Raw("tensor<2xi32>");
+        var module = MlirFactory.Module(MlirFactory.Op(name: "\"test.op\""));
+
+        Assert.Equal("tensor<2xi32>", raw.Text);
+        Assert.Equal("\"test.op\"()", MlirPrinter.Print(module));
     }
 
     [Fact]
@@ -255,6 +337,26 @@ public sealed class MlirParserTests
     }
 
     [Fact]
+    public void ReportsLexerErrorForMissingSsaNameAfterPercent()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("% = \"test.op\"()"));
+
+        Assert.Equal("Expected a name after '%'.", exception.Diagnostic.Message);
+        Assert.Equal(1, exception.Diagnostic.Line);
+        Assert.Equal(1, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void ReportsLexerErrorForMissingBlockNameAfterCaret()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"test.region\"() {\n^:\n}"));
+
+        Assert.Equal("Expected a name after '^'.", exception.Diagnostic.Message);
+        Assert.Equal(2, exception.Diagnostic.Line);
+        Assert.Equal(1, exception.Diagnostic.Column);
+    }
+
+    [Fact]
     public void ReportsParserErrorForMissingOperationName()
     {
         var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("%0 = (%lhs)"));
@@ -272,5 +374,38 @@ public sealed class MlirParserTests
         Assert.Equal("Expected an operation name.", exception.Diagnostic.Message);
         Assert.Equal(2, exception.Diagnostic.Line);
         Assert.Equal(29, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void ReportsParserErrorForMissingAttributeName()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"test.op\"() {= 42 : i32} : () -> ()"));
+
+        Assert.Equal("Expected an attribute name.", exception.Diagnostic.Message);
+        Assert.Equal(1, exception.Diagnostic.Line);
+        Assert.Equal(14, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void ReportsParserErrorForMissingBlockLabelName()
+    {
+        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"test.region\"() {\n^bb0(%arg0: i32):\n  \"cf.br\"() [^] : () -> ()\n}"));
+
+        Assert.Equal("Expected a name after '^'.", exception.Diagnostic.Message);
+        Assert.Equal(3, exception.Diagnostic.Line);
+        Assert.Equal(14, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void PreservesRawSyntaxWithNestedDelimiters()
+    {
+        const string source =
+            "\"test.op\"(%arg0) {layout = dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>} : (tensor<2x2xi32>) -> tensor<2x2xi32>";
+
+        var module = MlirParser.ParseModule(source);
+        var attribute = module.Operations[0].Attributes[0];
+
+        Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.Value.Text);
+        Assert.Equal(source, MlirPrinter.Print(module));
     }
 }
