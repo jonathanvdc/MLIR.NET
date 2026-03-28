@@ -492,7 +492,7 @@ public sealed class MlirParser
 
     private static SyntaxToken ToSyntaxToken(MlirToken token)
     {
-        return new SyntaxToken(token.Text, token.LeadingTrivia);
+        return new SyntaxToken(token.Text, token.LeadingTrivia, token.Line, token.Column);
     }
 
     private MlirToken Current => tokens[position];

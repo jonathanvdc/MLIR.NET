@@ -31,6 +31,6 @@ public sealed class VerificationContext
     /// <param name="message">The diagnostic message.</param>
     public void Report(string message)
     {
-        diagnostics.Add(new VerificationDiagnostic(Operation, message));
+        diagnostics.Add(new VerificationDiagnostic(Operation, message, Operation.Location));
     }
 }

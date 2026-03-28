@@ -33,4 +33,14 @@ public sealed class Block(BlockSyntax syntax, IReadOnlyList<BlockArgument> argum
     /// Gets the block label, including the leading <c>^</c>.
     /// </summary>
     public string Label => Syntax.Label;
+
+    /// <summary>
+    /// Gets the typed reference to the block label.
+    /// </summary>
+    public BlockReference LabelReference { get; } = new BlockReference(syntax.LabelToken);
+
+    /// <summary>
+    /// Gets the source location of the block label, if known.
+    /// </summary>
+    public SourceLocation Location => LabelReference.Location;
 }

@@ -36,6 +36,6 @@ public sealed class OperationAssemblyBindingContext
     /// </summary>
     public void Report(string message)
     {
-        diagnostics.Add(new AssemblyDiagnostic(Operation, message));
+        diagnostics.Add(new AssemblyDiagnostic(Operation, message, Operation.Location));
     }
 }

@@ -17,6 +17,7 @@ public sealed class MlirSemanticTests
 
         public NamedAttribute ValueAttribute => GetAttribute("value");
         public string ParsedValueText => GetProperty<string>("parsed.value");
+        public ValueReference ResultValue => ResultValues[0];
     }
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
@@ -77,6 +78,8 @@ public sealed class MlirSemanticTests
         Assert.Equal("\"arith.addi\"", operation.SyntaxName);
         Assert.Equal("arith", operation.DialectName);
         Assert.NotNull(operation.Definition);
+        Assert.Equal("%0", operation.ResultValues[0].Name);
+        Assert.Equal("%lhs", operation.OperandValues[0].Name);
     }
 
     [Fact]
@@ -112,6 +115,19 @@ public sealed class MlirSemanticTests
         Assert.Single(nestedOperation.Attributes);
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
         Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Text);
+        Assert.Equal("%arg0", block.Arguments[0].Value.Name);
+    }
+
+    [Fact]
+    public void BindsTypedSuccessorReferences()
+    {
+        var module = MlirBinder.BindModule(
+            MlirParser.ParseModule("\"cf.cond_br\"(%cond) [^then, ^else] : (i1) -> ()"));
+
+        var operation = module.Operations[0];
+
+        Assert.Equal("^then", operation.SuccessorReferences[0].Label);
+        Assert.Equal("^else", operation.SuccessorReferences[1].Label);
     }
 
     [Fact]
@@ -339,6 +355,7 @@ public sealed class MlirSemanticTests
         var view = new ArithConstantView(module.Operations[0]);
 
         Assert.Equal("%0", view.Results[0]);
+        Assert.Equal("%0", view.ResultValue.Name);
         Assert.Equal("0 : i32", view.ValueAttribute.Value.Text);
         Assert.False(view.HasProperty("missing"));
     }
@@ -468,6 +485,9 @@ public sealed class MlirSemanticTests
         Assert.Single(module.AssemblyDiagnostics);
         Assert.Equal("arith.constant custom assembly expects a 'value' attribute.", module.AssemblyDiagnostics[0].Message);
         Assert.Equal("arith.constant", module.AssemblyDiagnostics[0].Operation.Name);
+        Assert.True(module.AssemblyDiagnostics[0].Location.IsKnown);
+        Assert.Equal(1, module.AssemblyDiagnostics[0].Location.Line);
+        Assert.Equal(6, module.AssemblyDiagnostics[0].Location.Column);
     }
 
     [Fact]
@@ -541,6 +561,27 @@ public sealed class MlirSemanticTests
         Assert.False(result.IsSuccess);
         Assert.Single(result.Diagnostics);
         Assert.Equal("func.return", result.Diagnostics[0].Operation.Name);
+        Assert.True(result.Diagnostics[0].Location.IsKnown);
+        Assert.Equal(2, result.Diagnostics[0].Location.Line);
+        Assert.Equal(3, result.Diagnostics[0].Location.Column);
+    }
+
+    [Fact]
+    public void SemanticReferencesExposeSourceLocations()
+    {
+        var module = MlirBinder.BindModule(
+            MlirParser.ParseModule("%0 = \"arith.addi\"(%lhs, %rhs) [^bb1] : (i32, i32) -> i32"));
+
+        var operation = module.Operations[0];
+
+        Assert.Equal(1, operation.Location.Line);
+        Assert.Equal(6, operation.Location.Column);
+        Assert.Equal(1, operation.ResultValues[0].Location.Line);
+        Assert.Equal(1, operation.ResultValues[0].Location.Column);
+        Assert.Equal(1, operation.OperandValues[0].Location.Line);
+        Assert.Equal(19, operation.OperandValues[0].Location.Column);
+        Assert.Equal(1, operation.SuccessorReferences[0].Location.Line);
+        Assert.Equal(32, operation.SuccessorReferences[0].Location.Column);
     }
 
     [Fact]

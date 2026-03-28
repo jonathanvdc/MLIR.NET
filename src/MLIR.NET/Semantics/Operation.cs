@@ -16,6 +16,9 @@ using MLIR.Syntax;
 /// <param name="definition">The registered operation definition, if one exists.</param>
 /// <param name="regions">The semantic regions nested under the operation.</param>
 /// <param name="attributes">The semantic attributes attached to the operation.</param>
+/// <param name="resultValues">The typed SSA result references produced by the operation.</param>
+/// <param name="operandValues">The typed SSA operand references passed to the operation.</param>
+/// <param name="successorReferences">The typed block successor references used by the operation.</param>
 /// <param name="properties">The semantic properties interpreted from dialect-specific assembly.</param>
 public sealed class Operation(
     OperationSyntax syntax,
@@ -23,6 +26,9 @@ public sealed class Operation(
     OperationDefinition? definition,
     IReadOnlyList<Region> regions,
     IReadOnlyList<NamedAttribute> attributes,
+    IReadOnlyList<ValueReference> resultValues,
+    IReadOnlyList<ValueReference> operandValues,
+    IReadOnlyList<BlockReference> successorReferences,
     IReadOnlyDictionary<string, object?> properties)
 {
     /// <summary>
@@ -49,6 +55,21 @@ public sealed class Operation(
     /// Gets the semantic attributes attached to the operation.
     /// </summary>
     public IReadOnlyList<NamedAttribute> Attributes { get; } = attributes;
+
+    /// <summary>
+    /// Gets the typed SSA result references produced by the operation.
+    /// </summary>
+    public IReadOnlyList<ValueReference> ResultValues { get; } = resultValues;
+
+    /// <summary>
+    /// Gets the typed SSA operand references passed to the operation.
+    /// </summary>
+    public IReadOnlyList<ValueReference> OperandValues { get; } = operandValues;
+
+    /// <summary>
+    /// Gets the typed block successor references used by the operation.
+    /// </summary>
+    public IReadOnlyList<BlockReference> SuccessorReferences { get; } = successorReferences;
 
     /// <summary>
     /// Gets the semantic properties interpreted from dialect-specific assembly.
@@ -80,22 +101,27 @@ public sealed class Operation(
     /// <summary>
     /// Gets the SSA results produced by the operation.
     /// </summary>
-    public IReadOnlyList<string> Results => Syntax.Results;
+    public IReadOnlyList<string> Results => GetNames(ResultValues);
 
     /// <summary>
     /// Gets the SSA operands passed to the operation.
     /// </summary>
-    public IReadOnlyList<string> Operands => Syntax.Operands;
+    public IReadOnlyList<string> Operands => GetNames(OperandValues);
 
     /// <summary>
     /// Gets the successor block labels referenced by the operation.
     /// </summary>
-    public IReadOnlyList<string> Successors => Syntax.Successors;
+    public IReadOnlyList<string> Successors => GetLabels(SuccessorReferences);
 
     /// <summary>
     /// Gets the raw type signature text, if present.
     /// </summary>
     public RawSyntaxText? TypeSignature => Syntax.TypeSignature;
+
+    /// <summary>
+    /// Gets the source location of the operation name, if known.
+    /// </summary>
+    public SourceLocation Location => SourceLocation.FromToken(Syntax.NameToken);
 
     /// <summary>
     /// Determines whether the operation has an attribute with the supplied name.
@@ -163,5 +189,27 @@ public sealed class Operation(
         }
 
         throw new InvalidCastException($"The property '{name}' on operation '{Name}' is not a '{typeof(T).FullName}'.");
+    }
+
+    private static IReadOnlyList<string> GetNames(IReadOnlyList<ValueReference> values)
+    {
+        var names = new List<string>(values.Count);
+        foreach (var value in values)
+        {
+            names.Add(value.Name);
+        }
+
+        return names;
+    }
+
+    private static IReadOnlyList<string> GetLabels(IReadOnlyList<BlockReference> blocks)
+    {
+        var labels = new List<string>(blocks.Count);
+        foreach (var block in blocks)
+        {
+            labels.Add(block.Label);
+        }
+
+        return labels;
     }
 }

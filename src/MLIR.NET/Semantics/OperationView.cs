@@ -36,14 +36,29 @@ public abstract class OperationView
     public IReadOnlyList<string> Results => Operation.Results;
 
     /// <summary>
+    /// Gets the operation's typed SSA result references.
+    /// </summary>
+    public IReadOnlyList<ValueReference> ResultValues => Operation.ResultValues;
+
+    /// <summary>
     /// Gets the operation's SSA operands.
     /// </summary>
     public IReadOnlyList<string> Operands => Operation.Operands;
 
     /// <summary>
+    /// Gets the operation's typed SSA operand references.
+    /// </summary>
+    public IReadOnlyList<ValueReference> OperandValues => Operation.OperandValues;
+
+    /// <summary>
     /// Gets the operation's successors.
     /// </summary>
     public IReadOnlyList<string> Successors => Operation.Successors;
+
+    /// <summary>
+    /// Gets the operation's typed block successor references.
+    /// </summary>
+    public IReadOnlyList<BlockReference> SuccessorReferences => Operation.SuccessorReferences;
 
     /// <summary>
     /// Gets the operation's regions.
@@ -59,6 +74,11 @@ public abstract class OperationView
     /// Gets the operation's raw type signature text, if present.
     /// </summary>
     public RawSyntaxText? TypeSignature => Operation.TypeSignature;
+
+    /// <summary>
+    /// Gets the source location of the operation, if known.
+    /// </summary>
+    public SourceLocation Location => Operation.Location;
 
     /// <summary>
     /// Determines whether the wrapped operation has an attribute with the supplied name.

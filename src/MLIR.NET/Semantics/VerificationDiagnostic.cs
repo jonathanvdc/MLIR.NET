@@ -8,7 +8,8 @@ namespace MLIR.Semantics;
 /// </remarks>
 /// <param name="operation">The operation that triggered the diagnostic.</param>
 /// <param name="message">The diagnostic message.</param>
-public sealed class VerificationDiagnostic(Operation operation, string message)
+/// <param name="location">The source location of the diagnostic, if known.</param>
+public sealed class VerificationDiagnostic(Operation operation, string message, SourceLocation location)
 {
     /// <summary>
     /// Gets the operation that triggered the diagnostic.
@@ -19,4 +20,9 @@ public sealed class VerificationDiagnostic(Operation operation, string message)
     /// Gets the diagnostic message.
     /// </summary>
     public string Message { get; } = message;
+
+    /// <summary>
+    /// Gets the source location of the diagnostic, if known.
+    /// </summary>
+    public SourceLocation Location { get; } = location;
 }

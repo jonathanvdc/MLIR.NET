@@ -22,7 +22,17 @@ public sealed class BlockArgument(BlockArgumentSyntax syntax)
     public string Name => Syntax.Name;
 
     /// <summary>
+    /// Gets the semantic SSA value reference for the block argument.
+    /// </summary>
+    public ValueReference Value { get; } = new ValueReference(syntax.NameToken);
+
+    /// <summary>
     /// Gets the declared type text for the block argument.
     /// </summary>
     public RawSyntaxText Type => Syntax.Type;
+
+    /// <summary>
+    /// Gets the source location of the block argument name, if known.
+    /// </summary>
+    public SourceLocation Location => Value.Location;
 }

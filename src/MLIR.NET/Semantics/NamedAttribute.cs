@@ -25,4 +25,9 @@ public sealed class NamedAttribute(NamedAttributeSyntax syntax)
     /// Gets the raw attribute value text.
     /// </summary>
     public RawSyntaxText Value => Syntax.Value;
+
+    /// <summary>
+    /// Gets the source location of the attribute name, if known.
+    /// </summary>
+    public SourceLocation Location => SourceLocation.FromToken(Syntax.NameToken);
 }

@@ -50,7 +50,10 @@ public static class MlirBinder
         }
 
         var properties = new Dictionary<string, object?>();
-        var operation = new Operation(syntax, name, definition, regions, attributes, properties);
+        var resultValues = CreateValueReferences(syntax.ResultTokens);
+        var operandValues = CreateValueReferences(syntax.OperandList.Items);
+        var successorReferences = CreateBlockReferences(syntax.SuccessorList.Items);
+        var operation = new Operation(syntax, name, definition, regions, attributes, resultValues, operandValues, successorReferences, properties);
         if (definition?.AssemblyFormat != null)
         {
             definition.AssemblyFormat.Bind(operation, new OperationAssemblyBindingContext(operation, properties, diagnostics));
@@ -95,5 +98,27 @@ public static class MlirBinder
         }
 
         return name;
+    }
+
+    private static IReadOnlyList<ValueReference> CreateValueReferences(IReadOnlyList<SyntaxToken> tokens)
+    {
+        var values = new List<ValueReference>(tokens.Count);
+        foreach (var token in tokens)
+        {
+            values.Add(new ValueReference(token));
+        }
+
+        return values;
+    }
+
+    private static IReadOnlyList<BlockReference> CreateBlockReferences(IReadOnlyList<SyntaxToken> tokens)
+    {
+        var values = new List<BlockReference>(tokens.Count);
+        foreach (var token in tokens)
+        {
+            values.Add(new BlockReference(token));
+        }
+
+        return values;
     }
 }
