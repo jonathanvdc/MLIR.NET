@@ -1,5 +1,6 @@
 namespace MLIR.Tests;
 
+using System.Collections.Generic;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
@@ -64,24 +65,33 @@ public sealed class SemanticTests
 
     private sealed class GeneratedAddIOperation : Operation
     {
+        private static readonly IReadOnlyList<Region> EmptyRegions = [];
+        private static readonly IReadOnlyList<NamedAttribute> EmptyAttributes = [];
+        private static readonly IReadOnlyList<BlockReference> EmptySuccessors = [];
+        private static readonly IReadOnlyDictionary<string, object?> EmptyProperties = new Dictionary<string, object?>();
+
         public GeneratedAddIOperation(OperationConstructionContext context)
             : base(
                 context.Syntax,
                 context.Name,
-                context.Definition,
-                context.Regions,
-                context.Attributes,
-                context.TypeSignatureReference,
-                context.ResultValues,
-                context.OperandValues,
-                context.SuccessorReferences,
-                context.Properties)
+                context.Definition)
         {
+            LeftOperand = context.OperandValues[0];
+            RightOperand = context.OperandValues[1];
+            ResultValue = context.ResultValues[0];
         }
 
-        public ValueReference LeftOperand => OperandValues[0];
-        public ValueReference RightOperand => OperandValues[1];
-        public ValueReference ResultValue => ResultValues[0];
+        public override IReadOnlyList<Region> Regions => EmptyRegions;
+        public override IReadOnlyList<NamedAttribute> Attributes => EmptyAttributes;
+        public override TypeReference? TypeSignatureReference => null;
+        public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
+        public override IReadOnlyList<ValueReference> OperandValues => [LeftOperand, RightOperand];
+        public override IReadOnlyList<BlockReference> SuccessorReferences => EmptySuccessors;
+        public override IReadOnlyDictionary<string, object?> Properties => EmptyProperties;
+
+        public ValueReference LeftOperand { get; }
+        public ValueReference RightOperand { get; }
+        public ValueReference ResultValue { get; }
     }
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat

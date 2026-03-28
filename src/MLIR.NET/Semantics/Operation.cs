@@ -16,25 +16,11 @@ public abstract class Operation
     protected Operation(
         OperationSyntax syntax,
         string name,
-        OperationDefinition? definition,
-        IReadOnlyList<Region> regions,
-        IReadOnlyList<NamedAttribute> attributes,
-        TypeReference? typeSignatureReference,
-        IReadOnlyList<ValueReference> resultValues,
-        IReadOnlyList<ValueReference> operandValues,
-        IReadOnlyList<BlockReference> successorReferences,
-        IReadOnlyDictionary<string, object?> properties)
+        OperationDefinition? definition)
     {
         Syntax = syntax;
         Name = name;
         Definition = definition;
-        Regions = regions;
-        Attributes = attributes;
-        TypeSignatureReference = typeSignatureReference;
-        ResultValues = resultValues;
-        OperandValues = operandValues;
-        SuccessorReferences = successorReferences;
-        Properties = properties;
     }
 
     /// <summary>
@@ -55,37 +41,37 @@ public abstract class Operation
     /// <summary>
     /// Gets the semantic regions nested under the operation.
     /// </summary>
-    public IReadOnlyList<Region> Regions { get; }
+    public abstract IReadOnlyList<Region> Regions { get; }
 
     /// <summary>
     /// Gets the semantic attributes attached to the operation.
     /// </summary>
-    public IReadOnlyList<NamedAttribute> Attributes { get; }
+    public abstract IReadOnlyList<NamedAttribute> Attributes { get; }
 
     /// <summary>
     /// Gets the semantic type reference for the raw trailing type signature, if one was recognized.
     /// </summary>
-    public TypeReference? TypeSignatureReference { get; }
+    public abstract TypeReference? TypeSignatureReference { get; }
 
     /// <summary>
     /// Gets the typed SSA result references produced by the operation.
     /// </summary>
-    public IReadOnlyList<ValueReference> ResultValues { get; }
+    public abstract IReadOnlyList<ValueReference> ResultValues { get; }
 
     /// <summary>
     /// Gets the typed SSA operand references passed to the operation.
     /// </summary>
-    public IReadOnlyList<ValueReference> OperandValues { get; }
+    public abstract IReadOnlyList<ValueReference> OperandValues { get; }
 
     /// <summary>
     /// Gets the typed block successor references used by the operation.
     /// </summary>
-    public IReadOnlyList<BlockReference> SuccessorReferences { get; }
+    public abstract IReadOnlyList<BlockReference> SuccessorReferences { get; }
 
     /// <summary>
     /// Gets the semantic properties interpreted from dialect-specific assembly.
     /// </summary>
-    public IReadOnlyDictionary<string, object?> Properties { get; }
+    public abstract IReadOnlyDictionary<string, object?> Properties { get; }
 
     /// <summary>
     /// Gets a value indicating whether the operation was recognized by a registered dialect.
