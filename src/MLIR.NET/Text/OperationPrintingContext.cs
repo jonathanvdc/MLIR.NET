@@ -4,16 +4,14 @@ using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
-/// Provides custom assembly printers controlled access to the semantic MLIR printer.
+/// Provides custom assembly printers controlled access to MLIR printing services.
 /// </summary>
 public sealed class OperationPrintingContext
 {
-    private readonly SemanticPrinter printer;
     private readonly SyntaxWriter writer;
 
-    internal OperationPrintingContext(SemanticPrinter printer, SyntaxWriter writer, int indentLevel, string defaultLeadingTrivia)
+    internal OperationPrintingContext(SyntaxWriter writer, int indentLevel, string defaultLeadingTrivia)
     {
-        this.printer = printer;
         this.writer = writer;
         IndentLevel = indentLevel;
         DefaultLeadingTrivia = defaultLeadingTrivia;
@@ -67,7 +65,7 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void PrintRegion(Region region)
     {
-        printer.AppendRegion(writer, region, IndentLevel);
+        Printer.AppendSemanticRegion(writer, region, IndentLevel);
     }
 
     /// <summary>
@@ -75,6 +73,6 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void PrintGenericOperation(Operation operation)
     {
-        printer.AppendGenericOperation(writer, operation, IndentLevel, DefaultLeadingTrivia);
+        Printer.AppendGenericSemanticOperation(writer, operation, IndentLevel, DefaultLeadingTrivia);
     }
 }
