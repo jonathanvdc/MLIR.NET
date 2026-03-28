@@ -5,11 +5,12 @@ using MLIR.Text;
 using MLIR.Syntax;
 
 /// <summary>
-/// Prints a semantic operation using a dialect-specific assembly format.
+/// Parses, binds, and prints a dialect-specific operation assembly format.
 /// </summary>
 /// <remarks>
-/// The generic parser and printer remain the source of truth for syntax preservation.
-/// Custom assembly format implementations are an opt-in printing layer over semantic operations.
+/// Generic operation syntax and custom operation bodies both preserve source text.
+/// Implementations can opt into custom concrete syntax while still projecting the same
+/// semantic operation shape for binding and verification.
 /// </remarks>
 public interface IOperationAssemblyFormat
 {
@@ -21,7 +22,7 @@ public interface IOperationAssemblyFormat
     /// <param name="resultCommaTokens">The parsed comma tokens between results.</param>
     /// <param name="equalsToken">The parsed equals token, if present.</param>
     /// <param name="context">The parsing context.</param>
-    /// <param name="operation">When this method returns, contains the parsed operation syntax when custom parsing succeeded.</param>
+    /// <param name="body">When this method returns, contains the parsed custom operation body when custom parsing succeeded.</param>
     /// <returns><see langword="true"/> when a custom assembly form was parsed; otherwise, <see langword="false"/>.</returns>
     bool TryParse(
         SyntaxToken nameToken,
@@ -29,7 +30,7 @@ public interface IOperationAssemblyFormat
         IReadOnlyList<SyntaxToken> resultCommaTokens,
         SyntaxToken? equalsToken,
         OperationParsingContext context,
-        out OperationSyntax? operation);
+        out CustomOperationBodySyntax? body);
 
     /// <summary>
     /// Interprets the generic concrete syntax of the supplied operation into semantic properties.

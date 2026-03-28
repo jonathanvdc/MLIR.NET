@@ -95,7 +95,7 @@ public sealed class OperationParsingContext
     }
 
     /// <summary>
-    /// Creates an empty operand list for a lowered generic operation.
+    /// Creates an empty operand list for a generic operation projection.
     /// </summary>
     public DelimitedSyntaxList<SyntaxToken> CreateEmptyOperandList()
     {
@@ -103,7 +103,7 @@ public sealed class OperationParsingContext
     }
 
     /// <summary>
-    /// Creates an empty successor list for a lowered generic operation.
+    /// Creates an empty successor list for a generic operation projection.
     /// </summary>
     public DelimitedSyntaxList<SyntaxToken> CreateEmptySuccessorList()
     {
@@ -111,7 +111,7 @@ public sealed class OperationParsingContext
     }
 
     /// <summary>
-    /// Creates an attribute dictionary for a lowered generic operation.
+    /// Creates an attribute dictionary for a projected operation body.
     /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> CreateAttributeDictionary(IReadOnlyList<NamedAttributeSyntax> attributes)
     {
@@ -123,7 +123,7 @@ public sealed class OperationParsingContext
     }
 
     /// <summary>
-    /// Creates comma tokens for a lowered generic delimited list.
+    /// Creates comma tokens for a projected delimited list.
     /// </summary>
     public IReadOnlyList<SyntaxToken> CreateCommaTokens(int itemCount)
     {
@@ -134,5 +134,59 @@ public sealed class OperationParsingContext
         }
 
         return commas;
+    }
+
+    /// <summary>
+    /// Wraps a token as a preserved custom assembly item.
+    /// </summary>
+    public CustomTokenSyntax Token(SyntaxToken token)
+    {
+        return new CustomTokenSyntax(token);
+    }
+
+    /// <summary>
+    /// Wraps raw text as a preserved custom assembly item.
+    /// </summary>
+    public CustomRawSyntax Raw(RawSyntaxText text)
+    {
+        return new CustomRawSyntax(text);
+    }
+
+    /// <summary>
+    /// Wraps a nested region as a preserved custom assembly item.
+    /// </summary>
+    public CustomRegionSyntax Region(RegionSyntax region)
+    {
+        return new CustomRegionSyntax(region);
+    }
+
+    /// <summary>
+    /// Wraps an attribute dictionary as a preserved custom assembly item.
+    /// </summary>
+    public CustomAttributeDictionarySyntax AttributeDictionary(DelimitedSyntaxList<NamedAttributeSyntax> attributes)
+    {
+        return new CustomAttributeDictionarySyntax(attributes);
+    }
+
+    /// <summary>
+    /// Creates a custom operation body while also exposing its projected semantic shape.
+    /// </summary>
+    public CustomOperationBodySyntax CreateCustomBody(
+        IReadOnlyList<CustomAssemblyItemSyntax> items,
+        IReadOnlyList<SyntaxToken>? operandTokens = null,
+        IReadOnlyList<SyntaxToken>? successorTokens = null,
+        IReadOnlyList<RegionSyntax>? regions = null,
+        DelimitedSyntaxList<NamedAttributeSyntax>? attributes = null,
+        SyntaxToken? typeSignatureColonToken = null,
+        RawSyntaxText? typeSignature = null)
+    {
+        return new CustomOperationBodySyntax(
+            items,
+            operandTokens,
+            successorTokens,
+            regions,
+            attributes,
+            typeSignatureColonToken,
+            typeSignature);
     }
 }

@@ -60,8 +60,8 @@ public static class Binder
 
         var properties = new Dictionary<string, object?>();
         var resultValues = CreateValueReferences(syntax.ResultTokens);
-        var operandValues = CreateValueReferences(syntax.OperandList.Items);
-        var successorReferences = CreateBlockReferences(syntax.SuccessorList.Items);
+        var operandValues = CreateValueReferences(syntax.Body.OperandTokens);
+        var successorReferences = CreateBlockReferences(syntax.Body.SuccessorTokens);
         var operation = new Operation(syntax, name, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences, properties);
         if (definition?.AssemblyFormat != null)
         {

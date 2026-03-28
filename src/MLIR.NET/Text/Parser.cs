@@ -74,9 +74,14 @@ public sealed class Parser
         }
 
         var nameToken = ParseOperationNameToken();
-        if (TryParseCustomAssembly(nameToken, resultTokens, resultCommaTokens, equalsToken, out var customOperation))
+        if (TryParseCustomAssembly(nameToken, resultTokens, resultCommaTokens, equalsToken, out var customBody))
         {
-            return customOperation;
+            return new OperationSyntax(
+                resultTokens,
+                resultCommaTokens,
+                equalsToken,
+                nameToken,
+                customBody);
         }
 
         var openParenthesisToken = ExpectToken(TokenKind.LParen, "Expected '(' to start the operand list.");
@@ -189,9 +194,9 @@ public sealed class Parser
         IReadOnlyList<SyntaxToken> resultTokens,
         IReadOnlyList<SyntaxToken> resultCommaTokens,
         SyntaxToken? equalsToken,
-        out OperationSyntax operation)
+        out CustomOperationBodySyntax body)
     {
-        operation = null!;
+        body = null!;
         if (dialectRegistry == null)
         {
             return false;
@@ -210,9 +215,9 @@ public sealed class Parser
             resultCommaTokens,
             equalsToken,
             new OperationParsingContext(this),
-            out var customOperation))
+            out var customBody))
         {
-            operation = customOperation!;
+            body = customBody!;
             return true;
         }
 

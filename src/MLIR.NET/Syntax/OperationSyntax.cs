@@ -3,7 +3,7 @@ namespace MLIR.Syntax;
 using System.Collections.Generic;
 
 /// <summary>
-/// Represents a generic MLIR operation.
+/// Represents an MLIR operation.
 /// </summary>
 public sealed class OperationSyntax
 {
@@ -30,25 +30,48 @@ public sealed class OperationSyntax
             CreateDefaultCommaTokens(results.Count),
             results.Count > 0 ? new SyntaxToken("=") : null,
             new SyntaxToken(name),
-            new DelimitedSyntaxList<SyntaxToken>(
-                new SyntaxToken("("),
-                CreateValueTokens(operands),
-                CreateDefaultCommaTokens(operands.Count),
-                new SyntaxToken(")")),
-            new DelimitedSyntaxList<SyntaxToken>(
-                successors.Count > 0 ? new SyntaxToken("[") : null,
-                CreateValueTokens(successors),
-                CreateDefaultCommaTokens(successors.Count),
-                successors.Count > 0 ? new SyntaxToken("]") : null),
-            regions,
-            new DelimitedSyntaxList<NamedAttributeSyntax>(
-                attributes.Count > 0 ? new SyntaxToken("{") : null,
-                attributes,
-                CreateDefaultCommaTokens(attributes.Count),
-                attributes.Count > 0 ? new SyntaxToken("}") : null),
-            typeSignature != null ? new SyntaxToken(":") : null,
-            typeSignature)
+            new GenericOperationBodySyntax(
+                new DelimitedSyntaxList<SyntaxToken>(
+                    new SyntaxToken("("),
+                    CreateValueTokens(operands),
+                    CreateDefaultCommaTokens(operands.Count),
+                    new SyntaxToken(")")),
+                new DelimitedSyntaxList<SyntaxToken>(
+                    successors.Count > 0 ? new SyntaxToken("[") : null,
+                    CreateValueTokens(successors),
+                    CreateDefaultCommaTokens(successors.Count),
+                    successors.Count > 0 ? new SyntaxToken("]") : null),
+                regions,
+                new DelimitedSyntaxList<NamedAttributeSyntax>(
+                    attributes.Count > 0 ? new SyntaxToken("{") : null,
+                    attributes,
+                    CreateDefaultCommaTokens(attributes.Count),
+                    attributes.Count > 0 ? new SyntaxToken("}") : null),
+                typeSignature != null ? new SyntaxToken(":") : null,
+                typeSignature))
     {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OperationSyntax"/> class.
+    /// </summary>
+    /// <param name="resultTokens">The SSA result tokens produced by the operation.</param>
+    /// <param name="resultCommaTokens">The comma tokens between results.</param>
+    /// <param name="equalsToken">The equals token, if present.</param>
+    /// <param name="nameToken">The operation name token.</param>
+    /// <param name="body">The operation body.</param>
+    public OperationSyntax(
+        IReadOnlyList<SyntaxToken> resultTokens,
+        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SyntaxToken? equalsToken,
+        SyntaxToken nameToken,
+        OperationBodySyntax body)
+    {
+        ResultTokens = resultTokens;
+        ResultCommaTokens = resultCommaTokens;
+        EqualsToken = equalsToken;
+        NameToken = nameToken;
+        Body = body;
     }
 
     /// <summary>
@@ -75,17 +98,19 @@ public sealed class OperationSyntax
         DelimitedSyntaxList<NamedAttributeSyntax> attributes,
         SyntaxToken? typeSignatureColonToken,
         RawSyntaxText? typeSignature)
+        : this(
+            resultTokens,
+            resultCommaTokens,
+            equalsToken,
+            nameToken,
+            new GenericOperationBodySyntax(
+                operandList,
+                successorList,
+                regions,
+                attributes,
+                typeSignatureColonToken,
+                typeSignature))
     {
-        ResultTokens = resultTokens;
-        ResultCommaTokens = resultCommaTokens;
-        EqualsToken = equalsToken;
-        NameToken = nameToken;
-        OperandList = operandList;
-        SuccessorList = successorList;
-        Regions = regions;
-        Attributes = attributes;
-        TypeSignatureColonToken = typeSignatureColonToken;
-        TypeSignature = typeSignature;
     }
 
     /// <summary>
@@ -109,34 +134,45 @@ public sealed class OperationSyntax
     public SyntaxToken NameToken { get; }
 
     /// <summary>
+    /// Gets the operation body.
+    /// </summary>
+    public OperationBodySyntax Body { get; }
+
+    /// <summary>
     /// Gets the delimited operand list.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> OperandList { get; }
+    public DelimitedSyntaxList<SyntaxToken> OperandList =>
+        Body is GenericOperationBodySyntax generic
+            ? generic.OperandList
+            : new DelimitedSyntaxList<SyntaxToken>(null, Body.OperandTokens, CreateDefaultCommaTokens(Body.OperandTokens.Count), null);
 
     /// <summary>
     /// Gets the delimited successor list.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> SuccessorList { get; }
+    public DelimitedSyntaxList<SyntaxToken> SuccessorList =>
+        Body is GenericOperationBodySyntax generic
+            ? generic.SuccessorList
+            : new DelimitedSyntaxList<SyntaxToken>(null, Body.SuccessorTokens, CreateDefaultCommaTokens(Body.SuccessorTokens.Count), null);
 
     /// <summary>
     /// Gets the regions nested under the operation.
     /// </summary>
-    public IReadOnlyList<RegionSyntax> Regions { get; }
+    public IReadOnlyList<RegionSyntax> Regions => Body.Regions;
 
     /// <summary>
     /// Gets the delimited attribute dictionary.
     /// </summary>
-    public DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
+    public DelimitedSyntaxList<NamedAttributeSyntax> Attributes => Body.Attributes;
 
     /// <summary>
     /// Gets the colon token that introduces the type signature, if present.
     /// </summary>
-    public SyntaxToken? TypeSignatureColonToken { get; }
+    public SyntaxToken? TypeSignatureColonToken => Body.TypeSignatureColonToken;
 
     /// <summary>
     /// Gets the raw trailing type signature, if present.
     /// </summary>
-    public RawSyntaxText? TypeSignature { get; }
+    public RawSyntaxText? TypeSignature => Body.TypeSignature;
 
     /// <summary>
     /// Gets the SSA results produced by the operation.
@@ -151,12 +187,17 @@ public sealed class OperationSyntax
     /// <summary>
     /// Gets the SSA operands passed to the operation.
     /// </summary>
-    public IReadOnlyList<string> Operands => GetTexts(OperandList.Items);
+    public IReadOnlyList<string> Operands => GetTexts(Body.OperandTokens);
 
     /// <summary>
     /// Gets the successor block labels referenced by the operation.
     /// </summary>
-    public IReadOnlyList<string> Successors => GetTexts(SuccessorList.Items);
+    public IReadOnlyList<string> Successors => GetTexts(Body.SuccessorTokens);
+
+    /// <summary>
+    /// Gets a value indicating whether the operation uses a custom assembly body.
+    /// </summary>
+    public bool HasCustomAssemblyBody => Body is CustomOperationBodySyntax;
 
     private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)
     {

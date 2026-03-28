@@ -29,11 +29,11 @@ public sealed class SemanticTests
             IReadOnlyList<SyntaxToken> resultCommaTokens,
             SyntaxToken? equalsToken,
             OperationParsingContext context,
-            out OperationSyntax? operation)
+            out CustomOperationBodySyntax? body)
         {
             if (context.Is(TokenKind.LParen))
             {
-                operation = null;
+                body = null;
                 return false;
             }
 
@@ -42,17 +42,18 @@ public sealed class SemanticTests
             var type = context.ParseRawUntilOperationBoundary();
             var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), value)]);
 
-            operation = new OperationSyntax(
-                resultTokens,
-                resultCommaTokens,
-                equalsToken,
-                nameToken,
-                context.CreateEmptyOperandList(),
-                context.CreateEmptySuccessorList(),
-                new List<RegionSyntax>(),
-                attributes,
-                colonToken,
-                type);
+            body = context.CreateCustomBody(
+                [
+                    context.Raw(value),
+                    context.Token(colonToken),
+                    context.Raw(type),
+                ],
+                operandTokens: [],
+                successorTokens: [],
+                regions: [],
+                attributes: attributes,
+                typeSignatureColonToken: colonToken,
+                typeSignature: type);
             return true;
         }
 
@@ -538,6 +539,7 @@ public sealed class SemanticTests
 
         Assert.Single(module.Operations);
         Assert.Equal("arith.constant", module.Operations[0].Name);
+        Assert.True(module.Operations[0].HasCustomAssemblyBody);
         Assert.Empty(module.Operations[0].Operands);
         Assert.Single(module.Operations[0].Attributes);
         Assert.Equal("value", module.Operations[0].Attributes[0].Name);
@@ -564,6 +566,28 @@ public sealed class SemanticTests
 
         Assert.Equal("%0 = arith.constant 0 : i32", module.ToText());
         Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Text);
+    }
+
+    [Fact]
+    public void CustomAssemblyBodiesRoundTripExactlyThroughTheConcreteSyntaxTree()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                }));
+
+        const string source = "%0 = arith.constant  0  :  i32\n";
+
+        var module = Parser.ParseModule(source, registry);
+
+        Assert.True(module.Operations[0].HasCustomAssemblyBody);
+        Assert.Equal(source, Printer.Print(module));
     }
 
     [Fact]

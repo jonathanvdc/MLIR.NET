@@ -128,4 +128,36 @@ public sealed class ConstructionTests
             "} : (i1) -> ()",
             text);
     }
+
+    [Fact]
+    public void FormatsProgrammaticallyGeneratedCustomBodiesWhenTriviaIsAbsent()
+    {
+        var module = new ModuleSyntax(
+            [
+                new OperationSyntax(
+                    [new SyntaxToken("%0")],
+                    [],
+                    new SyntaxToken("="),
+                    new SyntaxToken("arith.constant"),
+                    new CustomOperationBodySyntax(
+                        [
+                            new CustomRawSyntax(new RawSyntaxText("0")),
+                            new CustomTokenSyntax(new SyntaxToken(":")),
+                            new CustomRawSyntax(new RawSyntaxText("i32")),
+                        ],
+                        attributes: new DelimitedSyntaxList<NamedAttributeSyntax>(
+                            new SyntaxToken("{"),
+                            [new NamedAttributeSyntax("value", new RawSyntaxText("0"))],
+                            [],
+                            new SyntaxToken("}")),
+                        typeSignatureColonToken: new SyntaxToken(":"),
+                        typeSignature: new RawSyntaxText("i32"))),
+            ]);
+
+        var text = Printer.Print(module);
+
+        Assert.Equal("%0 = arith.constant 0 : i32", text);
+        Assert.True(module.Operations[0].HasCustomAssemblyBody);
+        Assert.Equal("0", module.Operations[0].Attributes[0].Value.Text);
+    }
 }
