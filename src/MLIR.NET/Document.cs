@@ -40,6 +40,17 @@ public sealed class Document(ModuleSyntax module)
     }
 
     /// <summary>
+    /// Parses a document from MLIR source text, using registered dialects to recognize custom assembly formats.
+    /// </summary>
+    /// <param name="source">The MLIR source text.</param>
+    /// <param name="dialectRegistry">The dialect registry used to recognize custom assembly formats.</param>
+    /// <returns>The parsed document.</returns>
+    public static Document Parse(string source, DialectRegistry? dialectRegistry)
+    {
+        return new Document(Parser.ParseModule(source, dialectRegistry));
+    }
+
+    /// <summary>
     /// Serializes the document back to MLIR text.
     /// </summary>
     /// <returns>The printed MLIR text.</returns>

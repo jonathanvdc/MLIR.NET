@@ -2,6 +2,7 @@ namespace MLIR.Text;
 
 using System.Collections.Generic;
 using System.Linq;
+using MLIR.Dialects;
 using MLIR.Syntax;
 
 /// <summary>
@@ -11,11 +12,13 @@ public sealed class Parser
 {
     private readonly string source;
     private readonly IReadOnlyList<Token> tokens;
+    private readonly DialectRegistry? dialectRegistry;
     private int position;
 
-    private Parser(string source)
+    private Parser(string source, DialectRegistry? dialectRegistry = null)
     {
         this.source = source;
+        this.dialectRegistry = dialectRegistry;
         tokens = Lexer.Lex(source);
     }
 
@@ -27,6 +30,17 @@ public sealed class Parser
     public static ModuleSyntax ParseModule(string source)
     {
         return new Parser(source).ParseModuleCore();
+    }
+
+    /// <summary>
+    /// Parses a module from the supplied MLIR source text, using registered dialects to recognize custom assembly formats.
+    /// </summary>
+    /// <param name="source">The MLIR source text.</param>
+    /// <param name="dialectRegistry">The dialect registry used to recognize custom assembly formats.</param>
+    /// <returns>The parsed module syntax.</returns>
+    public static ModuleSyntax ParseModule(string source, DialectRegistry? dialectRegistry)
+    {
+        return new Parser(source, dialectRegistry).ParseModuleCore();
     }
 
     private ModuleSyntax ParseModuleCore()
@@ -60,6 +74,11 @@ public sealed class Parser
         }
 
         var nameToken = ParseOperationNameToken();
+        if (TryParseCustomAssembly(nameToken, resultTokens, resultCommaTokens, equalsToken, out var customOperation))
+        {
+            return customOperation;
+        }
+
         var openParenthesisToken = ExpectToken(TokenKind.LParen, "Expected '(' to start the operand list.");
         var operandTokens = new List<SyntaxToken>();
         var operandCommaTokens = new List<SyntaxToken>();
@@ -163,6 +182,42 @@ public sealed class Parser
                 hasAttributes ? closeAttributeBraceToken : null),
             typeSignatureColonToken,
             typeSignature);
+    }
+
+    private bool TryParseCustomAssembly(
+        SyntaxToken nameToken,
+        IReadOnlyList<SyntaxToken> resultTokens,
+        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SyntaxToken? equalsToken,
+        out OperationSyntax operation)
+    {
+        operation = null!;
+        if (dialectRegistry == null)
+        {
+            return false;
+        }
+
+        var normalizedName = NormalizeOperationName(nameToken.Text);
+        if (!dialectRegistry.TryGetOperation(normalizedName, out var definition) || definition.AssemblyFormat == null)
+        {
+            return false;
+        }
+
+        var checkpoint = position;
+        if (definition.AssemblyFormat.TryParse(
+            nameToken,
+            resultTokens,
+            resultCommaTokens,
+            equalsToken,
+            new OperationParsingContext(this),
+            out var customOperation))
+        {
+            operation = customOperation!;
+            return true;
+        }
+
+        position = checkpoint;
+        return false;
     }
 
     private RegionSyntax ParseRegion()
@@ -490,9 +545,59 @@ public sealed class Parser
         return new ParseException(new Diagnostic(message, Current.Line, Current.Column));
     }
 
-    private static SyntaxToken ToSyntaxToken(Token token)
+    internal static SyntaxToken ToSyntaxToken(Token token)
     {
         return new SyntaxToken(token.Text, token.LeadingTrivia, token.Line, token.Column);
+    }
+
+    internal bool IsToken(TokenKind kind)
+    {
+        return Is(kind);
+    }
+
+    internal bool TryMatchToken(TokenKind kind, out Token token)
+    {
+        return TryMatch(kind, out token);
+    }
+
+    internal SyntaxToken ExpectTokenInternal(TokenKind kind, string message)
+    {
+        return ExpectToken(kind, message);
+    }
+
+    internal SyntaxToken ParseSsaTokenInternal()
+    {
+        return ParseSsaToken();
+    }
+
+    internal SyntaxToken ParseBlockLabelTokenInternal()
+    {
+        return ParseBlockLabelToken();
+    }
+
+    internal RegionSyntax ParseRegionInternal()
+    {
+        return ParseRegion();
+    }
+
+    internal NamedAttributeSyntax ParseAttributeInternal()
+    {
+        return ParseAttribute();
+    }
+
+    internal RawSyntaxText ParseRawUntilDelimiterInternal(params TokenKind[] delimiters)
+    {
+        return ParseRawUntilDelimiter(delimiters);
+    }
+
+    internal RawSyntaxText ParseRawUntilOperationBoundaryInternal()
+    {
+        return ParseRawUntilOperationBoundary();
+    }
+
+    private static string NormalizeOperationName(string name)
+    {
+        return name.Length >= 2 && name[0] == '"' && name[name.Length - 1] == '"' ? name.Substring(1, name.Length - 2) : name;
     }
 
     private Token Current => tokens[position];

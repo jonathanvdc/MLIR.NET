@@ -3,6 +3,7 @@ namespace MLIR.Tests;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
+using MLIR.Syntax;
 using MLIR.Text;
 using Xunit;
 
@@ -22,6 +23,39 @@ public sealed class SemanticTests
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
     {
+        public bool TryParse(
+            SyntaxToken nameToken,
+            IReadOnlyList<SyntaxToken> resultTokens,
+            IReadOnlyList<SyntaxToken> resultCommaTokens,
+            SyntaxToken? equalsToken,
+            OperationParsingContext context,
+            out OperationSyntax? operation)
+        {
+            if (context.Is(TokenKind.LParen))
+            {
+                operation = null;
+                return false;
+            }
+
+            var value = context.ParseRawUntilDelimiter(TokenKind.Colon);
+            var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
+            var type = context.ParseRawUntilOperationBoundary();
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), value)]);
+
+            operation = new OperationSyntax(
+                resultTokens,
+                resultCommaTokens,
+                equalsToken,
+                nameToken,
+                context.CreateEmptyOperandList(),
+                context.CreateEmptySuccessorList(),
+                new List<RegionSyntax>(),
+                attributes,
+                colonToken,
+                type);
+            return true;
+        }
+
         public void Bind(Operation operation, OperationAssemblyBindingContext context)
         {
             if (!operation.HasAttribute("value"))
@@ -484,6 +518,52 @@ public sealed class SemanticTests
             registry);
 
         Assert.Equal("%0 = arith.constant 0 : () -> i32", module.ToText());
+    }
+
+    [Fact]
+    public void ParserCanUseRegisteredCustomAssemblyFormats()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                }));
+
+        var module = Parser.ParseModule("%0 = arith.constant 0 : i32", registry);
+
+        Assert.Single(module.Operations);
+        Assert.Equal("arith.constant", module.Operations[0].Name);
+        Assert.Empty(module.Operations[0].Operands);
+        Assert.Single(module.Operations[0].Attributes);
+        Assert.Equal("value", module.Operations[0].Attributes[0].Name);
+        Assert.Equal("0", module.Operations[0].Attributes[0].Value.Text);
+        Assert.Equal("i32", module.Operations[0].TypeSignature!.Text);
+    }
+
+    [Fact]
+    public void DocumentCanParseRegisteredCustomAssemblyFormats()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                }));
+
+        var document = Document.Parse("%0 = arith.constant 0 : i32", registry);
+        var module = Binder.BindModule(document.Module, registry);
+
+        Assert.Equal("%0 = arith.constant 0 : i32", module.ToText());
+        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Text);
     }
 
     [Fact]

@@ -3,7 +3,7 @@ namespace MLIR.Text;
 /// <summary>
 /// Identifies the lexical token kinds recognized by the generic MLIR lexer.
 /// </summary>
-internal enum TokenKind
+public enum TokenKind
 {
     /// <summary>
     /// Marks the logical end of the token stream.
