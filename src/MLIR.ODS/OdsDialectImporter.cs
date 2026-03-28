@@ -61,6 +61,7 @@ public static class OdsDialectImporter
                         argumentMembers.Where(static member => member.Kind == DagMemberKind.Attribute).Select(static member => member.Name).ToArray(),
                         !string.IsNullOrEmpty(GetOptionalStringField(record, "assemblyFormat")),
                         GetOptionalStringField(record, "summary"),
+                        GetOptionalStringField(record, "description"),
                         GetOptionalStringField(record, "assemblyFormat"),
                         GetStringListField(record, "traits")));
                 continue;

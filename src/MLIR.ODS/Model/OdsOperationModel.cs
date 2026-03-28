@@ -18,6 +18,7 @@ public sealed class OdsOperationModel
         IReadOnlyList<string>? attributes = null,
         bool hasCustomAssemblyFormat = false,
         string? summary = null,
+        string? description = null,
         string? assemblyFormat = null,
         IReadOnlyList<string>? traits = null)
     {
@@ -28,6 +29,7 @@ public sealed class OdsOperationModel
         Attributes = attributes ?? EmptyItems;
         HasCustomAssemblyFormat = hasCustomAssemblyFormat;
         Summary = summary;
+        Description = description;
         AssemblyFormat = assemblyFormat;
         Traits = traits ?? EmptyItems;
     }
@@ -66,6 +68,11 @@ public sealed class OdsOperationModel
     /// Gets the operation summary, if known.
     /// </summary>
     public string? Summary { get; }
+
+    /// <summary>
+    /// Gets the operation description, if known.
+    /// </summary>
+    public string? Description { get; }
 
     /// <summary>
     /// Gets the declarative assembly format, if known.

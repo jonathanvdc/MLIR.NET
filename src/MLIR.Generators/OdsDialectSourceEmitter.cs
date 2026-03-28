@@ -48,6 +48,7 @@ internal static class OdsDialectSourceEmitter
             builder.AppendLine();
         }
 
+        AppendXmlDocComment(builder, dialect.Summary, dialect.Description);
         builder.AppendLine("public static class " + dialectClassName);
         builder.AppendLine("{");
         builder.AppendLine("    public static Dialect Create()");
@@ -115,6 +116,7 @@ internal static class OdsDialectSourceEmitter
         var className = OdsDialectGeneratorNaming.GetOperationClassName(operation);
         var resultReferenceName = operation.Results.Count == 1 ? "ResultValue" : null;
 
+        AppendXmlDocComment(builder, operation.Summary, operation.Description);
         builder.AppendLine("public sealed class " + className + " : Operation");
         builder.AppendLine("{");
         builder.AppendLine("    private readonly IReadOnlyList<Region> regions;");
@@ -211,5 +213,33 @@ internal static class OdsDialectSourceEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+    }
+
+    private static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description)
+    {
+        if (!string.IsNullOrWhiteSpace(summary))
+        {
+            builder.AppendLine("/// <summary>" + EscapeXmlText(summary!.Trim()) + "</summary>");
+        }
+
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            builder.AppendLine("/// <remarks>");
+            var trimmedDescription = description!.Trim();
+            foreach (var rawLine in trimmedDescription.Split('\n'))
+            {
+                builder.AppendLine("/// " + EscapeXmlText(rawLine.TrimEnd('\r')));
+            }
+
+            builder.AppendLine("/// </remarks>");
+        }
+    }
+
+    private static string EscapeXmlText(string text)
+    {
+        return text
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;");
     }
 }

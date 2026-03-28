@@ -48,4 +48,66 @@ public sealed class OdsDialectGeneratorTests
         Assert.Contains(".WithFactory(static context => new MiniArith_AddIOp(context))", registrationSource);
         Assert.Contains(".WithAssemblyFormat(new MiniArith_AddIOpAssemblyFormat())", registrationSource);
     }
+
+    [Fact]
+    public void GeneratesXmlDocCommentsFromSummaryAndDescription()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "  let summary = \"Mini arithmetic dialect\";\n" +
+            "  let description = [{A dialect for basic integer arithmetic operations.}];\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
+            "  let summary = \"integer constant\";\n" +
+            "  let description = [{Produces a constant integer value.}];\n" +
+            "  let arguments = (ins I32Attr:$value);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new OdsDialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        // Operation summary and description as doc-comments.
+        Assert.Contains("/// <summary>integer constant</summary>", registrationSource);
+        Assert.Contains("/// <remarks>", registrationSource);
+        Assert.Contains("/// Produces a constant integer value.", registrationSource);
+
+        // Dialect class summary and description as doc-comments.
+        Assert.Contains("/// <summary>Mini arithmetic dialect</summary>", registrationSource);
+        Assert.Contains("/// A dialect for basic integer arithmetic operations.", registrationSource);
+    }
+
+    [Fact]
+    public void DoesNotGenerateDocCommentsWhenSummaryAndDescriptionAreAbsent()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
+            "  let arguments = (ins I32Attr:$value);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new OdsDialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        Assert.DoesNotContain("/// <summary>", registrationSource);
+        Assert.DoesNotContain("/// <remarks>", registrationSource);
+    }
 }
