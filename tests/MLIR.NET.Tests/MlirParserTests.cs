@@ -39,6 +39,71 @@ public sealed class MlirParserTests
     }
 
     [Fact]
+    public void RoundTripsLargerMultiOperationInput()
+    {
+        const string source =
+            "%c0 = \"arith.constant\"() {value = 0 : index} : () -> index\n" +
+            "%c1 = \"arith.constant\"() {value = 1 : index} : () -> index\n" +
+            "%sum = \"arith.addi\"(%c0, %c1) : (index, index) -> index\n" +
+            "\"scf.if\"(%sum) {\n" +
+            "  %cast = \"memref.cast\"(%arg0) : (memref<4x?xf32>) -> memref<*xf32>\n" +
+            "  \"func.return\"(%cast) : (memref<*xf32>) -> ()\n" +
+            "} {predicate = #builtin.unit} : (index) -> ()";
+
+        var module = MlirParser.ParseModule(source);
+        var text = MlirPrinter.Print(module);
+
+        Assert.Equal(4, module.Operations.Count);
+        Assert.Equal(source, text);
+    }
+
+    [Fact]
+    public void RoundTripsLargerInputWithMultipleBlocks()
+    {
+        const string source =
+            "\"cf.cond_br\"(%cond) [^then, ^else] : (i1) -> ()\n" +
+            "\"test.graph_region\"() {\n" +
+            "  ^then(%arg0: i32):\n" +
+            "    %0 = \"arith.addi\"(%arg0, %arg0) : (i32, i32) -> i32\n" +
+            "    \"cf.br\"(%0) [^merge] : (i32) -> ()\n" +
+            "  ^else(%arg1: i32):\n" +
+            "    %1 = \"arith.subi\"(%arg1, %arg1) : (i32, i32) -> i32\n" +
+            "    \"cf.br\"(%1) [^merge] : (i32) -> ()\n" +
+            "  ^merge(%arg2: i32):\n" +
+            "    \"func.return\"(%arg2) : (i32) -> ()\n" +
+            "} : () -> ()";
+
+        var module = MlirParser.ParseModule(source);
+        var text = MlirPrinter.Print(module);
+
+        Assert.Equal(2, module.Operations.Count);
+        Assert.Equal(3, module.Operations[1].Regions[0].Blocks.Count);
+        Assert.Equal(source, text);
+    }
+
+    [Fact]
+    public void ParsesLargerInputWithCommentsAndBlankLines()
+    {
+        const string source =
+            "// constants\n" +
+            "%c0 = \"arith.constant\"() {value = 0 : i32} : () -> i32\n" +
+            "\n" +
+            "// computation\n" +
+            "%c1 = \"arith.constant\"() {value = 1 : i32} : () -> i32\n" +
+            "%sum = \"arith.addi\"(%c0, %c1) : (i32, i32) -> i32\n";
+
+        var module = MlirParser.ParseModule(source);
+        var text = MlirPrinter.Print(module);
+
+        Assert.Equal(3, module.Operations.Count);
+        Assert.Equal(
+            "%c0 = \"arith.constant\"() {value = 0 : i32} : () -> i32\n" +
+            "%c1 = \"arith.constant\"() {value = 1 : i32} : () -> i32\n" +
+            "%sum = \"arith.addi\"(%c0, %c1) : (i32, i32) -> i32",
+            text);
+    }
+
+    [Fact]
     public void ThrowsHelpfulExceptionForInvalidInput()
     {
         var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"arith.addi\"(%lhs, %rhs"));
