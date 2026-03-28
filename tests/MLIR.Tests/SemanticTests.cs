@@ -65,19 +65,28 @@ public sealed class SemanticTests
         }
     }
 
-    private sealed class ArithConstantView : OperationView
+    private sealed class ArithConstantView
     {
+        private readonly Operation operation;
         public ArithConstantView(Operation operation)
-            : base(operation, "arith.constant")
         {
+            if (operation.Name != "arith.constant")
+            {
+                throw new System.ArgumentException(
+                    $"Expected operation 'arith.constant' but received '{operation.Name}'.",
+                    nameof(operation));
+            }
+
+            this.operation = operation;
             typedOperation = operation as GeneratedConstantOperation;
         }
 
         private readonly GeneratedConstantOperation? typedOperation;
-        public NamedAttribute ValueAttribute => GetAttribute("value");
+        public IReadOnlyList<string> Results => operation.Results;
+        public NamedAttribute ValueAttribute => operation.GetAttribute("value");
         public string? ParsedValueText => typedOperation?.ParsedValueText;
         public string? ParsedTypeText => typedOperation?.ParsedTypeText;
-        public ValueReference ResultValue => ResultValues[0];
+        public ValueReference ResultValue => operation.ResultValues[0];
     }
 
     private sealed class GeneratedConstantOperation : Operation
