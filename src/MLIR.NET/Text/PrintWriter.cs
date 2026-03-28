@@ -3,7 +3,7 @@ namespace MLIR.Text;
 using System.Text;
 using MLIR.Syntax;
 
-internal static class MlirPrintWriter
+internal static class PrintWriter
 {
     public static void AppendToken(StringBuilder builder, SyntaxToken token, string defaultLeadingTrivia, int? indentLevel = null)
     {

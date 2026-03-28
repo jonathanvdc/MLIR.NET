@@ -6,13 +6,13 @@ using System;
 /// Represents a fatal parse error produced while reading MLIR text.
 /// </summary>
 /// <remarks>
-/// Initializes a new instance of the <see cref="MlirParseException"/> class.
+/// Initializes a new instance of the <see cref="ParseException"/> class.
 /// </remarks>
 /// <param name="diagnostic">The diagnostic that describes the parse failure.</param>
-public sealed class MlirParseException(MlirDiagnostic diagnostic) : Exception(diagnostic.ToString())
+public sealed class ParseException(Diagnostic diagnostic) : Exception(diagnostic.ToString())
 {
     /// <summary>
     /// Gets the diagnostic that describes the parse failure.
     /// </summary>
-    public MlirDiagnostic Diagnostic { get; } = diagnostic;
+    public Diagnostic Diagnostic { get; } = diagnostic;
 }

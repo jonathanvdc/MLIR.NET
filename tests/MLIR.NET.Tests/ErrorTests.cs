@@ -3,12 +3,12 @@ namespace MLIR.Tests;
 using MLIR.Text;
 using Xunit;
 
-public sealed class MlirErrorTests
+public sealed class ErrorTests
 {
     [Fact]
     public void ThrowsHelpfulExceptionForInvalidInput()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"arith.addi\"(%lhs, %rhs"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"arith.addi\"(%lhs, %rhs"));
 
         Assert.Contains("operand list", exception.Message);
     }
@@ -16,7 +16,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsLexerErrorForUnexpectedCharacter()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"arith.addi\"(%lhs) !"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"arith.addi\"(%lhs) !"));
 
         Assert.Equal("Unexpected character '!'.", exception.Diagnostic.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
@@ -26,7 +26,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsLexerErrorForUnterminatedStringLiteral()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"arith.addi"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"arith.addi"));
 
         Assert.Equal("Unterminated string literal.", exception.Diagnostic.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
@@ -36,7 +36,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsLexerErrorForMissingSsaNameAfterPercent()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("% = \"test.op\"()"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("% = \"test.op\"()"));
 
         Assert.Equal("Expected a name after '%'.", exception.Diagnostic.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
@@ -46,7 +46,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsLexerErrorForMissingBlockNameAfterCaret()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"test.region\"() {\n^:\n}"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"test.region\"() {\n^:\n}"));
 
         Assert.Equal("Expected a name after '^'.", exception.Diagnostic.Message);
         Assert.Equal(2, exception.Diagnostic.Line);
@@ -56,7 +56,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsParserErrorForMissingOperationName()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("%0 = (%lhs)"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("%0 = (%lhs)"));
 
         Assert.Equal("Expected an operation name.", exception.Diagnostic.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
@@ -66,7 +66,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsParserErrorForMissingRegionTerminator()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"scf.if\"(%cond) {\n  \"func.return\"() : () -> ()"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"scf.if\"(%cond) {\n  \"func.return\"() : () -> ()"));
 
         Assert.Equal("Expected an operation name.", exception.Diagnostic.Message);
         Assert.Equal(2, exception.Diagnostic.Line);
@@ -76,7 +76,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsParserErrorForMissingAttributeName()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"test.op\"() {= 42 : i32} : () -> ()"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"test.op\"() {= 42 : i32} : () -> ()"));
 
         Assert.Equal("Expected an attribute name.", exception.Diagnostic.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
@@ -86,7 +86,7 @@ public sealed class MlirErrorTests
     [Fact]
     public void ReportsParserErrorForMissingBlockLabelName()
     {
-        var exception = Assert.Throws<MlirParseException>(() => MlirParser.ParseModule("\"test.region\"() {\n^bb0(%arg0: i32):\n  \"cf.br\"() [^] : () -> ()\n}"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"test.region\"() {\n^bb0(%arg0: i32):\n  \"cf.br\"() [^] : () -> ()\n}"));
 
         Assert.Equal("Expected a name after '^'.", exception.Diagnostic.Message);
         Assert.Equal(3, exception.Diagnostic.Line);

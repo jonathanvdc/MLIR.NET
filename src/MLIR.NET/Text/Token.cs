@@ -11,8 +11,8 @@ namespace MLIR.Text;
 /// <param name="end">The exclusive end offset of the token text.</param>
 /// <param name="line">The 1-based source line of the token text.</param>
 /// <param name="column">The 1-based source column of the token text.</param>
-internal readonly struct MlirToken(
-    MlirTokenKind kind,
+internal readonly struct Token(
+    TokenKind kind,
     string leadingTrivia,
     string text,
     int fullStart,
@@ -24,7 +24,7 @@ internal readonly struct MlirToken(
     /// <summary>
     /// Gets the token kind.
     /// </summary>
-    public MlirTokenKind Kind { get; } = kind;
+    public TokenKind Kind { get; } = kind;
 
     /// <summary>
     /// Gets the whitespace and comments that precede the token.

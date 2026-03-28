@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using MLIR.Syntax;
 
-internal static class MlirStructuralPrinter
+internal static class StructuralPrinter
 {
     public static void AppendModule<TOperation>(
         StringBuilder builder,
@@ -30,14 +30,14 @@ internal static class MlirStructuralPrinter
         Func<TBlock, IReadOnlyList<TOperation>> getOperations,
         Action<StringBuilder, TOperation, int, string> appendOperation)
     {
-        MlirPrintWriter.AppendToken(builder, syntax.OpenBraceToken, " ");
+        PrintWriter.AppendToken(builder, syntax.OpenBraceToken, " ");
 
         for (var i = 0; i < blocks.Count; i++)
         {
             AppendBlock(builder, blocks[i], indentLevel, getBlockSyntax, getOperations, appendOperation);
         }
 
-        MlirPrintWriter.AppendToken(builder, syntax.CloseBraceToken, "\n", indentLevel);
+        PrintWriter.AppendToken(builder, syntax.CloseBraceToken, "\n", indentLevel);
     }
 
     private static void AppendBlock<TBlock, TOperation>(
@@ -57,25 +57,25 @@ internal static class MlirStructuralPrinter
 
         if (blockHasExplicitLabel)
         {
-            MlirPrintWriter.AppendToken(builder, syntax.LabelToken, "\n", blockIndentLevel);
+            PrintWriter.AppendToken(builder, syntax.LabelToken, "\n", blockIndentLevel);
 
             if (syntax.Arguments.OpenToken != null)
             {
-                MlirPrintWriter.AppendToken(builder, syntax.Arguments.OpenToken.Value, string.Empty);
+                PrintWriter.AppendToken(builder, syntax.Arguments.OpenToken.Value, string.Empty);
                 for (var i = 0; i < syntax.Arguments.Count; i++)
                 {
                     if (i > 0)
                     {
-                        MlirPrintWriter.AppendToken(builder, syntax.Arguments.SeparatorTokens[i - 1], string.Empty);
+                        PrintWriter.AppendToken(builder, syntax.Arguments.SeparatorTokens[i - 1], string.Empty);
                     }
 
-                    MlirPrintWriter.AppendBlockArgument(builder, syntax.Arguments[i], i > 0 ? " " : string.Empty);
+                    PrintWriter.AppendBlockArgument(builder, syntax.Arguments[i], i > 0 ? " " : string.Empty);
                 }
 
-                MlirPrintWriter.AppendToken(builder, syntax.Arguments.CloseToken!.Value, string.Empty);
+                PrintWriter.AppendToken(builder, syntax.Arguments.CloseToken!.Value, string.Empty);
             }
 
-            MlirPrintWriter.AppendToken(builder, syntax.ColonToken, string.Empty);
+            PrintWriter.AppendToken(builder, syntax.ColonToken, string.Empty);
         }
 
         var operations = getOperations(block);

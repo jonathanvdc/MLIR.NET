@@ -5,15 +5,15 @@ using MLIR.Syntax;
 using MLIR.Text;
 using Xunit;
 
-public sealed class MlirParsingTests
+public sealed class ParsingTests
 {
     [Fact]
     public void ParsesAndPrintsSimpleGenericOperation()
     {
         const string source = "%0 = \"arith.addi\"(%lhs, %rhs) {fastmath = #arith.fastmath<none>} : (i32, i32) -> i32";
 
-        var module = MlirParser.ParseModule(source);
-        var text = MlirPrinter.Print(module);
+        var module = Parser.ParseModule(source);
+        var text = Printer.Print(module);
 
         Assert.Equal(source, text);
     }
@@ -23,7 +23,7 @@ public sealed class MlirParsingTests
     {
         const string source = "\"scf.if\"(%cond) {\n^bb1(%arg0: i32):\n  \"cf.br\"(%arg0) [^bb2] : (i32) -> ()\n^bb2:\n  \"func.return\"() : () -> ()\n}";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
 
         Assert.Single(module.Operations);
         Assert.Single(module.Operations[0].Regions);
@@ -35,7 +35,7 @@ public sealed class MlirParsingTests
     {
         const string source = "\"memref.cast\"(%arg0) : (memref<2x?xf32, #map>) -> memref<*xf32>";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
 
         Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", module.Operations[0].TypeSignature!.Text);
     }
@@ -45,7 +45,7 @@ public sealed class MlirParsingTests
     {
         const string source = "\"func.return\"() : () -> ()";
 
-        var document = MlirDocument.Parse(source);
+        var document = Document.Parse(source);
 
         Assert.Equal(source, document.ToText());
         Assert.Single(document.Module.Operations);
@@ -63,8 +63,8 @@ public sealed class MlirParsingTests
             "  \"func.return\"(%cast) : (memref<*xf32>) -> ()\n" +
             "} {predicate = #builtin.unit} : (index) -> ()";
 
-        var module = MlirParser.ParseModule(source);
-        var text = MlirPrinter.Print(module);
+        var module = Parser.ParseModule(source);
+        var text = Printer.Print(module);
 
         Assert.Equal(4, module.Operations.Count);
         Assert.Equal(source, text);
@@ -86,8 +86,8 @@ public sealed class MlirParsingTests
             "    \"func.return\"(%arg2) : (i32) -> ()\n" +
             "} : () -> ()";
 
-        var module = MlirParser.ParseModule(source);
-        var text = MlirPrinter.Print(module);
+        var module = Parser.ParseModule(source);
+        var text = Printer.Print(module);
 
         Assert.Equal(2, module.Operations.Count);
         Assert.Equal(3, module.Operations[1].Regions[0].Blocks.Count);
@@ -105,8 +105,8 @@ public sealed class MlirParsingTests
             "%c1 = \"arith.constant\"() {value = 1 : i32} : () -> i32\n" +
             "%sum = \"arith.addi\"(%c0, %c1) : (i32, i32) -> i32\n";
 
-        var module = MlirParser.ParseModule(source);
-        var text = MlirPrinter.Print(module);
+        var module = Parser.ParseModule(source);
+        var text = Printer.Print(module);
 
         Assert.Equal(3, module.Operations.Count);
         Assert.Equal(source, text);
@@ -124,8 +124,8 @@ public sealed class MlirParsingTests
             "  \"func.return\"(%0) : (i32) -> ()\n" +
             "} : (i1) -> ()";
 
-        var module = MlirParser.ParseModule(source);
-        var text = MlirPrinter.Print(module);
+        var module = Parser.ParseModule(source);
+        var text = Printer.Print(module);
 
         Assert.Equal(source, text);
     }
@@ -135,12 +135,12 @@ public sealed class MlirParsingTests
     {
         const string source = "\"test.empty_attr_dict\"() {} : () -> ()";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
         var operation = module.Operations[0];
 
         Assert.Empty(operation.Regions);
         Assert.Empty(operation.Attributes);
-        Assert.Equal(source, MlirPrinter.Print(module));
+        Assert.Equal(source, Printer.Print(module));
     }
 
     [Fact]
@@ -153,13 +153,13 @@ public sealed class MlirParsingTests
             "  \"func.return\"() : () -> ()\n" +
             "} : () -> ()";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
         var blocks = module.Operations[0].Regions[0].Blocks;
 
         Assert.Equal(2, blocks.Count);
         Assert.Equal("^entry", blocks[0].Label);
         Assert.Equal("^bb1", blocks[1].Label);
-        Assert.Equal(source, MlirPrinter.Print(module));
+        Assert.Equal(source, Printer.Print(module));
     }
 
     [Fact]
@@ -167,10 +167,10 @@ public sealed class MlirParsingTests
     {
         const string source = "test.op(%arg0) : (i32) -> i32";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
 
         Assert.Equal("test.op", module.Operations[0].Name);
-        Assert.Equal(source, MlirPrinter.Print(module));
+        Assert.Equal(source, Printer.Print(module));
     }
 
     [Fact]
@@ -180,10 +180,10 @@ public sealed class MlirParsingTests
             "\"func.return\"() : () -> ()\n" +
             "// trailing note";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
 
         Assert.Equal("\n// trailing note", module.EndOfFileToken.LeadingTrivia);
-        Assert.Equal(source, MlirPrinter.Print(module));
+        Assert.Equal(source, Printer.Print(module));
     }
 
     [Fact]
@@ -192,10 +192,10 @@ public sealed class MlirParsingTests
         const string source =
             "\"test.op\"(%arg0) {layout = dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>} : (tensor<2x2xi32>) -> tensor<2x2xi32>";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
         var attribute = module.Operations[0].Attributes[0];
 
         Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.Value.Text);
-        Assert.Equal(source, MlirPrinter.Print(module));
+        Assert.Equal(source, Printer.Print(module));
     }
 }

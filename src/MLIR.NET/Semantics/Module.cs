@@ -36,6 +36,6 @@ public sealed class Module(ModuleSyntax syntax, IReadOnlyList<Operation> operati
     /// <returns>The printed MLIR text.</returns>
     public string ToText()
     {
-        return MlirSemanticPrinter.Print(this);
+        return SemanticPrinter.Print(this);
     }
 }

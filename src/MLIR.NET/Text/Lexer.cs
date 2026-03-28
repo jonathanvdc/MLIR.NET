@@ -5,17 +5,17 @@ using System.Collections.Generic;
 /// <summary>
 /// Tokenizes generic MLIR syntax while preserving leading trivia on every token.
 /// </summary>
-internal static class MlirLexer
+internal static class Lexer
 {
     /// <summary>
     /// Lexes MLIR source text into a token stream.
     /// </summary>
     /// <param name="source">The source text to tokenize.</param>
     /// <returns>The resulting token stream, including an end-of-file token.</returns>
-    /// <exception cref="MlirParseException">Thrown when the source contains invalid lexical syntax.</exception>
-    public static IReadOnlyList<MlirToken> Lex(string source)
+    /// <exception cref="ParseException">Thrown when the source contains invalid lexical syntax.</exception>
+    public static IReadOnlyList<Token> Lex(string source)
     {
-        var tokens = new List<MlirToken>();
+        var tokens = new List<Token>();
         var index = 0;
         var line = 1;
         var column = 1;
@@ -51,7 +51,7 @@ internal static class MlirLexer
             var leadingTrivia = source.Substring(triviaStart, index - triviaStart);
             if (index >= source.Length)
             {
-                tokens.Add(new MlirToken(MlirTokenKind.EndOfFile, leadingTrivia, string.Empty, triviaStart, index, index, line, column));
+                tokens.Add(new Token(TokenKind.EndOfFile, leadingTrivia, string.Empty, triviaStart, index, index, line, column));
                 return tokens;
             }
 
@@ -62,11 +62,11 @@ internal static class MlirLexer
 
             if (chAtToken == '%' || chAtToken == '^')
             {
-                var tokenKind = chAtToken == '%' ? MlirTokenKind.SsaName : MlirTokenKind.BlockLabel;
+                var tokenKind = chAtToken == '%' ? TokenKind.SsaName : TokenKind.BlockLabel;
                 Advance(chAtToken, ref index, ref line, ref column);
                 if (index >= source.Length || (!IsIdentifierStart(source[index]) && !char.IsDigit(source[index])))
                 {
-                    throw new MlirParseException(new MlirDiagnostic($"Expected a name after '{chAtToken}'.", tokenLine, tokenColumn));
+                    throw new ParseException(new Diagnostic($"Expected a name after '{chAtToken}'.", tokenLine, tokenColumn));
                 }
 
                 while (index < source.Length && IsIdentifierPart(source[index]))
@@ -74,7 +74,7 @@ internal static class MlirLexer
                     Advance(source[index], ref index, ref line, ref column);
                 }
 
-                tokens.Add(new MlirToken(tokenKind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(tokenKind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
                 continue;
             }
 
@@ -86,7 +86,7 @@ internal static class MlirLexer
                     Advance(source[index], ref index, ref line, ref column);
                 }
 
-                tokens.Add(new MlirToken(MlirTokenKind.Identifier, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(TokenKind.Identifier, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
                 continue;
             }
 
@@ -98,7 +98,7 @@ internal static class MlirLexer
                     Advance(source[index], ref index, ref line, ref column);
                 }
 
-                tokens.Add(new MlirToken(MlirTokenKind.Integer, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(TokenKind.Integer, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
                 continue;
             }
 
@@ -130,45 +130,45 @@ internal static class MlirLexer
 
                 if (index == tokenStart + 1 || source[index - 1] != '"')
                 {
-                    throw new MlirParseException(new MlirDiagnostic("Unterminated string literal.", tokenLine, tokenColumn));
+                    throw new ParseException(new Diagnostic("Unterminated string literal.", tokenLine, tokenColumn));
                 }
 
-                tokens.Add(new MlirToken(MlirTokenKind.StringLiteral, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(TokenKind.StringLiteral, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
                 continue;
             }
 
             var kind = chAtToken switch
             {
-                '@' => MlirTokenKind.At,
-                '#' => MlirTokenKind.Hash,
-                ':' => MlirTokenKind.Colon,
-                ',' => MlirTokenKind.Comma,
-                '=' => MlirTokenKind.Equal,
-                '(' => MlirTokenKind.LParen,
-                ')' => MlirTokenKind.RParen,
-                '{' => MlirTokenKind.LBrace,
-                '}' => MlirTokenKind.RBrace,
-                '[' => MlirTokenKind.LBracket,
-                ']' => MlirTokenKind.RBracket,
-                '<' => MlirTokenKind.LessThan,
-                '>' => MlirTokenKind.GreaterThan,
-                '?' => MlirTokenKind.Question,
-                '*' => MlirTokenKind.Star,
-                '+' => MlirTokenKind.Plus,
-                '.' => MlirTokenKind.Dot,
-                '-' => index + 1 < source.Length && source[index + 1] == '>' ? MlirTokenKind.Arrow : MlirTokenKind.Minus,
-                _ => throw new MlirParseException(new MlirDiagnostic($"Unexpected character '{chAtToken}'.", tokenLine, tokenColumn)),
+                '@' => TokenKind.At,
+                '#' => TokenKind.Hash,
+                ':' => TokenKind.Colon,
+                ',' => TokenKind.Comma,
+                '=' => TokenKind.Equal,
+                '(' => TokenKind.LParen,
+                ')' => TokenKind.RParen,
+                '{' => TokenKind.LBrace,
+                '}' => TokenKind.RBrace,
+                '[' => TokenKind.LBracket,
+                ']' => TokenKind.RBracket,
+                '<' => TokenKind.LessThan,
+                '>' => TokenKind.GreaterThan,
+                '?' => TokenKind.Question,
+                '*' => TokenKind.Star,
+                '+' => TokenKind.Plus,
+                '.' => TokenKind.Dot,
+                '-' => index + 1 < source.Length && source[index + 1] == '>' ? TokenKind.Arrow : TokenKind.Minus,
+                _ => throw new ParseException(new Diagnostic($"Unexpected character '{chAtToken}'.", tokenLine, tokenColumn)),
             };
 
             Advance(chAtToken, ref index, ref line, ref column);
-            if (kind == MlirTokenKind.Arrow)
+            if (kind == TokenKind.Arrow)
             {
                 // The switch only classifies '-' as an arrow when the next character is '>',
                 // so it is safe to consume the second character here.
                 Advance(source[index], ref index, ref line, ref column);
             }
 
-            tokens.Add(new MlirToken(kind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+            tokens.Add(new Token(kind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
         }
     }
 

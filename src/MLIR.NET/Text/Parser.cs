@@ -7,16 +7,16 @@ using MLIR.Syntax;
 /// <summary>
 /// Parses generic MLIR syntax into a concrete syntax tree.
 /// </summary>
-public sealed class MlirParser
+public sealed class Parser
 {
     private readonly string source;
-    private readonly IReadOnlyList<MlirToken> tokens;
+    private readonly IReadOnlyList<Token> tokens;
     private int position;
 
-    private MlirParser(string source)
+    private Parser(string source)
     {
         this.source = source;
-        tokens = MlirLexer.Lex(source);
+        tokens = Lexer.Lex(source);
     }
 
     /// <summary>
@@ -26,13 +26,13 @@ public sealed class MlirParser
     /// <returns>The parsed module syntax.</returns>
     public static ModuleSyntax ParseModule(string source)
     {
-        return new MlirParser(source).ParseModuleCore();
+        return new Parser(source).ParseModuleCore();
     }
 
     private ModuleSyntax ParseModuleCore()
     {
         var operations = new List<OperationSyntax>();
-        while (!Is(MlirTokenKind.EndOfFile))
+        while (!Is(TokenKind.EndOfFile))
         {
             operations.Add(ParseOperation());
             EnsureOperationBoundary(false);
@@ -47,33 +47,33 @@ public sealed class MlirParser
         var resultCommaTokens = new List<SyntaxToken>();
         SyntaxToken? equalsToken = null;
 
-        if (Is(MlirTokenKind.SsaName))
+        if (Is(TokenKind.SsaName))
         {
             resultTokens.Add(ParseSsaToken());
-            while (TryMatch(MlirTokenKind.Comma, out var resultCommaToken))
+            while (TryMatch(TokenKind.Comma, out var resultCommaToken))
             {
                 resultCommaTokens.Add(ToSyntaxToken(resultCommaToken));
                 resultTokens.Add(ParseSsaToken());
             }
 
-            equalsToken = ExpectToken(MlirTokenKind.Equal, "Expected '=' after operation result list.");
+            equalsToken = ExpectToken(TokenKind.Equal, "Expected '=' after operation result list.");
         }
 
         var nameToken = ParseOperationNameToken();
-        var openParenthesisToken = ExpectToken(MlirTokenKind.LParen, "Expected '(' to start the operand list.");
+        var openParenthesisToken = ExpectToken(TokenKind.LParen, "Expected '(' to start the operand list.");
         var operandTokens = new List<SyntaxToken>();
         var operandCommaTokens = new List<SyntaxToken>();
 
-        if (!TryMatch(MlirTokenKind.RParen, out var closeParenthesisTokenValue))
+        if (!TryMatch(TokenKind.RParen, out var closeParenthesisTokenValue))
         {
             operandTokens.Add(ParseSsaToken());
-            while (TryMatch(MlirTokenKind.Comma, out var operandCommaToken))
+            while (TryMatch(TokenKind.Comma, out var operandCommaToken))
             {
                 operandCommaTokens.Add(ToSyntaxToken(operandCommaToken));
                 operandTokens.Add(ParseSsaToken());
             }
 
-            closeParenthesisTokenValue = ExpectRawToken(MlirTokenKind.RParen, "Expected ')' to close the operand list.");
+            closeParenthesisTokenValue = ExpectRawToken(TokenKind.RParen, "Expected ')' to close the operand list.");
         }
 
         var openSuccessorBracketToken = default(SyntaxToken);
@@ -82,28 +82,28 @@ public sealed class MlirParser
         var successorTokens = new List<SyntaxToken>();
         var successorCommaTokens = new List<SyntaxToken>();
 
-        if (TryMatch(MlirTokenKind.LBracket, out var openSuccessorBracketValue))
+        if (TryMatch(TokenKind.LBracket, out var openSuccessorBracketValue))
         {
             hasSuccessors = true;
             openSuccessorBracketToken = ToSyntaxToken(openSuccessorBracketValue);
 
-            if (!TryMatch(MlirTokenKind.RBracket, out var closeSuccessorBracketValue))
+            if (!TryMatch(TokenKind.RBracket, out var closeSuccessorBracketValue))
             {
                 successorTokens.Add(ParseBlockLabelToken());
-                while (TryMatch(MlirTokenKind.Comma, out var successorCommaToken))
+                while (TryMatch(TokenKind.Comma, out var successorCommaToken))
                 {
                     successorCommaTokens.Add(ToSyntaxToken(successorCommaToken));
                     successorTokens.Add(ParseBlockLabelToken());
                 }
 
-                closeSuccessorBracketValue = ExpectRawToken(MlirTokenKind.RBracket, "Expected ']' to close the successor list.");
+                closeSuccessorBracketValue = ExpectRawToken(TokenKind.RBracket, "Expected ']' to close the successor list.");
             }
 
             closeSuccessorBracketToken = ToSyntaxToken(closeSuccessorBracketValue);
         }
 
         var regions = new List<RegionSyntax>();
-        while (Is(MlirTokenKind.LBrace) && IsRegionStart())
+        while (Is(TokenKind.LBrace) && IsRegionStart())
         {
             regions.Add(ParseRegion());
         }
@@ -113,20 +113,20 @@ public sealed class MlirParser
         var hasAttributes = false;
         var attributes = new List<NamedAttributeSyntax>();
         var attributeCommaTokens = new List<SyntaxToken>();
-        if (Is(MlirTokenKind.LBrace))
+        if (Is(TokenKind.LBrace))
         {
             hasAttributes = true;
-            openAttributeBraceToken = ExpectToken(MlirTokenKind.LBrace, "Expected '{' to start an attribute dictionary.");
-            if (!TryMatch(MlirTokenKind.RBrace, out var closeAttributeBraceValue))
+            openAttributeBraceToken = ExpectToken(TokenKind.LBrace, "Expected '{' to start an attribute dictionary.");
+            if (!TryMatch(TokenKind.RBrace, out var closeAttributeBraceValue))
             {
                 attributes.Add(ParseAttribute());
-                while (TryMatch(MlirTokenKind.Comma, out var attributeCommaToken))
+                while (TryMatch(TokenKind.Comma, out var attributeCommaToken))
                 {
                     attributeCommaTokens.Add(ToSyntaxToken(attributeCommaToken));
                     attributes.Add(ParseAttribute());
                 }
 
-                closeAttributeBraceValue = ExpectRawToken(MlirTokenKind.RBrace, "Expected '}' to close the attribute dictionary.");
+                closeAttributeBraceValue = ExpectRawToken(TokenKind.RBrace, "Expected '}' to close the attribute dictionary.");
             }
 
             closeAttributeBraceToken = ToSyntaxToken(closeAttributeBraceValue);
@@ -134,9 +134,9 @@ public sealed class MlirParser
 
         SyntaxToken? typeSignatureColonToken = null;
         RawSyntaxText? typeSignature = null;
-        if (Is(MlirTokenKind.Colon))
+        if (Is(TokenKind.Colon))
         {
-            typeSignatureColonToken = ExpectToken(MlirTokenKind.Colon, "Expected ':' before the type signature.");
+            typeSignatureColonToken = ExpectToken(TokenKind.Colon, "Expected ':' before the type signature.");
             typeSignature = ParseRawUntilOperationBoundary();
         }
 
@@ -167,13 +167,13 @@ public sealed class MlirParser
 
     private RegionSyntax ParseRegion()
     {
-        var openBraceToken = ExpectToken(MlirTokenKind.LBrace, "Expected '{' to start a region.");
+        var openBraceToken = ExpectToken(TokenKind.LBrace, "Expected '{' to start a region.");
         var blocks = new List<BlockSyntax>();
         var pendingEntryOperations = new List<OperationSyntax>();
 
-        while (!Is(MlirTokenKind.RBrace))
+        while (!Is(TokenKind.RBrace))
         {
-            if (Is(MlirTokenKind.BlockLabel))
+            if (Is(TokenKind.BlockLabel))
             {
                 if (pendingEntryOperations.Count > 0)
                 {
@@ -206,7 +206,7 @@ public sealed class MlirParser
                 pendingEntryOperations.ToList()));
         }
 
-        var closeBraceToken = ExpectToken(MlirTokenKind.RBrace, "Expected '}' to close a region.");
+        var closeBraceToken = ExpectToken(TokenKind.RBrace, "Expected '}' to close a region.");
         return new RegionSyntax(openBraceToken, blocks, closeBraceToken);
     }
 
@@ -218,27 +218,27 @@ public sealed class MlirParser
         var arguments = new List<BlockArgumentSyntax>();
         var argumentCommaTokens = new List<SyntaxToken>();
 
-        if (TryMatch(MlirTokenKind.LParen, out var openParenthesisTokenValue))
+        if (TryMatch(TokenKind.LParen, out var openParenthesisTokenValue))
         {
             openParenthesisToken = ToSyntaxToken(openParenthesisTokenValue);
-            if (!TryMatch(MlirTokenKind.RParen, out var closeParenthesisTokenValue))
+            if (!TryMatch(TokenKind.RParen, out var closeParenthesisTokenValue))
             {
                 arguments.Add(ParseBlockArgument());
-                while (TryMatch(MlirTokenKind.Comma, out var argumentCommaToken))
+                while (TryMatch(TokenKind.Comma, out var argumentCommaToken))
                 {
                     argumentCommaTokens.Add(ToSyntaxToken(argumentCommaToken));
                     arguments.Add(ParseBlockArgument());
                 }
 
-                closeParenthesisTokenValue = ExpectRawToken(MlirTokenKind.RParen, "Expected ')' after block argument list.");
+                closeParenthesisTokenValue = ExpectRawToken(TokenKind.RParen, "Expected ')' after block argument list.");
             }
 
             closeParenthesisToken = ToSyntaxToken(closeParenthesisTokenValue);
         }
 
-        var colonToken = ExpectToken(MlirTokenKind.Colon, "Expected ':' after block label.");
+        var colonToken = ExpectToken(TokenKind.Colon, "Expected ':' after block label.");
         var operations = new List<OperationSyntax>();
-        while (!Is(MlirTokenKind.RBrace) && !Is(MlirTokenKind.BlockLabel))
+        while (!Is(TokenKind.RBrace) && !Is(TokenKind.BlockLabel))
         {
             operations.Add(ParseOperation());
             EnsureOperationBoundary(true);
@@ -254,15 +254,15 @@ public sealed class MlirParser
     private BlockArgumentSyntax ParseBlockArgument()
     {
         var nameToken = ParseSsaToken();
-        var colonToken = ExpectToken(MlirTokenKind.Colon, "Expected ':' after block argument name.");
-        var type = ParseRawUntilDelimiter(MlirTokenKind.Comma, MlirTokenKind.RParen);
+        var colonToken = ExpectToken(TokenKind.Colon, "Expected ':' after block argument name.");
+        var type = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RParen);
         return new BlockArgumentSyntax(nameToken, colonToken, type);
     }
 
     private NamedAttributeSyntax ParseAttribute()
     {
         SyntaxToken nameToken;
-        if (Is(MlirTokenKind.Identifier) || Is(MlirTokenKind.StringLiteral))
+        if (Is(TokenKind.Identifier) || Is(TokenKind.StringLiteral))
         {
             nameToken = ToSyntaxToken(ConsumeToken());
         }
@@ -271,14 +271,14 @@ public sealed class MlirParser
             throw Error("Expected an attribute name.");
         }
 
-        var equalsToken = ExpectToken(MlirTokenKind.Equal, "Expected '=' after attribute name.");
-        var value = ParseRawUntilDelimiter(MlirTokenKind.Comma, MlirTokenKind.RBrace);
+        var equalsToken = ExpectToken(TokenKind.Equal, "Expected '=' after attribute name.");
+        var value = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RBrace);
         return new NamedAttributeSyntax(nameToken, equalsToken, value);
     }
 
     private SyntaxToken ParseOperationNameToken()
     {
-        if (!Is(MlirTokenKind.Identifier) && !Is(MlirTokenKind.StringLiteral))
+        if (!Is(TokenKind.Identifier) && !Is(TokenKind.StringLiteral))
         {
             throw Error("Expected an operation name.");
         }
@@ -288,15 +288,15 @@ public sealed class MlirParser
 
     private SyntaxToken ParseSsaToken()
     {
-        return ExpectToken(MlirTokenKind.SsaName, "Expected an SSA value name.");
+        return ExpectToken(TokenKind.SsaName, "Expected an SSA value name.");
     }
 
     private SyntaxToken ParseBlockLabelToken()
     {
-        return ExpectToken(MlirTokenKind.BlockLabel, "Expected a block label name.");
+        return ExpectToken(TokenKind.BlockLabel, "Expected a block label name.");
     }
 
-    private RawSyntaxText ParseRawUntilDelimiter(params MlirTokenKind[] delimiters)
+    private RawSyntaxText ParseRawUntilDelimiter(params TokenKind[] delimiters)
     {
         var start = Current.FullStart;
         var firstTokenIndex = position;
@@ -314,7 +314,7 @@ public sealed class MlirParser
                 break;
             }
 
-            if (Is(MlirTokenKind.EndOfFile))
+            if (Is(TokenKind.EndOfFile))
             {
                 throw Error("Unexpected end of file while parsing raw syntax.");
             }
@@ -340,7 +340,7 @@ public sealed class MlirParser
         var depthBracket = 0;
         var depthAngle = 0;
 
-        while (!Is(MlirTokenKind.EndOfFile))
+        while (!Is(TokenKind.EndOfFile))
         {
             if (depthParen == 0 &&
                 depthBrace == 0 &&
@@ -365,7 +365,7 @@ public sealed class MlirParser
 
     private bool IsRegionStart()
     {
-        if (!Is(MlirTokenKind.LBrace))
+        if (!Is(TokenKind.LBrace))
         {
             return false;
         }
@@ -373,23 +373,23 @@ public sealed class MlirParser
         // A '{' can start either a region or an attribute dictionary. Peek ahead to decide
         // which production we are looking at without consuming any tokens.
         var lookahead = position + 1;
-        if (tokens[lookahead].Kind == MlirTokenKind.RBrace)
+        if (tokens[lookahead].Kind == TokenKind.RBrace)
         {
             return false;
         }
 
-        if (tokens[lookahead].Kind == MlirTokenKind.BlockLabel || tokens[lookahead].Kind == MlirTokenKind.StringLiteral || tokens[lookahead].Kind == MlirTokenKind.SsaName)
+        if (tokens[lookahead].Kind == TokenKind.BlockLabel || tokens[lookahead].Kind == TokenKind.StringLiteral || tokens[lookahead].Kind == TokenKind.SsaName)
         {
             return true;
         }
 
-        if (tokens[lookahead].Kind != MlirTokenKind.Identifier)
+        if (tokens[lookahead].Kind != TokenKind.Identifier)
         {
             return false;
         }
 
         var secondLookahead = tokens[lookahead + 1];
-        return secondLookahead.Kind != MlirTokenKind.Equal && secondLookahead.Kind != MlirTokenKind.Comma;
+        return secondLookahead.Kind != TokenKind.Equal && secondLookahead.Kind != TokenKind.Comma;
     }
 
     private void EnsureOperationBoundary(bool allowBlockStart)
@@ -400,14 +400,14 @@ public sealed class MlirParser
         }
     }
 
-    private bool IsOperationBoundary(MlirToken token, bool allowBlockStart)
+    private bool IsOperationBoundary(Token token, bool allowBlockStart)
     {
-        if (token.Kind == MlirTokenKind.EndOfFile || token.Kind == MlirTokenKind.RBrace)
+        if (token.Kind == TokenKind.EndOfFile || token.Kind == TokenKind.RBrace)
         {
             return true;
         }
 
-        if (allowBlockStart && token.Kind == MlirTokenKind.BlockLabel && token.LeadingTrivia.Contains('\n'))
+        if (allowBlockStart && token.Kind == TokenKind.BlockLabel && token.LeadingTrivia.Contains('\n'))
         {
             return true;
         }
@@ -415,38 +415,38 @@ public sealed class MlirParser
         return token.LeadingTrivia.Contains('\n');
     }
 
-    private static void UpdateDepth(MlirTokenKind kind, ref int depthParen, ref int depthBrace, ref int depthBracket, ref int depthAngle)
+    private static void UpdateDepth(TokenKind kind, ref int depthParen, ref int depthBrace, ref int depthBracket, ref int depthAngle)
     {
         switch (kind)
         {
-            case MlirTokenKind.LParen:
+            case TokenKind.LParen:
                 depthParen++;
                 break;
-            case MlirTokenKind.RParen:
+            case TokenKind.RParen:
                 depthParen--;
                 break;
-            case MlirTokenKind.LBrace:
+            case TokenKind.LBrace:
                 depthBrace++;
                 break;
-            case MlirTokenKind.RBrace:
+            case TokenKind.RBrace:
                 depthBrace--;
                 break;
-            case MlirTokenKind.LBracket:
+            case TokenKind.LBracket:
                 depthBracket++;
                 break;
-            case MlirTokenKind.RBracket:
+            case TokenKind.RBracket:
                 depthBracket--;
                 break;
-            case MlirTokenKind.LessThan:
+            case TokenKind.LessThan:
                 depthAngle++;
                 break;
-            case MlirTokenKind.GreaterThan:
+            case TokenKind.GreaterThan:
                 depthAngle--;
                 break;
         }
     }
 
-    private bool TryMatch(MlirTokenKind kind, out MlirToken token)
+    private bool TryMatch(TokenKind kind, out Token token)
     {
         if (Current.Kind != kind)
         {
@@ -458,12 +458,12 @@ public sealed class MlirParser
         return true;
     }
 
-    private SyntaxToken ExpectToken(MlirTokenKind kind, string message)
+    private SyntaxToken ExpectToken(TokenKind kind, string message)
     {
         return ToSyntaxToken(ExpectRawToken(kind, message));
     }
 
-    private MlirToken ExpectRawToken(MlirTokenKind kind, string message)
+    private Token ExpectRawToken(TokenKind kind, string message)
     {
         if (!TryMatch(kind, out var token))
         {
@@ -473,27 +473,27 @@ public sealed class MlirParser
         return token;
     }
 
-    private bool Is(MlirTokenKind kind)
+    private bool Is(TokenKind kind)
     {
         return Current.Kind == kind;
     }
 
-    private MlirToken ConsumeToken()
+    private Token ConsumeToken()
     {
         var token = Current;
         position++;
         return token;
     }
 
-    private MlirParseException Error(string message)
+    private ParseException Error(string message)
     {
-        return new MlirParseException(new MlirDiagnostic(message, Current.Line, Current.Column));
+        return new ParseException(new Diagnostic(message, Current.Line, Current.Column));
     }
 
-    private static SyntaxToken ToSyntaxToken(MlirToken token)
+    private static SyntaxToken ToSyntaxToken(Token token)
     {
         return new SyntaxToken(token.Text, token.LeadingTrivia, token.Line, token.Column);
     }
 
-    private MlirToken Current => tokens[position];
+    private Token Current => tokens[position];
 }

@@ -6,7 +6,7 @@ using MLIR.Syntax;
 /// <summary>
 /// Provides ergonomic helpers for constructing MLIR concrete syntax trees programmatically.
 /// </summary>
-public static class MlirFactory
+public static class Factory
 {
     /// <summary>
     /// Creates a module from the supplied top-level operations.

@@ -6,7 +6,7 @@ using MLIR.Dialects;
 /// <summary>
 /// Verifies semantic modules using the operation definitions attached during binding.
 /// </summary>
-public static class MlirVerifier
+public static class Verifier
 {
     /// <summary>
     /// Verifies a semantic module.

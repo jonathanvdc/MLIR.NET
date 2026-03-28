@@ -4,12 +4,12 @@ namespace MLIR.Text;
 /// Describes a parser diagnostic at a specific source location.
 /// </summary>
 /// <remarks>
-/// Initializes a new instance of the <see cref="MlirDiagnostic"/> class.
+/// Initializes a new instance of the <see cref="Diagnostic"/> class.
 /// </remarks>
 /// <param name="message">The diagnostic message.</param>
 /// <param name="line">The 1-based source line.</param>
 /// <param name="column">The 1-based source column.</param>
-public sealed class MlirDiagnostic(string message, int line, int column)
+public sealed class Diagnostic(string message, int line, int column)
 {
     /// <summary>
     /// Gets the diagnostic message.

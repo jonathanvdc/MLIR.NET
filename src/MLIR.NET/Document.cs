@@ -9,10 +9,10 @@ using MLIR.Text;
 /// Represents a parsed MLIR document and provides entry points for text conversion.
 /// </summary>
 /// <remarks>
-/// Initializes a new instance of the <see cref="MlirDocument"/> class.
+/// Initializes a new instance of the <see cref="Document"/> class.
 /// </remarks>
 /// <param name="module">The root module syntax.</param>
-public sealed class MlirDocument(ModuleSyntax module)
+public sealed class Document(ModuleSyntax module)
 {
     /// <summary>
     /// Gets the root module syntax.
@@ -26,7 +26,7 @@ public sealed class MlirDocument(ModuleSyntax module)
     /// <returns>The semantic module.</returns>
     public Semantics.Module Bind(DialectRegistry? dialectRegistry = null)
     {
-        return MlirBinder.BindModule(Module, dialectRegistry);
+        return Binder.BindModule(Module, dialectRegistry);
     }
 
     /// <summary>
@@ -34,9 +34,9 @@ public sealed class MlirDocument(ModuleSyntax module)
     /// </summary>
     /// <param name="source">The source text to parse.</param>
     /// <returns>A parsed MLIR document.</returns>
-    public static MlirDocument Parse(string source)
+    public static Document Parse(string source)
     {
-        return new MlirDocument(MlirParser.ParseModule(source));
+        return new Document(Parser.ParseModule(source));
     }
 
     /// <summary>
@@ -45,6 +45,6 @@ public sealed class MlirDocument(ModuleSyntax module)
     /// <returns>The printed MLIR text.</returns>
     public string ToText()
     {
-        return MlirPrinter.Print(Module);
+        return Printer.Print(Module);
     }
 }

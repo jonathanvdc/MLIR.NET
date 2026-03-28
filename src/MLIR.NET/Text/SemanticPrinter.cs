@@ -6,7 +6,7 @@ using MLIR.Semantics;
 /// <summary>
 /// Prints semantic MLIR modules, optionally using dialect-specific custom assembly formats.
 /// </summary>
-public sealed class MlirSemanticPrinter
+public sealed class SemanticPrinter
 {
     /// <summary>
     /// Converts a semantic module to MLIR text.
@@ -15,9 +15,9 @@ public sealed class MlirSemanticPrinter
     /// <returns>The printed MLIR text.</returns>
     public static string Print(Module module)
     {
-        var printer = new MlirSemanticPrinter();
+        var printer = new SemanticPrinter();
         var builder = new StringBuilder();
-        MlirStructuralPrinter.AppendModule(builder, module.Operations, module.Syntax.EndOfFileToken, printer.AppendOperation);
+        StructuralPrinter.AppendModule(builder, module.Operations, module.Syntax.EndOfFileToken, printer.AppendOperation);
         return builder.ToString();
     }
 
@@ -36,7 +36,7 @@ public sealed class MlirSemanticPrinter
 
     internal void AppendGenericOperation(StringBuilder builder, Operation operation, int indentLevel, string defaultLeadingTrivia)
     {
-        MlirPrinter.AppendOperation(
+        Printer.AppendOperation(
             builder,
             operation.Syntax,
             indentLevel,
@@ -49,11 +49,11 @@ public sealed class MlirSemanticPrinter
 
     internal void AppendGenericOperation(StringBuilder builder, Syntax.OperationSyntax operation, int indentLevel, string defaultLeadingTrivia)
     {
-        MlirPrinter.AppendOperation(builder, operation, indentLevel, defaultLeadingTrivia);
+        Printer.AppendOperation(builder, operation, indentLevel, defaultLeadingTrivia);
     }
 
     internal void AppendRegion(StringBuilder builder, Region region, int indentLevel)
     {
-        MlirStructuralPrinter.AppendRegion(builder, region.Syntax, region.Blocks, indentLevel, static block => block.Syntax, static block => block.Operations, AppendOperation);
+        StructuralPrinter.AppendRegion(builder, region.Syntax, region.Blocks, indentLevel, static block => block.Syntax, static block => block.Operations, AppendOperation);
     }
 }

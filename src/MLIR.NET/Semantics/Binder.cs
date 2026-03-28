@@ -8,7 +8,7 @@ using MLIR.Text;
 /// <summary>
 /// Binds generic MLIR concrete syntax to semantic nodes using a dialect registry.
 /// </summary>
-public static class MlirBinder
+public static class Binder
 {
     /// <summary>
     /// Binds a module syntax tree to a semantic module.

@@ -6,7 +6,7 @@ using MLIR.Syntax;
 using MLIR.Text;
 using Xunit;
 
-public sealed class MlirConstructionTests
+public sealed class ConstructionTests
 {
     [Fact]
     public void ExposesPreservedTokenTriviaInTheCst()
@@ -15,7 +15,7 @@ public sealed class MlirConstructionTests
             "// leading comment\n" +
             "%0,  %1 = \"test.op\"(%lhs,  %rhs) [ ^bb1 ] : (i32, i32) -> i32";
 
-        var module = MlirParser.ParseModule(source);
+        var module = Parser.ParseModule(source);
         var operation = module.Operations[0];
 
         Assert.Equal("// leading comment\n", operation.ResultTokens[0].LeadingTrivia);
@@ -69,13 +69,13 @@ public sealed class MlirConstructionTests
     [Fact]
     public void FactoryHelpersQuoteOperationNamesAndBuildAttributes()
     {
-        var module = MlirFactory.Module(
-            MlirFactory.Op(
+        var module = Factory.Module(
+            Factory.Op(
                 name: "arith.constant",
-                attributes: [MlirFactory.Attr("value", "0 : i32")],
+                attributes: [Factory.Attr("value", "0 : i32")],
                 type: "() -> i32"));
 
-        var text = MlirPrinter.Print(module);
+        var text = Printer.Print(module);
 
         Assert.Equal("\"arith.constant\"() {value = 0 : i32} : () -> i32", text);
     }
@@ -83,34 +83,34 @@ public sealed class MlirConstructionTests
     [Fact]
     public void FactoryHelpersSupportRawAndDefaultEmptyLists()
     {
-        var raw = MlirFactory.Raw("tensor<2xi32>");
-        var module = MlirFactory.Module(MlirFactory.Op(name: "\"test.op\""));
+        var raw = Factory.Raw("tensor<2xi32>");
+        var module = Factory.Module(Factory.Op(name: "\"test.op\""));
 
         Assert.Equal("tensor<2xi32>", raw.Text);
-        Assert.Equal("\"test.op\"()", MlirPrinter.Print(module));
+        Assert.Equal("\"test.op\"()", Printer.Print(module));
     }
 
     [Fact]
     public void FormatsProgrammaticallyGeneratedModuleWhenTriviaIsAbsent()
     {
-        var module = MlirFactory.Module(
-            MlirFactory.Op(
+        var module = Factory.Module(
+            Factory.Op(
                 name: "arith.addi",
                 results: ["%sum"],
                 operands: ["%lhs", "%rhs"],
                 type: "(i32, i32) -> i32"),
-            MlirFactory.Op(
+            Factory.Op(
                 name: "scf.if",
                 operands: ["%cond"],
                 regions:
                 [
-                    MlirFactory.Region(
-                        MlirFactory.Block(
+                    Factory.Region(
+                        Factory.Block(
                             "^bb0",
-                            args: [MlirFactory.Arg("%arg0", "i32")],
+                            args: [Factory.Arg("%arg0", "i32")],
                             ops:
                             [
-                                MlirFactory.Op(
+                                Factory.Op(
                                     name: "func.return",
                                     operands: ["%arg0"],
                                     type: "(i32) -> ()")
@@ -118,7 +118,7 @@ public sealed class MlirConstructionTests
                 ],
                 type: "(i1) -> ()"));
 
-        var text = MlirPrinter.Print(module);
+        var text = Printer.Print(module);
 
         Assert.Equal(
             "%sum = \"arith.addi\"(%lhs, %rhs) : (i32, i32) -> i32\n" +

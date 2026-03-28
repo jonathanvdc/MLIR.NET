@@ -9,10 +9,10 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class OperationPrintingContext
 {
-    private readonly MlirSemanticPrinter printer;
+    private readonly SemanticPrinter printer;
     private readonly StringBuilder builder;
 
-    internal OperationPrintingContext(MlirSemanticPrinter printer, StringBuilder builder, int indentLevel, string defaultLeadingTrivia)
+    internal OperationPrintingContext(SemanticPrinter printer, StringBuilder builder, int indentLevel, string defaultLeadingTrivia)
     {
         this.printer = printer;
         this.builder = builder;
@@ -36,7 +36,7 @@ public sealed class OperationPrintingContext
     public void WriteOperationPrefix()
     {
         builder.Append(DefaultLeadingTrivia);
-        MlirPrintWriter.AppendIndent(builder, IndentLevel);
+        PrintWriter.AppendIndent(builder, IndentLevel);
     }
 
     /// <summary>
@@ -52,7 +52,7 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void WriteToken(SyntaxToken token, string defaultLeadingTrivia, int? indentLevel = null)
     {
-        MlirPrintWriter.AppendToken(builder, token, defaultLeadingTrivia, indentLevel);
+        PrintWriter.AppendToken(builder, token, defaultLeadingTrivia, indentLevel);
     }
 
     /// <summary>
@@ -60,7 +60,7 @@ public sealed class OperationPrintingContext
     /// </summary>
     public void WriteRaw(RawSyntaxText rawText, string defaultLeadingTrivia)
     {
-        MlirPrintWriter.AppendRaw(builder, rawText, defaultLeadingTrivia);
+        PrintWriter.AppendRaw(builder, rawText, defaultLeadingTrivia);
     }
 
     /// <summary>

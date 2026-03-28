@@ -6,7 +6,7 @@ using MLIR.Semantics;
 using MLIR.Text;
 using Xunit;
 
-public sealed class MlirSemanticTests
+public sealed class SemanticTests
 {
     private sealed class ArithConstantView : OperationView
     {
@@ -88,8 +88,8 @@ public sealed class MlirSemanticTests
         var registry = new DialectRegistry();
         registry.RegisterDialect(new Dialect("arith", [new OperationDefinition("arith.addi")]));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.addi\"(%lhs, %rhs) : (i32, i32) -> i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.addi\"(%lhs, %rhs) : (i32, i32) -> i32"),
             registry);
 
         var operation = module.Operations[0];
@@ -105,7 +105,7 @@ public sealed class MlirSemanticTests
     [Fact]
     public void LeavesUnknownOperationsUnbound()
     {
-        var module = MlirBinder.BindModule(MlirParser.ParseModule("\"test.unknown\"() : () -> ()"));
+        var module = Binder.BindModule(Parser.ParseModule("\"test.unknown\"() : () -> ()"));
 
         var operation = module.Operations[0];
         Assert.False(operation.IsKnown);
@@ -116,8 +116,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void BindsNestedRegionsBlocksArgumentsAndAttributes()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule(
+        var module = Binder.BindModule(
+            Parser.ParseModule(
                 "\"scf.if\"(%cond) {\n" +
                 "  ^bb0(%arg0: i32):\n" +
                 "    \"func.return\"(%arg0) {value = 1 : i32} : (i32) -> ()\n" +
@@ -150,8 +150,8 @@ public sealed class MlirSemanticTests
                 [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32"),
             registry);
 
         var operation = module.Operations[0];
@@ -168,8 +168,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void BindsTypedSuccessorReferences()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"cf.cond_br\"(%cond) [^then, ^else] : (i1) -> ()"));
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"cf.cond_br\"(%cond) [^then, ^else] : (i1) -> ()"));
 
         var operation = module.Operations[0];
 
@@ -183,7 +183,7 @@ public sealed class MlirSemanticTests
         var registry = new DialectRegistry();
         registry.RegisterDialect(new Dialect("func", [new OperationDefinition("func.return")]));
 
-        var module = MlirDocument.Parse("\"func.return\"() : () -> ()").Bind(registry);
+        var module = Document.Parse("\"func.return\"() : () -> ()").Bind(registry);
 
         Assert.True(module.Operations[0].IsKnown);
         Assert.Equal("func.return", module.Operations[0].Name);
@@ -210,8 +210,8 @@ public sealed class MlirSemanticTests
                             })),
                 ]));
 
-        var module = MlirBinder.BindModule(MlirParser.ParseModule("\"arith.addi\"(%lhs) : (i32) -> i32"), registry);
-        var result = MlirVerifier.Verify(module);
+        var module = Binder.BindModule(Parser.ParseModule("\"arith.addi\"(%lhs) : (i32) -> i32"), registry);
+        var result = Verifier.Verify(module);
 
         Assert.False(result.IsSuccess);
         Assert.Equal(2, result.Diagnostics.Count);
@@ -237,11 +237,11 @@ public sealed class MlirSemanticTests
                         resultCount: 1),
                 ]));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"arith.addi\"(%lhs) : (i32) -> i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"arith.addi\"(%lhs) : (i32) -> i32"),
             registry);
 
-        var result = MlirVerifier.Verify(module);
+        var result = Verifier.Verify(module);
 
         Assert.False(result.IsSuccess);
         Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Message == "'arith.addi' expects exactly 2 operands but found 1.");
@@ -262,11 +262,11 @@ public sealed class MlirSemanticTests
                         requiredAttributes: ["value"]),
                 ]));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() : () -> i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() : () -> i32"),
             registry);
 
-        var result = MlirVerifier.Verify(module);
+        var result = Verifier.Verify(module);
 
         Assert.False(result.IsSuccess);
         Assert.Single(result.Diagnostics);
@@ -291,16 +291,16 @@ public sealed class MlirSemanticTests
                         resultDefinitions: [new OperationSegmentDefinition("result")]),
                 ]));
 
-        var validModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"test.concat\"(%a, %b, %c) : (i32, i32, i32) -> i32"),
+        var validModule = Binder.BindModule(
+            Parser.ParseModule("%0 = \"test.concat\"(%a, %b, %c) : (i32, i32, i32) -> i32"),
             registry);
-        var invalidModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"test.concat\"() : () -> i32"),
+        var invalidModule = Binder.BindModule(
+            Parser.ParseModule("%0 = \"test.concat\"() : () -> i32"),
             registry);
 
-        Assert.True(MlirVerifier.Verify(validModule).IsSuccess);
+        Assert.True(Verifier.Verify(validModule).IsSuccess);
 
-        var invalidResult = MlirVerifier.Verify(invalidModule);
+        var invalidResult = Verifier.Verify(invalidModule);
         Assert.False(invalidResult.IsSuccess);
         Assert.Contains(invalidResult.Diagnostics, diagnostic => diagnostic.Message == "'test.concat' expects at least 1 operand but found 0.");
     }
@@ -323,15 +323,15 @@ public sealed class MlirSemanticTests
                         ]),
                 ]));
 
-        var missingRegionModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"test.branching\"() [^bb0] : () -> ()"),
+        var missingRegionModule = Binder.BindModule(
+            Parser.ParseModule("\"test.branching\"() [^bb0] : () -> ()"),
             registry);
-        var missingSuccessorModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"test.branching\"() {} : () -> ()"),
+        var missingSuccessorModule = Binder.BindModule(
+            Parser.ParseModule("\"test.branching\"() {} : () -> ()"),
             registry);
 
-        var missingRegionResult = MlirVerifier.Verify(missingRegionModule);
-        var missingSuccessorResult = MlirVerifier.Verify(missingSuccessorModule);
+        var missingRegionResult = Verifier.Verify(missingRegionModule);
+        var missingSuccessorResult = Verifier.Verify(missingSuccessorModule);
 
         Assert.Contains(missingRegionResult.Diagnostics, diagnostic => diagnostic.Message == "'test.branching' expects exactly 1 region but found 0.");
         Assert.Contains(missingSuccessorResult.Diagnostics, diagnostic => diagnostic.Message == "'test.branching' expects at least 1 successor but found 0.");
@@ -354,16 +354,16 @@ public sealed class MlirSemanticTests
                         ]),
                 ]));
 
-        var validModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"test.attrs\"() {required = 1 : i32} : () -> ()"),
+        var validModule = Binder.BindModule(
+            Parser.ParseModule("\"test.attrs\"() {required = 1 : i32} : () -> ()"),
             registry);
-        var invalidModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"test.attrs\"() {optional = 1 : i32} : () -> ()"),
+        var invalidModule = Binder.BindModule(
+            Parser.ParseModule("\"test.attrs\"() {optional = 1 : i32} : () -> ()"),
             registry);
 
-        Assert.True(MlirVerifier.Verify(validModule).IsSuccess);
+        Assert.True(Verifier.Verify(validModule).IsSuccess);
 
-        var invalidResult = MlirVerifier.Verify(invalidModule);
+        var invalidResult = Verifier.Verify(invalidModule);
         Assert.False(invalidResult.IsSuccess);
         Assert.Single(invalidResult.Diagnostics);
         Assert.Equal("'test.attrs' requires the 'required' attribute.", invalidResult.Diagnostics[0].Message);
@@ -372,8 +372,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void OperationCanCheckForAttributesByName()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
 
         var operation = module.Operations[0];
 
@@ -384,8 +384,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void OperationCanRetrieveAttributesByName()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
 
         var attribute = module.Operations[0].GetAttribute("value");
 
@@ -396,8 +396,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void OperationViewProvidesTypedWrapperOverSemanticOperation()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
 
         var view = new ArithConstantView(module.Operations[0]);
 
@@ -410,8 +410,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void OperationViewRejectsUnexpectedOperationNames()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"func.return\"() : () -> ()"));
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"func.return\"() : () -> ()"));
 
         var exception = Assert.Throws<ArgumentException>(() => new ArithConstantView(module.Operations[0]));
 
@@ -444,16 +444,16 @@ public sealed class MlirSemanticTests
                         });
                 }));
 
-        var validModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"),
+        var validModule = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"),
             registry);
-        var invalidModule = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"arith.constant\"() : () -> i32"),
+        var invalidModule = Binder.BindModule(
+            Parser.ParseModule("\"arith.constant\"() : () -> i32"),
             registry);
 
         Assert.True(validModule.Operations[0].IsKnown);
 
-        var invalidResult = MlirVerifier.Verify(invalidModule);
+        var invalidResult = Verifier.Verify(invalidModule);
         Assert.False(invalidResult.IsSuccess);
         Assert.Contains(invalidResult.Diagnostics, diagnostic => diagnostic.Message == "'arith.constant' expects exactly 1 result but found 0.");
         Assert.Contains(invalidResult.Diagnostics, diagnostic => diagnostic.Message == "'arith.constant' requires the 'value' attribute.");
@@ -479,8 +479,8 @@ public sealed class MlirSemanticTests
                         });
                 }));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() {value = 0} : () -> i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0} : () -> i32"),
             registry);
 
         Assert.Equal("%0 = arith.constant 0 : () -> i32", module.ToText());
@@ -500,8 +500,8 @@ public sealed class MlirSemanticTests
                         operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"),
             registry);
         var view = new ArithConstantView(module.Operations[0]);
 
@@ -525,8 +525,8 @@ public sealed class MlirSemanticTests
                         operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.constant\"() : () -> i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() : () -> i32"),
             registry);
 
         Assert.Single(module.AssemblyDiagnostics);
@@ -547,8 +547,8 @@ public sealed class MlirSemanticTests
                 [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32"),
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32"),
             registry);
 
         Assert.Single(module.AssemblyDiagnostics);
@@ -559,8 +559,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void SemanticPrinterFallsBackToGenericAssemblyForUnknownOperations()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("\"test.unknown\"(%arg0) : (i32) -> i32"));
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"test.unknown\"(%arg0) : (i32) -> i32"));
 
         Assert.Equal("\"test.unknown\"(%arg0) : (i32) -> i32", module.ToText());
     }
@@ -579,8 +579,8 @@ public sealed class MlirSemanticTests
                         operation => operation.WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule(
+        var module = Binder.BindModule(
+            Parser.ParseModule(
                 "\"scf.if\"(%cond) {\n" +
                 "  %0 = \"arith.constant\"() {value = 0} : () -> i32\n" +
                 "  \"func.return\"(%0) : (i32) -> ()\n" +
@@ -615,14 +615,14 @@ public sealed class MlirSemanticTests
                             })),
                 ]));
 
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule(
+        var module = Binder.BindModule(
+            Parser.ParseModule(
                 "\"scf.if\"(%cond) {\n" +
                 "  \"func.return\"() : () -> ()\n" +
                 "} : (i1) -> ()"),
             registry);
 
-        var result = MlirVerifier.Verify(module);
+        var result = Verifier.Verify(module);
 
         Assert.False(result.IsSuccess);
         Assert.Single(result.Diagnostics);
@@ -635,8 +635,8 @@ public sealed class MlirSemanticTests
     [Fact]
     public void SemanticReferencesExposeSourceLocations()
     {
-        var module = MlirBinder.BindModule(
-            MlirParser.ParseModule("%0 = \"arith.addi\"(%lhs, %rhs) [^bb1] : (i32, i32) -> i32"));
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.addi\"(%lhs, %rhs) [^bb1] : (i32, i32) -> i32"));
 
         var operation = module.Operations[0];
 
