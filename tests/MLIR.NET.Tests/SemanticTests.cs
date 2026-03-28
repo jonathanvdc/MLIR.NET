@@ -120,6 +120,36 @@ public sealed class SemanticTests
         }
     }
 
+    private sealed class DenseAttributeValue : AttributeValue
+    {
+        public DenseAttributeValue(AttributeValueConstructionContext context)
+            : base(context.Syntax, context.Name, context.Definition, context.Location)
+        {
+        }
+
+        public string? Kind { get; private set; }
+
+        public void BindDense()
+        {
+            Kind = "dense";
+        }
+    }
+
+    private sealed class BuiltinIntegerTypeReference : TypeReference
+    {
+        public BuiltinIntegerTypeReference(TypeReferenceConstructionContext context)
+            : base(context.Syntax, context.Name, context.Definition, context.Location)
+        {
+        }
+
+        public int? Width { get; private set; }
+
+        public void BindWidth(int width)
+        {
+            Width = width;
+        }
+    }
+
     private sealed class GeneratedAddIOperation : Operation
     {
         private static readonly IReadOnlyList<Region> EmptyRegions = [];
@@ -208,7 +238,11 @@ public sealed class SemanticTests
     {
         public void Bind(AttributeValue attribute, AttributeAssemblyBindingContext context)
         {
-            context.SetProperty("kind", "dense");
+            if (attribute is DenseAttributeValue denseAttribute)
+            {
+                denseAttribute.BindDense();
+            }
+
             if (!attribute.Syntax.Text.Contains("tensor<"))
             {
                 context.Report("dense attribute literals should mention a tensor type.");
@@ -220,7 +254,10 @@ public sealed class SemanticTests
     {
         public void Bind(TypeReference type, TypeAssemblyBindingContext context)
         {
-            context.SetProperty("width", int.Parse(type.Name![1..]));
+            if (type is BuiltinIntegerTypeReference integerType)
+            {
+                integerType.BindWidth(int.Parse(type.Name![1..]));
+            }
         }
     }
 
@@ -319,8 +356,8 @@ public sealed class SemanticTests
             new Dialect(
                 "builtin",
                 [],
-                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
+                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat(), static context => new DenseAttributeValue(context))],
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
 
         var module = Binder.BindModule(
             Parser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32"),
@@ -330,11 +367,11 @@ public sealed class SemanticTests
 
         Assert.True(operation.Attributes[0].ValueReference.IsKnown);
         Assert.Equal("dense", operation.Attributes[0].ValueReference.Name);
-        Assert.Equal("dense", operation.Attributes[0].ValueReference.GetProperty<string>("kind"));
+        Assert.Equal("dense", Assert.IsType<DenseAttributeValue>(operation.Attributes[0].ValueReference).Kind);
         Assert.NotNull(operation.TypeSignatureReference);
         Assert.True(operation.TypeSignatureReference!.IsKnown);
         Assert.Equal("i32", operation.TypeSignatureReference.Name);
-        Assert.Equal(32, operation.TypeSignatureReference.GetProperty<int>("width"));
+        Assert.Equal(32, Assert.IsType<BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
     }
 
     [Fact]
@@ -748,7 +785,7 @@ public sealed class SemanticTests
     }
 
     [Fact]
-    public void AssemblyBindingCanPopulateTypedSemanticProperties()
+    public void AssemblyBindingCanPopulateTypedSemanticState()
     {
         var registry = new DialectRegistry();
         registry.RegisterDialect(CreateArithConstantDialect());
@@ -798,8 +835,8 @@ public sealed class SemanticTests
             new Dialect(
                 "builtin",
                 [],
-                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
+                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat(), static context => new DenseAttributeValue(context))],
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
 
         var module = Binder.BindModule(
             Parser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32"),

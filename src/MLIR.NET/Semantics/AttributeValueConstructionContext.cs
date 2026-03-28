@@ -4,14 +4,11 @@ using MLIR.Dialects;
 using MLIR.Syntax;
 
 /// <summary>
-/// Represents a semantic attribute value bound from raw syntax text.
+/// Carries the shared semantic state needed to construct a typed attribute value node.
 /// </summary>
-public abstract class AttributeValue
+public sealed class AttributeValueConstructionContext
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AttributeValue"/> class.
-    /// </summary>
-    protected AttributeValue(RawSyntaxText syntax, string? name, AttributeDefinition? definition, SourceLocation location)
+    internal AttributeValueConstructionContext(RawSyntaxText syntax, string? name, AttributeDefinition definition, SourceLocation location)
     {
         Syntax = syntax;
         Name = name;
@@ -30,14 +27,9 @@ public abstract class AttributeValue
     public string? Name { get; }
 
     /// <summary>
-    /// Gets the registered definition, if one exists.
+    /// Gets the registered attribute definition.
     /// </summary>
-    public AttributeDefinition? Definition { get; }
-
-    /// <summary>
-    /// Gets a value indicating whether the attribute value was recognized by a registered dialect.
-    /// </summary>
-    public bool IsKnown => Definition != null;
+    public AttributeDefinition Definition { get; }
 
     /// <summary>
     /// Gets the source location of the attribute value, if known.

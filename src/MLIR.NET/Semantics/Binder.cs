@@ -164,9 +164,18 @@ public static class Binder
             dialectRegistry.TryGetAttribute(canonicalName, out definition);
         }
 
-        var properties = new Dictionary<string, object?>();
-        var attribute = new AttributeValue(syntax, canonicalName, definition, SourceLocation.FromToken(nameToken), properties);
-        definition?.AssemblyFormat?.Bind(attribute, new AttributeAssemblyBindingContext(attribute, diagnostics, properties));
+        AttributeValue attribute;
+        var location = SourceLocation.FromToken(nameToken);
+        if (definition != null)
+        {
+            attribute = definition.Factory(new AttributeValueConstructionContext(syntax, canonicalName, definition, location));
+            definition.AssemblyFormat?.Bind(attribute, new AttributeAssemblyBindingContext(attribute, diagnostics));
+        }
+        else
+        {
+            attribute = new UnknownAttributeValue(syntax, canonicalName, definition, location);
+        }
+
         return attribute;
     }
 
@@ -179,9 +188,17 @@ public static class Binder
             dialectRegistry.TryGetType(canonicalName, out definition);
         }
 
-        var properties = new Dictionary<string, object?>();
-        var type = new TypeReference(syntax, canonicalName, definition, location, properties);
-        definition?.AssemblyFormat?.Bind(type, new TypeAssemblyBindingContext(type, diagnostics, properties));
+        TypeReference type;
+        if (definition != null)
+        {
+            type = definition.Factory(new TypeReferenceConstructionContext(syntax, canonicalName, definition, location));
+            definition.AssemblyFormat?.Bind(type, new TypeAssemblyBindingContext(type, diagnostics));
+        }
+        else
+        {
+            type = new UnknownTypeReference(syntax, canonicalName, definition, location);
+        }
+
         return type;
     }
 
