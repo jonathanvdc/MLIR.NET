@@ -24,6 +24,7 @@ public sealed class OdsDialectImporterTests
             "\n" +
             "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
             "  let summary = \"integer constant\";\n" +
+            "  let description = [{Produces a constant integer value.}];\n" +
             "  let arguments = (ins I32Attr:$value);\n" +
             "  let results = (outs I32:$result);\n" +
             "  let assemblyFormat = \"$value attr-dict\";\n" +
@@ -55,6 +56,8 @@ public sealed class OdsDialectImporterTests
         Assert.Equal(["Pure"], constantOp.Traits);
         Assert.Equal("$value attr-dict", constantOp.AssemblyFormat);
         Assert.True(constantOp.HasCustomAssemblyFormat);
+        Assert.Equal("integer constant", constantOp.Summary);
+        Assert.Contains("Produces a constant integer value", constantOp.Description);
 
         Assert.Equal("MiniArith_AddIOp", addiOp.ClassName);
         Assert.Equal(["lhs", "rhs"], addiOp.Operands);
