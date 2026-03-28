@@ -24,12 +24,12 @@ public sealed class MlirParser
     /// </summary>
     /// <param name="source">The MLIR source text.</param>
     /// <returns>The parsed module syntax.</returns>
-    public static MlirModuleSyntax ParseModule(string source)
+    public static ModuleSyntax ParseModule(string source)
     {
         return new MlirParser(source).ParseModuleCore();
     }
 
-    private MlirModuleSyntax ParseModuleCore()
+    private ModuleSyntax ParseModuleCore()
     {
         var operations = new List<OperationSyntax>();
         while (!Is(MlirTokenKind.EndOfFile))
@@ -38,7 +38,7 @@ public sealed class MlirParser
             EnsureOperationBoundary(false);
         }
 
-        return new MlirModuleSyntax(operations, ToSyntaxToken(ConsumeToken()));
+        return new ModuleSyntax(operations, ToSyntaxToken(ConsumeToken()));
     }
 
     private OperationSyntax ParseOperation()

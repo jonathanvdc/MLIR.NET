@@ -13,7 +13,7 @@ public sealed class MlirPrinter
     /// </summary>
     /// <param name="module">The module to print.</param>
     /// <returns>The printed MLIR text.</returns>
-    public static string Print(MlirModuleSyntax module)
+    public static string Print(ModuleSyntax module)
     {
         var builder = new StringBuilder();
         for (var i = 0; i < module.Operations.Count; i++)

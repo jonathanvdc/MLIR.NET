@@ -12,7 +12,7 @@ public sealed class MlirDocument
     /// Initializes a new instance of the <see cref="MlirDocument"/> class.
     /// </summary>
     /// <param name="module">The root module syntax.</param>
-    public MlirDocument(MlirModuleSyntax module)
+    public MlirDocument(ModuleSyntax module)
     {
         Module = module;
     }
@@ -20,7 +20,7 @@ public sealed class MlirDocument
     /// <summary>
     /// Gets the root module syntax.
     /// </summary>
-    public MlirModuleSyntax Module { get; }
+    public ModuleSyntax Module { get; }
 
     /// <summary>
     /// Parses MLIR text into a document.

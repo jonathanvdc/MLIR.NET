@@ -13,9 +13,9 @@ public static class MlirFactory
     /// </summary>
     /// <param name="operations">The top-level operations.</param>
     /// <returns>A module syntax node.</returns>
-    public static MlirModuleSyntax Module(params OperationSyntax[] operations)
+    public static ModuleSyntax Module(params OperationSyntax[] operations)
     {
-        return new MlirModuleSyntax(operations);
+        return new ModuleSyntax(operations);
     }
 
     /// <summary>
