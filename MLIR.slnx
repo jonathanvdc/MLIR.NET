@@ -9,7 +9,7 @@
     <Project Path="samples/GeneratedDialectConsumer/GeneratedDialectConsumer.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/MLIR.GeneratedIntegrationTests/MLIR.GeneratedIntegrationTests.csproj" />
+    <Project Path="tests/DialectTests/DialectTests.csproj" />
     <Project Path="tests/MLIR.Generators.Tests/MLIR.Generators.Tests.csproj" />
     <Project Path="tests/MLIR.Tests/MLIR.Tests.csproj" />
     <Project Path="tests/TableGen.Tests/TableGen.Tests.csproj" />

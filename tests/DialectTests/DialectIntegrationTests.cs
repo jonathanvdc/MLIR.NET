@@ -1,10 +1,11 @@
-namespace MLIR.GeneratedIntegrationTests;
+namespace DialectTests;
 
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Generated.Arith;
 using Xunit;
 
-public sealed class GeneratedDialectIntegrationTests
+public sealed class DialectIntegrationTests
 {
     [Fact]
     public void GeneratedDialectRegistrationExposesTypedDefinitions()
