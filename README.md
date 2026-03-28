@@ -1,6 +1,6 @@
-# MLIR
+# MLIR.NET
 
-`MLIR` is a C#/.NET project for working with [MLIR](https://mlir.llvm.org/) text and dialect descriptions.
+MLIR.NET is a C#/.NET project for working with [MLIR](https://mlir.llvm.org/) text and dialect descriptions.
 
 At a high level, this repository aims to provide two things:
 
