@@ -5,7 +5,12 @@ using System.Collections.Generic;
 /// <summary>
 /// Represents the top-level generic MLIR concrete syntax tree.
 /// </summary>
-public sealed class ModuleSyntax
+/// <remarks>
+/// Initializes a new instance of the <see cref="ModuleSyntax"/> class.
+/// </remarks>
+/// <param name="operations">The top-level operations in the module.</param>
+/// <param name="endOfFileToken">The end-of-file token that carries any trailing trivia.</param>
+public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, SyntaxToken endOfFileToken)
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ModuleSyntax"/> class.
@@ -17,23 +22,12 @@ public sealed class ModuleSyntax
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ModuleSyntax"/> class.
-    /// </summary>
-    /// <param name="operations">The top-level operations in the module.</param>
-    /// <param name="endOfFileToken">The end-of-file token that carries any trailing trivia.</param>
-    public ModuleSyntax(IReadOnlyList<OperationSyntax> operations, SyntaxToken endOfFileToken)
-    {
-        Operations = operations;
-        EndOfFileToken = endOfFileToken;
-    }
-
-    /// <summary>
     /// Gets the top-level operations in the module.
     /// </summary>
-    public IReadOnlyList<OperationSyntax> Operations { get; }
+    public IReadOnlyList<OperationSyntax> Operations { get; } = operations;
 
     /// <summary>
     /// Gets the end-of-file token that carries trailing trivia.
     /// </summary>
-    public SyntaxToken EndOfFileToken { get; }
+    public SyntaxToken EndOfFileToken { get; } = endOfFileToken;
 }
