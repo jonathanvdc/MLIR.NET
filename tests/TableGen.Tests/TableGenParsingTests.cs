@@ -70,6 +70,25 @@ public sealed class TableGenParsingTests
     }
 
     [Fact]
+    public void ParsesCodeBlockStringLiterals()
+    {
+        const string source =
+            "def Example {\n" +
+            "  string Description = [{Line one.\n" +
+            "Line two.\n" +
+            "}];\n" +
+            "};";
+
+        var document = TableGenDocument.Parse(source);
+        var def = Assert.IsType<TableGenDefSyntax>(document.Syntax.Declarations[0]);
+        var field = Assert.IsType<TableGenFieldSyntax>(def.BodyItems[0]);
+        var value = Assert.IsType<TableGenStringSyntax>(field.Initializer);
+
+        Assert.Contains("Line one.", value.Value);
+        Assert.Contains("Line two.", value.Value);
+    }
+
+    [Fact]
     public void ReportsUnexpectedTopLevelTokens()
     {
         var exception = Assert.Throws<TableGenParseException>(() => TableGenDocument.Parse("int Width = 1;"));

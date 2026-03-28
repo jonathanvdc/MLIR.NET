@@ -16,13 +16,13 @@ public static class OdsDialectImporter
     /// Imports dialect models from an interpreted TableGen document.
     /// </summary>
     /// <remarks>
-    /// The currently supported subset is convention-based rather than full MLIR ODS. Records are
-    /// grouped by a required <c>DialectName</c> string field, and may describe one of:
+    /// The currently supported subset recognizes ODS-style records by inherited bases and common
+    /// field names. Records may describe one of:
     /// <list type="bullet">
-    /// <item><description>a dialect definition with optional <c>DialectClassName</c></description></item>
-    /// <item><description>an operation with <c>OperationName</c>, optional <c>ClassName</c>, optional <c>Operands</c>/<c>Results</c>/<c>Attributes</c> string lists, and optional <c>HasCustomAssemblyFormat</c> bit</description></item>
-    /// <item><description>an attribute with <c>AttributeName</c> and optional <c>ClassName</c></description></item>
-    /// <item><description>a type with <c>TypeName</c> and optional <c>ClassName</c></description></item>
+    /// <item><description>a dialect definition derived from <c>Dialect</c> with fields such as <c>name</c>, <c>cppNamespace</c>, <c>summary</c>, <c>description</c>, and <c>hasConstantMaterializer</c></description></item>
+    /// <item><description>an operation derived from <c>Op</c> with fields such as <c>dialectName</c>, <c>mnemonic</c>, optional <c>cppClassName</c>, optional <c>operands</c>/<c>results</c>/<c>attributes</c>, and optional <c>hasCustomAssemblyFormat</c></description></item>
+    /// <item><description>an attribute derived from <c>AttrDef</c> with fields such as <c>dialectName</c>, <c>attrName</c>, and optional <c>cppClassName</c></description></item>
+    /// <item><description>a type derived from <c>TypeDef</c> with fields such as <c>dialectName</c>, <c>typeName</c>, and optional <c>cppClassName</c></description></item>
     /// </list>
     /// Unsupported records are ignored for now.
     /// </remarks>
@@ -31,50 +31,52 @@ public static class OdsDialectImporter
         var dialectsByName = new Dictionary<string, MutableDialectModel>(StringComparer.Ordinal);
         foreach (var record in document.Records)
         {
-            if (!TryGetStringField(record, "DialectName", out var dialectName))
+            if (record.HasBaseClass("Dialect") && TryGetStringField(record, "name", out var definedDialectName))
             {
-                continue;
-            }
-
-            if (!dialectsByName.TryGetValue(dialectName, out var dialect))
-            {
-                dialect = new MutableDialectModel(dialectName);
-                dialectsByName.Add(dialectName, dialect);
-            }
-
-            if (!HasMemberDefinition(record))
-            {
-                var dialectClassName = GetOptionalStringField(record, "DialectClassName");
-                if (dialectClassName != null)
+                if (!dialectsByName.TryGetValue(definedDialectName, out var dialect))
                 {
-                    dialect.ClassName = dialectClassName;
+                    dialect = new MutableDialectModel(definedDialectName);
+                    dialectsByName.Add(definedDialectName, dialect);
                 }
 
+                dialect.CppNamespace = GetOptionalStringField(record, "cppNamespace");
+                dialect.Summary = GetOptionalStringField(record, "summary");
+                dialect.Description = GetOptionalStringField(record, "description");
+                dialect.HasConstantMaterializer = GetOptionalBitField(record, "hasConstantMaterializer");
                 continue;
             }
 
-            if (TryGetStringField(record, "OperationName", out var operationName))
+            if (record.HasBaseClass("Op")
+                && TryGetStringField(record, "dialectName", out var opDialectName)
+                && TryGetStringField(record, "mnemonic", out var mnemonic))
             {
+                var dialect = GetOrCreateDialect(dialectsByName, opDialectName);
                 dialect.Operations.Add(
                     new OdsOperationModel(
-                        operationName,
-                        GetOptionalStringField(record, "ClassName"),
-                        GetStringListField(record, "Operands"),
-                        GetStringListField(record, "Results"),
-                        GetStringListField(record, "Attributes"),
-                        GetOptionalBitField(record, "HasCustomAssemblyFormat")));
+                        opDialectName + "." + mnemonic,
+                        GetOptionalStringField(record, "cppClassName"),
+                        GetStringListField(record, "operands"),
+                        GetStringListField(record, "results"),
+                        GetStringListField(record, "attributes"),
+                        GetOptionalBitField(record, "hasCustomAssemblyFormat")));
                 continue;
             }
 
-            if (TryGetStringField(record, "AttributeName", out var attributeName))
+            if (record.HasBaseClass("AttrDef")
+                && TryGetStringField(record, "dialectName", out var attrDialectName)
+                && TryGetStringField(record, "attrName", out var attributeName))
             {
-                dialect.Attributes.Add(new OdsAttributeModel(attributeName, GetOptionalStringField(record, "ClassName")));
+                var dialect = GetOrCreateDialect(dialectsByName, attrDialectName);
+                dialect.Attributes.Add(new OdsAttributeModel(attributeName, GetOptionalStringField(record, "cppClassName")));
                 continue;
             }
 
-            if (TryGetStringField(record, "TypeName", out var typeName))
+            if (record.HasBaseClass("TypeDef")
+                && TryGetStringField(record, "dialectName", out var typeDialectName)
+                && TryGetStringField(record, "typeName", out var typeName))
             {
-                dialect.Types.Add(new OdsTypeModel(typeName, GetOptionalStringField(record, "ClassName")));
+                var dialect = GetOrCreateDialect(dialectsByName, typeDialectName);
+                dialect.Types.Add(new OdsTypeModel(typeName, GetOptionalStringField(record, "cppClassName")));
             }
         }
 
@@ -84,11 +86,17 @@ public static class OdsDialectImporter
             .ToArray();
     }
 
-    private static bool HasMemberDefinition(TableGenRecord record)
+    private static MutableDialectModel GetOrCreateDialect(
+        IDictionary<string, MutableDialectModel> dialectsByName,
+        string dialectName)
     {
-        return record.Fields.ContainsKey("OperationName")
-            || record.Fields.ContainsKey("AttributeName")
-            || record.Fields.ContainsKey("TypeName");
+        if (!dialectsByName.TryGetValue(dialectName, out var dialect))
+        {
+            dialect = new MutableDialectModel(dialectName);
+            dialectsByName.Add(dialectName, dialect);
+        }
+
+        return dialect;
     }
 
     private static bool TryGetStringField(TableGenRecord record, string fieldName, out string value)
@@ -152,14 +160,17 @@ public static class OdsDialectImporter
         }
 
         public string Name { get; }
-        public string? ClassName { get; set; }
+        public string? CppNamespace { get; set; }
+        public string? Summary { get; set; }
+        public string? Description { get; set; }
+        public bool HasConstantMaterializer { get; set; }
         public List<OdsOperationModel> Operations { get; } = new List<OdsOperationModel>();
         public List<OdsAttributeModel> Attributes { get; } = new List<OdsAttributeModel>();
         public List<OdsTypeModel> Types { get; } = new List<OdsTypeModel>();
 
         public OdsDialectModel ToImmutable()
         {
-            return new OdsDialectModel(Name, ClassName, Operations, Attributes, Types);
+            return new OdsDialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, Types);
         }
     }
 

@@ -59,6 +59,12 @@ internal static class TableGenLexer
                     continue;
                 }
 
+                if (current == '[' && Peek(1) == '{')
+                {
+                    tokens.Add(new TableGenToken(TableGenTokenKind.CodeBlock, ReadCodeBlockLiteral(), tokenStart, tokenLine, tokenColumn));
+                    continue;
+                }
+
                 Advance();
                 tokens.Add(new TableGenToken(GetPunctuationKind(current), current.ToString(), tokenStart, tokenLine, tokenColumn));
             }
@@ -185,6 +191,28 @@ internal static class TableGenLexer
 
             Advance();
             return builder.ToString();
+        }
+
+        private string ReadCodeBlockLiteral()
+        {
+            var builder = new StringBuilder();
+            Advance();
+            Advance();
+
+            while (!IsAtEnd)
+            {
+                if (Current == '}' && Peek(1) == ']')
+                {
+                    Advance();
+                    Advance();
+                    return builder.ToString();
+                }
+
+                builder.Append(Current);
+                Advance();
+            }
+
+            throw Error("Unterminated code block literal.");
         }
 
         private TableGenTokenKind GetKeywordKind(string text)

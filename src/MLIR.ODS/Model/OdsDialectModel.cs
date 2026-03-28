@@ -12,13 +12,19 @@ public sealed class OdsDialectModel
     /// </summary>
     public OdsDialectModel(
         string name,
-        string? className = null,
+        string? cppNamespace = null,
+        string? summary = null,
+        string? description = null,
+        bool hasConstantMaterializer = false,
         IReadOnlyList<OdsOperationModel>? operations = null,
         IReadOnlyList<OdsAttributeModel>? attributes = null,
         IReadOnlyList<OdsTypeModel>? types = null)
     {
         Name = name;
-        ClassName = className;
+        CppNamespace = cppNamespace;
+        Summary = summary;
+        Description = description;
+        HasConstantMaterializer = hasConstantMaterializer;
         Operations = operations ?? EmptyOperations;
         Attributes = attributes ?? EmptyAttributes;
         Types = types ?? EmptyTypes;
@@ -30,9 +36,24 @@ public sealed class OdsDialectModel
     public string Name { get; }
 
     /// <summary>
-    /// Gets the generated registration class name, if the dialect definition specified one.
+    /// Gets the dialect's C++ namespace, if known.
     /// </summary>
-    public string? ClassName { get; }
+    public string? CppNamespace { get; }
+
+    /// <summary>
+    /// Gets the dialect summary, if known.
+    /// </summary>
+    public string? Summary { get; }
+
+    /// <summary>
+    /// Gets the dialect description, if known.
+    /// </summary>
+    public string? Description { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the dialect reports a constant materializer.
+    /// </summary>
+    public bool HasConstantMaterializer { get; }
 
     /// <summary>
     /// Gets the operation descriptions defined by the dialect.

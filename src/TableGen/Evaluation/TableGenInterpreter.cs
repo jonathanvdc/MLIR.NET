@@ -49,9 +49,31 @@ public static class TableGenInterpreter
         {
             var scope = new Dictionary<string, TableGenValue>();
             var fields = new Dictionary<string, TableGenValue>();
+            var baseClasses = new List<string>();
+            var seenBaseClasses = new HashSet<string>();
+            CollectBaseClasses(definition.Bases, seenBaseClasses, baseClasses);
             ApplyBases(definition.Bases, scope, fields);
             ApplyBody(definition.BodyItems, scope, fields);
-            return new TableGenRecord(definition.Name, fields);
+            return new TableGenRecord(definition.Name, baseClasses, fields);
+        }
+
+        private void CollectBaseClasses(
+            IReadOnlyList<TableGenBaseSyntax> bases,
+            HashSet<string> seenBaseClasses,
+            List<string> baseClasses)
+        {
+            foreach (var @base in bases)
+            {
+                if (seenBaseClasses.Add(@base.Name))
+                {
+                    baseClasses.Add(@base.Name);
+                }
+
+                if (classes.TryGetValue(@base.Name, out var classSyntax))
+                {
+                    CollectBaseClasses(classSyntax.Bases, seenBaseClasses, baseClasses);
+                }
+            }
         }
 
         private void ApplyBases(

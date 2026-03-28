@@ -11,16 +11,22 @@ internal static class OdsDialectGeneratorModel
         var operations = new List<OdsOperationModel>();
         var attributes = new List<OdsAttributeModel>();
         var types = new List<OdsTypeModel>();
-        string? className = null;
+        string? cppNamespace = null;
+        string? summary = null;
+        string? description = null;
+        var hasConstantMaterializer = false;
 
         foreach (var dialect in group)
         {
-            className ??= dialect.ClassName;
+            cppNamespace ??= dialect.CppNamespace;
+            summary ??= dialect.Summary;
+            description ??= dialect.Description;
+            hasConstantMaterializer |= dialect.HasConstantMaterializer;
             operations.AddRange(dialect.Operations);
             attributes.AddRange(dialect.Attributes);
             types.AddRange(dialect.Types);
         }
 
-        return new OdsDialectModel(group.Key, className, operations, attributes, types);
+        return new OdsDialectModel(group.Key, cppNamespace, summary, description, hasConstantMaterializer, operations, attributes, types);
     }
 }

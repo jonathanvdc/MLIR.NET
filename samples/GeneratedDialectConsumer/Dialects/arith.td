@@ -1,25 +1,53 @@
-def ArithDialect {
-  string DialectName = "arith";
-  string DialectClassName = "ArithDialectRegistration";
+class Dialect {
+  string name;
+  string cppNamespace;
+  string summary;
+  string description;
+  bit hasConstantMaterializer = 0;
 };
 
-def AddI {
-  string DialectName = "arith";
-  string OperationName = "arith.addi";
-  string ClassName = "AddIOperation";
-  list<string> Operands = ["lhs", "rhs"];
-  list<string> Results = ["result"];
-  bit HasCustomAssemblyFormat = 1;
+class Op<string dialectName, string mnemonic> {
+  string dialectName = dialectName;
+  string mnemonic = mnemonic;
+  string cppClassName;
+  list<string> operands;
+  list<string> results;
+  bit hasCustomAssemblyFormat = 0;
 };
 
-def FastMathAttr {
-  string DialectName = "arith";
-  string AttributeName = "fastmath";
-  string ClassName = "FastMathAttributeValue";
+class AttrDef<string dialectName, string attrName> {
+  string dialectName = dialectName;
+  string attrName = attrName;
+  string cppClassName;
 };
 
-def I32Type {
-  string DialectName = "arith";
-  string TypeName = "i32";
-  string ClassName = "I32TypeReference";
+class TypeDef<string dialectName, string typeName> {
+  string dialectName = dialectName;
+  string typeName = typeName;
+  string cppClassName;
+};
+
+def Arith_Dialect : Dialect {
+  let name = "arith";
+  let cppNamespace = "::mlir::arith";
+  let summary = "Arithmetic dialect";
+  let description = [{
+    This dialect defines basic integer and floating point arithmetic ops.
+  }];
+  let hasConstantMaterializer = 1;
+};
+
+def AddIOp : Op<"arith", "addi"> {
+  let cppClassName = "AddIOperation";
+  let operands = ["lhs", "rhs"];
+  let results = ["result"];
+  let hasCustomAssemblyFormat = 1;
+};
+
+def FastMathAttr : AttrDef<"arith", "fastmath"> {
+  let cppClassName = "FastMathAttributeValue";
+};
+
+def I32Type : TypeDef<"arith", "i32"> {
+  let cppClassName = "I32TypeReference";
 };

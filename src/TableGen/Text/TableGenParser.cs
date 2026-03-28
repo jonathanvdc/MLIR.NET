@@ -219,6 +219,11 @@ internal sealed class TableGenParser
             return new TableGenStringSyntax(stringToken.Text);
         }
 
+        if (TryMatch(TableGenTokenKind.CodeBlock, out var codeBlockToken))
+        {
+            return new TableGenStringSyntax(codeBlockToken.Text);
+        }
+
         if (TryMatch(TableGenTokenKind.Identifier, out var identifierToken))
         {
             return new TableGenIdentifierSyntax(identifierToken.Text);

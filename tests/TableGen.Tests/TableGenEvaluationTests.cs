@@ -46,6 +46,7 @@ public sealed class TableGenEvaluationTests
 
         Assert.Equal(new[] { 1, 2, 3 }, values.Items.Cast<IntegerValue>().Select(static item => item.Value).ToArray());
         Assert.Equal("wrapped", Assert.IsType<StringValue>(record.GetField("Tag")).Value);
+        Assert.Equal(["Wrapper", "Numbers"], record.BaseClasses);
     }
 
     [Fact]
@@ -109,6 +110,19 @@ public sealed class TableGenEvaluationTests
         Assert.Equal(2, document.Records.Count);
         Assert.Equal(1, Assert.IsType<IntegerValue>(document.Records[0].GetField("Width")).Value);
         Assert.Equal(2, Assert.IsType<IntegerValue>(document.Records[1].GetField("Width")).Value);
+    }
+
+    [Fact]
+    public void EvaluatesCodeBlockStrings()
+    {
+        const string source =
+            "def Example {\n" +
+            "  string Description = [{Hello from a code block.}];\n" +
+            "};";
+
+        var record = TableGenTestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("Hello from a code block.", Assert.IsType<StringValue>(record.GetField("Description")).Value);
     }
 
     [Fact]

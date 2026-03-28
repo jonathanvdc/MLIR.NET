@@ -6,6 +6,7 @@ internal enum TableGenTokenKind
     Identifier,
     Integer,
     String,
+    CodeBlock,
     ClassKeyword,
     DefKeyword,
     LetKeyword,

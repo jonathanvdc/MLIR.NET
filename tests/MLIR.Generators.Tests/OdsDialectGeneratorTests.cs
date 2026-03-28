@@ -10,27 +10,43 @@ public sealed class OdsDialectGeneratorTests
     public void GeneratesDialectRegistrationTypedNodesAndCustomAssemblyStubs()
     {
         const string source =
-            "def ArithDialect {\n" +
-            "  string DialectName = \"arith\";\n" +
-            "  string DialectClassName = \"ArithDialectRegistration\";\n" +
+            "class Dialect {\n" +
+            "  string name;\n" +
+            "  string cppNamespace;\n" +
             "};\n" +
-            "def AddI {\n" +
-            "  string DialectName = \"arith\";\n" +
-            "  string OperationName = \"arith.addi\";\n" +
-            "  string ClassName = \"AddIOperation\";\n" +
-            "  list<string> Operands = [\"lhs\", \"rhs\"];\n" +
-            "  list<string> Results = [\"result\"];\n" +
-            "  bit HasCustomAssemblyFormat = 1;\n" +
+            "class Op<string dialectName, string mnemonic> {\n" +
+            "  string dialectName = dialectName;\n" +
+            "  string mnemonic = mnemonic;\n" +
+            "  string cppClassName;\n" +
+            "  list<string> operands;\n" +
+            "  list<string> results;\n" +
+            "  bit hasCustomAssemblyFormat = 0;\n" +
             "};\n" +
-            "def FastMathAttr {\n" +
-            "  string DialectName = \"arith\";\n" +
-            "  string AttributeName = \"fastmath\";\n" +
-            "  string ClassName = \"FastMathAttributeValue\";\n" +
+            "class AttrDef<string dialectName, string attrName> {\n" +
+            "  string dialectName = dialectName;\n" +
+            "  string attrName = attrName;\n" +
+            "  string cppClassName;\n" +
             "};\n" +
-            "def I32Type {\n" +
-            "  string DialectName = \"arith\";\n" +
-            "  string TypeName = \"i32\";\n" +
-            "  string ClassName = \"I32TypeReference\";\n" +
+            "class TypeDef<string dialectName, string typeName> {\n" +
+            "  string dialectName = dialectName;\n" +
+            "  string typeName = typeName;\n" +
+            "  string cppClassName;\n" +
+            "};\n" +
+            "def Arith_Dialect : Dialect {\n" +
+            "  let name = \"arith\";\n" +
+            "  let cppNamespace = \"::mlir::arith\";\n" +
+            "};\n" +
+            "def AddIOp : Op<\"arith\", \"addi\"> {\n" +
+            "  let cppClassName = \"AddIOperation\";\n" +
+            "  let operands = [\"lhs\", \"rhs\"];\n" +
+            "  let results = [\"result\"];\n" +
+            "  let hasCustomAssemblyFormat = 1;\n" +
+            "};\n" +
+            "def FastMathAttr : AttrDef<\"arith\", \"fastmath\"> {\n" +
+            "  let cppClassName = \"FastMathAttributeValue\";\n" +
+            "};\n" +
+            "def I32Type : TypeDef<\"arith\", \"i32\"> {\n" +
+            "  let cppClassName = \"I32TypeReference\";\n" +
             "};";
 
         var generatedSources = GeneratorTestHelpers.RunGenerator(
