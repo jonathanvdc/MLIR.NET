@@ -118,6 +118,8 @@ public sealed class MlirPrinter
 
     private static void AppendBlock(StringBuilder builder, BlockSyntax block, int regionIndentLevel)
     {
+        // Synthetic entry blocks are a parser implementation detail. Omit their labels when
+        // printing unless the block carries arguments that require an explicit header.
         var blockHasExplicitLabel = block.Label != "^entry" || block.Arguments.Count > 0;
         var blockIndentLevel = regionIndentLevel + 1;
 

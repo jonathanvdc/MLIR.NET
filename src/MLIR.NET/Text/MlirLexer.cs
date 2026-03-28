@@ -2,8 +2,17 @@ namespace MLIR.Text;
 
 using System.Collections.Generic;
 
+/// <summary>
+/// Tokenizes generic MLIR syntax while preserving leading trivia on every token.
+/// </summary>
 internal static class MlirLexer
 {
+    /// <summary>
+    /// Lexes MLIR source text into a token stream.
+    /// </summary>
+    /// <param name="source">The source text to tokenize.</param>
+    /// <returns>The resulting token stream, including an end-of-file token.</returns>
+    /// <exception cref="MlirParseException">Thrown when the source contains invalid lexical syntax.</exception>
     public static IReadOnlyList<MlirToken> Lex(string source)
     {
         var tokens = new List<MlirToken>();
@@ -14,9 +23,9 @@ internal static class MlirLexer
         while (true)
         {
             var triviaStart = index;
-            var triviaLine = line;
-            var triviaColumn = column;
 
+            // Trivia stays attached to the following token so the CST can round-trip
+            // comments and spacing without introducing separate trivia nodes.
             while (index < source.Length)
             {
                 var ch = source[index];
@@ -154,6 +163,8 @@ internal static class MlirLexer
             Advance(chAtToken, ref index, ref line, ref column);
             if (kind == MlirTokenKind.Arrow)
             {
+                // The switch only classifies '-' as an arrow when the next character is '>',
+                // so it is safe to consume the second character here.
                 Advance(source[index], ref index, ref line, ref column);
             }
 

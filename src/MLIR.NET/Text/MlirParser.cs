@@ -177,6 +177,8 @@ public sealed class MlirParser
             {
                 if (pendingEntryOperations.Count > 0)
                 {
+                    // MLIR allows unlabeled operations at the start of a region. Model them as
+                    // a synthetic entry block so the CST always has a block-based shape.
                     blocks.Add(new BlockSyntax(
                         new SyntaxToken("^entry"),
                         new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<SyntaxToken>(), null),
@@ -196,6 +198,7 @@ public sealed class MlirParser
 
         if (pendingEntryOperations.Count > 0 || blocks.Count == 0)
         {
+            // Keep region bodies uniform even for empty regions and unlabeled entry operations.
             blocks.Insert(0, new BlockSyntax(
                 new SyntaxToken("^entry"),
                 new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<SyntaxToken>(), null),
@@ -302,6 +305,8 @@ public sealed class MlirParser
         var depthBracket = 0;
         var depthAngle = 0;
 
+        // Raw syntax fragments may themselves contain nested delimiters, so only stop when
+        // we reach one of the requested delimiters at the outermost nesting level.
         while (true)
         {
             if (depthParen == 0 && depthBrace == 0 && depthBracket == 0 && depthAngle == 0 && delimiters.Contains(Current.Kind))
@@ -365,6 +370,8 @@ public sealed class MlirParser
             return false;
         }
 
+        // A '{' can start either a region or an attribute dictionary. Peek ahead to decide
+        // which production we are looking at without consuming any tokens.
         var lookahead = position + 1;
         if (tokens[lookahead].Kind == MlirTokenKind.RBrace)
         {
