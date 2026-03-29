@@ -2,6 +2,7 @@ namespace MLIR.Generators.Tests;
 
 using System.Linq;
 using MLIR.ODS;
+using MLIR.ODS.Model.AssemblyFormat;
 using TableGen;
 using Xunit;
 
@@ -54,7 +55,11 @@ public sealed class OdsDialectImporterTests
         Assert.Equal(["value"], constantOp.Attributes);
         Assert.Empty(constantOp.Operands);
         Assert.Equal(["Pure"], constantOp.Traits);
-        Assert.Equal("$value attr-dict", constantOp.AssemblyFormat);
+        Assert.NotNull(constantOp.AssemblyFormat);
+        Assert.Collection(
+            constantOp.AssemblyFormat!.Elements,
+            e => Assert.IsType<VariableChunk>(e),
+            e => Assert.IsType<AttrDictDirectiveChunk>(e));
         Assert.True(constantOp.HasCustomAssemblyFormat);
         Assert.Equal("integer constant", constantOp.Summary);
         Assert.Contains("Produces a constant integer value", constantOp.Description);
@@ -64,7 +69,15 @@ public sealed class OdsDialectImporterTests
         Assert.Equal(["result"], addiOp.Results);
         Assert.Empty(addiOp.Attributes);
         Assert.Equal(["Pure", "Commutative"], addiOp.Traits);
-        Assert.Equal("$lhs `,` $rhs attr-dict `:` type($result)", addiOp.AssemblyFormat);
+        Assert.NotNull(addiOp.AssemblyFormat);
+        Assert.Collection(
+            addiOp.AssemblyFormat!.Elements,
+            e => Assert.Equal("lhs", Assert.IsType<VariableChunk>(e).Name),
+            e => Assert.Equal(",", Assert.IsType<LiteralChunk>(e).Value),
+            e => Assert.Equal("rhs", Assert.IsType<VariableChunk>(e).Name),
+            e => Assert.IsType<AttrDictDirectiveChunk>(e),
+            e => Assert.Equal(":", Assert.IsType<LiteralChunk>(e).Value),
+            e => Assert.Equal("result", Assert.IsType<VariableOperand>(Assert.IsType<TypeDirectiveChunk>(e).Operand).Name));
         Assert.True(addiOp.HasCustomAssemblyFormat);
     }
 }
