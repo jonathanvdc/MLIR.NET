@@ -32,7 +32,11 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
     /// </summary>
     public SyntaxToken EndOfFileToken { get; } = endOfFileToken;
 
-    internal void WriteTo(SyntaxWriter writer)
+    /// <summary>
+    /// Writes this module to the supplied syntax writer.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    public void WriteTo(SyntaxWriter writer)
     {
         for (var i = 0; i < Operations.Count; i++)
         {

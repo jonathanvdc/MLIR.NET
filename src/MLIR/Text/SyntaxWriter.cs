@@ -1,6 +1,5 @@
 namespace MLIR.Text;
 
-using System;
 using System.Text;
 using MLIR.Syntax;
 
@@ -60,8 +59,7 @@ public sealed class SyntaxWriter
     /// <param name="defaultLeadingTrivia">The fallback leading trivia to use when syntax does not carry explicit trivia.</param>
     public void WriteOperation(OperationSyntax operation, int indentLevel, string defaultLeadingTrivia)
     {
-        operation.WriteTo(this, indentLevel, defaultLeadingTrivia, static (writer, region, innerIndentLevel) =>
-            writer.WriteRegion(region, innerIndentLevel));
+        operation.WriteTo(this, indentLevel, defaultLeadingTrivia);
     }
 
     /// <summary>
@@ -71,8 +69,7 @@ public sealed class SyntaxWriter
     /// <param name="indentLevel">The indentation level of the containing operation.</param>
     public void WriteRegion(RegionSyntax region, int indentLevel)
     {
-        region.WriteTo(this, indentLevel, static (writer, operation, operationIndentLevel, operationLeadingTrivia) =>
-            writer.WriteOperation(operation, operationIndentLevel, operationLeadingTrivia));
+        region.WriteTo(this, indentLevel);
     }
 
     /// <summary>
@@ -82,8 +79,7 @@ public sealed class SyntaxWriter
     /// <param name="regionIndentLevel">The indentation level of the containing region.</param>
     public void WriteBlock(BlockSyntax block, int regionIndentLevel)
     {
-        block.WriteTo(this, regionIndentLevel, static (writer, operation, operationIndentLevel, operationLeadingTrivia) =>
-            writer.WriteOperation(operation, operationIndentLevel, operationLeadingTrivia));
+        block.WriteTo(this, regionIndentLevel);
     }
 
     /// <summary>

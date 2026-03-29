@@ -57,7 +57,7 @@ public sealed class SemanticTests
             return true;
         }
 
-        public override void WriteTo(SyntaxWriter writer, int indentLevel, System.Action<SyntaxWriter, RegionSyntax, int> writeRegion)
+        public override void WriteTo(SyntaxWriter writer, int indentLevel)
         {
             writer.WriteRaw(Value, " ");
             writer.WriteToken(ColonToken, " ");
