@@ -3,7 +3,7 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// <summary>
 /// A literal element in an oilist clause.
 /// </summary>
-public sealed class OdsAssemblyFormatOilistLiteralElement : OdsAssemblyFormatOilistElement
+public sealed class OilistLiteralElement : OilistElement
 {
     /// <summary>
     /// The literal value.
@@ -13,7 +13,7 @@ public sealed class OdsAssemblyFormatOilistLiteralElement : OdsAssemblyFormatOil
     /// <summary>
     /// Creates a literal oilist element.
     /// </summary>
-    public OdsAssemblyFormatOilistLiteralElement(string value)
+    public OilistLiteralElement(string value)
     {
         Value = value;
     }

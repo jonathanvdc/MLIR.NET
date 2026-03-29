@@ -3,24 +3,24 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// <summary>
 /// functional-type(inputs, outputs)
 /// </summary>
-public sealed class OdsAssemblyFormatFunctionalTypeDirectiveChunk : OdsAssemblyFormatDirectiveChunk
+public sealed class FunctionalTypeDirectiveChunk : DirectiveChunk
 {
     /// <summary>
     /// The input operands passed to the directive.
     /// </summary>
-    public OdsAssemblyFormatDirectiveOperand Inputs { get; }
+    public DirectiveOperand Inputs { get; }
 
     /// <summary>
     /// The output operands passed to the directive.
     /// </summary>
-    public OdsAssemblyFormatDirectiveOperand Outputs { get; }
+    public DirectiveOperand Outputs { get; }
 
     /// <summary>
     /// Creates the directive.
     /// </summary>
-    public OdsAssemblyFormatFunctionalTypeDirectiveChunk(
-        OdsAssemblyFormatDirectiveOperand inputs,
-        OdsAssemblyFormatDirectiveOperand outputs)
+    public FunctionalTypeDirectiveChunk(
+        DirectiveOperand inputs,
+        DirectiveOperand outputs)
     {
         Inputs = inputs;
         Outputs = outputs;

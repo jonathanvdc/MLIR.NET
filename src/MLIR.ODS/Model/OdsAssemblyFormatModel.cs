@@ -10,12 +10,12 @@ public sealed class OdsAssemblyFormatModel
     /// <summary>
     /// The sequence of elements that make up the assembly format.
     /// </summary>
-    public IReadOnlyList<OdsAssemblyFormatElement> Elements { get; }
+    public IReadOnlyList<Element> Elements { get; }
 
     /// <summary>
     /// Creates a new assembly format model.
     /// </summary>
-    public OdsAssemblyFormatModel(IReadOnlyList<OdsAssemblyFormatElement> elements)
+    public OdsAssemblyFormatModel(IReadOnlyList<Element> elements)
     {
         Elements = elements;
     }

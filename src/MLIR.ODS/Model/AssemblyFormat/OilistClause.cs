@@ -3,7 +3,7 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// <summary>
 /// A single clause in an oilist directive.
 /// </summary>
-public sealed class OdsAssemblyFormatOilistClause
+public sealed class OilistClause
 {
     /// <summary>
     /// The keyword that triggers this clause.
@@ -13,14 +13,14 @@ public sealed class OdsAssemblyFormatOilistClause
     /// <summary>
     /// Elements printed when this clause is selected.
     /// </summary>
-    public IReadOnlyList<OdsAssemblyFormatOilistElement> Elements { get; }
+    public IReadOnlyList<OilistElement> Elements { get; }
 
     /// <summary>
     /// Creates an oilist clause.
     /// </summary>
-    public OdsAssemblyFormatOilistClause(
+    public OilistClause(
         string keyword,
-        IReadOnlyList<OdsAssemblyFormatOilistElement> elements)
+        IReadOnlyList<OilistElement> elements)
     {
         Keyword = keyword;
         Elements = elements;

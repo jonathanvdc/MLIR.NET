@@ -3,17 +3,17 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// <summary>
 /// oilist(`keyword` elements | `otherKeyword` elements ...)
 /// </summary>
-public sealed class OdsAssemblyFormatOilistDirectiveChunk : OdsAssemblyFormatDirectiveChunk
+public sealed class OilistDirectiveChunk : DirectiveChunk
 {
     /// <summary>
     /// The clauses that make up the oilist directive.
     /// </summary>
-    public IReadOnlyList<OdsAssemblyFormatOilistClause> Clauses { get; }
+    public IReadOnlyList<OilistClause> Clauses { get; }
 
     /// <summary>
     /// Creates the oilist directive.
     /// </summary>
-    public OdsAssemblyFormatOilistDirectiveChunk(IReadOnlyList<OdsAssemblyFormatOilistClause> clauses)
+    public OilistDirectiveChunk(IReadOnlyList<OilistClause> clauses)
     {
         Clauses = clauses;
     }
