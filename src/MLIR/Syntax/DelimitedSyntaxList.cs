@@ -52,6 +52,39 @@ public sealed class DelimitedSyntaxList<T>(
     public T this[int index] => Items[index];
 
     /// <summary>
+    /// Writes this list to the supplied syntax writer if an opening delimiter token is present.
+    /// Writes the opening delimiter, then each element (interleaved with separator tokens), then
+    /// the closing delimiter. When <see cref="OpenToken"/> is <see langword="null"/> this method
+    /// does nothing.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia to use for the opening delimiter token.</param>
+    /// <param name="writeElement">A delegate that writes a single element to the writer.</param>
+    public void WriteTo(
+        Text.SyntaxWriter writer,
+        string openLeadingTrivia,
+        System.Action<T, Text.SyntaxWriter, string> writeElement)
+    {
+        if (OpenToken == null)
+        {
+            return;
+        }
+
+        writer.WriteToken(OpenToken.Value, openLeadingTrivia);
+        for (var i = 0; i < Count; i++)
+        {
+            if (i > 0)
+            {
+                writer.WriteToken(SeparatorTokens[i - 1], string.Empty);
+            }
+
+            writeElement(Items[i], writer, i > 0 ? " " : string.Empty);
+        }
+
+        writer.WriteToken(CloseToken!.Value, string.Empty);
+    }
+
+    /// <summary>
     /// Returns an enumerator over the list items.
     /// </summary>
     /// <returns>An enumerator over the list items.</returns>

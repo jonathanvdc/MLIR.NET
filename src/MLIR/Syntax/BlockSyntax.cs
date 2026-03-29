@@ -89,21 +89,7 @@ public sealed class BlockSyntax
         {
             writer.WriteToken(LabelToken, "\n", blockIndentLevel);
 
-            if (Arguments.OpenToken != null)
-            {
-                writer.WriteToken(Arguments.OpenToken.Value, string.Empty);
-                for (var i = 0; i < Arguments.Count; i++)
-                {
-                    if (i > 0)
-                    {
-                        writer.WriteToken(Arguments.SeparatorTokens[i - 1], string.Empty);
-                    }
-
-                    Arguments[i].WriteTo(writer, i > 0 ? " " : string.Empty);
-                }
-
-                writer.WriteToken(Arguments.CloseToken!.Value, string.Empty);
-            }
+            Arguments.WriteTo(writer, string.Empty, static (arg, w, trivia) => arg.WriteTo(w, trivia));
 
             writer.WriteToken(ColonToken, string.Empty);
         }
