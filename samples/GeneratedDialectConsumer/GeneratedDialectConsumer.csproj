@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\src\MLIR\MLIR.csproj" />
     <ProjectReference Include="..\..\src\MLIR.Generators\MLIR.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\MLIR.ODS\MLIR.ODS.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\MLIR\MLIR.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\TableGen\TableGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
