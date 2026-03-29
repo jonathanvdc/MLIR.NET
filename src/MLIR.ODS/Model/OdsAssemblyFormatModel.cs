@@ -1,4 +1,6 @@
-namespace MLIR.ODS.Model.AssemblyFormat;
+using MLIR.ODS.Model.AssemblyFormat;
+
+namespace MLIR.ODS.Model;
 
 /// <summary>
 /// Represents a declarative MLIR ODS assembly format.
