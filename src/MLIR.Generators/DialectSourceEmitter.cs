@@ -224,7 +224,7 @@ internal static class DialectSourceEmitter
         builder.AppendLine("        return false;");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel, System.Action<Text.SyntaxWriter, RegionSyntax, int> writeRegion)");
+        builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)");
         builder.AppendLine("    {");
         foreach (var field in fields)
         {

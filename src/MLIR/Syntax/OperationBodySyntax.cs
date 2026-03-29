@@ -35,5 +35,5 @@ public abstract class OperationBodySyntax
     /// <summary>
     /// Writes the operation body to the supplied syntax writer.
     /// </summary>
-    public abstract void WriteTo(Text.SyntaxWriter writer, int indentLevel, System.Action<Text.SyntaxWriter, RegionSyntax, int> writeRegion);
+    public abstract void WriteTo(Text.SyntaxWriter writer, int indentLevel);
 }

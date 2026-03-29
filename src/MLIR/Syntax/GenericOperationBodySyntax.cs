@@ -77,7 +77,7 @@ public sealed class GenericOperationBodySyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel, System.Action<Text.SyntaxWriter, RegionSyntax, int> writeRegion)
+    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
     {
         writer.WriteToken(OperandList.OpenToken!.Value, string.Empty);
         for (var i = 0; i < OperandList.Count; i++)
@@ -110,7 +110,7 @@ public sealed class GenericOperationBodySyntax(
 
         foreach (var region in Regions)
         {
-            writeRegion(writer, region, indentLevel);
+            writer.WriteRegion(region, indentLevel);
         }
 
         if (Attributes.OpenToken != null)
