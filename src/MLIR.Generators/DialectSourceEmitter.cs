@@ -361,38 +361,12 @@ internal static class DialectSourceEmitter
 
     private static string GenerateDelimitedNamedAttributeWriteTo(string fieldName)
     {
-        return
-            "        if (" + fieldName + ".OpenToken != null)\n" +
-            "        {\n" +
-            "            writer.WriteToken(" + fieldName + ".OpenToken.Value, \" \");\n" +
-            "            for (var i = 0; i < " + fieldName + ".Count; i++)\n" +
-            "            {\n" +
-            "                if (i > 0)\n" +
-            "                {\n" +
-            "                    writer.WriteToken(" + fieldName + ".SeparatorTokens[i - 1], string.Empty);\n" +
-            "                }\n" +
-            "                " + fieldName + "[i].WriteTo(writer, i > 0 ? \" \" : string.Empty);\n" +
-            "            }\n" +
-            "            writer.WriteToken(" + fieldName + ".CloseToken!.Value, string.Empty);\n" +
-            "        }\n";
+        return "        writer.WriteDelimitedList(" + fieldName + ", \" \");\n";
     }
 
     private static string GenerateDelimitedTokenWriteTo(string fieldName)
     {
-        return
-            "        if (" + fieldName + ".OpenToken != null)\n" +
-            "        {\n" +
-            "            writer.WriteToken(" + fieldName + ".OpenToken.Value, \" \");\n" +
-            "            for (var i = 0; i < " + fieldName + ".Count; i++)\n" +
-            "            {\n" +
-            "                if (i > 0)\n" +
-            "                {\n" +
-            "                    writer.WriteToken(" + fieldName + ".SeparatorTokens[i - 1], string.Empty);\n" +
-            "                }\n" +
-            "                writer.WriteToken(" + fieldName + "[i], i > 0 ? \" \" : string.Empty);\n" +
-            "            }\n" +
-            "            writer.WriteToken(" + fieldName + ".CloseToken!.Value, string.Empty);\n" +
-            "        }\n";
+        return "        writer.WriteDelimitedList(" + fieldName + ", \" \");\n";
     }
 
     private static string GetPunctuationFieldName(TokenKind tokenKind)

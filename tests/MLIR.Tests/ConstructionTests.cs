@@ -196,4 +196,39 @@ public sealed class ConstructionTests
         Assert.True(module.Operations[0].HasCustomAssemblyBody);
         Assert.Equal("0", module.Operations[0].Attributes[0].RawValue.Text);
     }
+
+    [Fact]
+    public void DelimitedSyntaxListWriteToWritesAllTokensAndElements()
+    {
+        var list = new DelimitedSyntaxList<BlockArgumentSyntax>(
+            new SyntaxToken("("),
+            [
+                new BlockArgumentSyntax(new SyntaxToken("%arg0"), new SyntaxToken(":"), new RawTypeSyntax(new RawSyntaxText("i32"))),
+                new BlockArgumentSyntax(new SyntaxToken("%arg1"), new SyntaxToken(":"), new RawTypeSyntax(new RawSyntaxText("i64"))),
+            ],
+            [new SyntaxToken(",")],
+            new SyntaxToken(")"));
+
+        var writer = new SyntaxWriter();
+        writer.WriteDelimitedList(list, string.Empty);
+
+        Assert.Equal("(%arg0: i32, %arg1: i64)", writer.ToString());
+    }
+
+    [Fact]
+    public void DelimitedSyntaxListWriteToDoesNothingWhenNotPresent()
+    {
+        var list = new DelimitedSyntaxList<BlockArgumentSyntax>(
+            null,
+            [],
+            [],
+            null);
+
+        Assert.False(list.IsPresent);
+
+        var writer = new SyntaxWriter();
+        writer.WriteDelimitedList(list, string.Empty);
+
+        Assert.Equal(string.Empty, writer.ToString());
+    }
 }

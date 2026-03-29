@@ -41,6 +41,11 @@ public sealed class DelimitedSyntaxList<T>(
     public SyntaxToken? CloseToken { get; } = closeToken;
 
     /// <summary>
+    /// Gets a value indicating whether this list is present in the source, i.e., has an opening delimiter token.
+    /// </summary>
+    public bool IsPresent => OpenToken.HasValue;
+
+    /// <summary>
     /// Gets the number of items in the list.
     /// </summary>
     public int Count => Items.Count;
@@ -50,6 +55,39 @@ public sealed class DelimitedSyntaxList<T>(
     /// </summary>
     /// <param name="index">The item index.</param>
     public T this[int index] => Items[index];
+
+    /// <summary>
+    /// Writes this list to the supplied syntax writer if an opening delimiter token is present.
+    /// Writes the opening delimiter, then each element (interleaved with separator tokens), then
+    /// the closing delimiter. When <see cref="IsPresent"/> is <see langword="false"/> this method
+    /// does nothing.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia to use for the opening delimiter token.</param>
+    /// <param name="writeElement">A delegate that writes a single element to the writer.</param>
+    public void WriteTo(
+        Text.SyntaxWriter writer,
+        string openLeadingTrivia,
+        System.Action<T, Text.SyntaxWriter, string> writeElement)
+    {
+        if (!IsPresent)
+        {
+            return;
+        }
+
+        writer.WriteToken(OpenToken.Value, openLeadingTrivia);
+        for (var i = 0; i < Count; i++)
+        {
+            if (i > 0)
+            {
+                writer.WriteToken(SeparatorTokens[i - 1], string.Empty);
+            }
+
+            writeElement(Items[i], writer, i > 0 ? " " : string.Empty);
+        }
+
+        writer.WriteToken(CloseToken!.Value, string.Empty);
+    }
 
     /// <summary>
     /// Returns an enumerator over the list items.

@@ -83,6 +83,39 @@ public sealed class SyntaxWriter
     }
 
     /// <summary>
+    /// Writes a delimited list of syntax tokens.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited token list to write.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia for the opening delimiter token.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<SyntaxToken> list, string openLeadingTrivia)
+    {
+        list.WriteTo(this, openLeadingTrivia, static (token, writer, trivia) => writer.WriteToken(token, trivia));
+    }
+
+    /// <summary>
+    /// Writes a delimited list of named attribute syntax nodes.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited attribute list to write.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia for the opening delimiter token.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<NamedAttributeSyntax> list, string openLeadingTrivia)
+    {
+        list.WriteTo(this, openLeadingTrivia, static (attr, writer, trivia) => attr.WriteTo(writer, trivia));
+    }
+
+    /// <summary>
+    /// Writes a delimited list of block argument syntax nodes.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited block argument list to write.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia for the opening delimiter token.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<BlockArgumentSyntax> list, string openLeadingTrivia)
+    {
+        list.WriteTo(this, openLeadingTrivia, static (arg, writer, trivia) => arg.WriteTo(writer, trivia));
+    }
+
+    /// <summary>
     /// Writes a token using its preserved trivia when present, or synthesized trivia otherwise.
     /// </summary>
     /// <param name="token">The token to write.</param>
