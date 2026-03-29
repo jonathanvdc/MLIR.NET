@@ -739,11 +739,12 @@ public sealed class SemanticTests
         Assert.Single(module.Operations);
         Assert.Equal("arith.constant", module.Operations[0].Name);
         Assert.True(module.Operations[0].HasCustomAssemblyBody);
-        Assert.Empty(module.Operations[0].Operands);
-        Assert.Single(module.Operations[0].Attributes);
-        Assert.Equal("value", module.Operations[0].Attributes[0].Name);
-        Assert.Equal("0", module.Operations[0].Attributes[0].RawValue.Text);
-        Assert.Equal("i32", module.Operations[0].RawTypeSignature!.Text);
+        Assert.True(module.Operations[0].TryGetGenericBody(out var constantBody));
+        Assert.Empty(constantBody!.OperandList.Items);
+        Assert.Single(constantBody.Attributes);
+        Assert.Equal("value", constantBody.Attributes[0].Name);
+        Assert.Equal("0", constantBody.Attributes[0].RawValue.Text);
+        Assert.Equal("i32", constantBody.RawTypeSignature!.Text);
     }
 
     [Fact]

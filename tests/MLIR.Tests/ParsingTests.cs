@@ -100,8 +100,9 @@ public sealed class ParsingTests
         var module = Parser.ParseModule(source);
 
         Assert.Single(module.Operations);
-        Assert.Single(module.Operations[0].Regions);
-        Assert.Equal("^bb2", module.Operations[0].Regions[0].Blocks[0].Operations[0].Successors[0]);
+        var op0Body = (GenericOperationBodySyntax)module.Operations[0].Body;
+        Assert.Single(op0Body.Regions);
+        Assert.Equal("^bb2", ((GenericOperationBodySyntax)op0Body.Regions[0].Blocks[0].Operations[0].Body).SuccessorList.Items[0].Text);
     }
 
     [Fact]
@@ -111,7 +112,7 @@ public sealed class ParsingTests
 
         var module = Parser.ParseModule(source);
 
-        Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", module.Operations[0].RawTypeSignature!.Text);
+        Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", ((GenericOperationBodySyntax)module.Operations[0].Body).RawTypeSignature!.Text);
     }
 
     [Fact]
@@ -164,7 +165,7 @@ public sealed class ParsingTests
         var text = Printer.Print(module);
 
         Assert.Equal(2, module.Operations.Count);
-        Assert.Equal(3, module.Operations[1].Regions[0].Blocks.Count);
+        Assert.Equal(3, ((GenericOperationBodySyntax)module.Operations[1].Body).Regions[0].Blocks.Count);
         Assert.Equal(source, text);
     }
 
@@ -211,9 +212,10 @@ public sealed class ParsingTests
 
         var module = Parser.ParseModule(source);
         var operation = module.Operations[0];
+        var opBody = (GenericOperationBodySyntax)operation.Body;
 
-        Assert.Empty(operation.Regions);
-        Assert.Empty(operation.Attributes);
+        Assert.Empty(opBody.Regions);
+        Assert.Empty(opBody.Attributes);
         Assert.Equal(source, Printer.Print(module));
     }
 
@@ -228,7 +230,7 @@ public sealed class ParsingTests
             "} : () -> ()";
 
         var module = Parser.ParseModule(source);
-        var blocks = module.Operations[0].Regions[0].Blocks;
+        var blocks = ((GenericOperationBodySyntax)module.Operations[0].Body).Regions[0].Blocks;
 
         Assert.Equal(2, blocks.Count);
         Assert.Equal("^entry", blocks[0].Label);
@@ -267,7 +269,7 @@ public sealed class ParsingTests
             "\"test.op\"(%arg0) {layout = dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>} : (tensor<2x2xi32>) -> tensor<2x2xi32>";
 
         var module = Parser.ParseModule(source);
-        var attribute = module.Operations[0].Attributes[0];
+        var attribute = ((GenericOperationBodySyntax)module.Operations[0].Body).Attributes[0];
 
         Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.RawValue.Text);
         Assert.Equal(source, Printer.Print(module));
@@ -318,8 +320,8 @@ public sealed class ParsingTests
 
         var genericModule = GenericSyntaxBuilder.BuildModule(module);
 
-        Assert.True(module.Operations[0].Regions[0].Blocks[0].Operations[0].HasCustomAssemblyBody);
-        Assert.False(genericModule.Operations[0].Regions[0].Blocks[0].Operations[0].HasCustomAssemblyBody);
+        Assert.True(((GenericOperationBodySyntax)module.Operations[0].Body).Regions[0].Blocks[0].Operations[0].HasCustomAssemblyBody);
+        Assert.False(((GenericOperationBodySyntax)genericModule.Operations[0].Body).Regions[0].Blocks[0].Operations[0].HasCustomAssemblyBody);
         Assert.Equal(
             "\"scf.if\"(%cond) {\n" +
             "  %0 = arith.constant() {value = 0} : i32\n" +

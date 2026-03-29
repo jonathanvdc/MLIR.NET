@@ -34,8 +34,12 @@ public static class GenericSyntaxBuilder
 
         private OperationSyntax BuildOperation(OperationSyntax operation)
         {
-            var genericBody = operation.GenericBody;
-            var regions = new List<RegionSyntax>(genericBody.Regions.Count);
+            if (!operation.TryGetGenericBody(out var genericBody))
+            {
+                return operation;
+            }
+
+            var regions = new List<RegionSyntax>(genericBody!.Regions.Count);
             foreach (var region in genericBody.Regions)
             {
                 regions.Add(BuildRegion(region));

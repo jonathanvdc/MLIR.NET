@@ -61,13 +61,14 @@ public sealed class ConstructionTests
         Assert.Equal("// leading comment\n", operation.ResultTokens[0].LeadingTrivia);
         Assert.Equal(",", operation.ResultCommaTokens[0].Text);
         Assert.Equal("  ", operation.ResultTokens[1].LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList.OpenToken!.Value.LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList[0].LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList.CloseToken!.Value.LeadingTrivia);
+        var body = (GenericOperationBodySyntax)operation.Body;
+        Assert.Equal(" ", body.SuccessorList.OpenToken!.Value.LeadingTrivia);
+        Assert.Equal(" ", body.SuccessorList[0].LeadingTrivia);
+        Assert.Equal(" ", body.SuccessorList.CloseToken!.Value.LeadingTrivia);
         Assert.Equal("%0", operation.Results[0]);
         Assert.Equal("\"test.op\"", operation.Name);
-        Assert.Equal("%lhs", operation.Operands[0]);
-        Assert.Equal("^bb1", operation.Successors[0]);
+        Assert.Equal("%lhs", body.OperandList.Items[0].Text);
+        Assert.Equal("^bb1", body.SuccessorList.Items[0].Text);
     }
 
     [Fact]
@@ -194,7 +195,8 @@ public sealed class ConstructionTests
 
         Assert.Equal("%0 = arith.constant 0 : i32", text);
         Assert.True(module.Operations[0].HasCustomAssemblyBody);
-        Assert.Equal("0", module.Operations[0].Attributes[0].RawValue.Text);
+        Assert.True(module.Operations[0].TryGetGenericBody(out var customOpBody));
+        Assert.Equal("0", customOpBody!.Attributes[0].RawValue.Text);
     }
 
     [Fact]

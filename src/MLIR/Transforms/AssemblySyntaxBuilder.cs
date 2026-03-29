@@ -1,5 +1,6 @@
 namespace MLIR.Transforms;
 
+using System;
 using System.Collections.Generic;
 using MLIR.Semantics;
 using MLIR.Syntax;
@@ -54,7 +55,12 @@ public static class AssemblySyntaxBuilder
 
         public GenericOperationBodySyntax BuildGenericBody(Operation operation)
         {
-            var genericBody = operation.Syntax.GenericBody;
+            if (!operation.Syntax.TryGetGenericBody(out var genericBody))
+            {
+                throw new InvalidOperationException(
+                    "Cannot build a generic body for an operation that does not provide a generic body projection.");
+            }
+
             var regions = new List<RegionSyntax>(operation.Regions.Count);
             foreach (var region in operation.Regions)
             {
@@ -62,12 +68,12 @@ public static class AssemblySyntaxBuilder
             }
 
             return new GenericOperationBodySyntax(
-                genericBody.OperandList,
-                genericBody.SuccessorList,
+                genericBody!.OperandList,
+                genericBody!.SuccessorList,
                 regions,
-                genericBody.Attributes,
-                genericBody.TypeSignatureColonToken,
-                genericBody.TypeSignatureSyntax);
+                genericBody!.Attributes,
+                genericBody!.TypeSignatureColonToken,
+                genericBody!.TypeSignatureSyntax);
         }
 
         public RegionSyntax BuildRegion(Region region)

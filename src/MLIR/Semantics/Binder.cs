@@ -30,17 +30,47 @@ public static class Binder
 
     private static Operation BindOperation(OperationSyntax syntax, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
     {
-        var genericBody = syntax.GenericBody;
-        var regions = new List<Region>();
-        foreach (var region in genericBody.Regions)
-        {
-            regions.Add(BindRegion(region, dialectRegistry, diagnostics));
-        }
+        List<Region> regions;
+        List<NamedAttribute> attributes;
+        TypeReference? typeSignatureReference = null;
+        IReadOnlyList<ValueReference> operandValues;
+        IReadOnlyList<BlockReference> successorReferences;
 
-        var attributes = new List<NamedAttribute>();
-        foreach (var attribute in genericBody.Attributes)
+        if (syntax.TryGetGenericBody(out var genericBody))
         {
-            attributes.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.RawValue, attribute.NameToken, dialectRegistry, diagnostics)));
+            var regionList = new List<Region>();
+            foreach (var region in genericBody!.Regions)
+            {
+                regionList.Add(BindRegion(region, dialectRegistry, diagnostics));
+            }
+
+            regions = regionList;
+
+            var attributeList = new List<NamedAttribute>();
+            foreach (var attribute in genericBody.Attributes)
+            {
+                attributeList.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.RawValue, attribute.NameToken, dialectRegistry, diagnostics)));
+            }
+
+            attributes = attributeList;
+
+            if (genericBody.RawTypeSignature != null)
+            {
+                var location = genericBody.TypeSignatureColonToken != null
+                    ? SourceLocation.FromToken(genericBody.TypeSignatureColonToken.Value)
+                    : default;
+                typeSignatureReference = BindTypeReference(genericBody.RawTypeSignature, location, dialectRegistry, diagnostics);
+            }
+
+            operandValues = CreateValueReferences(genericBody.OperandList.Items);
+            successorReferences = CreateBlockReferences(genericBody.SuccessorList.Items);
+        }
+        else
+        {
+            regions = new List<Region>();
+            attributes = new List<NamedAttribute>();
+            operandValues = new List<ValueReference>();
+            successorReferences = new List<BlockReference>();
         }
 
         var name = NormalizeOperationName(syntax.Name);
@@ -50,18 +80,7 @@ public static class Binder
             dialectRegistry.TryGetOperation(name, out definition);
         }
 
-        TypeReference? typeSignatureReference = null;
-        if (genericBody.RawTypeSignature != null)
-        {
-            var location = genericBody.TypeSignatureColonToken != null
-                ? SourceLocation.FromToken(genericBody.TypeSignatureColonToken.Value)
-                : default;
-            typeSignatureReference = BindTypeReference(genericBody.RawTypeSignature, location, dialectRegistry, diagnostics);
-        }
-
         var resultValues = CreateValueReferences(syntax.ResultTokens);
-        var operandValues = CreateValueReferences(genericBody.OperandList.Items);
-        var successorReferences = CreateBlockReferences(genericBody.SuccessorList.Items);
         Operation operation;
         if (definition != null)
         {

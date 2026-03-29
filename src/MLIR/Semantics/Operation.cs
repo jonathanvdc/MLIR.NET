@@ -108,7 +108,8 @@ public abstract class Operation
     /// <summary>
     /// Gets the raw type signature text, if present.
     /// </summary>
-    public RawSyntaxText? TypeSignature => Syntax.RawTypeSignature;
+    public RawSyntaxText? TypeSignature =>
+        Syntax.TryGetGenericBody(out var genericBody) ? genericBody!.RawTypeSignature : null;
 
     /// <summary>
     /// Gets the source location of the operation name, if known.
