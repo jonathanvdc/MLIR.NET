@@ -19,7 +19,7 @@ public sealed class OdsOperationModel
         bool hasCustomAssemblyFormat = false,
         string? summary = null,
         string? description = null,
-        string? assemblyFormat = null,
+        OdsAssemblyFormatModel? assemblyFormat = null,
         IReadOnlyList<string>? traits = null)
     {
         Name = name;
@@ -77,7 +77,7 @@ public sealed class OdsOperationModel
     /// <summary>
     /// Gets the declarative assembly format, if known.
     /// </summary>
-    public string? AssemblyFormat { get; }
+    public OdsAssemblyFormatModel? AssemblyFormat { get; }
 
     /// <summary>
     /// Gets the declared trait names.

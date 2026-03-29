@@ -52,6 +52,10 @@ public static class OdsDialectImporter
                 var dialect = GetOrCreateDialect(dialectsByName, opDialectName);
                 var argumentMembers = GetDagMembers(record, "arguments");
                 var resultMembers = GetDagMembers(record, "results");
+                var assemblyFormatString = GetOptionalStringField(record, "assemblyFormat");
+                var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
+                    ? OdsAssemblyFormatParser.Parse(assemblyFormatString!)
+                    : null;
                 dialect.Operations.Add(
                     new OdsOperationModel(
                         opDialectName + "." + mnemonic,
@@ -59,10 +63,10 @@ public static class OdsDialectImporter
                         argumentMembers.Where(static member => member.Kind == DagMemberKind.Operand).Select(static member => member.Name).ToArray(),
                         resultMembers.Where(static member => member.Kind == DagMemberKind.Result).Select(static member => member.Name).ToArray(),
                         argumentMembers.Where(static member => member.Kind == DagMemberKind.Attribute).Select(static member => member.Name).ToArray(),
-                        !string.IsNullOrEmpty(GetOptionalStringField(record, "assemblyFormat")),
+                        assemblyFormat != null,
                         GetOptionalStringField(record, "summary"),
                         GetOptionalStringField(record, "description"),
-                        GetOptionalStringField(record, "assemblyFormat"),
+                        assemblyFormat,
                         GetStringListField(record, "traits")));
                 continue;
             }
