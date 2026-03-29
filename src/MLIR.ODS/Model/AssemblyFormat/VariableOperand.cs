@@ -3,7 +3,7 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// <summary>
 /// A variable reference used as a directive operand.
 /// </summary>
-public sealed class OdsAssemblyFormatVariableOperand : OdsAssemblyFormatDirectiveOperand
+public sealed class VariableOperand : DirectiveOperand
 {
     /// <summary>
     /// The name of the referenced variable.
@@ -13,7 +13,7 @@ public sealed class OdsAssemblyFormatVariableOperand : OdsAssemblyFormatDirectiv
     /// <summary>
     /// Creates a variable operand.
     /// </summary>
-    public OdsAssemblyFormatVariableOperand(string name)
+    public VariableOperand(string name)
     {
         Name = name;
     }

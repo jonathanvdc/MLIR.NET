@@ -3,7 +3,7 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// <summary>
 /// A raw C++ expression/string literal passed to a custom directive parameter.
 /// </summary>
-public sealed class OdsAssemblyFormatCodeOperand : OdsAssemblyFormatDirectiveOperand
+public sealed class CodeOperand : DirectiveOperand
 {
     /// <summary>
     /// The raw C++ code string.
@@ -13,7 +13,7 @@ public sealed class OdsAssemblyFormatCodeOperand : OdsAssemblyFormatDirectiveOpe
     /// <summary>
     /// Creates a code operand.
     /// </summary>
-    public OdsAssemblyFormatCodeOperand(string code)
+    public CodeOperand(string code)
     {
         Code = code;
     }

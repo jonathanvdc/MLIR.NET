@@ -5,7 +5,7 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// Params may be variables, type(...) directives, attr-dict / prop-dict,
 /// string literals of C++ code, and ref(...) wrappers.
 /// </summary>
-public sealed class OdsAssemblyFormatCustomDirectiveChunk : OdsAssemblyFormatDirectiveChunk
+public sealed class CustomDirectiveChunk : DirectiveChunk
 {
     /// <summary>
     /// The name of the custom directive.
@@ -15,14 +15,14 @@ public sealed class OdsAssemblyFormatCustomDirectiveChunk : OdsAssemblyFormatDir
     /// <summary>
     /// The parameters passed to the custom directive.
     /// </summary>
-    public IReadOnlyList<OdsAssemblyFormatDirectiveOperand> Parameters { get; }
+    public IReadOnlyList<DirectiveOperand> Parameters { get; }
 
     /// <summary>
     /// Creates the custom directive.
     /// </summary>
-    public OdsAssemblyFormatCustomDirectiveChunk(
+    public CustomDirectiveChunk(
         string name,
-        IReadOnlyList<OdsAssemblyFormatDirectiveOperand> parameters)
+        IReadOnlyList<DirectiveOperand> parameters)
     {
         Name = name;
         Parameters = parameters;

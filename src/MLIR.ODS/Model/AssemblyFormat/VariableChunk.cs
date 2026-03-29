@@ -3,7 +3,7 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// <summary>
 /// A variable reference such as $operand, $attr, $region, or $result.
 /// </summary>
-public sealed class OdsAssemblyFormatVariableChunk : OdsAssemblyFormatChunk
+public sealed class VariableChunk : Chunk
 {
     /// <summary>
     /// The name of the referenced variable (without the leading '$').
@@ -18,7 +18,7 @@ public sealed class OdsAssemblyFormatVariableChunk : OdsAssemblyFormatChunk
     /// <summary>
     /// Creates a variable reference.
     /// </summary>
-    public OdsAssemblyFormatVariableChunk(string name, bool isAnchor = false)
+    public VariableChunk(string name, bool isAnchor = false)
     {
         Name = name;
         IsAnchor = isAnchor;

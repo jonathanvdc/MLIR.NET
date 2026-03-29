@@ -1,19 +1,19 @@
 namespace MLIR.ODS.Model.AssemblyFormat;
 
 /// <summary>
-/// type(input)
+/// ref(input)
 /// </summary>
-public sealed class OdsAssemblyFormatTypeDirectiveChunk : OdsAssemblyFormatDirectiveChunk
+public sealed class RefDirectiveChunk : DirectiveChunk
 {
     /// <summary>
     /// The operand passed to the directive.
     /// </summary>
-    public OdsAssemblyFormatDirectiveOperand Operand { get; }
+    public DirectiveOperand Operand { get; }
 
     /// <summary>
     /// Creates the directive.
     /// </summary>
-    public OdsAssemblyFormatTypeDirectiveChunk(OdsAssemblyFormatDirectiveOperand operand)
+    public RefDirectiveChunk(DirectiveOperand operand)
     {
         Operand = operand;
     }

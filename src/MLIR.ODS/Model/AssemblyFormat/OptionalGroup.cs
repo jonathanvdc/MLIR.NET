@@ -6,7 +6,7 @@ namespace MLIR.ODS.Model.AssemblyFormat;
 /// or
 /// ( then-elements ):( else-elements )?
 /// </summary>
-public sealed class OdsAssemblyFormatOptionalGroup : OdsAssemblyFormatElement
+public sealed class OptionalGroup : Element
 {
     /// <summary>
     /// The anchor variable that controls whether the optional group is printed.
@@ -17,20 +17,20 @@ public sealed class OdsAssemblyFormatOptionalGroup : OdsAssemblyFormatElement
     /// <summary>
     /// Elements that are printed when the anchor is present.
     /// </summary>
-    public IReadOnlyList<OdsAssemblyFormatElement> ThenElements { get; }
+    public IReadOnlyList<Element> ThenElements { get; }
 
     /// <summary>
     /// Elements that are printed when the anchor is absent (if any).
     /// </summary>
-    public IReadOnlyList<OdsAssemblyFormatElement>? ElseElements { get; }
+    public IReadOnlyList<Element>? ElseElements { get; }
 
     /// <summary>
     /// Creates an optional group.
     /// </summary>
-    public OdsAssemblyFormatOptionalGroup(
+    public OptionalGroup(
         string anchorName,
-        IReadOnlyList<OdsAssemblyFormatElement> thenElements,
-        IReadOnlyList<OdsAssemblyFormatElement>? elseElements = null)
+        IReadOnlyList<Element> thenElements,
+        IReadOnlyList<Element>? elseElements = null)
     {
         AnchorName = anchorName;
         ThenElements = thenElements;
