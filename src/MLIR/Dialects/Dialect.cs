@@ -16,7 +16,7 @@ public sealed class Dialect(
     string name,
     IReadOnlyList<OperationDefinition> operations,
     IReadOnlyList<AttributeDefinition>? attributes = null,
-    IReadOnlyList<TypeDefinition>? types = null) : IMlirDialect
+    IReadOnlyList<TypeDefinition>? types = null)
 {
     /// <summary>
     /// Creates a dialect from a fluent builder callback.

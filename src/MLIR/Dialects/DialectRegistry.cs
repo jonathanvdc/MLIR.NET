@@ -8,7 +8,7 @@ using System.Collections.Generic;
 /// </summary>
 public sealed class DialectRegistry
 {
-    private readonly Dictionary<string, IMlirDialect> dialectsByName = new Dictionary<string, IMlirDialect>(StringComparer.Ordinal);
+    private readonly Dictionary<string, Dialect> dialectsByName = new Dictionary<string, Dialect>(StringComparer.Ordinal);
     private readonly Dictionary<string, OperationDefinition> operationsByName = new Dictionary<string, OperationDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, AttributeDefinition> attributesByName = new Dictionary<string, AttributeDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, TypeDefinition> typesByName = new Dictionary<string, TypeDefinition>(StringComparer.Ordinal);
@@ -16,14 +16,14 @@ public sealed class DialectRegistry
     /// <summary>
     /// Gets the dialects currently registered in the registry.
     /// </summary>
-    public IReadOnlyCollection<IMlirDialect> Dialects => dialectsByName.Values;
+    public IReadOnlyCollection<Dialect> Dialects => dialectsByName.Values;
 
     /// <summary>
     /// Registers a dialect and all of its operation definitions.
     /// </summary>
     /// <param name="dialect">The dialect to register.</param>
     /// <exception cref="ArgumentException">Thrown when a dialect or definition name is registered more than once.</exception>
-    public void RegisterDialect(IMlirDialect dialect)
+    public void RegisterDialect(Dialect dialect)
     {
         if (dialectsByName.ContainsKey(dialect.Name))
         {
