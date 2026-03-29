@@ -79,16 +79,16 @@ public sealed class GenericOperationBodySyntax(
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
     {
-        OperandList.WriteTo(writer, string.Empty, static (token, w, trivia) => w.WriteToken(token, trivia));
+        writer.WriteDelimitedList(OperandList, string.Empty);
 
-        SuccessorList.WriteTo(writer, " ", static (token, w, trivia) => w.WriteToken(token, trivia));
+        writer.WriteDelimitedList(SuccessorList, " ");
 
         foreach (var region in Regions)
         {
             writer.WriteRegion(region, indentLevel);
         }
 
-        Attributes.WriteTo(writer, " ", static (attr, w, trivia) => attr.WriteTo(w, trivia));
+        writer.WriteDelimitedList(Attributes, " ");
 
         if (TypeSignatureColonToken != null && TypeSignatureSyntax != null)
         {

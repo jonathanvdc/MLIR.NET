@@ -89,7 +89,7 @@ public sealed class BlockSyntax
         {
             writer.WriteToken(LabelToken, "\n", blockIndentLevel);
 
-            Arguments.WriteTo(writer, string.Empty, static (arg, w, trivia) => arg.WriteTo(w, trivia));
+            writer.WriteDelimitedList(Arguments, string.Empty);
 
             writer.WriteToken(ColonToken, string.Empty);
         }

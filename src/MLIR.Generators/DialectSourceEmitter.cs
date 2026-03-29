@@ -361,12 +361,12 @@ internal static class DialectSourceEmitter
 
     private static string GenerateDelimitedNamedAttributeWriteTo(string fieldName)
     {
-        return "        " + fieldName + ".WriteTo(writer, \" \", static (item, w, trivia) => item.WriteTo(w, trivia));\n";
+        return "        writer.WriteDelimitedList(" + fieldName + ", \" \");\n";
     }
 
     private static string GenerateDelimitedTokenWriteTo(string fieldName)
     {
-        return "        " + fieldName + ".WriteTo(writer, \" \", static (item, w, trivia) => w.WriteToken(item, trivia));\n";
+        return "        writer.WriteDelimitedList(" + fieldName + ", \" \");\n";
     }
 
     private static string GetPunctuationFieldName(TokenKind tokenKind)

@@ -210,7 +210,7 @@ public sealed class ConstructionTests
             new SyntaxToken(")"));
 
         var writer = new SyntaxWriter();
-        list.WriteTo(writer, string.Empty, static (arg, w, trivia) => arg.WriteTo(w, trivia));
+        writer.WriteDelimitedList(list, string.Empty);
 
         Assert.Equal("(%arg0: i32, %arg1: i64)", writer.ToString());
     }
@@ -225,7 +225,7 @@ public sealed class ConstructionTests
             null);
 
         var writer = new SyntaxWriter();
-        list.WriteTo(writer, string.Empty, static (arg, w, trivia) => arg.WriteTo(w, trivia));
+        writer.WriteDelimitedList(list, string.Empty);
 
         Assert.Equal(string.Empty, writer.ToString());
     }
