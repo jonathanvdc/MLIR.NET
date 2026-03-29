@@ -216,13 +216,15 @@ public sealed class ConstructionTests
     }
 
     [Fact]
-    public void DelimitedSyntaxListWriteToDoesNothingWhenOpenTokenIsNull()
+    public void DelimitedSyntaxListWriteToDoesNothingWhenNotPresent()
     {
         var list = new DelimitedSyntaxList<BlockArgumentSyntax>(
             null,
             [],
             [],
             null);
+
+        Assert.False(list.IsPresent);
 
         var writer = new SyntaxWriter();
         writer.WriteDelimitedList(list, string.Empty);
