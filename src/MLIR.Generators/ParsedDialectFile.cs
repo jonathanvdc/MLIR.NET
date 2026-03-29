@@ -5,7 +5,7 @@ using MLIR.ODS.Model;
 
 internal readonly struct ParsedDialectFile
 {
-    public ParsedDialectFile(string path, IReadOnlyList<OdsDialectModel> dialects, string? errorMessage)
+    public ParsedDialectFile(string path, IReadOnlyList<DialectModel> dialects, string? errorMessage)
     {
         Path = path;
         Dialects = dialects;
@@ -14,7 +14,7 @@ internal readonly struct ParsedDialectFile
 
     public string Path { get; }
 
-    public IReadOnlyList<OdsDialectModel> Dialects { get; }
+    public IReadOnlyList<DialectModel> Dialects { get; }
 
     public string? ErrorMessage { get; }
 }
