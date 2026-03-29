@@ -131,7 +131,7 @@ public static class AssemblyFormatParser
                 Advance();
             string value = _source.Substring(start, _pos - start);
             Expect('`');
-            return new LiteralChunk(value);
+            return new LiteralChunk(Literal.Parse(value));
         }
 
         private VariableChunk ParseVariable()
