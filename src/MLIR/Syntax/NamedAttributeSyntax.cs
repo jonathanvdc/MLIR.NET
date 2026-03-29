@@ -56,7 +56,12 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// </summary>
     public RawSyntaxText RawValue => ValueSyntax.GetRawText();
 
-    internal void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+    /// <summary>
+    /// Writes the named attribute to the supplied syntax writer.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    /// <param name="defaultLeadingTrivia">The fallback leading trivia for the name token.</param>
+    public void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
     {
         writer.WriteToken(NameToken, defaultLeadingTrivia);
         writer.WriteToken(EqualsToken, " ");
