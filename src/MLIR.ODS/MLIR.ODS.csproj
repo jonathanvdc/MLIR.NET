@@ -8,5 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TableGen\TableGen.csproj" />
+    <ProjectReference Include="..\MLIR\MLIR.csproj" />
   </ItemGroup>
 </Project>
