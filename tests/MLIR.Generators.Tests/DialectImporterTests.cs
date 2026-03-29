@@ -3,6 +3,7 @@ namespace MLIR.Generators.Tests;
 using System.Linq;
 using MLIR.ODS;
 using MLIR.ODS.Model.AssemblyFormat;
+using MLIR.Text;
 using TableGen;
 using Xunit;
 
@@ -73,10 +74,10 @@ public sealed class DialectImporterTests
         Assert.Collection(
             addiOp.AssemblyFormat!.Elements,
             e => Assert.Equal("lhs", Assert.IsType<VariableChunk>(e).Name),
-            e => Assert.Equal(",", Assert.IsType<LiteralChunk>(e).Value),
+            e => Assert.Equal(TokenKind.Comma, Assert.IsType<PunctuationLiteral>(Assert.Single(Assert.IsType<LiteralChunk>(e).Value)).TokenKind),
             e => Assert.Equal("rhs", Assert.IsType<VariableChunk>(e).Name),
             e => Assert.IsType<AttrDictDirectiveChunk>(e),
-            e => Assert.Equal(":", Assert.IsType<LiteralChunk>(e).Value),
+            e => Assert.Equal(TokenKind.Colon, Assert.IsType<PunctuationLiteral>(Assert.Single(Assert.IsType<LiteralChunk>(e).Value)).TokenKind),
             e => Assert.Equal("result", Assert.IsType<VariableOperand>(Assert.IsType<TypeDirectiveChunk>(e).Operand).Name));
         Assert.True(addiOp.HasCustomAssemblyFormat);
     }
