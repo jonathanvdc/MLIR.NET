@@ -55,27 +55,6 @@ public sealed class Binder
     /// <returns>The semantic operation.</returns>
     public Operation BindOperation(OperationSyntax syntax)
     {
-        // TODO: implement custom assembly format CST binding here, which may involve projecting a different syntax tree shape for the operation body.
-        return BindGenericOperation(syntax);
-    }
-
-    private Operation BindGenericOperation(OperationSyntax syntax)
-    {
-        var genericBody = syntax.Body as GenericOperationBodySyntax
-            ?? throw new InvalidOperationException("Expected GenericOperationBodySyntax.");
-
-        var regions = new List<Region>();
-        foreach (var region in genericBody.Regions)
-        {
-            regions.Add(BindRegion(region));
-        }
-
-        var attributes = new List<NamedAttribute>();
-        foreach (var attribute in genericBody.Attributes)
-        {
-            attributes.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.RawValue, attribute.NameToken)));
-        }
-
         var name = NormalizeOperationName(syntax.Name);
         OperationDefinition? definition = null;
         if (dialectRegistry != null)
@@ -83,20 +62,46 @@ public sealed class Binder
             dialectRegistry.TryGetOperation(name, out definition);
         }
 
-        TypeReference? typeSignatureReference = null;
-        if (genericBody.RawTypeSignature != null)
+        if (syntax.Body is GenericOperationBodySyntax genericBody)
         {
-            var location = genericBody.TypeSignatureColonToken != null
-                ? SourceLocation.FromToken(genericBody.TypeSignatureColonToken.Value)
-                : default;
-            typeSignatureReference = BindTypeReference(genericBody.RawTypeSignature, location);
+            return BindGenericOperation(syntax, genericBody, name, definition);
+        }
+        else if (definition != null && definition.AssemblyFormat != null)
+        {
+            return definition.AssemblyFormat.Bind(syntax, definition, this);
+        }
+        else
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Unrecognized operation '{name}' with no generic body and no assembly format defined."));
+            return new UninterpretedOperation(syntax, name);
+        }
+    }
+
+    private Operation BindGenericOperation(OperationSyntax syntax, GenericOperationBodySyntax body, string name, OperationDefinition? definition)
+    {
+        var regions = new List<Region>();
+        foreach (var region in body.Regions)
+        {
+            regions.Add(BindRegion(region));
         }
 
-        var resultValues = CreateValueReferences(syntax.ResultTokens);
-        var operandValues = CreateValueReferences(genericBody.OperandList.Items);
-        var successorReferences = CreateBlockReferences(genericBody.SuccessorList.Items);
+        var attributes = new List<NamedAttribute>();
+        foreach (var attribute in body.Attributes)
+        {
+            attributes.Add(BindNamedAttribute(attribute));
+        }
+
+        TypeReference? typeSignatureReference = null;
+        if (body.RawTypeSignature != null)
+        {
+            typeSignatureReference = BindTypeReference(body.RawTypeSignature);
+        }
+
+        var resultValues = BindValueReferences(syntax.ResultTokens);
+        var operandValues = BindValueReferences(body.OperandList.Items);
+        var successorReferences = BindBlockReferences(body.SuccessorList.Items);
         Operation operation;
-        if (definition != null)
+        if (definition != null && CheckGenericOperationConstraints(syntax, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences))
         {
             var constructionContext = new OperationConstructionContext(
                 syntax,
@@ -109,7 +114,6 @@ public sealed class Binder
                 operandValues,
                 successorReferences);
             operation = definition.Factory(constructionContext);
-            definition.AssemblyFormat?.Bind(operation, new OperationAssemblyBindingContext(operation, this));
         }
         else
         {
@@ -126,6 +130,73 @@ public sealed class Binder
         }
 
         return operation;
+    }
+
+    private bool CheckGenericOperationConstraints(
+        OperationSyntax syntax,
+        OperationDefinition definition,
+        IReadOnlyList<Region> regions,
+        IReadOnlyList<NamedAttribute> attributes,
+        TypeReference? typeSignatureReference,
+        IReadOnlyList<ValueReference> resultValues,
+        IReadOnlyList<ValueReference> operandValues,
+        IReadOnlyList<BlockReference> successorReferences)
+    {
+        var isValid = true;
+        if (definition.RegionCount.HasValue && regions.Count != definition.RegionCount.Value)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected exactly {definition.RegionCount.Value} region(s) but found {regions.Count}."));
+            isValid = false;
+        }
+        else if (regions.Count < definition.RegionMinCount)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected at least {definition.RegionMinCount} region(s) but found {regions.Count}."));
+            isValid = false;
+        }
+
+        if (definition.ResultCount.HasValue && resultValues.Count != definition.ResultCount.Value)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected exactly {definition.ResultCount.Value} result(s) but found {resultValues.Count}."));
+            isValid = false;
+        }
+        else if (resultValues.Count < definition.ResultMinCount)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected at least {definition.ResultMinCount} result(s) but found {resultValues.Count}."));
+            isValid = false;
+        }
+
+        if (definition.OperandCount.HasValue && operandValues.Count != definition.OperandCount.Value)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected exactly {definition.OperandCount.Value} operand(s) but found {operandValues.Count}."));
+            isValid = false;
+        }
+        else if (operandValues.Count < definition.OperandMinCount)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected at least {definition.OperandMinCount} operand(s) but found {operandValues.Count}."));
+            isValid = false;
+        }
+
+        if (definition.SuccessorCount.HasValue && successorReferences.Count != definition.SuccessorCount.Value)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected exactly {definition.SuccessorCount.Value} successor(s) but found {successorReferences.Count}."));
+            isValid = false;
+        }
+        else if (successorReferences.Count < definition.SuccessorMinCount)
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected at least {definition.SuccessorMinCount} successor(s) but found {successorReferences.Count}."));
+            isValid = false;
+        }
+
+        foreach (var requiredAttribute in definition.RequiredAttributes)
+        {
+            if (!attributes.Any(a => a.Name == requiredAttribute))
+            {
+                Report(new AssemblyDiagnostic(syntax.Location, $"{definition.Name} expects a '{requiredAttribute}' required attribute."));
+                isValid = false;
+            }
+        }
+
+        return isValid;
     }
 
     /// <summary>
@@ -154,7 +225,7 @@ public sealed class Binder
         var arguments = new List<BlockArgument>();
         foreach (var argument in syntax.Arguments)
         {
-            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.RawType, SourceLocation.FromToken(argument.NameToken))));
+            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.RawType)));
         }
 
         var operations = new List<Operation>();
@@ -177,19 +248,41 @@ public sealed class Binder
     }
 
     /// <summary>
+    /// Binds a syntax token to a value reference, which may refer to an SSA value defined by another operation in the same module.
+    /// The token text is expected to be in the form of an SSA value name (e.g. "%1", "%foo", etc.); otherwise, the resulting reference may be invalid.
+    /// </summary>
+    /// <param name="token">The syntax token to bind.</param>
+    /// <returns>The semantic value reference.</returns>
+    public ValueReference BindValueReference(SyntaxToken token)
+    {
+        return new ValueReference(token);
+    }
+
+    /// <summary>
     /// Creates value references for the given tokens, which may refer to SSA values defined by other operations in the same module.
     /// </summary>
     /// <param name="tokens">The tokens for which to create references.</param>
     /// <returns>The list of value references.</returns>
-    public IReadOnlyList<ValueReference> CreateValueReferences(IReadOnlyList<SyntaxToken> tokens)
+    public IReadOnlyList<ValueReference> BindValueReferences(IReadOnlyList<SyntaxToken> tokens)
     {
         var values = new List<ValueReference>(tokens.Count);
         foreach (var token in tokens)
         {
-            values.Add(new ValueReference(token));
+            values.Add(BindValueReference(token));
         }
 
         return values;
+    }
+
+    /// <summary>
+    /// Binds a syntax token to a block reference, which may refer to a block defined by another operation in the same module.
+    /// The token text is expected to be in the form of a block name (e.g. "^bb1", "^foo", etc.); otherwise, the resulting reference may be invalid.
+    /// </summary>
+    /// <param name="token">The syntax token to bind.</param>
+    /// <returns>The semantic block reference.</returns>
+    public BlockReference BindBlockReference(SyntaxToken token)
+    {
+        return new BlockReference(token);
     }
 
     /// <summary>
@@ -197,12 +290,12 @@ public sealed class Binder
     /// </summary>
     /// <param name="tokens">The tokens for which to create references.</param>
     /// <returns>The list of block references.</returns>
-    public IReadOnlyList<BlockReference> CreateBlockReferences(IReadOnlyList<SyntaxToken> tokens)
+    public IReadOnlyList<BlockReference> BindBlockReferences(IReadOnlyList<SyntaxToken> tokens)
     {
         var values = new List<BlockReference>(tokens.Count);
         foreach (var token in tokens)
         {
-            values.Add(new BlockReference(token));
+            values.Add(BindBlockReference(token));
         }
 
         return values;
@@ -212,9 +305,8 @@ public sealed class Binder
     /// Binds an attribute value syntax tree to a semantic attribute value.
     /// </summary>
     /// <param name="syntax">The concrete syntax tree to bind.</param>
-    /// <param name="nameToken">The token for the attribute name.</param>
     /// <returns>The semantic attribute value.</returns>
-    public AttributeValue BindAttributeValue(RawSyntaxText syntax, SyntaxToken nameToken)
+    public AttributeValue BindAttributeValue(RawSyntaxText syntax)
     {
         var canonicalName = TryGetAttributeDefinitionName(syntax.Text);
         AttributeDefinition? definition = null;
@@ -224,7 +316,7 @@ public sealed class Binder
         }
 
         AttributeValue attribute;
-        var location = SourceLocation.FromToken(nameToken);
+        var location = syntax.Location;
         if (definition != null)
         {
             attribute = definition.Factory(new AttributeValueConstructionContext(syntax, canonicalName, definition, location));
@@ -239,12 +331,22 @@ public sealed class Binder
     }
 
     /// <summary>
+    /// Binds a named attribute syntax tree to a semantic named attribute, which includes both the attribute name and value.
+    /// </summary>
+    /// <param name="syntax">The named attribute syntax tree to bind.</param>
+    /// <returns>The semantic named attribute.</returns>
+    public NamedAttribute BindNamedAttribute(NamedAttributeSyntax syntax)
+    {
+        var value = BindAttributeValue(syntax.RawValue);
+        return new NamedAttribute(syntax, value);
+    }
+
+    /// <summary>
     /// Binds a type reference syntax tree to a semantic type reference.
     /// </summary>
     /// <param name="syntax">The concrete syntax tree to bind.</param>
-    /// <param name="location">The source location to associate with the type reference.</param>
     /// <returns>The semantic type reference.</returns>
-    public TypeReference BindTypeReference(RawSyntaxText syntax, SourceLocation location)
+    public TypeReference BindTypeReference(RawSyntaxText syntax)
     {
         var canonicalName = TryGetTypeDefinitionName(syntax.Text);
         TypeDefinition? definition = null;
@@ -256,12 +358,12 @@ public sealed class Binder
         TypeReference type;
         if (definition != null)
         {
-            type = definition.Factory(new TypeReferenceConstructionContext(syntax, canonicalName, definition, location));
+            type = definition.Factory(new TypeReferenceConstructionContext(syntax, canonicalName, definition, syntax.Location));
             definition.AssemblyFormat?.Bind(type, new TypeAssemblyBindingContext(type, diagnostics));
         }
         else
         {
-            type = new UnknownTypeReference(syntax, canonicalName, definition, location);
+            type = new UnknownTypeReference(syntax, canonicalName, definition, syntax.Location);
         }
 
         return type;

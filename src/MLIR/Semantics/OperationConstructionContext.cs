@@ -76,4 +76,19 @@ public sealed class OperationConstructionContext
     /// </summary>
     public IReadOnlyList<BlockReference> SuccessorReferences { get; }
 
+    /// <summary>
+    /// Gets an attribute by name.
+    /// </summary>
+    public NamedAttribute GetAttribute(string name)
+    {
+        foreach (var attribute in Attributes)
+        {
+            if (string.Equals(attribute.Name, name, StringComparison.Ordinal))
+            {
+                return attribute;
+            }
+        }
+
+        throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");
+    }
 }

@@ -40,7 +40,7 @@ public readonly struct SourceLocation
     /// <returns>The resulting source location.</returns>
     public static SourceLocation FromToken(SyntaxToken token)
     {
-        return token.HasSourceLocation ? new SourceLocation(token.Line, token.Column) : default;
+        return token.HasSourceLocation ? new SourceLocation(token.Line, token.Column) : SourceLocation.Unknown;
     }
 
     /// <summary>
@@ -51,4 +51,11 @@ public readonly struct SourceLocation
     {
         return IsKnown ? $"{Line}:{Column}" : string.Empty;
     }
+
+    /// <summary>
+    /// Gets an unknown source location.
+    /// </summary> <remarks>
+    /// An unknown source location is represented by a default instance with line and column set to zero.
+    /// </remarks>
+    public static SourceLocation Unknown => default;
 }

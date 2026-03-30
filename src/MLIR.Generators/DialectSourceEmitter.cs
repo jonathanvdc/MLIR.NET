@@ -491,8 +491,9 @@ internal static class DialectSourceEmitter
         builder.AppendLine("        return false;");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public void Bind(Operation operation, OperationAssemblyBindingContext context)");
+        builder.AppendLine("    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)");
         builder.AppendLine("    {");
+        builder.AppendLine("        throw new NotImplementedException(\"Custom assembly format binding is not yet implemented for this operation.\");");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)");

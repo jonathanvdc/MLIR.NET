@@ -3,6 +3,7 @@ namespace MLIR.Syntax;
 using System.Collections.Generic;
 using System;
 using MLIR.Text;
+using MLIR.Semantics;
 
 /// <summary>
 /// Represents an MLIR operation.
@@ -220,6 +221,11 @@ public sealed class OperationSyntax
     /// Gets a value indicating whether the operation uses a custom assembly body.
     /// </summary>
     public bool HasCustomAssemblyBody => Body is not GenericOperationBodySyntax;
+
+    /// <summary>
+    /// Gets the source location of the operation name.
+    /// </summary>
+    public SourceLocation Location => SourceLocation.FromToken(NameToken);
 
     internal void WriteTo(
         SyntaxWriter writer,

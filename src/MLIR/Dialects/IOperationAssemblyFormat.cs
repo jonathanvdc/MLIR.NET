@@ -34,11 +34,13 @@ public interface IOperationAssemblyFormat
         out OperationBodySyntax? body);
 
     /// <summary>
-    /// Interprets the generic concrete syntax of the supplied operation into semantic properties.
+    /// Interprets the supplied concrete syntax tree in the assembly format into semantic properties.
     /// </summary>
-    /// <param name="operation">The operation to interpret.</param>
-    /// <param name="context">The binding context.</param>
-    void Bind(Operation operation, OperationAssemblyBindingContext context);
+    /// <param name="syntax">The operation syntax to interpret.</param>
+    /// <param name="definition">The operation definition.</param>
+    /// <param name="binder">The binding context.</param>
+    /// <returns>The interpreted operation.</returns>
+    Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder);
 
     /// <summary>
     /// Rewrites the supplied operation into custom concrete syntax.

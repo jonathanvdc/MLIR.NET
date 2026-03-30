@@ -67,9 +67,19 @@ public sealed class OperationDefinition(
     public int? OperandCount => InferExactCount(OperandDefinitions);
 
     /// <summary>
+    /// Gets the minimum number of operands expected by the operation, if constrained.
+    /// </summary>
+    public int OperandMinCount => InferMinCount(OperandDefinitions);
+
+    /// <summary>
     /// Gets the exact number of results expected by the operation, if constrained.
     /// </summary>
     public int? ResultCount => InferExactCount(ResultDefinitions);
+
+    /// <summary>
+    /// Gets the minimum number of results expected by the operation, if constrained.
+    /// </summary>
+    public int ResultMinCount => InferMinCount(ResultDefinitions);
 
     /// <summary>
     /// Gets the exact number of regions expected by the operation, if constrained.
@@ -77,9 +87,19 @@ public sealed class OperationDefinition(
     public int? RegionCount => InferExactCount(RegionDefinitions);
 
     /// <summary>
+    /// Gets the minimum number of regions expected by the operation, if constrained.
+    /// </summary>
+    public int RegionMinCount => InferMinCount(RegionDefinitions);
+
+    /// <summary>
     /// Gets the exact number of successors expected by the operation, if constrained.
     /// </summary>
     public int? SuccessorCount => InferExactCount(SuccessorDefinitions);
+
+    /// <summary>
+    /// Gets the minimum number of successors expected by the operation, if constrained.
+    /// </summary>
+    public int SuccessorMinCount => InferMinCount(SuccessorDefinitions);
 
     /// <summary>
     /// Gets the attribute names that must be present on the operation.
@@ -104,6 +124,22 @@ public sealed class OperationDefinition(
     private static readonly IReadOnlyList<OperationSegmentDefinition> EmptySegmentDefinitions = new OperationSegmentDefinition[0];
     private static readonly IReadOnlyList<OperationAttributeDefinition> EmptyAttributeDefinitions = new OperationAttributeDefinition[0];
     private static readonly IReadOnlyList<string> EmptyRequiredAttributes = new string[0];
+
+    private static int InferMinCount(IReadOnlyList<OperationSegmentDefinition> definitions)
+    {
+        var count = 0;
+        foreach (var definition in definitions)
+        {
+            if (definition.IsVariadic)
+            {
+                break;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
 
     private static int? InferExactCount(IReadOnlyList<OperationSegmentDefinition> definitions)
     {

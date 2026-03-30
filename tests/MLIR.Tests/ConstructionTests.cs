@@ -97,7 +97,7 @@ public sealed class ConstructionTests
     public void SyntaxTokenAndRawSyntaxTextExposeFullText()
     {
         var token = new SyntaxToken("value", "  ");
-        var raw = new RawSyntaxText("i32", " ");
+        var raw = new RawSyntaxText([new SyntaxToken("i32", leadingTrivia: " ")]);
 
         Assert.Equal("  value", token.FullText);
         Assert.Equal("  value", token.ToString());

@@ -7,6 +7,7 @@ using MLIR.Syntax;
 using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;
+using Xunit.Sdk;
 
 public sealed class ParsingTests
 {
@@ -71,13 +72,14 @@ public sealed class ParsingTests
             return true;
         }
 
-        public void Bind(Operation operation, OperationAssemblyBindingContext context)
-        {
-        }
-
         public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
         {
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
+        }
+
+        public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+        {
+            throw new NotImplementedException("This assembly format is only intended for testing CSTs.");
         }
     }
 

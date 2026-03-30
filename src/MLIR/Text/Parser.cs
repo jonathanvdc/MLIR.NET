@@ -387,8 +387,8 @@ public sealed class Parser
         var end = tokens[position - 1].End;
 
         return new RawSyntaxText(
-            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart),
-            source.Substring(start, firstToken.TokenStart - start));
+            CreateSyntaxTokenList(tokens, firstTokenIndex, position),
+            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart));
     }
 
     private RawSyntaxText ParseRawUntilOperationBoundary()
@@ -419,8 +419,8 @@ public sealed class Parser
         var end = tokens[position - 1].End;
 
         return new RawSyntaxText(
-            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart),
-            source.Substring(start, firstToken.TokenStart - start));
+            CreateSyntaxTokenList(tokens, firstTokenIndex, position),
+            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart));
     }
 
     private bool IsRegionStart()
@@ -504,6 +504,17 @@ public sealed class Parser
                 depthAngle--;
                 break;
         }
+    }
+
+    private static List<SyntaxToken> CreateSyntaxTokenList(IReadOnlyList<Token> tokens, int start, int end)
+    {
+        var result = new List<SyntaxToken>(end - start);
+        for (var i = start; i < end; i++)
+        {
+            result.Add(ToSyntaxToken(tokens[i]));
+        }
+
+        return result;
     }
 
     private bool TryMatch(TokenKind kind, out Token token)

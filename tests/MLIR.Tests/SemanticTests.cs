@@ -28,7 +28,6 @@ public sealed class SemanticTests
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
     {
         private readonly GenericOperationBodySyntax genericBody;
-        private readonly RawSyntaxText typeSignature;
 
         public PrefixConstantBodySyntax(
             RawSyntaxText value,
@@ -38,7 +37,7 @@ public sealed class SemanticTests
         {
             Value = value;
             ColonToken = colonToken;
-            this.typeSignature = typeSignature;
+            TypeSignature = typeSignature;
             genericBody = new GenericOperationBodySyntax(
                 new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), [], [], new SyntaxToken(")")),
                 new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
@@ -50,6 +49,7 @@ public sealed class SemanticTests
 
         public RawSyntaxText Value { get; }
         public SyntaxToken ColonToken { get; }
+        public RawSyntaxText TypeSignature { get; }
 
         public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
         {
@@ -61,7 +61,7 @@ public sealed class SemanticTests
         {
             writer.WriteRaw(Value, " ");
             writer.WriteToken(ColonToken, " ");
-            writer.WriteRaw(typeSignature, " ");
+            writer.WriteRaw(TypeSignature, " ");
         }
     }
 
@@ -84,19 +84,24 @@ public sealed class SemanticTests
         private readonly GeneratedConstantOperation? typedOperation;
         public IReadOnlyList<string> Results => operation.Results;
         public NamedAttribute ValueAttribute => operation.GetAttribute("value");
-        public string? ParsedValueText => typedOperation?.ParsedValueText;
-        public string? ParsedTypeText => typedOperation?.ParsedTypeText;
         public ValueReference ResultValue => operation.ResultValues[0];
     }
 
     private sealed class GeneratedConstantOperation : Operation
     {
-        private readonly IReadOnlyList<Region> regions;
-        private readonly IReadOnlyList<NamedAttribute> attributes;
-        private readonly TypeReference? typeSignatureReference;
-        private readonly IReadOnlyList<ValueReference> resultValues;
-        private readonly IReadOnlyList<ValueReference> operandValues;
-        private readonly IReadOnlyList<BlockReference> successorReferences;
+        public readonly NamedAttribute ValueAttribute;
+        public readonly ValueReference ResultValue;
+
+        public GeneratedConstantOperation(OperationSyntax syntax, OperationDefinition definition, ValueReference resultValue, AttributeValue value, TypeReference typeSignatureReference)
+            : base(
+                syntax,
+                definition.Name,
+                definition)
+        {
+            ValueAttribute = new NamedAttribute("value", value);
+            ResultValue = resultValue;
+            TypeSignatureReference = typeSignatureReference;
+        }
 
         public GeneratedConstantOperation(OperationConstructionContext context)
             : base(
@@ -104,29 +109,17 @@ public sealed class SemanticTests
                 context.Name,
                 context.Definition)
         {
-            regions = context.Regions;
-            attributes = context.Attributes;
-            typeSignatureReference = context.TypeSignatureReference;
-            resultValues = context.ResultValues;
-            operandValues = context.OperandValues;
-            successorReferences = context.SuccessorReferences;
+            ValueAttribute = context.GetAttribute("value");
+            ResultValue = context.ResultValues.Single();
+            TypeSignatureReference = context.TypeSignatureReference;
         }
 
-        public override IReadOnlyList<Region> Regions => regions;
-        public override IReadOnlyList<NamedAttribute> Attributes => attributes;
-        public override TypeReference? TypeSignatureReference => typeSignatureReference;
-        public override IReadOnlyList<ValueReference> ResultValues => resultValues;
-        public override IReadOnlyList<ValueReference> OperandValues => operandValues;
-        public override IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;
-
-        public string? ParsedValueText { get; private set; }
-        public string? ParsedTypeText { get; private set; }
-
-        public void BindCustomAssembly(string valueText, string? typeText)
-        {
-            ParsedValueText = valueText;
-            ParsedTypeText = typeText;
-        }
+        public override IReadOnlyList<Region> Regions => [];
+        public override IReadOnlyList<NamedAttribute> Attributes => [ValueAttribute];
+        public override TypeReference? TypeSignatureReference { get; }
+        public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
+        public override IReadOnlyList<ValueReference> OperandValues => [];
+        public override IReadOnlyList<BlockReference> SuccessorReferences => [];
     }
 
     private sealed class DenseAttributeValue : AttributeValue
@@ -213,27 +206,22 @@ public sealed class SemanticTests
             return true;
         }
 
-        public void Bind(Operation operation, OperationAssemblyBindingContext context)
+        public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
         {
-            if (!operation.HasAttribute("value"))
-            {
-                context.Report("arith.constant custom assembly expects a 'value' attribute.");
-                return;
-            }
-
-            if (operation is GeneratedConstantOperation constant)
-            {
-                constant.BindCustomAssembly(
-                    operation.GetAttribute("value").Value.Text,
-                    operation.TypeSignature?.Text);
-            }
+            var body = (PrefixConstantBodySyntax)syntax.Body;
+            return new GeneratedConstantOperation(
+                syntax,
+                definition,
+                binder.BindValueReference(syntax.ResultTokens.Single()),
+                binder.BindAttributeValue(body.Value),
+                binder.BindTypeReference(body.TypeSignature));
         }
 
         public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
         {
             var genericBody = context.TransformGenericBody(operation);
             var body = new PrefixConstantBodySyntax(
-                operation.HasAttribute("value") ? operation.GetAttribute("value").Value : new RawSyntaxText(string.Empty),
+                operation.HasAttribute("value") ? operation.GetAttribute("value").Value.Syntax : new RawSyntaxText(string.Empty),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
                 operation.TypeSignature ?? new RawSyntaxText(string.Empty),
                 genericBody.Attributes);
@@ -352,7 +340,7 @@ public sealed class SemanticTests
         Assert.Equal("i32", block.Arguments[0].Type.Text);
         Assert.Single(nestedOperation.Attributes);
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
-        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Text);
+        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax.Text);
         Assert.Equal("%arg0", block.Arguments[0].Value.Name);
         Assert.Equal("i32", block.Arguments[0].TypeReference.Name);
     }
@@ -374,9 +362,9 @@ public sealed class SemanticTests
 
         var operation = module.Operations[0];
 
-        Assert.True(operation.Attributes[0].ValueReference.IsKnown);
-        Assert.Equal("dense", operation.Attributes[0].ValueReference.Name);
-        Assert.Equal("dense", Assert.IsType<DenseAttributeValue>(operation.Attributes[0].ValueReference).Kind);
+        Assert.True(operation.Attributes[0].Value.IsKnown);
+        Assert.Equal("dense", operation.Attributes[0].Value.Name);
+        Assert.Equal("dense", Assert.IsType<DenseAttributeValue>(operation.Attributes[0].Value).Kind);
         Assert.NotNull(operation.TypeSignatureReference);
         Assert.True(operation.TypeSignatureReference!.IsKnown);
         Assert.Equal("i32", operation.TypeSignatureReference.Name);
@@ -616,7 +604,7 @@ public sealed class SemanticTests
         var attribute = module.Operations[0].GetAttribute("value");
 
         Assert.Equal("value", attribute.Name);
-        Assert.Equal("0 : i32", attribute.Value.Text);
+        Assert.Equal("0 : i32", attribute.Value.Syntax.Text);
     }
 
     [Fact]
@@ -633,8 +621,7 @@ public sealed class SemanticTests
 
         Assert.Equal("%0", view.Results[0]);
         Assert.Equal("%0", view.ResultValue.Name);
-        Assert.Equal("0 : i32", view.ValueAttribute.Value.Text);
-        Assert.Equal("0 : i32", view.ParsedValueText);
+        Assert.Equal("0 : i32", view.ValueAttribute.Value.Syntax.Text);
     }
 
     [Fact]
@@ -766,7 +753,7 @@ public sealed class SemanticTests
         var module = Binder.BindModule(document.Module, registry);
 
         Assert.Equal("%0 = arith.constant 0 : i32", module.ToText());
-        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Text);
+        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax.Text);
     }
 
     [Fact]
@@ -794,22 +781,6 @@ public sealed class SemanticTests
     }
 
     [Fact]
-    public void AssemblyBindingCanPopulateTypedSemanticState()
-    {
-        var registry = new DialectRegistry();
-        registry.RegisterDialect(CreateArithConstantDialect());
-
-        var module = Binder.BindModule(
-            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"),
-            registry);
-        var view = new ArithConstantView(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]));
-
-        Assert.Equal("0 : i32", view.ParsedValueText);
-        Assert.Equal("() -> i32", view.ParsedTypeText);
-        Assert.Empty(module.AssemblyDiagnostics);
-    }
-
-    [Fact]
     public void AssemblyBindingCanReportDiagnostics()
     {
         var registry = new DialectRegistry();
@@ -821,6 +792,7 @@ public sealed class SemanticTests
                     dialect.AddOperation(
                         "arith.constant",
                         operation => operation
+                            .RequiredAttribute("value")
                             .WithFactory(static context => new GeneratedConstantOperation(context))
                             .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
                 }));
@@ -830,7 +802,7 @@ public sealed class SemanticTests
             registry);
 
         Assert.Single(module.AssemblyDiagnostics);
-        Assert.Equal("arith.constant custom assembly expects a 'value' attribute.", module.AssemblyDiagnostics[0].Message);
+        Assert.Equal("arith.constant expects a 'value' required attribute.", module.AssemblyDiagnostics[0].Message);
         Assert.True(module.AssemblyDiagnostics[0].Location.IsKnown);
         Assert.Equal(1, module.AssemblyDiagnostics[0].Location.Line);
         Assert.Equal(6, module.AssemblyDiagnostics[0].Location.Column);
