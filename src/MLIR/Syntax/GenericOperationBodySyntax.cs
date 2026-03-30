@@ -77,57 +77,18 @@ public sealed class GenericOperationBodySyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel, System.Action<Text.SyntaxWriter, RegionSyntax, int> writeRegion)
+    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
     {
-        writer.WriteToken(OperandList.OpenToken!.Value, string.Empty);
-        for (var i = 0; i < OperandList.Count; i++)
-        {
-            if (i > 0)
-            {
-                writer.WriteToken(OperandList.SeparatorTokens[i - 1], string.Empty);
-            }
+        writer.WriteDelimitedList(OperandList, string.Empty);
 
-            writer.WriteToken(OperandList[i], i > 0 ? " " : string.Empty);
-        }
-
-        writer.WriteToken(OperandList.CloseToken!.Value, string.Empty);
-
-        if (SuccessorList.OpenToken != null)
-        {
-            writer.WriteToken(SuccessorList.OpenToken.Value, " ");
-            for (var i = 0; i < SuccessorList.Count; i++)
-            {
-                if (i > 0)
-                {
-                    writer.WriteToken(SuccessorList.SeparatorTokens[i - 1], string.Empty);
-                }
-
-                writer.WriteToken(SuccessorList[i], i > 0 ? " " : string.Empty);
-            }
-
-            writer.WriteToken(SuccessorList.CloseToken!.Value, string.Empty);
-        }
+        writer.WriteDelimitedList(SuccessorList, " ");
 
         foreach (var region in Regions)
         {
-            writeRegion(writer, region, indentLevel);
+            writer.WriteRegion(region, indentLevel);
         }
 
-        if (Attributes.OpenToken != null)
-        {
-            writer.WriteToken(Attributes.OpenToken.Value, " ");
-            for (var i = 0; i < Attributes.Count; i++)
-            {
-                if (i > 0)
-                {
-                    writer.WriteToken(Attributes.SeparatorTokens[i - 1], string.Empty);
-                }
-
-                Attributes[i].WriteTo(writer, i > 0 ? " " : string.Empty);
-            }
-
-            writer.WriteToken(Attributes.CloseToken!.Value, string.Empty);
-        }
+        writer.WriteDelimitedList(Attributes, " ");
 
         if (TypeSignatureColonToken != null && TypeSignatureSyntax != null)
         {

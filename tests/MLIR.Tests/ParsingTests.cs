@@ -40,7 +40,7 @@ public sealed class ParsingTests
             return true;
         }
 
-        public override void WriteTo(SyntaxWriter writer, int indentLevel, System.Action<SyntaxWriter, RegionSyntax, int> writeRegion)
+        public override void WriteTo(SyntaxWriter writer, int indentLevel)
         {
             writer.WriteRaw(value, " ");
             writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"), " ");

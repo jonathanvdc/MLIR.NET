@@ -1,7 +1,6 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
-using System;
 using MLIR.Text;
 using MLIR.Semantics;
 
@@ -227,11 +226,16 @@ public sealed class OperationSyntax
     /// </summary>
     public SourceLocation Location => SourceLocation.FromToken(NameToken);
 
-    internal void WriteTo(
+    /// <summary>
+    /// Writes this operation to the supplied syntax writer.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    /// <param name="indentLevel">The indentation level to use when indentation is synthesized.</param>
+    /// <param name="defaultLeadingTrivia">The fallback leading trivia to use when syntax does not carry explicit trivia.</param>
+    public void WriteTo(
         SyntaxWriter writer,
         int indentLevel,
-        string defaultLeadingTrivia,
-        Action<SyntaxWriter, RegionSyntax, int> writeRegion)
+        string defaultLeadingTrivia)
     {
         if (ResultTokens.Count > 0)
         {
@@ -253,7 +257,7 @@ public sealed class OperationSyntax
             writer.WriteToken(NameToken, defaultLeadingTrivia, indentLevel);
         }
 
-        Body.WriteTo(writer, indentLevel, writeRegion);
+        Body.WriteTo(writer, indentLevel);
     }
 
     private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)

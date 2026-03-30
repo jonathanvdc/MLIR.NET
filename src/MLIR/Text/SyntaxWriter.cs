@@ -1,6 +1,5 @@
 namespace MLIR.Text;
 
-using System;
 using System.Text;
 using MLIR.Syntax;
 
@@ -60,8 +59,7 @@ public sealed class SyntaxWriter
     /// <param name="defaultLeadingTrivia">The fallback leading trivia to use when syntax does not carry explicit trivia.</param>
     public void WriteOperation(OperationSyntax operation, int indentLevel, string defaultLeadingTrivia)
     {
-        operation.WriteTo(this, indentLevel, defaultLeadingTrivia, static (writer, region, innerIndentLevel) =>
-            writer.WriteRegion(region, innerIndentLevel));
+        operation.WriteTo(this, indentLevel, defaultLeadingTrivia);
     }
 
     /// <summary>
@@ -71,8 +69,7 @@ public sealed class SyntaxWriter
     /// <param name="indentLevel">The indentation level of the containing operation.</param>
     public void WriteRegion(RegionSyntax region, int indentLevel)
     {
-        region.WriteTo(this, indentLevel, static (writer, operation, operationIndentLevel, operationLeadingTrivia) =>
-            writer.WriteOperation(operation, operationIndentLevel, operationLeadingTrivia));
+        region.WriteTo(this, indentLevel);
     }
 
     /// <summary>
@@ -82,8 +79,40 @@ public sealed class SyntaxWriter
     /// <param name="regionIndentLevel">The indentation level of the containing region.</param>
     public void WriteBlock(BlockSyntax block, int regionIndentLevel)
     {
-        block.WriteTo(this, regionIndentLevel, static (writer, operation, operationIndentLevel, operationLeadingTrivia) =>
-            writer.WriteOperation(operation, operationIndentLevel, operationLeadingTrivia));
+        block.WriteTo(this, regionIndentLevel);
+    }
+
+    /// <summary>
+    /// Writes a delimited list of syntax tokens.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited token list to write.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia for the opening delimiter token.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<SyntaxToken> list, string openLeadingTrivia)
+    {
+        list.WriteTo(this, openLeadingTrivia, static (token, writer, trivia) => writer.WriteToken(token, trivia));
+    }
+
+    /// <summary>
+    /// Writes a delimited list of named attribute syntax nodes.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited attribute list to write.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia for the opening delimiter token.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<NamedAttributeSyntax> list, string openLeadingTrivia)
+    {
+        list.WriteTo(this, openLeadingTrivia, static (attr, writer, trivia) => attr.WriteTo(writer, trivia));
+    }
+
+    /// <summary>
+    /// Writes a delimited list of block argument syntax nodes.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited block argument list to write.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia for the opening delimiter token.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<BlockArgumentSyntax> list, string openLeadingTrivia)
+    {
+        list.WriteTo(this, openLeadingTrivia, static (arg, writer, trivia) => arg.WriteTo(writer, trivia));
     }
 
     /// <summary>

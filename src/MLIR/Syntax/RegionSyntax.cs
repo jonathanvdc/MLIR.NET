@@ -1,7 +1,6 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
-using System;
 using MLIR.Text;
 
 /// <summary>
@@ -39,16 +38,20 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
     /// </summary>
     public SyntaxToken CloseBraceToken { get; } = closeBraceToken;
 
-    internal void WriteTo(
+    /// <summary>
+    /// Writes this region to the supplied syntax writer.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    /// <param name="indentLevel">The indentation level of the containing operation.</param>
+    public void WriteTo(
         SyntaxWriter writer,
-        int indentLevel,
-        Action<SyntaxWriter, OperationSyntax, int, string> writeOperation)
+        int indentLevel)
     {
         writer.WriteToken(OpenBraceToken, " ");
 
         foreach (var block in Blocks)
         {
-            block.WriteTo(writer, indentLevel, writeOperation);
+            block.WriteTo(writer, indentLevel);
         }
 
         writer.WriteToken(CloseBraceToken, "\n", indentLevel);

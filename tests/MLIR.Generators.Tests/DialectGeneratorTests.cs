@@ -103,7 +103,7 @@ public sealed class DialectGeneratorTests
         Assert.Contains("return false;", registrationSource);
 
         // WriteTo is implemented.
-        Assert.Contains("public override void WriteTo(Text.SyntaxWriter writer, int indentLevel, System.Action<Text.SyntaxWriter, RegionSyntax, int> writeRegion)", registrationSource);
+        Assert.Contains("public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)", registrationSource);
     }
 
     [Fact]

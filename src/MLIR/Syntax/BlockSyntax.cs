@@ -1,7 +1,6 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
-using System;
 using MLIR.Text;
 
 /// <summary>
@@ -72,10 +71,14 @@ public sealed class BlockSyntax
     /// </summary>
     public string Label => LabelToken.Text;
 
-    internal void WriteTo(
+    /// <summary>
+    /// Writes this block to the supplied syntax writer.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    /// <param name="regionIndentLevel">The indentation level of the containing region.</param>
+    public void WriteTo(
         SyntaxWriter writer,
-        int regionIndentLevel,
-        Action<SyntaxWriter, OperationSyntax, int, string> writeOperation)
+        int regionIndentLevel)
     {
         // Synthetic entry blocks are a parser implementation detail. Omit their labels when
         // printing unless the block carries arguments that require an explicit header.
@@ -86,21 +89,7 @@ public sealed class BlockSyntax
         {
             writer.WriteToken(LabelToken, "\n", blockIndentLevel);
 
-            if (Arguments.OpenToken != null)
-            {
-                writer.WriteToken(Arguments.OpenToken.Value, string.Empty);
-                for (var i = 0; i < Arguments.Count; i++)
-                {
-                    if (i > 0)
-                    {
-                        writer.WriteToken(Arguments.SeparatorTokens[i - 1], string.Empty);
-                    }
-
-                    Arguments[i].WriteTo(writer, i > 0 ? " " : string.Empty);
-                }
-
-                writer.WriteToken(Arguments.CloseToken!.Value, string.Empty);
-            }
+            writer.WriteDelimitedList(Arguments, string.Empty);
 
             writer.WriteToken(ColonToken, string.Empty);
         }
@@ -108,7 +97,7 @@ public sealed class BlockSyntax
         var operationIndentLevel = blockHasExplicitLabel ? regionIndentLevel + 2 : regionIndentLevel + 1;
         foreach (var operation in Operations)
         {
-            writeOperation(writer, operation, operationIndentLevel, "\n");
+            writer.WriteOperation(operation, operationIndentLevel, "\n");
         }
     }
 
