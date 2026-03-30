@@ -45,7 +45,14 @@ public sealed class Binder
         return new Module(syntax, operations, binder.diagnostics);
     }
 
-    private Operation BindOperation(OperationSyntax syntax)
+    /// <summary>
+    /// Binds an operation syntax tree to a semantic operation, recursively binding any nested regions and blocks.
+    /// If the operation's name matches a known operation in the dialect registry,
+    /// the corresponding definition will be used to construct a typed operation; otherwise, an <see cref="UnknownOperation"/> will
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <returns>The semantic operation.</returns>
+    public Operation BindOperation(OperationSyntax syntax)
     {
         var genericBody = syntax.GenericBody;
         var regions = new List<Region>();
@@ -112,7 +119,12 @@ public sealed class Binder
         return operation;
     }
 
-    private Region BindRegion(RegionSyntax syntax)
+    /// <summary>
+    /// Binds a region syntax tree to a semantic region, recursively binding any nested blocks.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <returns>The semantic region.</returns>
+    public Region BindRegion(RegionSyntax syntax)
     {
         var blocks = new List<Block>();
         foreach (var block in syntax.Blocks)
@@ -123,7 +135,12 @@ public sealed class Binder
         return new Region(syntax, blocks);
     }
 
-    private Block BindBlock(BlockSyntax syntax)
+    /// <summary>
+    /// Binds a block syntax tree to a semantic block, recursively binding any nested operations.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <returns>The semantic block.</returns>
+    public Block BindBlock(BlockSyntax syntax)
     {
         var arguments = new List<BlockArgument>();
         foreach (var argument in syntax.Arguments)
@@ -150,7 +167,12 @@ public sealed class Binder
         return name;
     }
 
-    private static IReadOnlyList<ValueReference> CreateValueReferences(IReadOnlyList<SyntaxToken> tokens)
+    /// <summary>
+    /// Creates value references for the given tokens, which may refer to SSA values defined by other operations in the same module.
+    /// </summary>
+    /// <param name="tokens">The tokens for which to create references.</param>
+    /// <returns>The list of value references.</returns>
+    public IReadOnlyList<ValueReference> CreateValueReferences(IReadOnlyList<SyntaxToken> tokens)
     {
         var values = new List<ValueReference>(tokens.Count);
         foreach (var token in tokens)
@@ -161,7 +183,12 @@ public sealed class Binder
         return values;
     }
 
-    private static IReadOnlyList<BlockReference> CreateBlockReferences(IReadOnlyList<SyntaxToken> tokens)
+    /// <summary>
+    /// Creates block references for the given tokens, which may refer to blocks defined by other operations in the same module.
+    /// </summary>
+    /// <param name="tokens">The tokens for which to create references.</param>
+    /// <returns>The list of block references.</returns>
+    public IReadOnlyList<BlockReference> CreateBlockReferences(IReadOnlyList<SyntaxToken> tokens)
     {
         var values = new List<BlockReference>(tokens.Count);
         foreach (var token in tokens)
@@ -172,7 +199,13 @@ public sealed class Binder
         return values;
     }
 
-    private AttributeValue BindAttributeValue(RawSyntaxText syntax, SyntaxToken nameToken)
+    /// <summary>
+    /// Binds an attribute value syntax tree to a semantic attribute value.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <param name="nameToken">The token for the attribute name.</param>
+    /// <returns>The semantic attribute value.</returns>
+    public AttributeValue BindAttributeValue(RawSyntaxText syntax, SyntaxToken nameToken)
     {
         var canonicalName = TryGetAttributeDefinitionName(syntax.Text);
         AttributeDefinition? definition = null;
@@ -196,7 +229,13 @@ public sealed class Binder
         return attribute;
     }
 
-    private TypeReference BindTypeReference(RawSyntaxText syntax, SourceLocation location)
+    /// <summary>
+    /// Binds a type reference syntax tree to a semantic type reference.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <param name="location">The source location to associate with the type reference.</param>
+    /// <returns>The semantic type reference.</returns>
+    public TypeReference BindTypeReference(RawSyntaxText syntax, SourceLocation location)
     {
         var canonicalName = TryGetTypeDefinitionName(syntax.Text);
         TypeDefinition? definition = null;
