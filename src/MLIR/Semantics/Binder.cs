@@ -1,5 +1,6 @@
 namespace MLIR.Semantics;
 
+using System;
 using System.Collections.Generic;
 using MLIR.Dialects;
 using MLIR.Syntax;
@@ -48,13 +49,21 @@ public sealed class Binder
     /// <summary>
     /// Binds an operation syntax tree to a semantic operation, recursively binding any nested regions and blocks.
     /// If the operation's name matches a known operation in the dialect registry,
-    /// the corresponding definition will be used to construct a typed operation; otherwise, an <see cref="UnknownOperation"/> will
+    /// the corresponding definition will be used to construct a typed operation; otherwise, an <see cref="UnknownOperation"/> will be created.
     /// </summary>
     /// <param name="syntax">The concrete syntax tree to bind.</param>
     /// <returns>The semantic operation.</returns>
     public Operation BindOperation(OperationSyntax syntax)
     {
-        var genericBody = syntax.GenericBody;
+        // TODO: implement custom assembly format CST binding here, which may involve projecting a different syntax tree shape for the operation body.
+        return BindGenericOperation(syntax);
+    }
+
+    private Operation BindGenericOperation(OperationSyntax syntax)
+    {
+        var genericBody = syntax.Body as GenericOperationBodySyntax
+            ?? throw new InvalidOperationException("Expected GenericOperationBodySyntax.");
+
         var regions = new List<Region>();
         foreach (var region in genericBody.Regions)
         {
