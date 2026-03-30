@@ -8,8 +8,25 @@ using MLIR.Text;
 /// <summary>
 /// Binds generic MLIR concrete syntax to semantic nodes using a dialect registry.
 /// </summary>
-public static class Binder
+public sealed class Binder
 {
+    internal Binder(DialectRegistry? dialectRegistry)
+    {
+        this.dialectRegistry = dialectRegistry;
+    }
+
+    private readonly List<AssemblyDiagnostic> diagnostics = [];
+    private readonly DialectRegistry? dialectRegistry;
+
+    /// <summary>
+    /// Reports a binding diagnostic for the current operation.
+    /// </summary>
+    /// <param name="diagnostic">The diagnostic to report.</param>
+    public void Report(AssemblyDiagnostic diagnostic)
+    {
+        diagnostics.Add(diagnostic);
+    }
+
     /// <summary>
     /// Binds a module syntax tree to a semantic module.
     /// </summary>
@@ -18,29 +35,29 @@ public static class Binder
     /// <returns>The semantic module.</returns>
     public static Module BindModule(ModuleSyntax syntax, DialectRegistry? dialectRegistry = null)
     {
-        var diagnostics = new List<AssemblyDiagnostic>();
         var operations = new List<Operation>();
+        var binder = new Binder(dialectRegistry);
         foreach (var operation in syntax.Operations)
         {
-            operations.Add(BindOperation(operation, dialectRegistry, diagnostics));
+            operations.Add(binder.BindOperation(operation));
         }
 
-        return new Module(syntax, operations, diagnostics);
+        return new Module(syntax, operations, binder.diagnostics);
     }
 
-    private static Operation BindOperation(OperationSyntax syntax, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    private Operation BindOperation(OperationSyntax syntax)
     {
         var genericBody = syntax.GenericBody;
         var regions = new List<Region>();
         foreach (var region in genericBody.Regions)
         {
-            regions.Add(BindRegion(region, dialectRegistry, diagnostics));
+            regions.Add(BindRegion(region));
         }
 
         var attributes = new List<NamedAttribute>();
         foreach (var attribute in genericBody.Attributes)
         {
-            attributes.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.RawValue, attribute.NameToken, dialectRegistry, diagnostics)));
+            attributes.Add(new NamedAttribute(attribute, BindAttributeValue(attribute.RawValue, attribute.NameToken)));
         }
 
         var name = NormalizeOperationName(syntax.Name);
@@ -56,7 +73,7 @@ public static class Binder
             var location = genericBody.TypeSignatureColonToken != null
                 ? SourceLocation.FromToken(genericBody.TypeSignatureColonToken.Value)
                 : default;
-            typeSignatureReference = BindTypeReference(genericBody.RawTypeSignature, location, dialectRegistry, diagnostics);
+            typeSignatureReference = BindTypeReference(genericBody.RawTypeSignature, location);
         }
 
         var resultValues = CreateValueReferences(syntax.ResultTokens);
@@ -76,7 +93,7 @@ public static class Binder
                 operandValues,
                 successorReferences);
             operation = definition.Factory(constructionContext);
-            definition.AssemblyFormat?.Bind(operation, new OperationAssemblyBindingContext(operation, diagnostics));
+            definition.AssemblyFormat?.Bind(operation, new OperationAssemblyBindingContext(operation, this));
         }
         else
         {
@@ -95,29 +112,29 @@ public static class Binder
         return operation;
     }
 
-    private static Region BindRegion(RegionSyntax syntax, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    private Region BindRegion(RegionSyntax syntax)
     {
         var blocks = new List<Block>();
         foreach (var block in syntax.Blocks)
         {
-            blocks.Add(BindBlock(block, dialectRegistry, diagnostics));
+            blocks.Add(BindBlock(block));
         }
 
         return new Region(syntax, blocks);
     }
 
-    private static Block BindBlock(BlockSyntax syntax, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    private Block BindBlock(BlockSyntax syntax)
     {
         var arguments = new List<BlockArgument>();
         foreach (var argument in syntax.Arguments)
         {
-            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.RawType, SourceLocation.FromToken(argument.NameToken), dialectRegistry, diagnostics)));
+            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.RawType, SourceLocation.FromToken(argument.NameToken))));
         }
 
         var operations = new List<Operation>();
         foreach (var operation in syntax.Operations)
         {
-            operations.Add(BindOperation(operation, dialectRegistry, diagnostics));
+            operations.Add(BindOperation(operation));
         }
 
         return new Block(syntax, arguments, operations);
@@ -155,7 +172,7 @@ public static class Binder
         return values;
     }
 
-    private static AttributeValue BindAttributeValue(RawSyntaxText syntax, SyntaxToken nameToken, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    private AttributeValue BindAttributeValue(RawSyntaxText syntax, SyntaxToken nameToken)
     {
         var canonicalName = TryGetAttributeDefinitionName(syntax.Text);
         AttributeDefinition? definition = null;
@@ -179,7 +196,7 @@ public static class Binder
         return attribute;
     }
 
-    private static TypeReference BindTypeReference(RawSyntaxText syntax, SourceLocation location, DialectRegistry? dialectRegistry, List<AssemblyDiagnostic> diagnostics)
+    private TypeReference BindTypeReference(RawSyntaxText syntax, SourceLocation location)
     {
         var canonicalName = TryGetTypeDefinitionName(syntax.Text);
         TypeDefinition? definition = null;

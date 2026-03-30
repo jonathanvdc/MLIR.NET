@@ -7,12 +7,12 @@ using MLIR.Semantics;
 /// </summary>
 public sealed class OperationAssemblyBindingContext
 {
-    private readonly List<AssemblyDiagnostic> diagnostics;
+    private readonly Binder binder;
 
-    internal OperationAssemblyBindingContext(Operation operation, List<AssemblyDiagnostic> diagnostics)
+    internal OperationAssemblyBindingContext(Operation operation, Binder binder)
     {
         Operation = operation;
-        this.diagnostics = diagnostics;
+        this.binder = binder;
     }
 
     /// <summary>
@@ -25,6 +25,6 @@ public sealed class OperationAssemblyBindingContext
     /// </summary>
     public void Report(string message)
     {
-        diagnostics.Add(new AssemblyDiagnostic(Operation.Location, message));
+        binder.Report(new AssemblyDiagnostic(Operation.Location, message));
     }
 }
