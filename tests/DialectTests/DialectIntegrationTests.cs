@@ -141,6 +141,32 @@ public sealed class DialectIntegrationTests
     }
 
     [Fact]
+    public void GeneratedAssemblyFormatBindReportsDiagnosticForWrongBodyType()
+    {
+        // Arrange: pass a MiniArith_ConstantOpBodySyntax to the addi operation (wrong type)
+        var body = new MiniArith_ConstantOpBodySyntax(
+            new RawAttributeValueSyntax(new RawSyntaxText("42")),
+            new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
+
+        var syntax = new OperationSyntax(
+            resultTokens: [new SyntaxToken("%result")],
+            resultCommaTokens: [],
+            equalsToken: new SyntaxToken("="),
+            nameToken: new SyntaxToken("miniarith.addi"),
+            body: body);
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        // Act
+        var module = Binder.BindModule(new ModuleSyntax([syntax]), registry);
+
+        // Assert: one diagnostic reported, operation is uninterpreted
+        Assert.Single(module.AssemblyDiagnostics);
+        Assert.IsType<UninterpretedOperation>(Assert.Single(module.Operations));
+    }
+
+    [Fact]
     public void GeneratedAssemblyFormatBindReportsDiagnosticForWrongResultCount()
     {
         // Arrange: zero result tokens when the operation expects exactly one
