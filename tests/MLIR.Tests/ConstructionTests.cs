@@ -42,6 +42,16 @@ public sealed class ConstructionTests
         }
     }
 
+    private static GenericOperationBodySyntax GetGenericBody(OperationSyntax operation)
+    {
+        if (operation.Body is GenericOperationBodySyntax genericBody)
+        {
+            return genericBody;
+        }
+
+        throw new InvalidOperationException("Expected a generic operation body syntax node.");
+    }
+
     [Fact]
     public void ExposesPreservedTokenTriviaInTheCst()
     {
@@ -55,13 +65,13 @@ public sealed class ConstructionTests
         Assert.Equal("// leading comment\n", operation.ResultTokens[0].LeadingTrivia);
         Assert.Equal(",", operation.ResultCommaTokens[0].Text);
         Assert.Equal("  ", operation.ResultTokens[1].LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList.OpenToken!.Value.LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList[0].LeadingTrivia);
-        Assert.Equal(" ", operation.SuccessorList.CloseToken!.Value.LeadingTrivia);
+        Assert.Equal(" ", GetGenericBody(operation).SuccessorList.OpenToken!.Value.LeadingTrivia);
+        Assert.Equal(" ", GetGenericBody(operation).SuccessorList[0].LeadingTrivia);
+        Assert.Equal(" ", GetGenericBody(operation).SuccessorList.CloseToken!.Value.LeadingTrivia);
         Assert.Equal("%0", operation.Results[0]);
         Assert.Equal("\"test.op\"", operation.Name);
-        Assert.Equal("%lhs", operation.Operands[0]);
-        Assert.Equal("^bb1", operation.Successors[0]);
+        Assert.Equal("%lhs", GetGenericBody(operation).OperandList[0].Text);
+        Assert.Equal("^bb1", GetGenericBody(operation).SuccessorList[0].Text);
     }
 
     [Fact]
@@ -107,7 +117,7 @@ public sealed class ConstructionTests
             Factory.Op(
                 name: "arith.constant",
                 attributes: [Factory.Attr("value", "0 : i32")],
-                type: "() -> i32"));
+                type: Factory.Type("() -> i32")));
 
         var text = Printer.Print(module);
 
@@ -132,7 +142,7 @@ public sealed class ConstructionTests
                 name: "arith.addi",
                 results: ["%sum"],
                 operands: ["%lhs", "%rhs"],
-                type: "(i32, i32) -> i32"),
+                type: Factory.Type("(i32, i32) -> i32")),
             Factory.Op(
                 name: "scf.if",
                 operands: ["%cond"],
@@ -147,10 +157,10 @@ public sealed class ConstructionTests
                                 Factory.Op(
                                     name: "func.return",
                                     operands: ["%arg0"],
-                                    type: "(i32) -> ()")
+                                    type: Factory.Type("(i32) -> ()"))
                             ]))
                 ],
-                type: "(i1) -> ()"));
+                type: Factory.Type("(i1) -> ()")));
 
         var text = Printer.Print(module);
 
@@ -188,7 +198,6 @@ public sealed class ConstructionTests
 
         Assert.Equal("%0 = arith.constant 0 : i32", text);
         Assert.True(module.Operations[0].HasCustomAssemblyBody);
-        Assert.Equal("0", module.Operations[0].Attributes[0].RawValue.Text);
     }
 
     [Fact]

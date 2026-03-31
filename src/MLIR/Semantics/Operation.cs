@@ -161,7 +161,7 @@ public abstract class Operation
             Successors,
             Regions.Select(r => r.Syntax).ToList(),
             Attributes.Select(a => Factory.Attr(a.Name, a.Value.Syntax.Text)).ToList(),
-            TypeSignatureReference != null ? TypeSignatureReference.Syntax.Text : null
+            TypeSignatureReference != null ? TypeSignatureReference.Syntax : null
         ).Body;
     }
 

@@ -346,8 +346,28 @@ public sealed class Binder
     /// </summary>
     /// <param name="syntax">The concrete syntax tree to bind.</param>
     /// <returns>The semantic type reference.</returns>
+    public TypeReference BindTypeReference(TypeSyntax syntax)
+    {
+        if (syntax is RawTypeSyntax rawTypeSyntax)
+        {
+            return BindTypeReference(rawTypeSyntax.RawText);
+        }
+        else
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported type syntax '{syntax.GetType().Name}'."));
+            return new UnknownTypeReference(syntax, null, null, syntax.Location);
+        }
+    }
+
+    /// <summary>
+    /// Binds a type reference syntax tree to a semantic type reference.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <returns>The semantic type reference.</returns>
     public TypeReference BindTypeReference(RawSyntaxText syntax)
     {
+        // TODO: make this internal in the future and only expose the TypeSyntax overload publicly once we have more robust support for different type syntax forms.
+
         var canonicalName = TryGetTypeDefinitionName(syntax.Text);
         TypeDefinition? definition = null;
         if (canonicalName != null && dialectRegistry != null)
@@ -358,12 +378,12 @@ public sealed class Binder
         TypeReference type;
         if (definition != null)
         {
-            type = definition.Factory(new TypeReferenceConstructionContext(syntax, canonicalName, definition, syntax.Location));
+            type = definition.Factory(new TypeReferenceConstructionContext(new RawTypeSyntax(syntax), canonicalName, definition, syntax.Location));
             definition.AssemblyFormat?.Bind(type, new TypeAssemblyBindingContext(type, diagnostics));
         }
         else
         {
-            type = new UnknownTypeReference(syntax, canonicalName, definition, syntax.Location);
+            type = new UnknownTypeReference(new RawTypeSyntax(syntax), canonicalName, definition, syntax.Location);
         }
 
         return type;

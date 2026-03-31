@@ -36,7 +36,7 @@ public static class Factory
         IReadOnlyList<string>? successors = null,
         IReadOnlyList<RegionSyntax>? regions = null,
         IReadOnlyList<NamedAttributeSyntax>? attributes = null,
-        string? type = null)
+        TypeSyntax? type = null)
     {
         return new OperationSyntax(
             results ?? EmptyStrings,
@@ -45,7 +45,7 @@ public static class Factory
             successors ?? EmptyStrings,
             regions ?? EmptyRegions,
             attributes ?? EmptyAttributes,
-            type != null ? new RawTypeSyntax(new RawSyntaxText(type)) : null);
+            type);
     }
 
     /// <summary>
@@ -103,6 +103,16 @@ public static class Factory
     public static RawSyntaxText Raw(string text)
     {
         return new RawSyntaxText(text);
+    }
+
+    /// <summary>
+    /// Creates a type syntax node from raw text.
+    /// </summary>
+    /// <param name="text">The raw type syntax text.</param>
+    /// <returns>A type syntax node.</returns>
+    public static TypeSyntax Type(string text)
+    {
+        return new RawTypeSyntax(new RawSyntaxText(text));
     }
 
     private static string QuoteIfNeeded(string name)

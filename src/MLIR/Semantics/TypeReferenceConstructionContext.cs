@@ -8,7 +8,7 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class TypeReferenceConstructionContext
 {
-    internal TypeReferenceConstructionContext(RawSyntaxText syntax, string? name, TypeDefinition definition, SourceLocation location)
+    internal TypeReferenceConstructionContext(TypeSyntax syntax, string? name, TypeDefinition definition, SourceLocation location)
     {
         Syntax = syntax;
         Name = name;
@@ -19,7 +19,7 @@ public sealed class TypeReferenceConstructionContext
     /// <summary>
     /// Gets the raw syntax text for the type.
     /// </summary>
-    public RawSyntaxText Syntax { get; }
+    public TypeSyntax Syntax { get; }
 
     /// <summary>
     /// Gets the canonical type name, if one was recognized.

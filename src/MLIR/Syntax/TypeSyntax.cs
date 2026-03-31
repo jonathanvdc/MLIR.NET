@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax;
 
 /// <summary>
@@ -27,4 +29,22 @@ public abstract class TypeSyntax
     /// Writes the type syntax to the supplied syntax writer.
     /// </summary>
     public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
+
+    /// <summary>
+    /// Gets the source location of this type syntax, if available.
+    /// </summary>
+    public virtual SourceLocation Location
+    {
+        get
+        {
+            if (TryGetRawText(out var rawText) && rawText != null)
+            {
+                return rawText.Location;
+            }
+            else
+            {
+                return SourceLocation.Unknown;
+            }
+        }
+    }
 }

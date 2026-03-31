@@ -32,7 +32,7 @@ public sealed class SemanticTests
         public PrefixConstantBodySyntax(
             RawSyntaxText value,
             SyntaxToken colonToken,
-            RawSyntaxText typeSignature,
+            TypeSyntax typeSignature,
             DelimitedSyntaxList<NamedAttributeSyntax> attributes)
         {
             Value = value;
@@ -44,7 +44,7 @@ public sealed class SemanticTests
                 [],
                 attributes,
                 colonToken,
-                new RawTypeSyntax(typeSignature));
+                typeSignature);
         }
 
         public RawSyntaxText Value { get; }
@@ -193,7 +193,7 @@ public sealed class SemanticTests
 
             var value = context.ParseRawUntilDelimiter(TokenKind.Colon);
             var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
-            var type = context.ParseRawUntilOperationBoundary();
+            var type = new RawTypeSyntax(context.ParseRawUntilOperationBoundary());
             var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(value))]);
 
             body = new PrefixConstantBodySyntax(value, colonToken, type, attributes);
@@ -217,7 +217,7 @@ public sealed class SemanticTests
             var body = new PrefixConstantBodySyntax(
                 operation.HasAttribute("value") ? operation.GetAttribute("value").Value.Syntax : new RawSyntaxText(string.Empty),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
-                genericBody.TypeSignatureSyntax,
+                genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax.NameToken;
             var rewrittenNameToken = new SyntaxToken(operation.Name, sourceNameToken.LeadingTrivia, sourceNameToken.Line, sourceNameToken.Column);
@@ -250,6 +250,16 @@ public sealed class SemanticTests
                 integerType.BindWidth(int.Parse(type.Name![1..]));
             }
         }
+    }
+
+    private static GenericOperationBodySyntax GetGenericBody(OperationSyntax operation)
+    {
+        if (operation.Body is GenericOperationBodySyntax genericBody)
+        {
+            return genericBody;
+        }
+
+        throw new InvalidOperationException("Expected a generic operation body syntax node.");
     }
 
     [Fact]
@@ -720,11 +730,10 @@ public sealed class SemanticTests
         Assert.Single(module.Operations);
         Assert.Equal("arith.constant", module.Operations[0].Name);
         Assert.True(module.Operations[0].HasCustomAssemblyBody);
-        Assert.Empty(module.Operations[0].Operands);
-        Assert.Single(module.Operations[0].Attributes);
-        Assert.Equal("value", module.Operations[0].Attributes[0].Name);
-        Assert.Equal("0", module.Operations[0].Attributes[0].RawValue.Text);
-        Assert.Equal("i32", module.Operations[0].RawTypeSignature!.Text);
+
+        var body = Assert.IsType<PrefixConstantBodySyntax>(module.Operations[0].Body);
+        Assert.Equal("0", body.Value.Text);
+        Assert.Equal("i32", body.TypeSignature.GetRawText().Text);
     }
 
     [Fact]
