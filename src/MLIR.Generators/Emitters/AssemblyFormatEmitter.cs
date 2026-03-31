@@ -82,9 +82,24 @@ internal static class AssemblyFormatEmitter
             builder.AppendLine("            binder.BindValueReference(syntax.ResultTokens[" + i.ToString(CultureInfo.InvariantCulture) + "]),");
         }
 
-        for (var i = 0; i < operation.Attributes.Count; i++)
+        if (operation.Attributes.Count == 0)
         {
-            builder.AppendLine("            " + GetAttributeBindExpression(syntaxDescriptor, operation.Attributes[i]) + ",");
+            builder.AppendLine("            NamedAttributeCollection.Empty,");
+        }
+        else
+        {
+            builder.Append("            NamedAttributeCollection.Create(");
+            for (var i = 0; i < operation.Attributes.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                builder.Append(GetAttributeBindExpression(syntaxDescriptor, operation.Attributes[i]));
+            }
+
+            builder.AppendLine("),");
         }
 
         builder.AppendLine("            " + GetTypeBindExpression(syntaxDescriptor) + ");");

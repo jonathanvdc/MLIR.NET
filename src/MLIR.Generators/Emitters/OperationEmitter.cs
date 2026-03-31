@@ -83,6 +83,15 @@ internal static class OperationEmitter
         }
     }
 
+    private static void AppendDerivedAttributeAccessorProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> attributeMembers)
+    {
+        for (var i = 0; i < attributeMembers.Count; i++)
+        {
+            var member = attributeMembers[i];
+            builder.AppendLine("    public NamedAttribute " + member.PropertyName + " => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
+        }
+    }
+
     private static void AppendConstructorParameters(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
     {
         for (var i = 0; i < members.Count; i++)
@@ -113,11 +122,6 @@ internal static class OperationEmitter
         }
     }
 
-    private static string GetContextAttributeExpression(GeneratedMember member)
-    {
-        return "context.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "]";
-    }
-
     private static void AppendDerivedListProperty(
         StringBuilder builder,
         string itemType,
@@ -144,29 +148,6 @@ internal static class OperationEmitter
         builder.AppendLine(" };");
     }
 
-    private static void AppendDerivedAttributeCollectionProperty(
-        StringBuilder builder,
-        IReadOnlyList<GeneratedMember> members)
-    {
-        if (members.Count == 0)
-        {
-            builder.AppendLine("    public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;");
-            return;
-        }
-
-        builder.Append("    public override NamedAttributeCollection Attributes => NamedAttributeCollection.Create(");
-        for (var i = 0; i < members.Count; i++)
-        {
-            if (i > 0)
-            {
-                builder.Append(", ");
-            }
-
-            builder.Append(members[i].PropertyName);
-        }
-
-        builder.AppendLine(");");
-    }
     private static void EmitPropertyDeclarations(
         StringBuilder builder,
         IReadOnlyList<GeneratedMember> operandMembers,
@@ -184,12 +165,10 @@ internal static class OperationEmitter
                 "    public ValueReference " + DialectGeneratorNaming.ToPascalCase(operation.Results[0]) + " => " + resultReferenceName + ";");
         }
 
-        AppendAutoProperties(builder, attributeMembers);
+        builder.AppendLine("    public override NamedAttributeCollection Attributes { get; }");
+        AppendDerivedAttributeAccessorProperties(builder, attributeMembers);
 
-        if (operandMembers.Count > 0 || resultMembers.Count > 0 || attributeMembers.Count > 0)
-        {
-            builder.AppendLine();
-        }
+        builder.AppendLine();
     }
 
     private static void EmitContextConstructor(
@@ -217,7 +196,7 @@ internal static class OperationEmitter
             builder.AppendLine("            " + member.ParameterName + ": context.ResultValues[" + i.ToString(CultureInfo.InvariantCulture) + "],");
         }
 
-        AppendNamedArguments(builder, attributeMembers, GetContextAttributeExpression);
+        builder.AppendLine("            attributes: context.Attributes,");
         builder.AppendLine("            typeSignatureReference: context.TypeSignatureReference)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
@@ -237,14 +216,14 @@ internal static class OperationEmitter
         builder.AppendLine("        OperationDefinition definition,");
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
-        AppendConstructorParameters(builder, attributeMembers);
+        builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : base(syntax, name, definition)");
         builder.AppendLine("    {");
         builder.AppendLine("        this.typeSignatureReference = typeSignatureReference;");
         AppendAssignments(builder, operandMembers);
         AppendAssignments(builder, resultMembers);
-        AppendAssignments(builder, attributeMembers);
+        builder.AppendLine("        Attributes = attributes;");
         builder.AppendLine("    }");
         builder.AppendLine();
     }
@@ -261,7 +240,7 @@ internal static class OperationEmitter
         builder.AppendLine("        OperationDefinition definition,");
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
-        AppendConstructorParameters(builder, attributeMembers);
+        builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: null,");
@@ -269,7 +248,7 @@ internal static class OperationEmitter
         builder.AppendLine("            definition: definition,");
         AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
         AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
-        AppendNamedArguments(builder, attributeMembers, static member => member.ParameterName);
+        builder.AppendLine("            attributes: attributes,");
         builder.AppendLine("            typeSignatureReference: typeSignatureReference)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
@@ -283,7 +262,6 @@ internal static class OperationEmitter
         IReadOnlyList<GeneratedMember> attributeMembers)
     {
         builder.AppendLine("    public override IReadOnlyList<Region> Regions => global::System.Array.Empty<Region>();");
-        AppendDerivedAttributeCollectionProperty(builder, attributeMembers);
         builder.AppendLine("    public override TypeReference? TypeSignatureReference => typeSignatureReference;");
         AppendDerivedListProperty(builder, "ValueReference", "ResultValues", resultMembers);
         AppendDerivedListProperty(builder, "ValueReference", "OperandValues", operandMembers);
