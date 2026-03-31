@@ -142,14 +142,6 @@ public abstract class Operation
         throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");
     }
 
-    /// <summary>
-    /// Gets the operation body as a generic operation body syntax node, or null if the operation body is not in generic form.
-    /// </summary>
-    public GenericOperationBodySyntax? GetGenericBody()
-    {
-        return Syntax?.Body as GenericOperationBodySyntax;
-    }
-
     private static IReadOnlyList<string> GetNames(IReadOnlyList<ValueReference> values)
     {
         var names = new List<string>(values.Count);
