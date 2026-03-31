@@ -37,10 +37,7 @@ internal sealed class DialectEmitter
                 var metadata = OperationBodySyntaxEmitter.Emit(builder, operation);
                 bodySyntaxMetadataByOperation[DialectGeneratorNaming.GetOperationClassName(operation)] = metadata;
                 builder.AppendLine();
-            }
 
-            if (operation.HasCustomAssemblyFormat)
-            {
                 AssemblyFormatEmitter.Emit(builder, operation);
                 builder.AppendLine();
             }
