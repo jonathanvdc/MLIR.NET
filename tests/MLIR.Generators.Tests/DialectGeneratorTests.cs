@@ -218,4 +218,55 @@ public sealed class DialectGeneratorTests
         Assert.DoesNotContain("/// <summary>", registrationSource);
         Assert.DoesNotContain("/// <remarks>", registrationSource);
     }
+
+    [Fact]
+    public void AttributesPropertyHoldsDataAndNamedAttributeAccessorsAreDerived()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
+            "  let summary = \"integer constant\";\n" +
+            "  let arguments = (ins I32Attr:$value);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {\n" +
+            "  let summary = \"integer addition\";\n" +
+            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        // Attributes is a data-holding auto-property override on both ops.
+        Assert.Contains("public override NamedAttributeCollection Attributes { get; }", registrationSource);
+
+        // Individual named attribute is a derived accessor, not a data-holding property.
+        Assert.Contains("public NamedAttribute Value => Attributes[\"value\"];", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute Value { get; }", registrationSource);
+
+        // Constructors use NamedAttributeCollection attributes parameter instead of individual NamedAttribute params.
+        Assert.Contains("NamedAttributeCollection attributes,", registrationSource);
+
+        // Per-attribute convenience constructor also exists (using individual NamedAttribute params).
+        Assert.Contains("NamedAttribute value,", registrationSource);
+        Assert.Contains("attributes: NamedAttributeCollection.Create(value),", registrationSource);
+
+        // Context constructor passes context.Attributes directly.
+        Assert.Contains("attributes: context.Attributes,", registrationSource);
+        Assert.DoesNotContain("context.Attributes[\"value\"]", registrationSource);
+
+        // Constructor body assigns Attributes from the collection.
+        Assert.Contains("Attributes = attributes;", registrationSource);
+    }
 }
