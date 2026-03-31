@@ -143,28 +143,6 @@ public abstract class Operation
         throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");
     }
 
-    /// <summary>
-    /// Gets the operation body as a generic operation body syntax node.
-    /// </summary>
-    public GenericOperationBodySyntax GetGenericBody()
-    {
-        if (Syntax.Body is GenericOperationBodySyntax genericBody)
-        {
-            return genericBody;
-        }
-
-        // TODO: preserve tokens, avoid stringifying and reparsing type signatures, etc.
-        return (GenericOperationBodySyntax)Factory.Op(
-            Name,
-            Results,
-            Operands,
-            Successors,
-            Regions.Select(r => r.Syntax).ToList(),
-            Attributes.Select(a => Factory.Attr(a.Name, a.Value.Syntax.Text)).ToList(),
-            TypeSignatureReference != null ? TypeSignatureReference.Syntax : null
-        ).Body;
-    }
-
     private static IReadOnlyList<string> GetNames(IReadOnlyList<ValueReference> values)
     {
         var names = new List<string>(values.Count);

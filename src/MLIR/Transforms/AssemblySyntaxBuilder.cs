@@ -55,7 +55,7 @@ public static class AssemblySyntaxBuilder
 
         public GenericOperationBodySyntax BuildGenericBody(Operation operation)
         {
-            var genericBody = operation.GetGenericBody();
+            var genericBody = GetGenericBody(operation);
             var regions = new List<RegionSyntax>(operation.Regions.Count);
             foreach (var region in operation.Regions)
             {
@@ -69,6 +69,25 @@ public static class AssemblySyntaxBuilder
                 genericBody.Attributes,
                 genericBody.TypeSignatureColonToken,
                 genericBody.TypeSignatureSyntax);
+        }
+
+        private GenericOperationBodySyntax GetGenericBody(Operation operation)
+        {
+            if (operation.Syntax.Body is GenericOperationBodySyntax genericBody)
+            {
+                return genericBody;
+            }
+
+            // TODO: preserve tokens, avoid stringifying and reparsing type signatures, etc.
+            return (GenericOperationBodySyntax)Factory.Op(
+                operation.Name,
+                operation.Results,
+                operation.Operands,
+                operation.Successors,
+                operation.Regions.Select(r => r.Syntax).ToList(),
+                operation.Attributes.Select(a => Factory.Attr(a.Name, a.Value.Syntax.Text)).ToList(),
+                operation.TypeSignatureReference != null ? operation.TypeSignatureReference.Syntax : null
+            ).Body;
         }
 
         public RegionSyntax BuildRegion(Region region)
