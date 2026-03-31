@@ -77,7 +77,7 @@ public sealed class Binder
         }
     }
 
-    private Operation BindGenericOperation(OperationSyntax syntax, GenericOperationBodySyntax body, string name, OperationDefinition? definition)
+    internal Operation BindGenericOperation(OperationSyntax syntax, GenericOperationBodySyntax body, string name, OperationDefinition? definition)
     {
         var regions = new List<Region>();
         foreach (var region in body.Regions)
