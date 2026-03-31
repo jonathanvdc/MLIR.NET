@@ -5,24 +5,40 @@ using MLIR.Syntax;
 /// <summary>
 /// Represents a typed reference to an SSA value in the semantic layer.
 /// </summary>
-/// <remarks>
-/// Initializes a new instance of the <see cref="ValueReference"/> struct.
-/// </remarks>
-/// <param name="token">The syntax token for the SSA value.</param>
-public readonly struct ValueReference(SyntaxToken token)
+public readonly struct ValueReference
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ValueReference"/> struct from a syntax token.
+    /// </summary>
+    /// <param name="token">The syntax token for the SSA value.</param>
+    public ValueReference(SyntaxToken token)
+    {
+        Token = token;
+        Name = token.Text;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ValueReference"/> struct from a value name.
+    /// </summary>
+    /// <param name="name">The SSA value name.</param>
+    public ValueReference(string name)
+    {
+        Token = null;
+        Name = name;
+    }
+
     /// <summary>
     /// Gets the syntax token for the SSA value.
     /// </summary>
-    public SyntaxToken Token { get; } = token;
+    public SyntaxToken? Token { get; }
 
     /// <summary>
     /// Gets the SSA value name.
     /// </summary>
-    public string Name => Token.Text;
+    public string Name { get; }
 
     /// <summary>
     /// Gets the source location of the SSA value, if known.
     /// </summary>
-    public SourceLocation Location => SourceLocation.FromToken(Token);
+    public SourceLocation Location => Token.HasValue ? SourceLocation.FromToken(Token.Value) : SourceLocation.Unknown;
 }
