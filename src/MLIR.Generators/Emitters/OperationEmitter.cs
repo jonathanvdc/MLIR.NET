@@ -36,11 +36,6 @@ internal static class OperationEmitter
         return char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
     }
 
-    private static string ToCSharpStringLiteral(string value)
-    {
-        return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
-    }
-
     private static IReadOnlyList<GeneratedMember> GetOperandMembers(OperationModel operation)
     {
         var members = new List<GeneratedMember>(operation.Operands.Count);
@@ -120,7 +115,7 @@ internal static class OperationEmitter
 
     private static string GetContextAttributeExpression(GeneratedMember member)
     {
-        return "global::System.Linq.Enumerable.Single(context.Attributes, static attribute => attribute.Name == " + ToCSharpStringLiteral(member.SourceName) + ")";
+        return "global::System.Linq.Enumerable.Single(context.Attributes, static attribute => attribute.Name == " + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ")";
     }
 
     private static void AppendDerivedListProperty(

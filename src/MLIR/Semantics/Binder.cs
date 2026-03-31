@@ -306,6 +306,24 @@ public sealed class Binder
     /// </summary>
     /// <param name="syntax">The concrete syntax tree to bind.</param>
     /// <returns>The semantic attribute value.</returns>
+    public AttributeValue BindAttributeValue(AttributeValueSyntax syntax)
+    {
+        if (syntax is RawAttributeValueSyntax rawAttributeValueSyntax)
+        {
+            return BindAttributeValue(rawAttributeValueSyntax.RawText);
+        }
+        else
+        {
+            Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported attribute value syntax '{syntax.GetType().Name}'."));
+            return new UnknownAttributeValue(syntax, null, null, syntax.Location);
+        }
+    }
+
+    /// <summary>
+    /// Binds an attribute value syntax tree to a semantic attribute value.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(RawSyntaxText syntax)
     {
         var canonicalName = TryGetAttributeDefinitionName(syntax.Text);
@@ -337,7 +355,7 @@ public sealed class Binder
     /// <returns>The semantic named attribute.</returns>
     public NamedAttribute BindNamedAttribute(NamedAttributeSyntax syntax)
     {
-        var value = BindAttributeValue(syntax.RawValue);
+        var value = BindAttributeValue(syntax.ValueSyntax);
         return new NamedAttribute(syntax, value);
     }
 

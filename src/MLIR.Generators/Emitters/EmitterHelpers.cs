@@ -10,6 +10,11 @@ using MLIR.Text;
 
 internal static class EmitterHelpers
 {
+    public static string ToCSharpStringLiteral(string value)
+    {
+        return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+    }
+
     public static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description)
     {
         if (!string.IsNullOrWhiteSpace(summary))

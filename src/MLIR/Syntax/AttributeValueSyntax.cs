@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax;
 
 /// <summary>
@@ -27,4 +29,20 @@ public abstract class AttributeValueSyntax
     /// Writes the attribute value to the supplied syntax writer.
     /// </summary>
     public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
+
+    /// <summary>
+    /// Gets the source location of this attribute value, if known.
+    /// </summary>
+    public virtual SourceLocation Location
+    {
+        get
+        {
+            if (TryGetRawText(out var rawText))
+            {
+                return rawText!.Location;
+            }
+
+            return SourceLocation.Unknown;
+        }
+    }
 }
