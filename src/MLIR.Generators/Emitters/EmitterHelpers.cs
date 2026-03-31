@@ -1,4 +1,4 @@
-namespace MLIR.Generators;
+namespace MLIR.Generators.Emitters;
 
 using System;
 using System.Collections.Generic;
@@ -8,9 +8,116 @@ using MLIR.ODS.Model;
 using MLIR.ODS.Model.AssemblyFormat;
 using MLIR.Text;
 
-internal static partial class DialectSourceEmitter
+internal static class EmitterHelpers
 {
-    private static void AppendBodySyntaxFields(HashSet<string> usedNames, Element element, OperationModel operation, OperationBodySyntaxMetadata metadata)
+    public static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description)
+    {
+        if (!string.IsNullOrWhiteSpace(summary))
+        {
+            builder.AppendLine("/// <summary>" + EscapeXmlText(summary!.Trim()) + "</summary>");
+        }
+
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            builder.AppendLine("/// <remarks>");
+            var trimmedDescription = description!.Trim();
+            foreach (var rawLine in trimmedDescription.Split('\n'))
+            {
+                builder.AppendLine("/// " + EscapeXmlText(rawLine.TrimEnd('\r')));
+            }
+
+            builder.AppendLine("/// </remarks>");
+        }
+    }
+
+    public static void AppendIndentedCode(StringBuilder builder, string code)
+    {
+        if (string.IsNullOrEmpty(code))
+        {
+            return;
+        }
+
+        var lines = code.Split('\n');
+        foreach (var line in lines)
+        {
+            builder.Append("        ");
+            builder.AppendLine(line);
+        }
+    }
+
+    public static string EscapeXmlText(string text)
+    {
+        return text
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;");
+    }
+
+    public static string LowerFirst(string name)
+    {
+        if (name.Length == 0)
+        {
+            return name;
+        }
+
+        return char.ToLowerInvariant(name[0]) + name.Substring(1);
+    }
+
+    public static string MakeUnique(string baseName, HashSet<string> used)
+    {
+        if (used.Add(baseName))
+        {
+            return baseName;
+        }
+
+        for (var i = 2; ; i++)
+        {
+            var candidate = baseName + i.ToString(CultureInfo.InvariantCulture);
+            if (used.Add(candidate))
+            {
+                return candidate;
+            }
+        }
+    }
+
+    public static bool ContainsName(IReadOnlyList<string> names, string name)
+    {
+        foreach (var n in names)
+        {
+            if (string.Equals(n, name, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static BodyComponentKind GetComponentKindForVariable(OperationModel operation, string variableName)
+    {
+        if (ContainsName(operation.Results, variableName))
+        {
+            return BodyComponentKind.Result;
+        }
+
+        if (ContainsName(operation.Operands, variableName))
+        {
+            return BodyComponentKind.Operand;
+        }
+
+        return BodyComponentKind.Unknown;
+    }
+
+    public static string GetDirectiveOperandName(DirectiveOperand operand)
+    {
+        return operand switch
+        {
+            VariableOperand variable => variable.Name,
+            _ => operand?.GetType().Name ?? "Operand"
+        };
+    }
+
+    public static void AppendBodySyntaxFields(HashSet<string> usedNames, Element element, OperationModel operation, OperationBodySyntaxMetadata metadata)
     {
         switch (element)
         {
@@ -58,7 +165,6 @@ internal static partial class DialectSourceEmitter
                 }
                 else
                 {
-                    // Operand, result variable, or unknown → SyntaxToken
                     var name = MakeUnique(pascalName, usedNames);
                     var field = new BodySyntaxField(name, "SyntaxToken",
                         "writer.WriteToken(" + name + ", \" \");");
@@ -178,165 +284,5 @@ internal static partial class DialectSourceEmitter
             TokenKind.Hash => "HashToken",
             _ => "Token",
         };
-    }
-
-    private static string MakeUnique(string baseName, HashSet<string> used)
-    {
-        if (used.Add(baseName))
-        {
-            return baseName;
-        }
-
-        for (var i = 2; ; i++)
-        {
-            var candidate = baseName + i.ToString(CultureInfo.InvariantCulture);
-            if (used.Add(candidate))
-            {
-                return candidate;
-            }
-        }
-    }
-
-    private static string LowerFirst(string name)
-    {
-        if (name.Length == 0)
-        {
-            return name;
-        }
-
-        return char.ToLowerInvariant(name[0]) + name.Substring(1);
-    }
-
-    private static bool ContainsName(IReadOnlyList<string> names, string name)
-    {
-        foreach (var n in names)
-        {
-            if (string.Equals(n, name, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static BodyComponentKind GetComponentKindForVariable(OperationModel operation, string variableName)
-    {
-        if (ContainsName(operation.Results, variableName))
-        {
-            return BodyComponentKind.Result;
-        }
-
-        if (ContainsName(operation.Operands, variableName))
-        {
-            return BodyComponentKind.Operand;
-        }
-
-        return BodyComponentKind.Unknown;
-    }
-
-    private static string GetDirectiveOperandName(DirectiveOperand operand)
-    {
-        return operand switch
-        {
-            VariableOperand variable => variable.Name,
-            _ => operand?.GetType().Name ?? "Operand"
-        };
-    }
-
-    private static void AppendIndentedCode(StringBuilder builder, string code)
-    {
-        if (code.Length == 0)
-        {
-            return;
-        }
-
-        var lines = code.Split('\n');
-        foreach (var line in lines)
-        {
-            builder.Append("        ");
-            builder.AppendLine(line);
-        }
-    }
-
-    private static string EscapeXmlText(string text)
-    {
-        return text
-            .Replace("&", "&amp;")
-            .Replace("<", "&lt;")
-            .Replace(">", "&gt;");
-    }
-
-    private sealed class BodySyntaxField
-    {
-        public BodySyntaxField(string name, string csType, string writeToCode)
-        {
-            Name = name;
-            CsType = csType;
-            WriteToCode = writeToCode;
-        }
-
-        public string Name { get; }
-        public string CsType { get; }
-
-        /// <summary>
-        /// C# code (indented for the WriteTo body, ending with a newline) that writes this field.
-        /// </summary>
-        public string WriteToCode { get; }
-    }
-
-    private sealed class BodyComponentField
-    {
-        public BodyComponentField(BodyComponentKind kind, string componentName, string fieldName)
-        {
-            Kind = kind;
-            ComponentName = componentName;
-            FieldName = fieldName;
-        }
-
-        public BodyComponentKind Kind { get; }
-
-        public string ComponentName { get; }
-
-        public string FieldName { get; }
-    }
-
-    private enum BodyComponentKind
-    {
-        Literal,
-        Attribute,
-        Operand,
-        Result,
-        AttrDict,
-        AttrDictWithKeyword,
-        PropDict,
-        Regions,
-        Type,
-        Successors,
-        Operands,
-        Unknown
-    }
-
-    private sealed class OperationBodySyntaxMetadata
-    {
-        private readonly List<BodySyntaxField> fields = new();
-        private readonly List<BodyComponentField> componentFields = new();
-
-        public OperationBodySyntaxMetadata(string operationClassName)
-        {
-            OperationClassName = operationClassName;
-        }
-
-        public string OperationClassName { get; }
-
-        public string BodyClassName => OperationClassName + "BodySyntax";
-
-        public IReadOnlyList<BodySyntaxField> Fields => fields;
-
-        public IReadOnlyList<BodyComponentField> ComponentFields => componentFields;
-
-        public void AddField(BodySyntaxField field) => fields.Add(field);
-
-        public void AddComponentField(BodyComponentField componentField) => componentFields.Add(componentField);
     }
 }
