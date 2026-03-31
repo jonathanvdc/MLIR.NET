@@ -2,7 +2,6 @@ namespace MLIR.Semantics;
 
 using System;
 using System.Collections.Generic;
-using MLIR.Construction;
 using MLIR.Dialects;
 using MLIR.Syntax;
 
@@ -15,7 +14,7 @@ public abstract class Operation
     /// Initializes a new instance of the <see cref="Operation"/> class.
     /// </summary>
     protected Operation(
-        OperationSyntax syntax,
+        OperationSyntax? syntax,
         string name,
         OperationDefinition? definition)
     {
@@ -25,9 +24,9 @@ public abstract class Operation
     }
 
     /// <summary>
-    /// Gets the concrete syntax node for the operation.
+    /// Gets the concrete syntax node for the operation, or null if this is a synthetic operation with no corresponding source text.
     /// </summary>
-    public OperationSyntax Syntax { get; }
+    public OperationSyntax? Syntax { get; }
 
     /// <summary>
     /// Gets the canonical operation name without MLIR string-literal quoting.
@@ -75,9 +74,9 @@ public abstract class Operation
     public bool IsKnown => Definition != null;
 
     /// <summary>
-    /// Gets the operation name exactly as written in the source.
+    /// Gets the operation name exactly as written in the source, or null if this is a synthetic operation with no corresponding source text.
     /// </summary>
-    public string SyntaxName => Syntax.Name;
+    public string? SyntaxName => Syntax?.Name;
 
     /// <summary>
     /// Gets the dialect namespace portion of the operation name, if present.
@@ -109,7 +108,7 @@ public abstract class Operation
     /// <summary>
     /// Gets the source location of the operation name, if known.
     /// </summary>
-    public SourceLocation Location => SourceLocation.FromToken(Syntax.NameToken);
+    public SourceLocation Location => Syntax != null ? SourceLocation.FromToken(Syntax.NameToken) : SourceLocation.Unknown;
 
     /// <summary>
     /// Determines whether the operation has an attribute with the supplied name.

@@ -18,7 +18,7 @@ public readonly struct ValueReference
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ValueReference"/> struct from a value name.
+    /// Initializes a new instance of the <see cref="ValueReference"/> struct for a synthetic value with no corresponding source token.
     /// </summary>
     /// <param name="name">The SSA value name.</param>
     public ValueReference(string name)
@@ -28,7 +28,7 @@ public readonly struct ValueReference
     }
 
     /// <summary>
-    /// Gets the syntax token for the SSA value.
+    /// Gets the syntax token for the SSA value, or null if this is a synthetic reference with no corresponding source token.
     /// </summary>
     public SyntaxToken? Token { get; }
 

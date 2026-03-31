@@ -18,9 +18,9 @@ public readonly struct BlockReference
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BlockReference"/> struct from a label text.
+    /// Initializes a new instance of the <see cref="BlockReference"/> struct for a synthetic reference with no corresponding source token.
     /// </summary>
-    /// <param name="label">The block label text.</param>
+    /// <param name="label">The block label text, including the leading <c>^</c>.</param>
     public BlockReference(string label)
     {
         Token = null;
@@ -28,7 +28,7 @@ public readonly struct BlockReference
     }
 
     /// <summary>
-    /// Gets the syntax token for the block label.
+    /// Gets the syntax token for the block label, or null if this is a synthetic reference with no corresponding source token.
     /// </summary>
     public SyntaxToken? Token { get; }
 

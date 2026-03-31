@@ -319,12 +319,12 @@ public sealed class Binder
         var location = syntax.Location;
         if (definition != null)
         {
-            attribute = definition.Factory(new AttributeValueConstructionContext(syntax, canonicalName, definition, location));
+            attribute = definition.Factory(new AttributeValueConstructionContext(new RawAttributeValueSyntax(syntax), canonicalName, definition, location));
             definition.AssemblyFormat?.Bind(attribute, new AttributeAssemblyBindingContext(attribute, diagnostics));
         }
         else
         {
-            attribute = new UnknownAttributeValue(syntax, canonicalName, definition, location);
+            attribute = new UnknownAttributeValue(new RawAttributeValueSyntax(syntax), canonicalName, definition, location);
         }
 
         return attribute;

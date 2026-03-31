@@ -1,5 +1,6 @@
 namespace MLIR.Transforms;
 
+using System;
 using System.Collections.Generic;
 using MLIR.Construction;
 using MLIR.Semantics;
@@ -45,11 +46,36 @@ public static class AssemblySyntaxBuilder
 
         public OperationSyntax RewriteOperation(Operation operation, OperationBodySyntax body, SyntaxToken? nameToken = null)
         {
+            if (operation.Syntax != null)
+            {
+                return new OperationSyntax(
+                    operation.Syntax.ResultTokens,
+                    operation.Syntax.ResultCommaTokens,
+                    operation.Syntax.EqualsToken,
+                    nameToken ?? operation.Syntax.NameToken,
+                    body);
+            }
+
+            // Synthesize tokens for a synthetic operation with no source syntax.
+            var results = operation.Results;
+            var resultTokens = new List<SyntaxToken>(results.Count);
+            foreach (var result in results)
+            {
+                resultTokens.Add(new SyntaxToken(result));
+            }
+
+            var resultCommaTokens = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
+            for (var i = 1; i < results.Count; i++)
+            {
+                resultCommaTokens.Add(new SyntaxToken(","));
+            }
+
+            var equalsToken = results.Count > 0 ? (SyntaxToken?)new SyntaxToken("=") : null;
             return new OperationSyntax(
-                operation.Syntax.ResultTokens,
-                operation.Syntax.ResultCommaTokens,
-                operation.Syntax.EqualsToken,
-                nameToken ?? operation.Syntax.NameToken,
+                resultTokens,
+                resultCommaTokens,
+                equalsToken,
+                nameToken ?? new SyntaxToken(operation.Name),
                 body);
         }
 
@@ -84,10 +110,40 @@ public static class AssemblySyntaxBuilder
                 operation.Results,
                 operation.Operands,
                 operation.Successors,
-                operation.Regions.Select(r => r.Syntax).ToList(),
-                operation.Attributes.Select(a => Factory.Attr(a.Name, a.Value.Syntax.Text)).ToList(),
+                operation.Regions.Select(BuildRegion).ToList(),
+                operation.Attributes.Select(BuildNamedAttribute).ToList(),
                 operation.TypeSignatureReference != null ? operation.TypeSignatureReference.Syntax : null
             ).Body;
+        }
+
+        public NamedAttributeSyntax BuildNamedAttribute(NamedAttribute attribute)
+        {
+            if (attribute.Syntax != null)
+            {
+                return attribute.Syntax;
+            }
+
+            // Synthesize an attribute syntax for a synthetic attribute with no source syntax.
+            return new NamedAttributeSyntax(
+                new SyntaxToken(attribute.Name),
+                new SyntaxToken("="),
+                BuildAttributeValue(attribute.Value));
+        }
+
+        public AttributeValueSyntax BuildAttributeValue(AttributeValue attributeValue)
+        {
+            if (attributeValue.Syntax != null)
+            {
+                return attributeValue.Syntax;
+            }
+
+            if (attributeValue is UnknownAttributeValue unknownAttributeValue)
+            {
+                // For unknown attribute values, we want to preserve the original syntax if possible, even if it was not recognized as a valid attribute value.
+                return unknownAttributeValue.Syntax!;
+            }
+
+            throw new InvalidOperationException($"Cannot build syntax for unrecognized attribute value of type {attributeValue.GetType().FullName}.");
         }
 
         public RegionSyntax BuildRegion(Region region)
@@ -98,7 +154,10 @@ public static class AssemblySyntaxBuilder
                 blocks.Add(BuildBlock(block));
             }
 
-            return new RegionSyntax(region.Syntax.OpenBraceToken, blocks, region.Syntax.CloseBraceToken);
+            return new RegionSyntax(
+                region.Syntax?.OpenBraceToken ?? new SyntaxToken("{"),
+                blocks,
+                region.Syntax?.CloseBraceToken ?? new SyntaxToken("}"));
         }
 
         public BlockSyntax BuildBlock(Block block)
@@ -109,11 +168,19 @@ public static class AssemblySyntaxBuilder
                 operations.Add(BuildOperation(operation));
             }
 
-            return new BlockSyntax(
-                block.Syntax.LabelToken,
-                block.Syntax.Arguments,
-                block.Syntax.ColonToken,
-                operations);
+            if (block.Syntax != null)
+            {
+                return new BlockSyntax(
+                    block.Syntax.LabelToken,
+                    block.Syntax.Arguments,
+                    block.Syntax.ColonToken,
+                    operations);
+            }
+
+            // Synthesize a block syntax for a synthetic block with no source syntax.
+            // Use "^entry" as the fallback label: the parser uses this synthetic label for implicit
+            // entry blocks, and BlockSyntax.WriteTo omits it during printing when there are no arguments.
+            return new BlockSyntax(block.Label, [], operations);
         }
     }
 }
