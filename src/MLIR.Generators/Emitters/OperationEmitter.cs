@@ -115,7 +115,7 @@ internal static class OperationEmitter
 
     private static string GetContextAttributeExpression(GeneratedMember member)
     {
-        return "global::System.Linq.Enumerable.Single(context.Attributes, static attribute => attribute.Name == " + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ")";
+        return "context.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "]";
     }
 
     private static void AppendDerivedListProperty(
@@ -144,6 +144,29 @@ internal static class OperationEmitter
         builder.AppendLine(" };");
     }
 
+    private static void AppendDerivedAttributeCollectionProperty(
+        StringBuilder builder,
+        IReadOnlyList<GeneratedMember> members)
+    {
+        if (members.Count == 0)
+        {
+            builder.AppendLine("    public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;");
+            return;
+        }
+
+        builder.Append("    public override NamedAttributeCollection Attributes => NamedAttributeCollection.Create(");
+        for (var i = 0; i < members.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(members[i].PropertyName);
+        }
+
+        builder.AppendLine(");");
+    }
     private static void EmitPropertyDeclarations(
         StringBuilder builder,
         IReadOnlyList<GeneratedMember> operandMembers,
@@ -260,7 +283,7 @@ internal static class OperationEmitter
         IReadOnlyList<GeneratedMember> attributeMembers)
     {
         builder.AppendLine("    public override IReadOnlyList<Region> Regions => global::System.Array.Empty<Region>();");
-        AppendDerivedListProperty(builder, "NamedAttribute", "Attributes", attributeMembers);
+        AppendDerivedAttributeCollectionProperty(builder, attributeMembers);
         builder.AppendLine("    public override TypeReference? TypeSignatureReference => typeSignatureReference;");
         AppendDerivedListProperty(builder, "ValueReference", "ResultValues", resultMembers);
         AppendDerivedListProperty(builder, "ValueReference", "OperandValues", operandMembers);

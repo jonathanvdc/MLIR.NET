@@ -85,11 +85,13 @@ public sealed class Binder
             regions.Add(BindRegion(region));
         }
 
-        var attributes = new List<NamedAttribute>();
+        var attributeList = new List<NamedAttribute>();
         foreach (var attribute in body.Attributes)
         {
-            attributes.Add(BindNamedAttribute(attribute));
+            attributeList.Add(BindNamedAttribute(attribute));
         }
+
+        var attributes = new NamedAttributeCollection(attributeList);
 
         TypeReference? typeSignatureReference = null;
         if (body.RawTypeSignature != null)
@@ -136,7 +138,7 @@ public sealed class Binder
         OperationSyntax syntax,
         OperationDefinition definition,
         IReadOnlyList<Region> regions,
-        IReadOnlyList<NamedAttribute> attributes,
+        NamedAttributeCollection attributes,
         TypeReference? typeSignatureReference,
         IReadOnlyList<ValueReference> resultValues,
         IReadOnlyList<ValueReference> operandValues,

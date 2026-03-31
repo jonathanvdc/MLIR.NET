@@ -14,7 +14,7 @@ public sealed class UninterpretedOperation(OperationSyntax syntax, string name) 
     public override IReadOnlyList<Region> Regions => [];
 
     /// <inheritdoc/>
-    public override IReadOnlyList<NamedAttribute> Attributes => [];
+    public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;
 
     /// <inheritdoc/>
     public override TypeReference? TypeSignatureReference => null;

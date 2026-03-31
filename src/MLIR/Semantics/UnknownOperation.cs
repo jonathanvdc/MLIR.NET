@@ -9,7 +9,7 @@ using MLIR.Syntax;
 public sealed class UnknownOperation : Operation
 {
     private readonly IReadOnlyList<Region> regions;
-    private readonly IReadOnlyList<NamedAttribute> attributes;
+    private readonly NamedAttributeCollection attributes;
     private readonly TypeReference? typeSignatureReference;
     private readonly IReadOnlyList<ValueReference> resultValues;
     private readonly IReadOnlyList<ValueReference> operandValues;
@@ -22,7 +22,7 @@ public sealed class UnknownOperation : Operation
         string name,
         Dialects.OperationDefinition? definition,
         IReadOnlyList<Region> regions,
-        IReadOnlyList<NamedAttribute> attributes,
+        NamedAttributeCollection attributes,
         TypeReference? typeSignatureReference,
         IReadOnlyList<ValueReference> resultValues,
         IReadOnlyList<ValueReference> operandValues,
@@ -44,7 +44,7 @@ public sealed class UnknownOperation : Operation
     public override IReadOnlyList<Region> Regions => regions;
 
     /// <inheritdoc/>
-    public override IReadOnlyList<NamedAttribute> Attributes => attributes;
+    public override NamedAttributeCollection Attributes => attributes;
 
     /// <inheritdoc/>
     public override TypeReference? TypeSignatureReference => typeSignatureReference;
