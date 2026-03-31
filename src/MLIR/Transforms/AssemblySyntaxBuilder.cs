@@ -131,7 +131,7 @@ public static class AssemblySyntaxBuilder
             // Synthesize a block syntax for a synthetic block with no source syntax.
             // Use "^entry" as the fallback label: the parser uses this synthetic label for implicit
             // entry blocks, and BlockSyntax.WriteTo omits it during printing when there are no arguments.
-            return new BlockSyntax(block.Label ?? "^entry", [], operations);
+            return new BlockSyntax(block.Label, [], operations);
         }
     }
 }

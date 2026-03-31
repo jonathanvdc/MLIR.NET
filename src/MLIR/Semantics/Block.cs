@@ -9,17 +9,34 @@ using MLIR.Syntax;
 public sealed class Block
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="Block"/> class.
+    /// Initializes a new instance of the <see cref="Block"/> class from a concrete syntax node.
+    /// The block label is taken from the syntax node.
     /// </summary>
-    /// <param name="syntax">The concrete syntax node for the block, or null for a synthetic block with no corresponding source text.</param>
+    /// <param name="syntax">The concrete syntax node for the block.</param>
     /// <param name="arguments">The semantic block arguments.</param>
     /// <param name="operations">The operations contained in the block.</param>
-    public Block(BlockSyntax? syntax, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
+    public Block(BlockSyntax syntax, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
     {
         Syntax = syntax;
+        Label = syntax.Label;
         Arguments = arguments;
         Operations = operations;
-        LabelReference = syntax != null ? new BlockReference(syntax.LabelToken) : null;
+        LabelReference = new BlockReference(syntax.LabelToken);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Block"/> class as a synthetic block with no corresponding source text.
+    /// </summary>
+    /// <param name="label">The block label, including the leading <c>^</c>.</param>
+    /// <param name="arguments">The semantic block arguments.</param>
+    /// <param name="operations">The operations contained in the block.</param>
+    public Block(string label, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
+    {
+        Syntax = null;
+        Label = label;
+        Arguments = arguments;
+        Operations = operations;
+        LabelReference = null;
     }
 
     /// <summary>
@@ -38,12 +55,12 @@ public sealed class Block
     public IReadOnlyList<Operation> Operations { get; }
 
     /// <summary>
-    /// Gets the block label, including the leading <c>^</c>, or null if this is a synthetic block with no label.
+    /// Gets the block label, including the leading <c>^</c>.
     /// </summary>
-    public string? Label => Syntax?.Label;
+    public string Label { get; }
 
     /// <summary>
-    /// Gets the typed reference to the block label, or null if this is a synthetic block with no label.
+    /// Gets the typed reference to the block label, or null if this is a synthetic block with no label token.
     /// </summary>
     public BlockReference? LabelReference { get; }
 

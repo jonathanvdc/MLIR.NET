@@ -163,7 +163,13 @@ public abstract class Operation
             Operands,
             Successors,
             Regions.Select(r => r.Syntax ?? new RegionSyntax([])).ToList(),
-            Attributes.Select(a => Factory.Attr(a.Name, a.Value.Syntax?.Text ?? string.Empty)).ToList(),
+            Attributes.Select(a =>
+            {
+                var attrText = a.Value.Syntax != null && a.Value.Syntax.TryGetRawText(out var rawText)
+                    ? rawText!.Text
+                    : string.Empty;
+                return Factory.Attr(a.Name, attrText);
+            }).ToList(),
             TypeSignatureReference != null ? TypeSignatureReference.Syntax : null
         ).Body;
     }

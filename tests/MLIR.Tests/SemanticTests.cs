@@ -237,8 +237,9 @@ public sealed class SemanticTests
         public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
         {
             var genericBody = context.TransformGenericBody(operation);
+            var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
             var body = new PrefixConstantBodySyntax(
-                operation.HasAttribute("value") ? operation.GetAttribute("value").Value.Syntax! : new RawSyntaxText(string.Empty),
+                valueAttr != null && valueAttr.Value.Syntax != null ? valueAttr.Value.Syntax.GetRawText() : new RawSyntaxText(string.Empty),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
@@ -257,7 +258,7 @@ public sealed class SemanticTests
                 denseAttribute.BindDense();
             }
 
-            if (!attribute.Syntax!.Text.Contains("tensor<"))
+            if (!attribute.Syntax!.GetRawText().Text.Contains("tensor<"))
             {
                 context.Report("dense attribute literals should mention a tensor type.");
             }
@@ -367,7 +368,7 @@ public sealed class SemanticTests
         Assert.Equal("i32", block.Arguments[0].Type.Text);
         Assert.Single(nestedOperation.Attributes);
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
-        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax!.Text);
+        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax!.GetRawText().Text);
         Assert.Equal("%arg0", block.Arguments[0].Value.Name);
         Assert.Equal("i32", block.Arguments[0].TypeReference.Name);
     }
@@ -631,7 +632,7 @@ public sealed class SemanticTests
         var attribute = module.Operations[0].GetAttribute("value");
 
         Assert.Equal("value", attribute.Name);
-        Assert.Equal("0 : i32", attribute.Value.Syntax!.Text);
+        Assert.Equal("0 : i32", attribute.Value.Syntax!.GetRawText().Text);
     }
 
     [Fact]
@@ -648,7 +649,7 @@ public sealed class SemanticTests
 
         Assert.Equal("%0", view.Results[0]);
         Assert.Equal("%0", view.ResultValue.Name);
-        Assert.Equal("0 : i32", view.ValueAttribute.Value.Syntax!.Text);
+        Assert.Equal("0 : i32", view.ValueAttribute.Value.Syntax!.GetRawText().Text);
     }
 
     [Fact]
@@ -779,7 +780,7 @@ public sealed class SemanticTests
         var module = Binder.BindModule(document.Module, registry);
 
         Assert.Equal("%0 = arith.constant 0 : i32", module.ToText());
-        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax!.Text);
+        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax!.GetRawText().Text);
     }
 
     [Fact]
@@ -980,10 +981,10 @@ public sealed class SemanticTests
     [Fact]
     public void SyntheticBlockHasNullSyntaxAndUnknownLocation()
     {
-        var syntheticBlock = new Block(null, [], []);
+        var syntheticBlock = new Block("^entry", [], []);
 
         Assert.Null(syntheticBlock.Syntax);
-        Assert.Null(syntheticBlock.Label);
+        Assert.Equal("^entry", syntheticBlock.Label);
         Assert.Null(syntheticBlock.LabelReference);
         Assert.False(syntheticBlock.Location.IsKnown);
     }
