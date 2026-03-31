@@ -7,7 +7,7 @@ using MLIR.ODS.Model;
 
 internal static class OperationEmitter
 {
-    private sealed class GeneratedMember
+    public sealed class GeneratedMember
     {
         public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
         {
@@ -272,7 +272,26 @@ internal static class OperationEmitter
         builder.AppendLine("    public override IReadOnlyList<BlockReference> SuccessorReferences => global::System.Array.Empty<BlockReference>();");
     }
 
-    public static void Emit(StringBuilder builder, OperationModel operation)
+    public sealed class EmittedOperationMembers
+    {
+        public EmittedOperationMembers(
+            IReadOnlyList<GeneratedMember> operands,
+            IReadOnlyList<GeneratedMember> results,
+            IReadOnlyList<GeneratedMember> attributes)
+        {
+            Operands = operands;
+            Results = results;
+            Attributes = attributes;
+        }
+
+        public IReadOnlyList<GeneratedMember> Operands { get; }
+
+        public IReadOnlyList<GeneratedMember> Results { get; }
+
+        public IReadOnlyList<GeneratedMember> Attributes { get; }
+    }
+
+    public static EmittedOperationMembers Emit(StringBuilder builder, OperationModel operation)
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var resultReferenceName = operation.Results.Count == 1 ? "ResultValue" : null;
@@ -293,5 +312,6 @@ internal static class OperationEmitter
         EmitOverrideProperties(builder, operandMembers, resultMembers, attributeMembers);
 
         builder.AppendLine("}");
+        return new EmittedOperationMembers(operandMembers, resultMembers, attributeMembers);
     }
 }
