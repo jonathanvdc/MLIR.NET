@@ -99,7 +99,7 @@ public static class AssemblySyntaxBuilder
 
         private GenericOperationBodySyntax GetGenericBody(Operation operation)
         {
-            if (operation.Syntax.Body is GenericOperationBodySyntax genericBody)
+            if (operation.Syntax?.Body is GenericOperationBodySyntax genericBody)
             {
                 return genericBody;
             }
