@@ -6,7 +6,7 @@ using MLIR.ODS.Model;
 
 internal static class AssemblyFormatEmitter
 {
-    public static void Emit(StringBuilder builder, OperationModel operation)
+    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata bodySyntaxMetadata)
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         builder.AppendLine("public sealed class " + className + "AssemblyFormat : IOperationAssemblyFormat");
