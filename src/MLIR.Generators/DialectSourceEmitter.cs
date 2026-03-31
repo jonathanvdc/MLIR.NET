@@ -233,7 +233,7 @@ internal static class DialectSourceEmitter
             builder.AppendLine("    {");
             foreach (var field in fields)
             {
-                builder.Append(field.WriteToCode);
+                AppendIndentedCode(builder, field.WriteToCode);
             }
 
             builder.AppendLine("    }");
@@ -345,7 +345,7 @@ internal static class DialectSourceEmitter
                         {
                             var name = MakeUnique(GetPunctuationFieldName(punc.TokenKind), usedNames);
                             var field = new BodySyntaxField(name, "SyntaxToken",
-                                "        writer.WriteToken(" + name + ", string.Empty);\n");
+                                "writer.WriteToken(" + name + ", string.Empty);");
                             metadata.AddField(field);
                             metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Punctuation:" + punc.TokenKind, field.Name));
                             break;
@@ -355,7 +355,7 @@ internal static class DialectSourceEmitter
                         {
                             var name = MakeUnique(DialectGeneratorNaming.ToPascalCase(kw.Spelling) + "Keyword", usedNames);
                             var field = new BodySyntaxField(name, "SyntaxToken",
-                                "        writer.WriteToken(" + name + ", \" \");\n");
+                                "writer.WriteToken(" + name + ", \" \");");
                             metadata.AddField(field);
                             metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Keyword:" + kw.Spelling, field.Name));
                             break;
@@ -374,7 +374,7 @@ internal static class DialectSourceEmitter
                 {
                     var name = MakeUnique(pascalName, usedNames);
                     var field = new BodySyntaxField(name, "AttributeValueSyntax",
-                        "        " + name + ".WriteTo(writer, \" \");\n");
+                        name + ".WriteTo(writer, \" \");");
                     metadata.AddField(field);
                     metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variable.Name, field.Name));
                 }
@@ -383,7 +383,7 @@ internal static class DialectSourceEmitter
                     // Operand, result variable, or unknown → SyntaxToken
                     var name = MakeUnique(pascalName, usedNames);
                     var field = new BodySyntaxField(name, "SyntaxToken",
-                        "        writer.WriteToken(" + name + ", \" \");\n");
+                        "writer.WriteToken(" + name + ", \" \");");
                     metadata.AddField(field);
                     metadata.AddComponentField(new BodyComponentField(
                         GetComponentKindForVariable(operation, variable.Name),
@@ -398,7 +398,7 @@ internal static class DialectSourceEmitter
             {
                 var name = MakeUnique("AttrDict", usedNames);
                 var field = new BodySyntaxField(name, "DelimitedSyntaxList<NamedAttributeSyntax>",
-                    GenerateDelimitedNamedAttributeWriteTo(name));
+                    "writer.WriteDelimitedList(" + name + ", \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.AttrDict, "AttrDict", field.Name));
                 break;
@@ -408,7 +408,7 @@ internal static class DialectSourceEmitter
             {
                 var name = MakeUnique("AttrDictWithKeyword", usedNames);
                 var field = new BodySyntaxField(name, "DelimitedSyntaxList<NamedAttributeSyntax>",
-                    GenerateDelimitedNamedAttributeWriteTo(name));
+                    "writer.WriteDelimitedList(" + name + ", \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.AttrDictWithKeyword, "AttrDictWithKeyword", field.Name));
                 break;
@@ -418,7 +418,7 @@ internal static class DialectSourceEmitter
             {
                 var name = MakeUnique("PropDict", usedNames);
                 var field = new BodySyntaxField(name, "DelimitedSyntaxList<NamedAttributeSyntax>",
-                    GenerateDelimitedNamedAttributeWriteTo(name));
+                    "writer.WriteDelimitedList(" + name + ", \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.PropDict, "PropDict", field.Name));
                 break;
@@ -428,10 +428,10 @@ internal static class DialectSourceEmitter
             {
                 var name = MakeUnique("Regions", usedNames);
                 var field = new BodySyntaxField(name, "IReadOnlyList<RegionSyntax>",
-                    "        foreach (var region in " + name + ")\n" +
-                    "        {\n" +
-                    "            writeRegion(writer, region, indentLevel);\n" +
-                    "        }\n");
+                    "foreach (var region in " + name + ")\n" +
+                    "{\n" +
+                    "    writeRegion(writer, region, indentLevel);\n" +
+                    "}");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Regions, "Regions", field.Name));
                 break;
@@ -444,7 +444,7 @@ internal static class DialectSourceEmitter
                     : "Type";
                 var name = MakeUnique(baseName, usedNames);
                 var field = new BodySyntaxField(name, "TypeSyntax",
-                    "        " + name + ".WriteTo(writer, \" \");\n");
+                    name + ".WriteTo(writer, \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Type, GetDirectiveOperandName(typeDir.Operand), field.Name));
                 break;
@@ -454,7 +454,7 @@ internal static class DialectSourceEmitter
             {
                 var name = MakeUnique("Successors", usedNames);
                 var field = new BodySyntaxField(name, "DelimitedSyntaxList<SyntaxToken>",
-                    GenerateDelimitedTokenWriteTo(name));
+                    "writer.WriteDelimitedList(" + name + ", \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Successors, "Successors", field.Name));
                 break;
@@ -464,7 +464,7 @@ internal static class DialectSourceEmitter
             {
                 var name = MakeUnique("Operands", usedNames);
                 var field = new BodySyntaxField(name, "DelimitedSyntaxList<SyntaxToken>",
-                    GenerateDelimitedTokenWriteTo(name));
+                    "writer.WriteDelimitedList(" + name + ", \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Operands, "Operands", field.Name));
                 break;
@@ -473,16 +473,6 @@ internal static class DialectSourceEmitter
             // OptionalGroup, OilistDirectiveChunk, CustomDirectiveChunk, FunctionalTypeDirectiveChunk,
             // QualifiedDirectiveChunk, RefDirectiveChunk, ResultsDirectiveChunk → not stored in this CST class
         }
-    }
-
-    private static string GenerateDelimitedNamedAttributeWriteTo(string fieldName)
-    {
-        return "        writer.WriteDelimitedList(" + fieldName + ", \" \");\n";
-    }
-
-    private static string GenerateDelimitedTokenWriteTo(string fieldName)
-    {
-        return "        writer.WriteDelimitedList(" + fieldName + ", \" \");\n";
     }
 
     private static string GetPunctuationFieldName(TokenKind tokenKind)
@@ -574,6 +564,21 @@ internal static class DialectSourceEmitter
             VariableOperand variable => variable.Name,
             _ => operand?.GetType().Name ?? "Operand"
         };
+    }
+
+    private static void AppendIndentedCode(StringBuilder builder, string code)
+    {
+        if (code.Length == 0)
+        {
+            return;
+        }
+
+        var lines = code.Split('\n');
+        foreach (var line in lines)
+        {
+            builder.Append("        ");
+            builder.AppendLine(line);
+        }
     }
 
     private static string EscapeXmlText(string text)
