@@ -218,12 +218,6 @@ internal static class DialectSourceEmitter
         }
 
         builder.AppendLine();
-        builder.AppendLine("    public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        genericBody = null;");
-        builder.AppendLine("        return false;");
-        builder.AppendLine("    }");
-        builder.AppendLine();
         builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)");
         builder.AppendLine("    {");
         foreach (var field in fields)

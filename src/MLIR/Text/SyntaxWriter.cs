@@ -116,6 +116,16 @@ public sealed class SyntaxWriter
     }
 
     /// <summary>
+    /// Writes a type syntax node.
+    /// </summary>
+    /// <param name="type">The type to write.</param>
+    /// <param name="defaultLeadingTrivia">The fallback leading trivia.</param>
+    public void WriteType(TypeSyntax type, string defaultLeadingTrivia)
+    {
+        type.WriteTo(this, defaultLeadingTrivia);
+    }
+
+    /// <summary>
     /// Writes a token using its preserved trivia when present, or synthesized trivia otherwise.
     /// </summary>
     /// <param name="token">The token to write.</param>

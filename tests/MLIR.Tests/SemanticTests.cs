@@ -49,19 +49,13 @@ public sealed class SemanticTests
 
         public RawSyntaxText Value { get; }
         public SyntaxToken ColonToken { get; }
-        public RawSyntaxText TypeSignature { get; }
-
-        public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
-        {
-            genericBody = this.genericBody;
-            return true;
-        }
+        public TypeSyntax TypeSignature { get; }
 
         public override void WriteTo(SyntaxWriter writer, int indentLevel)
         {
             writer.WriteRaw(Value, " ");
             writer.WriteToken(ColonToken, " ");
-            writer.WriteRaw(TypeSignature, " ");
+            writer.WriteType(TypeSignature, " ");
         }
     }
 
@@ -223,7 +217,7 @@ public sealed class SemanticTests
             var body = new PrefixConstantBodySyntax(
                 operation.HasAttribute("value") ? operation.GetAttribute("value").Value.Syntax : new RawSyntaxText(string.Empty),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
-                operation.TypeSignature ?? new RawSyntaxText(string.Empty),
+                genericBody.TypeSignatureSyntax,
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax.NameToken;
             var rewrittenNameToken = new SyntaxToken(operation.Name, sourceNameToken.LeadingTrivia, sourceNameToken.Line, sourceNameToken.Column);

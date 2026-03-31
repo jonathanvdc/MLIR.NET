@@ -186,7 +186,7 @@ public sealed class Parser
                 attributeCommaTokens,
                 hasAttributes ? closeAttributeBraceToken : null),
             typeSignatureColonToken,
-            typeSignatureSyntax?.GetRawText());
+            typeSignatureSyntax);
     }
 
     private bool TryParseCustomAssembly(

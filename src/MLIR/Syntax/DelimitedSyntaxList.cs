@@ -70,7 +70,7 @@ public sealed class DelimitedSyntaxList<T>(
         string openLeadingTrivia,
         System.Action<T, Text.SyntaxWriter, string> writeElement)
     {
-        if (!IsPresent)
+        if (!OpenToken.HasValue)
         {
             return;
         }

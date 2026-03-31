@@ -45,7 +45,7 @@ public static class Factory
             successors ?? EmptyStrings,
             regions ?? EmptyRegions,
             attributes ?? EmptyAttributes,
-            type != null ? new RawSyntaxText(type) : null);
+            type != null ? new RawTypeSyntax(new RawSyntaxText(type)) : null);
     }
 
     /// <summary>

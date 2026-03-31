@@ -34,12 +34,6 @@ public sealed class ConstructionTests
         public RawSyntaxText Value { get; }
         public SyntaxToken ColonToken { get; }
 
-        public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
-        {
-            genericBody = this.genericBody;
-            return true;
-        }
-
         public override void WriteTo(SyntaxWriter writer, int indentLevel)
         {
             writer.WriteRaw(Value, " ");

@@ -1,6 +1,7 @@
 namespace MLIR.Transforms;
 
 using System.Collections.Generic;
+using MLIR.Construction;
 using MLIR.Semantics;
 using MLIR.Syntax;
 
@@ -54,7 +55,7 @@ public static class AssemblySyntaxBuilder
 
         public GenericOperationBodySyntax BuildGenericBody(Operation operation)
         {
-            var genericBody = operation.Syntax.GenericBody;
+            var genericBody = operation.GetGenericBody();
             var regions = new List<RegionSyntax>(operation.Regions.Count);
             foreach (var region in operation.Regions)
             {

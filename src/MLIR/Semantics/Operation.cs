@@ -2,6 +2,7 @@ namespace MLIR.Semantics;
 
 using System;
 using System.Collections.Generic;
+using MLIR.Construction;
 using MLIR.Dialects;
 using MLIR.Syntax;
 
@@ -106,11 +107,6 @@ public abstract class Operation
     public IReadOnlyList<string> Successors => GetLabels(SuccessorReferences);
 
     /// <summary>
-    /// Gets the raw type signature text, if present.
-    /// </summary>
-    public RawSyntaxText? TypeSignature => Syntax.RawTypeSignature;
-
-    /// <summary>
     /// Gets the source location of the operation name, if known.
     /// </summary>
     public SourceLocation Location => SourceLocation.FromToken(Syntax.NameToken);
@@ -145,6 +141,28 @@ public abstract class Operation
         }
 
         throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");
+    }
+
+    /// <summary>
+    /// Gets the operation body as a generic operation body syntax node.
+    /// </summary>
+    public GenericOperationBodySyntax GetGenericBody()
+    {
+        if (Syntax.Body is GenericOperationBodySyntax genericBody)
+        {
+            return genericBody;
+        }
+
+        // TODO: preserve tokens, avoid stringifying and reparsing type signatures, etc.
+        return (GenericOperationBodySyntax)Factory.Op(
+            Name,
+            Results,
+            Operands,
+            Successors,
+            Regions.Select(r => r.Syntax).ToList(),
+            Attributes.Select(a => Factory.Attr(a.Name, a.Value.Syntax.Text)).ToList(),
+            TypeSignatureReference != null ? TypeSignatureReference.Syntax.Text : null
+        ).Body;
     }
 
     private static IReadOnlyList<string> GetNames(IReadOnlyList<ValueReference> values)

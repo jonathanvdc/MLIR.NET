@@ -70,13 +70,6 @@ public sealed class GenericOperationBodySyntax(
     public RawSyntaxText? RawTypeSignature => TypeSignatureSyntax?.GetRawText();
 
     /// <inheritdoc/>
-    public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)
-    {
-        genericBody = this;
-        return true;
-    }
-
-    /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
     {
         writer.WriteDelimitedList(OperandList, string.Empty);

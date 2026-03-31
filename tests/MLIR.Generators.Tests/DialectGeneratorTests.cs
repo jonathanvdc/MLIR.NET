@@ -97,11 +97,6 @@ public sealed class DialectGeneratorTests
         // Both classes share AttrDict.
         Assert.Contains("public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }", registrationSource);
 
-        // TryGetGenericBody is a stub that always returns false.
-        Assert.Contains("public override bool TryGetGenericBody(out GenericOperationBodySyntax? genericBody)", registrationSource);
-        Assert.Contains("genericBody = null;", registrationSource);
-        Assert.Contains("return false;", registrationSource);
-
         // WriteTo is implemented.
         Assert.Contains("public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)", registrationSource);
     }
