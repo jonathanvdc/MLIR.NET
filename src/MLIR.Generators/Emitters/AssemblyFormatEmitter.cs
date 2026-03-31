@@ -10,6 +10,7 @@ internal static class AssemblyFormatEmitter
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var syntaxDescriptor = OperationBodySyntaxDescriptor.Describe(bodySyntaxMetadata);
+
         builder.AppendLine("public sealed class " + className + "AssemblyFormat : IOperationAssemblyFormat");
         builder.AppendLine("{");
         builder.AppendLine("    public bool TryParse(SyntaxToken nameToken, IReadOnlyList<SyntaxToken> resultTokens, IReadOnlyList<SyntaxToken> resultCommaTokens, SyntaxToken? equalsToken, OperationParsingContext context, out OperationBodySyntax? body)");
