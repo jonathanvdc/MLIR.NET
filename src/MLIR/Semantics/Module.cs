@@ -3,6 +3,7 @@ namespace MLIR.Semantics;
 using System.Collections.Generic;
 using MLIR.Syntax;
 using MLIR.Text;
+using MLIR.Transforms;
 
 /// <summary>
 /// Represents a semantic MLIR module bound from generic syntax.
@@ -34,8 +35,8 @@ public sealed class Module(ModuleSyntax syntax, IReadOnlyList<Operation> operati
     /// Converts the semantic module to MLIR text, using custom assembly formats when available.
     /// </summary>
     /// <returns>The printed MLIR text.</returns>
-    public string ToText()
+    public string ToText(ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions? options = null)
     {
-        return Printer.Print(this);
+        return Printer.Print(this, options);
     }
 }

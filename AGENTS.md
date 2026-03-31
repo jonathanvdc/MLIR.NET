@@ -77,7 +77,7 @@ Prefer these boundaries:
 - `Parser` parses text into CST
 - `Printer` prints CST
 - `Binder` binds CST into typed semantic nodes
-- `AssemblySyntaxBuilder` rewrites semantic modules to CST
+- `ConcreteSyntaxBuilder` rewrites semantic modules to CST and can be configured to prefer custom assembly or the generic format while deciding whether existing CST nodes should be reused or rebuilt
 - `GenericSyntaxBuilder` rewrites custom CST back to generic CST
 
 Keep `Printer` syntax-focused. If a change sounds like "print known ops differently," it probably belongs in a CST transform or dialect assembly hook instead.

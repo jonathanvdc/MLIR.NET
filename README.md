@@ -128,7 +128,7 @@ The runtime keeps syntax and semantics deliberately separate.
 - `Parser` parses text into a concrete syntax tree
 - `Printer` prints syntax
 - `Binder` binds syntax into typed semantic nodes
-- `AssemblySyntaxBuilder` rewrites semantic modules into syntax, including custom assembly forms
+- `ConcreteSyntaxBuilder` rewrites semantic modules into syntax, including custom assembly forms, and it can be configured to prefer custom assembly or the generic format while optionally rebuilding existing CST nodes to match the chosen preference
 - `GenericSyntaxBuilder` lowers custom syntax back to generic MLIR syntax
 
 The concrete syntax tree is the source of truth for printing. Custom assembly behavior is intended to live in syntax transforms and dialect hooks rather than as printer-only special cases.

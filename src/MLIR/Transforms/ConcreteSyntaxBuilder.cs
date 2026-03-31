@@ -2,26 +2,91 @@ namespace MLIR.Transforms;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using MLIR.Construction;
 using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
-/// Builds concrete syntax trees from semantic MLIR modules, optionally rewriting operations into custom assembly forms.
+/// Builds concrete syntax trees from semantic MLIR modules, synthesizing missing nodes when needed and honoring
+/// custom assembly rewrites when requested.
 /// </summary>
-public static class AssemblySyntaxBuilder
+public static class ConcreteSyntaxBuilder
 {
     /// <summary>
-    /// Builds a concrete syntax tree for the supplied semantic module.
+    /// Builds a concrete syntax tree for the supplied semantic module according to the provided options.
     /// </summary>
-    public static ModuleSyntax BuildModule(Module module)
+    public static ModuleSyntax BuildModule(Module module, ConcreteSyntaxBuilderOptions? options = null)
     {
-        var builder = new Builder();
+        var builder = new Builder(options ?? new ConcreteSyntaxBuilderOptions());
         return builder.BuildModule(module);
+    }
+
+    /// <summary>
+    /// Configures how <see cref="ConcreteSyntaxBuilder"/> prefers custom assembly formats and handles existing syntax.
+    /// </summary>
+    /// <remarks>
+    /// Initializes a new instance of the <see cref="ConcreteSyntaxBuilderOptions"/> class with the specified preferences.
+    /// </remarks>
+    /// <param name="operationSyntaxPreference">The preferred format for emitting operations.</param>
+    /// <param name="existingSyntaxHandling">How existing syntax should be handled.</param>
+    public sealed class ConcreteSyntaxBuilderOptions(
+        OperationSyntaxPreference operationSyntaxPreference = OperationSyntaxPreference.PreferCustomAssembly,
+        ExistingSyntaxHandling existingSyntaxHandling = ExistingSyntaxHandling.PreserveExistingSyntax)
+    {
+
+        /// <summary>
+        /// Gets or sets the preferred format for emitting operations.
+        /// </summary>
+        public OperationSyntaxPreference OperationSyntaxPreference { get; } = operationSyntaxPreference;
+
+        /// <summary>
+        /// Gets or sets whether existing CST nodes should be preserved or rebuilt to match the configured preferences.
+        /// </summary>
+        public ExistingSyntaxHandling ExistingSyntaxHandling { get; } = existingSyntaxHandling;
+    }
+
+    /// <summary>
+    /// Determines whether to favor dialect-specific assembly rewrites or always emit the generic format when building syntax.
+    /// </summary>
+    public enum OperationSyntaxPreference
+    {
+        /// <summary>
+        /// Use custom assembly rewrites when available; fall back to generic syntax otherwise.
+        /// </summary>
+        PreferCustomAssembly,
+
+        /// <summary>
+        /// Always emit generic operation syntax, ignoring custom assembly rewrites.
+        /// </summary>
+        PreferGeneric
+    }
+
+    /// <summary>
+    /// Controls how existing concrete syntax trees attached to semantic nodes are handled.
+    /// </summary>
+    public enum ExistingSyntaxHandling
+    {
+        /// <summary>
+        /// Keep existing CST nodes unchanged when they already exist on semantic nodes.
+        /// </summary>
+        PreserveExistingSyntax,
+
+        /// <summary>
+        /// Rebuild CST nodes so they match the current preferences even if syntax was previously attached.
+        /// </summary>
+        ReplaceExistingSyntax
     }
 
     internal sealed class Builder
     {
+        private readonly ConcreteSyntaxBuilderOptions options;
+
+        internal Builder(ConcreteSyntaxBuilderOptions options)
+        {
+            this.options = options;
+        }
+
         public ModuleSyntax BuildModule(Module module)
         {
             var operations = new List<OperationSyntax>(module.Operations.Count);
@@ -35,8 +100,24 @@ public static class AssemblySyntaxBuilder
 
         public OperationSyntax BuildOperation(Operation operation)
         {
-            return operation.Definition?.AssemblyFormat?.Rewrite(operation, new OperationSyntaxTransformContext(this))
-                ?? RewriteOperation(operation, BuildGenericBody(operation));
+            if (operation.Syntax != null && options.ExistingSyntaxHandling == ExistingSyntaxHandling.PreserveExistingSyntax)
+            {
+                return operation.Syntax;
+            }
+
+            var assemblyFormat = operation.Definition?.AssemblyFormat;
+            if (options.OperationSyntaxPreference == OperationSyntaxPreference.PreferCustomAssembly && assemblyFormat != null)
+            {
+                return assemblyFormat.Rewrite(operation, new OperationSyntaxTransformContext(this));
+            }
+
+            var body = BuildGenericBody(operation);
+            var shouldPreserveOuterTokens = options.ExistingSyntaxHandling == ExistingSyntaxHandling.PreserveExistingSyntax
+                || (assemblyFormat == null && operation.Syntax != null);
+            return RewriteOperation(
+                operation,
+                body,
+                preserveOuterTokens: shouldPreserveOuterTokens);
         }
 
         public OperationSyntax WithBody(Operation operation, OperationBodySyntax body)
@@ -44,9 +125,13 @@ public static class AssemblySyntaxBuilder
             return RewriteOperation(operation, body);
         }
 
-        public OperationSyntax RewriteOperation(Operation operation, OperationBodySyntax body, SyntaxToken? nameToken = null)
+        public OperationSyntax RewriteOperation(
+            Operation operation,
+            OperationBodySyntax body,
+            SyntaxToken? nameToken = null,
+            bool preserveOuterTokens = true)
         {
-            if (operation.Syntax != null)
+            if (preserveOuterTokens && operation.Syntax != null)
             {
                 return new OperationSyntax(
                     operation.Syntax.ResultTokens,
@@ -56,7 +141,6 @@ public static class AssemblySyntaxBuilder
                     body);
             }
 
-            // Synthesize tokens for a synthetic operation with no source syntax.
             var results = operation.Results;
             var resultTokens = new List<SyntaxToken>(results.Count);
             foreach (var result in results)
@@ -104,7 +188,6 @@ public static class AssemblySyntaxBuilder
                 return genericBody;
             }
 
-            // TODO: preserve tokens
             return (GenericOperationBodySyntax)Factory.Op(
                 operation.Name,
                 operation.Results,
@@ -112,8 +195,8 @@ public static class AssemblySyntaxBuilder
                 operation.Successors,
                 operation.Regions.Select(BuildRegion).ToList(),
                 operation.Attributes.Select(BuildNamedAttribute).ToList(),
-                operation.TypeSignatureReference != null ? operation.TypeSignatureReference.Syntax : null
-            ).Body;
+                operation.TypeSignatureReference != null ? operation.TypeSignatureReference.Syntax : null)
+                .Body;
         }
 
         public NamedAttributeSyntax BuildNamedAttribute(NamedAttribute attribute)
@@ -123,7 +206,6 @@ public static class AssemblySyntaxBuilder
                 return attribute.Syntax;
             }
 
-            // Synthesize an attribute syntax for a synthetic attribute with no source syntax.
             return new NamedAttributeSyntax(
                 new SyntaxToken(attribute.Name),
                 new SyntaxToken("="),
@@ -139,7 +221,6 @@ public static class AssemblySyntaxBuilder
 
             if (attributeValue is UnknownAttributeValue unknownAttributeValue)
             {
-                // For unknown attribute values, we want to preserve the original syntax if possible, even if it was not recognized as a valid attribute value.
                 return unknownAttributeValue.Syntax!;
             }
 
@@ -177,9 +258,6 @@ public static class AssemblySyntaxBuilder
                     operations);
             }
 
-            // Synthesize a block syntax for a synthetic block with no source syntax.
-            // Use "^entry" as the fallback label: the parser uses this synthetic label for implicit
-            // entry blocks, and BlockSyntax.WriteTo omits it during printing when there are no arguments.
             return new BlockSyntax(block.Label, [], operations);
         }
     }

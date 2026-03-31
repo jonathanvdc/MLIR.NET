@@ -22,12 +22,13 @@ public sealed class Printer
     }
 
     /// <summary>
-    /// Converts a semantic module to MLIR text, using custom assembly formats when available.
+    /// Converts a semantic module to MLIR text, using the provided syntax builder options when requested.
     /// </summary>
     /// <param name="module">The semantic module to print.</param>
+    /// <param name="options">Optional configuration for <see cref="ConcreteSyntaxBuilder"/>.</param>
     /// <returns>The printed MLIR text.</returns>
-    public static string Print(Module module)
+    public static string Print(Module module, ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions? options = null)
     {
-        return Print(AssemblySyntaxBuilder.BuildModule(module));
+        return Print(ConcreteSyntaxBuilder.BuildModule(module, options));
     }
 }

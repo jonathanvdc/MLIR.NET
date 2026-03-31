@@ -25,6 +25,12 @@ public sealed class SemanticTests
             });
     }
 
+    private static ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions ReplaceExistingSyntaxOptions()
+    {
+        return new ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions(
+            existingSyntaxHandling: ConcreteSyntaxBuilder.ExistingSyntaxHandling.ReplaceExistingSyntax);
+    }
+
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
     {
         private readonly GenericOperationBodySyntax genericBody;
@@ -730,7 +736,7 @@ public sealed class SemanticTests
             Parser.ParseModule("%0 = \"arith.constant\"() {value = 0} : () -> i32"),
             registry);
 
-        Assert.Equal("%0 = arith.constant 0 : () -> i32", module.ToText());
+        Assert.Equal("%0 = arith.constant 0 : () -> i32", module.ToText(ReplaceExistingSyntaxOptions()));
     }
 
     [Fact]
@@ -779,7 +785,7 @@ public sealed class SemanticTests
         var document = Document.Parse("%0 = arith.constant 0 : i32", registry);
         var module = Binder.BindModule(document.Module, registry);
 
-        Assert.Equal("%0 = arith.constant 0 : i32", module.ToText());
+        Assert.Equal("%0 = arith.constant 0 : i32", module.ToText(ReplaceExistingSyntaxOptions()));
         Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax!.GetRawText().Text);
     }
 
@@ -893,7 +899,7 @@ public sealed class SemanticTests
             "  %0 = arith.constant 0 : () -> i32\n" +
             "  \"func.return\"(%0) : (i32) -> ()\n" +
             "} : (i1) -> ()",
-            module.ToText());
+            module.ToText(ReplaceExistingSyntaxOptions()));
     }
 
     [Fact]

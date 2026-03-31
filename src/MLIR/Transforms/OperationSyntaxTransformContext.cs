@@ -8,9 +8,9 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class OperationSyntaxTransformContext
 {
-    private readonly AssemblySyntaxBuilder.Builder builder;
+    private readonly ConcreteSyntaxBuilder.Builder builder;
 
-    internal OperationSyntaxTransformContext(AssemblySyntaxBuilder.Builder builder)
+    internal OperationSyntaxTransformContext(ConcreteSyntaxBuilder.Builder builder)
     {
         this.builder = builder;
     }
