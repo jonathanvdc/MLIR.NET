@@ -2,78 +2,163 @@ namespace MLIR.Generators.Emitters;
 
 using System.Globalization;
 using System.Text;
+using System.Collections.Generic;
 using MLIR.ODS.Model;
 
 internal static class OperationEmitter
 {
-    public static void Emit(StringBuilder builder, OperationModel operation)
+    private sealed class GeneratedMember
     {
-        var className = DialectGeneratorNaming.GetOperationClassName(operation);
-        var resultReferenceName = operation.Results.Count == 1 ? "ResultValue" : null;
-
-        static string GetParameterName(string propertyName)
+        public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
         {
-            if (propertyName.Length == 0)
-            {
-                return propertyName;
-            }
-
-            return char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+            PropertyName = propertyName;
+            ParameterName = parameterName;
+            TypeName = typeName;
+            SourceName = sourceName;
         }
 
-        static string FormatStringLiteral(string value)
+        public string PropertyName { get; }
+
+        public string ParameterName { get; }
+
+        public string TypeName { get; }
+
+        public string SourceName { get; }
+    }
+
+    private static string GetParameterName(string propertyName)
+    {
+        if (propertyName.Length == 0)
         {
-            return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+            return propertyName;
         }
 
-        static void AppendDerivedListProperty(
-            StringBuilder builder,
-            string itemType,
-            string propertyName,
-            IReadOnlyList<string> items,
-            Func<string, string> elementExpression)
-        {
-            if (items.Count == 0)
-            {
-                builder.AppendLine("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => global::System.Array.Empty<" + itemType + ">();");
-                return;
-            }
+        return char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+    }
 
-            builder.Append("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => new " + itemType + "[] { ");
-            for (var i = 0; i < items.Count; i++)
-            {
-                if (i > 0)
-                {
-                    builder.Append(", ");
-                }
+    private static string ToCSharpStringLiteral(string value)
+    {
+        return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+    }
 
-                builder.Append(elementExpression(items[i]));
-            }
-
-            builder.AppendLine(" };");
-        }
-
-        EmitterHelpers.AppendXmlDocComment(builder, operation.Summary, operation.Description);
-        builder.AppendLine("public sealed class " + className + " : Operation");
-        builder.AppendLine("{");
-        builder.AppendLine("    private readonly IReadOnlyList<Region> regions;");
-        builder.AppendLine("    private readonly TypeReference? typeSignatureReference;");
-        builder.AppendLine("    private readonly IReadOnlyList<BlockReference> successorReferences;");
-        builder.AppendLine();
-
+    private static IReadOnlyList<GeneratedMember> GetOperandMembers(OperationModel operation)
+    {
+        var members = new List<GeneratedMember>(operation.Operands.Count);
         for (var i = 0; i < operation.Operands.Count; i++)
         {
-            builder.AppendLine(
-                "    public ValueReference " + DialectGeneratorNaming.ToPascalCase(operation.Operands[i]) + " { get; }");
+            var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Operands[i]);
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "ValueReference", operation.Operands[i]));
         }
 
+        return members;
+    }
+
+    private static IReadOnlyList<GeneratedMember> GetResultMembers(OperationModel operation)
+    {
+        var members = new List<GeneratedMember>(operation.Results.Count);
         for (var i = 0; i < operation.Results.Count; i++)
         {
             var propertyName = operation.Results.Count == 1
                 ? "ResultValue"
                 : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
-            builder.AppendLine("    public ValueReference " + propertyName + " { get; }");
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "ValueReference", operation.Results[i]));
         }
+
+        return members;
+    }
+
+    private static IReadOnlyList<GeneratedMember> GetAttributeMembers(OperationModel operation)
+    {
+        var members = new List<GeneratedMember>(operation.Attributes.Count);
+        for (var i = 0; i < operation.Attributes.Count; i++)
+        {
+            var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Attributes[i]);
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "NamedAttribute", operation.Attributes[i]));
+        }
+
+        return members;
+    }
+
+    private static void AppendAutoProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
+    {
+        for (var i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName + " { get; }");
+        }
+    }
+
+    private static void AppendConstructorParameters(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
+    {
+        for (var i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            builder.AppendLine("        " + member.TypeName + " " + member.ParameterName + ",");
+        }
+    }
+
+    private static void AppendAssignments(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
+    {
+        for (var i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            builder.AppendLine("        " + member.PropertyName + " = " + member.ParameterName + ";");
+        }
+    }
+
+    private static void AppendNamedArguments(
+        StringBuilder builder,
+        IReadOnlyList<GeneratedMember> members,
+        Func<GeneratedMember, string> valueExpression)
+    {
+        for (var i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            builder.AppendLine("            " + member.ParameterName + ": " + valueExpression(member) + ",");
+        }
+    }
+
+    private static string GetContextAttributeExpression(GeneratedMember member)
+    {
+        return "global::System.Linq.Enumerable.Single(context.Attributes, static attribute => attribute.Name == " + ToCSharpStringLiteral(member.SourceName) + ")";
+    }
+
+    private static void AppendDerivedListProperty(
+        StringBuilder builder,
+        string itemType,
+        string propertyName,
+        IReadOnlyList<GeneratedMember> members)
+    {
+        if (members.Count == 0)
+        {
+            builder.AppendLine("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => global::System.Array.Empty<" + itemType + ">();");
+            return;
+        }
+
+        builder.Append("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => new " + itemType + "[] { ");
+        for (var i = 0; i < members.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(members[i].PropertyName);
+        }
+
+        builder.AppendLine(" };");
+    }
+
+    private static void EmitPropertyDeclarations(
+        StringBuilder builder,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers,
+        IReadOnlyList<GeneratedMember> attributeMembers,
+        OperationModel operation,
+        string? resultReferenceName)
+    {
+        AppendAutoProperties(builder, operandMembers);
+        AppendAutoProperties(builder, resultMembers);
 
         if (resultReferenceName != null && operation.Results[0] != "result")
         {
@@ -81,169 +166,132 @@ internal static class OperationEmitter
                 "    public ValueReference " + DialectGeneratorNaming.ToPascalCase(operation.Results[0]) + " => " + resultReferenceName + ";");
         }
 
-        for (var i = 0; i < operation.Attributes.Count; i++)
-        {
-            builder.AppendLine(
-                "    public NamedAttribute " + DialectGeneratorNaming.ToPascalCase(operation.Attributes[i]) + " { get; }");
-        }
+        AppendAutoProperties(builder, attributeMembers);
 
-        if (operation.Operands.Count > 0 || operation.Results.Count > 0 || operation.Attributes.Count > 0)
+        if (operandMembers.Count > 0 || resultMembers.Count > 0 || attributeMembers.Count > 0)
         {
             builder.AppendLine();
         }
+    }
 
+    private static void EmitContextConstructor(
+        StringBuilder builder,
+        string className,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers,
+        IReadOnlyList<GeneratedMember> attributeMembers)
+    {
         builder.AppendLine("    public " + className + "(OperationConstructionContext context)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: context.Syntax,");
         builder.AppendLine("            name: context.Name,");
         builder.AppendLine("            definition: context.Definition,");
 
-        for (var i = 0; i < operation.Operands.Count; i++)
+        for (var i = 0; i < operandMembers.Count; i++)
         {
-            builder.AppendLine(
-                "            " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ": context.OperandValues[" + i.ToString(CultureInfo.InvariantCulture) + "],");
+            var member = operandMembers[i];
+            builder.AppendLine("            " + member.ParameterName + ": context.OperandValues[" + i.ToString(CultureInfo.InvariantCulture) + "],");
         }
 
-        for (var i = 0; i < operation.Results.Count; i++)
+        for (var i = 0; i < resultMembers.Count; i++)
         {
-            var propertyName = operation.Results.Count == 1
-                ? "ResultValue"
-                : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
-            builder.AppendLine(
-                "            " + GetParameterName(propertyName) + ": context.ResultValues[" + i.ToString(CultureInfo.InvariantCulture) + "],");
+            var member = resultMembers[i];
+            builder.AppendLine("            " + member.ParameterName + ": context.ResultValues[" + i.ToString(CultureInfo.InvariantCulture) + "],");
         }
 
-        for (var i = 0; i < operation.Attributes.Count; i++)
-        {
-            var attributeName = operation.Attributes[i];
-            builder.AppendLine(
-                "            " + GetParameterName(DialectGeneratorNaming.ToPascalCase(attributeName)) + ": global::System.Linq.Enumerable.Single(context.Attributes, static attribute => attribute.Name == " + FormatStringLiteral(attributeName) + "),");
-        }
-
+        AppendNamedArguments(builder, attributeMembers, GetContextAttributeExpression);
         builder.AppendLine("            typeSignatureReference: context.TypeSignatureReference)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
+    }
 
+    private static void EmitPrimaryConstructor(
+        StringBuilder builder,
+        string className,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers,
+        IReadOnlyList<GeneratedMember> attributeMembers)
+    {
         builder.AppendLine("    public " + className + "(");
         builder.AppendLine("        OperationSyntax? syntax,");
         builder.AppendLine("        string name,");
         builder.AppendLine("        OperationDefinition definition,");
-
-        for (var i = 0; i < operation.Operands.Count; i++)
-        {
-            builder.AppendLine(
-                "        ValueReference " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ",");
-        }
-
-        for (var i = 0; i < operation.Results.Count; i++)
-        {
-            var propertyName = operation.Results.Count == 1
-                ? "ResultValue"
-                : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
-            builder.AppendLine("        ValueReference " + GetParameterName(propertyName) + ",");
-        }
-
-        for (var i = 0; i < operation.Attributes.Count; i++)
-        {
-            builder.AppendLine(
-                "        NamedAttribute " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ",");
-        }
-
+        AppendConstructorParameters(builder, operandMembers);
+        AppendConstructorParameters(builder, resultMembers);
+        AppendConstructorParameters(builder, attributeMembers);
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : base(syntax, name, definition)");
         builder.AppendLine("    {");
-        builder.AppendLine("        this.regions = global::System.Array.Empty<Region>();");
         builder.AppendLine("        this.typeSignatureReference = typeSignatureReference;");
-        builder.AppendLine("        this.successorReferences = global::System.Array.Empty<BlockReference>();");
-
-        for (var i = 0; i < operation.Operands.Count; i++)
-        {
-            var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Operands[i]);
-            builder.AppendLine("        " + propertyName + " = " + GetParameterName(propertyName) + ";");
-        }
-
-        for (var i = 0; i < operation.Results.Count; i++)
-        {
-            var propertyName = operation.Results.Count == 1
-                ? "ResultValue"
-                : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
-            builder.AppendLine("        " + propertyName + " = " + GetParameterName(propertyName) + ";");
-        }
-
-        for (var i = 0; i < operation.Attributes.Count; i++)
-        {
-            var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Attributes[i]);
-            builder.AppendLine("        " + propertyName + " = " + GetParameterName(propertyName) + ";");
-        }
-
+        AppendAssignments(builder, operandMembers);
+        AppendAssignments(builder, resultMembers);
+        AppendAssignments(builder, attributeMembers);
         builder.AppendLine("    }");
         builder.AppendLine();
+    }
 
+    private static void EmitConvenienceConstructor(
+        StringBuilder builder,
+        string className,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers,
+        IReadOnlyList<GeneratedMember> attributeMembers)
+    {
         builder.AppendLine("    public " + className + "(");
         builder.AppendLine("        string name,");
         builder.AppendLine("        OperationDefinition definition,");
-
-        for (var i = 0; i < operation.Operands.Count; i++)
-        {
-            builder.AppendLine(
-                "        ValueReference " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ",");
-        }
-
-        for (var i = 0; i < operation.Results.Count; i++)
-        {
-            var propertyName = operation.Results.Count == 1
-                ? "ResultValue"
-                : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
-            builder.AppendLine("        ValueReference " + GetParameterName(propertyName) + ",");
-        }
-
-        for (var i = 0; i < operation.Attributes.Count; i++)
-        {
-            builder.AppendLine(
-                "        NamedAttribute " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ",");
-        }
-
+        AppendConstructorParameters(builder, operandMembers);
+        AppendConstructorParameters(builder, resultMembers);
+        AppendConstructorParameters(builder, attributeMembers);
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: null,");
         builder.AppendLine("            name: name,");
         builder.AppendLine("            definition: definition,");
-
-        for (var i = 0; i < operation.Operands.Count; i++)
-        {
-            builder.AppendLine("            " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ": " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ",");
-        }
-
-        for (var i = 0; i < operation.Results.Count; i++)
-        {
-            var propertyName = operation.Results.Count == 1
-                ? "ResultValue"
-                : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
-            builder.AppendLine("            " + GetParameterName(propertyName) + ": " + GetParameterName(propertyName) + ",");
-        }
-
-        for (var i = 0; i < operation.Attributes.Count; i++)
-        {
-            builder.AppendLine("            " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ": " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ",");
-        }
-
+        AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
+        AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
+        AppendNamedArguments(builder, attributeMembers, static member => member.ParameterName);
         builder.AppendLine("            typeSignatureReference: typeSignatureReference)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
+    }
 
-        builder.AppendLine("    public override IReadOnlyList<Region> Regions => regions;");
-        AppendDerivedListProperty(builder, "NamedAttribute", "Attributes", operation.Attributes, DialectGeneratorNaming.ToPascalCase);
+    private static void EmitOverrideProperties(
+        StringBuilder builder,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers,
+        IReadOnlyList<GeneratedMember> attributeMembers)
+    {
+        builder.AppendLine("    public override IReadOnlyList<Region> Regions => global::System.Array.Empty<Region>();");
+        AppendDerivedListProperty(builder, "NamedAttribute", "Attributes", attributeMembers);
         builder.AppendLine("    public override TypeReference? TypeSignatureReference => typeSignatureReference;");
-        AppendDerivedListProperty(builder, "ValueReference", "ResultValues", operation.Results, resultName =>
-        {
-            return operation.Results.Count == 1
-                ? "ResultValue"
-                : DialectGeneratorNaming.ToPascalCase(resultName);
-        });
-        AppendDerivedListProperty(builder, "ValueReference", "OperandValues", operation.Operands, DialectGeneratorNaming.ToPascalCase);
-        builder.AppendLine("    public override IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;");
+        AppendDerivedListProperty(builder, "ValueReference", "ResultValues", resultMembers);
+        AppendDerivedListProperty(builder, "ValueReference", "OperandValues", operandMembers);
+        builder.AppendLine("    public override IReadOnlyList<BlockReference> SuccessorReferences => global::System.Array.Empty<BlockReference>();");
+    }
+
+    public static void Emit(StringBuilder builder, OperationModel operation)
+    {
+        var className = DialectGeneratorNaming.GetOperationClassName(operation);
+        var resultReferenceName = operation.Results.Count == 1 ? "ResultValue" : null;
+        var operandMembers = GetOperandMembers(operation);
+        var resultMembers = GetResultMembers(operation);
+        var attributeMembers = GetAttributeMembers(operation);
+
+        EmitterHelpers.AppendXmlDocComment(builder, operation.Summary, operation.Description);
+        builder.AppendLine("public sealed class " + className + " : Operation");
+        builder.AppendLine("{");
+        builder.AppendLine("    private readonly TypeReference? typeSignatureReference;");
+        builder.AppendLine();
+
+        EmitPropertyDeclarations(builder, operandMembers, resultMembers, attributeMembers, operation, resultReferenceName);
+        EmitContextConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
+        EmitPrimaryConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
+        EmitConvenienceConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
+        EmitOverrideProperties(builder, operandMembers, resultMembers, attributeMembers);
+
         builder.AppendLine("}");
     }
 }
