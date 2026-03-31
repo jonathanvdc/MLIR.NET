@@ -257,7 +257,10 @@ public sealed class DialectGeneratorTests
 
         // Constructors use NamedAttributeCollection attributes parameter instead of individual NamedAttribute params.
         Assert.Contains("NamedAttributeCollection attributes,", registrationSource);
-        Assert.DoesNotContain("NamedAttribute value,", registrationSource);
+
+        // Per-attribute convenience constructor also exists (using individual NamedAttribute params).
+        Assert.Contains("NamedAttribute value,", registrationSource);
+        Assert.Contains("attributes: NamedAttributeCollection.Create(value),", registrationSource);
 
         // Context constructor passes context.Attributes directly.
         Assert.Contains("attributes: context.Attributes,", registrationSource);

@@ -255,6 +255,58 @@ internal static class OperationEmitter
         builder.AppendLine();
     }
 
+    private static void EmitPerAttributeConvenienceConstructor(
+        StringBuilder builder,
+        string className,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers,
+        IReadOnlyList<GeneratedMember> attributeMembers)
+    {
+        if (attributeMembers.Count == 0)
+        {
+            return;
+        }
+
+        builder.AppendLine("    public " + className + "(");
+        builder.AppendLine("        string name,");
+        builder.AppendLine("        OperationDefinition definition,");
+        AppendConstructorParameters(builder, operandMembers);
+        AppendConstructorParameters(builder, resultMembers);
+        AppendConstructorParameters(builder, attributeMembers);
+        builder.AppendLine("        TypeReference? typeSignatureReference)");
+        builder.AppendLine("        : this(");
+        builder.AppendLine("            syntax: null,");
+        builder.AppendLine("            name: name,");
+        builder.AppendLine("            definition: definition,");
+        AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
+        AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
+
+        if (attributeMembers.Count == 1)
+        {
+            builder.AppendLine("            attributes: NamedAttributeCollection.Create(" + attributeMembers[0].ParameterName + "),");
+        }
+        else
+        {
+            builder.Append("            attributes: NamedAttributeCollection.Create(");
+            for (var i = 0; i < attributeMembers.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                builder.Append(attributeMembers[i].ParameterName);
+            }
+
+            builder.AppendLine("),");
+        }
+
+        builder.AppendLine("            typeSignatureReference: typeSignatureReference)");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+    }
+
     private static void EmitOverrideProperties(
         StringBuilder builder,
         IReadOnlyList<GeneratedMember> operandMembers,
@@ -305,6 +357,7 @@ internal static class OperationEmitter
         EmitContextConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
         EmitPrimaryConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
         EmitConvenienceConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
+        EmitPerAttributeConvenienceConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
         EmitOverrideProperties(builder, operandMembers, resultMembers, attributeMembers);
 
         builder.AppendLine("}");
