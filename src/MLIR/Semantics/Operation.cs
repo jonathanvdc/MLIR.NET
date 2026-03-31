@@ -2,7 +2,6 @@ namespace MLIR.Semantics;
 
 using System;
 using System.Collections.Generic;
-using MLIR.Construction;
 using MLIR.Dialects;
 using MLIR.Syntax;
 
@@ -144,34 +143,11 @@ public abstract class Operation
     }
 
     /// <summary>
-    /// Gets the operation body as a generic operation body syntax node.
+    /// Gets the operation body as a generic operation body syntax node, or null if the operation body is not in generic form.
     /// </summary>
-    public GenericOperationBodySyntax GetGenericBody()
+    public GenericOperationBodySyntax? GetGenericBody()
     {
-        if (Syntax?.Body is GenericOperationBodySyntax genericBody)
-        {
-            return genericBody;
-        }
-
-        // TODO: preserve tokens, avoid stringifying and reparsing type signatures, etc.
-        // For synthetic regions and attributes (null Syntax), placeholder values are used:
-        // - Regions without syntax produce an empty region body; AssemblySyntaxBuilder replaces them with fully built syntax.
-        // - Attributes without syntax produce an empty value string, as there is no source text to round-trip.
-        return (GenericOperationBodySyntax)Factory.Op(
-            Name,
-            Results,
-            Operands,
-            Successors,
-            Regions.Select(r => r.Syntax ?? new RegionSyntax([])).ToList(),
-            Attributes.Select(a =>
-            {
-                var attrText = a.Value.Syntax != null && a.Value.Syntax.TryGetRawText(out var rawText)
-                    ? rawText!.Text
-                    : string.Empty;
-                return Factory.Attr(a.Name, attrText);
-            }).ToList(),
-            TypeSignatureReference != null ? TypeSignatureReference.Syntax : null
-        ).Body;
+        return Syntax?.Body as GenericOperationBodySyntax;
     }
 
     private static IReadOnlyList<string> GetNames(IReadOnlyList<ValueReference> values)

@@ -10,7 +10,7 @@ public sealed class Block
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="Block"/> class from a concrete syntax node.
-    /// The block label is taken from the syntax node.
+    /// The block label reference is derived from the syntax node's label token.
     /// </summary>
     /// <param name="syntax">The concrete syntax node for the block.</param>
     /// <param name="arguments">The semantic block arguments.</param>
@@ -18,31 +18,34 @@ public sealed class Block
     public Block(BlockSyntax syntax, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
     {
         Syntax = syntax;
-        Label = syntax.Label;
+        LabelReference = new BlockReference(syntax.LabelToken);
         Arguments = arguments;
         Operations = operations;
-        LabelReference = new BlockReference(syntax.LabelToken);
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Block"/> class as a synthetic block with no corresponding source text.
     /// </summary>
-    /// <param name="label">The block label, including the leading <c>^</c>.</param>
+    /// <param name="labelReference">The semantic reference to the block label.</param>
     /// <param name="arguments">The semantic block arguments.</param>
     /// <param name="operations">The operations contained in the block.</param>
-    public Block(string label, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
+    public Block(BlockReference labelReference, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
     {
         Syntax = null;
-        Label = label;
+        LabelReference = labelReference;
         Arguments = arguments;
         Operations = operations;
-        LabelReference = null;
     }
 
     /// <summary>
     /// Gets the concrete syntax node for the block, or null if this is a synthetic block with no corresponding source text.
     /// </summary>
     public BlockSyntax? Syntax { get; }
+
+    /// <summary>
+    /// Gets the semantic reference to the block label.
+    /// </summary>
+    public BlockReference LabelReference { get; }
 
     /// <summary>
     /// Gets the semantic block arguments.
@@ -57,15 +60,10 @@ public sealed class Block
     /// <summary>
     /// Gets the block label, including the leading <c>^</c>.
     /// </summary>
-    public string Label { get; }
-
-    /// <summary>
-    /// Gets the typed reference to the block label, or null if this is a synthetic block with no label token.
-    /// </summary>
-    public BlockReference? LabelReference { get; }
+    public string Label => LabelReference.Label;
 
     /// <summary>
     /// Gets the source location of the block label, if known.
     /// </summary>
-    public SourceLocation Location => LabelReference?.Location ?? SourceLocation.Unknown;
+    public SourceLocation Location => LabelReference.Location;
 }
