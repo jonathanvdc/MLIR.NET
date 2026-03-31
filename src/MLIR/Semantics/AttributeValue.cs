@@ -11,7 +11,7 @@ public abstract class AttributeValue
     /// <summary>
     /// Initializes a new instance of the <see cref="AttributeValue"/> class.
     /// </summary>
-    protected AttributeValue(RawSyntaxText syntax, string? name, AttributeDefinition? definition, SourceLocation location)
+    protected AttributeValue(RawSyntaxText? syntax, string? name, AttributeDefinition? definition, SourceLocation location)
     {
         Syntax = syntax;
         Name = name;
@@ -20,9 +20,9 @@ public abstract class AttributeValue
     }
 
     /// <summary>
-    /// Gets the raw syntax text for the attribute value.
+    /// Gets the raw syntax text for the attribute value, or null if this is a synthetic attribute value with no corresponding source text.
     /// </summary>
-    public RawSyntaxText Syntax { get; }
+    public RawSyntaxText? Syntax { get; }
 
     /// <summary>
     /// Gets the canonical attribute name, if one was recognized.

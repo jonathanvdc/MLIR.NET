@@ -175,6 +175,29 @@ public sealed class SemanticTests
         public ValueReference ResultValue { get; }
     }
 
+    private sealed class SyntheticOperation : Operation
+    {
+        public SyntheticOperation(string name)
+            : base(null, name, null)
+        {
+        }
+
+        public override IReadOnlyList<Region> Regions => [];
+        public override IReadOnlyList<NamedAttribute> Attributes => [];
+        public override TypeReference? TypeSignatureReference => null;
+        public override IReadOnlyList<ValueReference> ResultValues => [];
+        public override IReadOnlyList<ValueReference> OperandValues => [];
+        public override IReadOnlyList<BlockReference> SuccessorReferences => [];
+    }
+
+    private sealed class SyntheticAttributeValue : AttributeValue
+    {
+        public SyntheticAttributeValue(string name)
+            : base(null, name, null, SourceLocation.Unknown)
+        {
+        }
+    }
+
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
     {
         public bool TryParse(
@@ -215,11 +238,11 @@ public sealed class SemanticTests
         {
             var genericBody = context.TransformGenericBody(operation);
             var body = new PrefixConstantBodySyntax(
-                operation.HasAttribute("value") ? operation.GetAttribute("value").Value.Syntax : new RawSyntaxText(string.Empty),
+                operation.HasAttribute("value") ? operation.GetAttribute("value").Value.Syntax! : new RawSyntaxText(string.Empty),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
-            var sourceNameToken = operation.Syntax.NameToken;
+            var sourceNameToken = operation.Syntax!.NameToken;
             var rewrittenNameToken = new SyntaxToken(operation.Name, sourceNameToken.LeadingTrivia, sourceNameToken.Line, sourceNameToken.Column);
             return context.RewriteOperation(operation, body, rewrittenNameToken);
         }
@@ -234,7 +257,7 @@ public sealed class SemanticTests
                 denseAttribute.BindDense();
             }
 
-            if (!attribute.Syntax.Text.Contains("tensor<"))
+            if (!attribute.Syntax!.Text.Contains("tensor<"))
             {
                 context.Report("dense attribute literals should mention a tensor type.");
             }
@@ -344,7 +367,7 @@ public sealed class SemanticTests
         Assert.Equal("i32", block.Arguments[0].Type.Text);
         Assert.Single(nestedOperation.Attributes);
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
-        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax.Text);
+        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax!.Text);
         Assert.Equal("%arg0", block.Arguments[0].Value.Name);
         Assert.Equal("i32", block.Arguments[0].TypeReference.Name);
     }
@@ -608,7 +631,7 @@ public sealed class SemanticTests
         var attribute = module.Operations[0].GetAttribute("value");
 
         Assert.Equal("value", attribute.Name);
-        Assert.Equal("0 : i32", attribute.Value.Syntax.Text);
+        Assert.Equal("0 : i32", attribute.Value.Syntax!.Text);
     }
 
     [Fact]
@@ -625,7 +648,7 @@ public sealed class SemanticTests
 
         Assert.Equal("%0", view.Results[0]);
         Assert.Equal("%0", view.ResultValue.Name);
-        Assert.Equal("0 : i32", view.ValueAttribute.Value.Syntax.Text);
+        Assert.Equal("0 : i32", view.ValueAttribute.Value.Syntax!.Text);
     }
 
     [Fact]
@@ -756,7 +779,7 @@ public sealed class SemanticTests
         var module = Binder.BindModule(document.Module, registry);
 
         Assert.Equal("%0 = arith.constant 0 : i32", module.ToText());
-        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax.Text);
+        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax!.Text);
     }
 
     [Fact]
@@ -952,5 +975,46 @@ public sealed class SemanticTests
 
         Assert.Contains("already registered", attributeException.Message);
         Assert.Contains("already registered", typeException.Message);
+    }
+
+    [Fact]
+    public void SyntheticBlockHasNullSyntaxAndUnknownLocation()
+    {
+        var syntheticBlock = new Block(null, [], []);
+
+        Assert.Null(syntheticBlock.Syntax);
+        Assert.Null(syntheticBlock.Label);
+        Assert.Null(syntheticBlock.LabelReference);
+        Assert.False(syntheticBlock.Location.IsKnown);
+    }
+
+    [Fact]
+    public void SyntheticRegionHasNullSyntax()
+    {
+        var syntheticRegion = new Region(null, []);
+
+        Assert.Null(syntheticRegion.Syntax);
+    }
+
+    [Fact]
+    public void SyntheticOperationHasNullSyntaxAndUnknownLocation()
+    {
+        var syntheticOperation = new SyntheticOperation("test.synthetic");
+
+        Assert.Null(syntheticOperation.Syntax);
+        Assert.Null(syntheticOperation.SyntaxName);
+        Assert.False(syntheticOperation.Location.IsKnown);
+        Assert.Equal("test.synthetic", syntheticOperation.Name);
+        Assert.Equal("test", syntheticOperation.DialectName);
+    }
+
+    [Fact]
+    public void SyntheticAttributeValueHasNullSyntax()
+    {
+        var syntheticAttribute = new SyntheticAttributeValue("test");
+
+        Assert.Null(syntheticAttribute.Syntax);
+        Assert.Equal("test", syntheticAttribute.Name);
+        Assert.False(syntheticAttribute.Location.IsKnown);
     }
 }
