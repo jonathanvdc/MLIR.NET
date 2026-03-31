@@ -94,7 +94,9 @@ internal static class OperationEmitter
 
         builder.AppendLine("    public " + className + "(OperationConstructionContext context)");
         builder.AppendLine("        : this(");
-        builder.AppendLine("            context,");
+        builder.AppendLine("            syntax: context.Syntax,");
+        builder.AppendLine("            name: context.Name,");
+        builder.AppendLine("            definition: context.Definition,");
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {
@@ -118,15 +120,15 @@ internal static class OperationEmitter
                 "            " + GetParameterName(DialectGeneratorNaming.ToPascalCase(attributeName)) + ": global::System.Linq.Enumerable.Single(context.Attributes, static attribute => attribute.Name == " + FormatStringLiteral(attributeName) + "),");
         }
 
-        builder.AppendLine("            regions: context.Regions,");
-        builder.AppendLine("            typeSignatureReference: context.TypeSignatureReference,");
-        builder.AppendLine("            successorReferences: context.SuccessorReferences)");
+        builder.AppendLine("            typeSignatureReference: context.TypeSignatureReference)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
 
         builder.AppendLine("    public " + className + "(");
-        builder.AppendLine("        OperationConstructionContext context,");
+        builder.AppendLine("        OperationSyntax? syntax,");
+        builder.AppendLine("        string name,");
+        builder.AppendLine("        OperationDefinition definition,");
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {
@@ -148,14 +150,12 @@ internal static class OperationEmitter
                 "        NamedAttribute " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ",");
         }
 
-        builder.AppendLine("        IReadOnlyList<Region> regions,");
-        builder.AppendLine("        TypeReference? typeSignatureReference,");
-        builder.AppendLine("        IReadOnlyList<BlockReference> successorReferences)");
-        builder.AppendLine("        : base(context.Syntax, context.Name, context.Definition)");
+        builder.AppendLine("        TypeReference? typeSignatureReference)");
+        builder.AppendLine("        : base(syntax, name, definition)");
         builder.AppendLine("    {");
-        builder.AppendLine("        this.regions = regions;");
+        builder.AppendLine("        this.regions = global::System.Array.Empty<Region>();");
         builder.AppendLine("        this.typeSignatureReference = typeSignatureReference;");
-        builder.AppendLine("        this.successorReferences = successorReferences;");
+        builder.AppendLine("        this.successorReferences = global::System.Array.Empty<BlockReference>();");
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {
@@ -179,6 +179,60 @@ internal static class OperationEmitter
 
         builder.AppendLine("    }");
         builder.AppendLine();
+
+        builder.AppendLine("    public " + className + "(");
+        builder.AppendLine("        string name,");
+        builder.AppendLine("        OperationDefinition definition,");
+
+        for (var i = 0; i < operation.Operands.Count; i++)
+        {
+            builder.AppendLine(
+                "        ValueReference " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ",");
+        }
+
+        for (var i = 0; i < operation.Results.Count; i++)
+        {
+            var propertyName = operation.Results.Count == 1
+                ? "ResultValue"
+                : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
+            builder.AppendLine("        ValueReference " + GetParameterName(propertyName) + ",");
+        }
+
+        for (var i = 0; i < operation.Attributes.Count; i++)
+        {
+            builder.AppendLine(
+                "        NamedAttribute " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ",");
+        }
+
+        builder.AppendLine("        TypeReference? typeSignatureReference)");
+        builder.AppendLine("        : this(");
+        builder.AppendLine("            syntax: null,");
+        builder.AppendLine("            name: name,");
+        builder.AppendLine("            definition: definition,");
+
+        for (var i = 0; i < operation.Operands.Count; i++)
+        {
+            builder.AppendLine("            " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ": " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Operands[i])) + ",");
+        }
+
+        for (var i = 0; i < operation.Results.Count; i++)
+        {
+            var propertyName = operation.Results.Count == 1
+                ? "ResultValue"
+                : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
+            builder.AppendLine("            " + GetParameterName(propertyName) + ": " + GetParameterName(propertyName) + ",");
+        }
+
+        for (var i = 0; i < operation.Attributes.Count; i++)
+        {
+            builder.AppendLine("            " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ": " + GetParameterName(DialectGeneratorNaming.ToPascalCase(operation.Attributes[i])) + ",");
+        }
+
+        builder.AppendLine("            typeSignatureReference: typeSignatureReference)");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+
         builder.AppendLine("    public override IReadOnlyList<Region> Regions => regions;");
         AppendDerivedListProperty(builder, "NamedAttribute", "Attributes", operation.Attributes, DialectGeneratorNaming.ToPascalCase);
         builder.AppendLine("    public override TypeReference? TypeSignatureReference => typeSignatureReference;");
