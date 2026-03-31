@@ -1,6 +1,5 @@
 namespace MLIR.Semantics;
 
-using System;
 using System.Collections.Generic;
 using MLIR.Dialects;
 using MLIR.Syntax;
@@ -46,7 +45,7 @@ public abstract class Operation
     /// <summary>
     /// Gets the semantic attributes attached to the operation.
     /// </summary>
-    public abstract IReadOnlyList<NamedAttribute> Attributes { get; }
+    public abstract NamedAttributeCollection Attributes { get; }
 
     /// <summary>
     /// Gets the semantic type reference for the raw trailing type signature, if one was recognized.
@@ -113,30 +112,16 @@ public abstract class Operation
     /// <summary>
     /// Determines whether the operation has an attribute with the supplied name.
     /// </summary>
-    public bool HasAttribute(string name)
-    {
-        foreach (var attribute in Attributes)
-        {
-            if (string.Equals(attribute.Name, name, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    public bool HasAttribute(string name) => Attributes.Contains(name);
 
     /// <summary>
     /// Gets an attribute by name.
     /// </summary>
     public NamedAttribute GetAttribute(string name)
     {
-        foreach (var attribute in Attributes)
+        if (Attributes.TryGet(name, out NamedAttribute attribute))
         {
-            if (string.Equals(attribute.Name, name, StringComparison.Ordinal))
-            {
-                return attribute;
-            }
+            return attribute;
         }
 
         throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");

@@ -14,7 +14,7 @@ public sealed class OperationConstructionContext
         string name,
         OperationDefinition definition,
         IReadOnlyList<Region> regions,
-        IReadOnlyList<NamedAttribute> attributes,
+        NamedAttributeCollection attributes,
         TypeReference? typeSignatureReference,
         IReadOnlyList<ValueReference> resultValues,
         IReadOnlyList<ValueReference> operandValues,
@@ -54,7 +54,7 @@ public sealed class OperationConstructionContext
     /// <summary>
     /// Gets the semantic attributes attached to the operation.
     /// </summary>
-    public IReadOnlyList<NamedAttribute> Attributes { get; }
+    public NamedAttributeCollection Attributes { get; }
 
     /// <summary>
     /// Gets the semantic type reference for the trailing type signature, if one was recognized.
@@ -81,12 +81,9 @@ public sealed class OperationConstructionContext
     /// </summary>
     public NamedAttribute GetAttribute(string name)
     {
-        foreach (var attribute in Attributes)
+        if (Attributes.TryGet(name, out NamedAttribute attribute))
         {
-            if (string.Equals(attribute.Name, name, StringComparison.Ordinal))
-            {
-                return attribute;
-            }
+            return attribute;
         }
 
         throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");

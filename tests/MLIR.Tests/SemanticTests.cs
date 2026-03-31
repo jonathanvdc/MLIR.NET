@@ -115,7 +115,7 @@ public sealed class SemanticTests
         }
 
         public override IReadOnlyList<Region> Regions => [];
-        public override IReadOnlyList<NamedAttribute> Attributes => [ValueAttribute];
+        public override NamedAttributeCollection Attributes => NamedAttributeCollection.Create(ValueAttribute);
         public override TypeReference? TypeSignatureReference { get; }
         public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
         public override IReadOnlyList<ValueReference> OperandValues => [];
@@ -155,7 +155,7 @@ public sealed class SemanticTests
     private sealed class GeneratedAddIOperation : Operation
     {
         private static readonly IReadOnlyList<Region> EmptyRegions = [];
-        private static readonly IReadOnlyList<NamedAttribute> EmptyAttributes = [];
+        private static readonly NamedAttributeCollection EmptyAttributes = NamedAttributeCollection.Empty;
         private static readonly IReadOnlyList<BlockReference> EmptySuccessors = [];
 
         public GeneratedAddIOperation(OperationConstructionContext context)
@@ -170,7 +170,7 @@ public sealed class SemanticTests
         }
 
         public override IReadOnlyList<Region> Regions => EmptyRegions;
-        public override IReadOnlyList<NamedAttribute> Attributes => EmptyAttributes;
+        public override NamedAttributeCollection Attributes => EmptyAttributes;
         public override TypeReference? TypeSignatureReference => null;
         public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
         public override IReadOnlyList<ValueReference> OperandValues => [LeftOperand, RightOperand];
@@ -189,7 +189,7 @@ public sealed class SemanticTests
         }
 
         public override IReadOnlyList<Region> Regions => [];
-        public override IReadOnlyList<NamedAttribute> Attributes => [];
+        public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;
         public override TypeReference? TypeSignatureReference => null;
         public override IReadOnlyList<ValueReference> ResultValues => [];
         public override IReadOnlyList<ValueReference> OperandValues => [];
