@@ -49,11 +49,7 @@ internal static class AssemblyFormatEmitter
 
         builder.AppendLine("public sealed class " + className + "AssemblyFormat : IOperationAssemblyFormat");
         builder.AppendLine("{");
-        builder.AppendLine("    public bool TryParse(SyntaxToken nameToken, IReadOnlyList<SyntaxToken> resultTokens, IReadOnlyList<SyntaxToken> resultCommaTokens, SyntaxToken? equalsToken, OperationParsingContext context, out OperationBodySyntax? body)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        body = null;");
-        builder.AppendLine("        return false;");
-        builder.AppendLine("    }");
+        TryParseEmitter.Emit(builder, operation, bodySyntaxMetadata);
         builder.AppendLine();
         builder.AppendLine("    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)");
         builder.AppendLine("    {");

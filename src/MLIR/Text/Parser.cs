@@ -611,6 +611,150 @@ public sealed class Parser
         return ParseRawUntilOperationBoundary();
     }
 
+    internal RawSyntaxText ParseRawUntilDelimiterOrBoundaryInternal(params TokenKind[] delimiters)
+    {
+        var firstTokenIndex = position;
+        var depthParen = 0;
+        var depthBrace = 0;
+        var depthBracket = 0;
+        var depthAngle = 0;
+
+        while (!Is(TokenKind.EndOfFile))
+        {
+            if (depthParen == 0 && depthBrace == 0 && depthBracket == 0 && depthAngle == 0)
+            {
+                if (delimiters.Length > 0 && System.Linq.Enumerable.Contains(delimiters, Current.Kind))
+                {
+                    break;
+                }
+
+                if (IsOperationBoundary(Current, false))
+                {
+                    break;
+                }
+            }
+
+            UpdateDepth(Current.Kind, ref depthParen, ref depthBrace, ref depthBracket, ref depthAngle);
+            ConsumeToken();
+        }
+
+        if (position == firstTokenIndex)
+        {
+            return new RawSyntaxText(new List<SyntaxToken>(), string.Empty);
+        }
+
+        var firstToken = tokens[firstTokenIndex];
+        var end = tokens[position - 1].End;
+        return new RawSyntaxText(
+            CreateSyntaxTokenList(tokens, firstTokenIndex, position),
+            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart));
+    }
+
+    internal DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictInternal()
+    {
+        if (!Is(TokenKind.LBrace))
+        {
+            return new DelimitedSyntaxList<NamedAttributeSyntax>(null, new List<NamedAttributeSyntax>(), new List<SyntaxToken>(), null);
+        }
+
+        var openBrace = ExpectToken(TokenKind.LBrace, "Expected '{' to start the attribute dictionary.");
+        var attrs = new List<NamedAttributeSyntax>();
+        var commas = new List<SyntaxToken>();
+
+        if (!TryMatch(TokenKind.RBrace, out var closeBrace))
+        {
+            attrs.Add(ParseAttribute());
+            while (TryMatch(TokenKind.Comma, out var comma))
+            {
+                commas.Add(ToSyntaxToken(comma));
+                attrs.Add(ParseAttribute());
+            }
+
+            closeBrace = ExpectRawToken(TokenKind.RBrace, "Expected '}' to close the attribute dictionary.");
+        }
+
+        return new DelimitedSyntaxList<NamedAttributeSyntax>(openBrace, attrs, commas, ToSyntaxToken(closeBrace));
+    }
+
+    internal DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictWithKeywordInternal()
+    {
+        if (!Is(TokenKind.Identifier) || !string.Equals(Current.Text, "attributes", System.StringComparison.Ordinal))
+        {
+            return new DelimitedSyntaxList<NamedAttributeSyntax>(null, new List<NamedAttributeSyntax>(), new List<SyntaxToken>(), null);
+        }
+
+        ConsumeToken();
+        return ParseAttrDictInternal();
+    }
+
+    internal SyntaxToken ExpectKeywordInternal(string spelling, string message)
+    {
+        if (!Is(TokenKind.Identifier) || !string.Equals(Current.Text, spelling, System.StringComparison.Ordinal))
+        {
+            throw Error(message);
+        }
+
+        return ToSyntaxToken(ConsumeToken());
+    }
+
+    internal IReadOnlyList<RegionSyntax> ParseRegionsInternal()
+    {
+        var regions = new List<RegionSyntax>();
+        while (Is(TokenKind.LBrace))
+        {
+            regions.Add(ParseRegion());
+        }
+
+        return regions;
+    }
+
+    internal DelimitedSyntaxList<SyntaxToken> ParseSuccessorsInternal()
+    {
+        if (!Is(TokenKind.LBracket))
+        {
+            return new DelimitedSyntaxList<SyntaxToken>(null, new List<SyntaxToken>(), new List<SyntaxToken>(), null);
+        }
+
+        var openBracket = ExpectToken(TokenKind.LBracket, "Expected '[' for the successor list.");
+        var successors = new List<SyntaxToken>();
+        var commas = new List<SyntaxToken>();
+
+        if (!TryMatch(TokenKind.RBracket, out var closeBracket))
+        {
+            successors.Add(ParseBlockLabelToken());
+            while (TryMatch(TokenKind.Comma, out var comma))
+            {
+                commas.Add(ToSyntaxToken(comma));
+                successors.Add(ParseBlockLabelToken());
+            }
+
+            closeBracket = ExpectRawToken(TokenKind.RBracket, "Expected ']' to close the successor list.");
+        }
+
+        return new DelimitedSyntaxList<SyntaxToken>(openBracket, successors, commas, ToSyntaxToken(closeBracket));
+    }
+
+    internal DelimitedSyntaxList<SyntaxToken> ParseOperandsInternal()
+    {
+        var openParen = ExpectToken(TokenKind.LParen, "Expected '(' for the operand list.");
+        var operands = new List<SyntaxToken>();
+        var commas = new List<SyntaxToken>();
+
+        if (!TryMatch(TokenKind.RParen, out var closeParen))
+        {
+            operands.Add(ParseSsaToken());
+            while (TryMatch(TokenKind.Comma, out var comma))
+            {
+                commas.Add(ToSyntaxToken(comma));
+                operands.Add(ParseSsaToken());
+            }
+
+            closeParen = ExpectRawToken(TokenKind.RParen, "Expected ')' to close the operand list.");
+        }
+
+        return new DelimitedSyntaxList<SyntaxToken>(openParen, operands, commas, ToSyntaxToken(closeParen));
+    }
+
     private static string NormalizeOperationName(string name)
     {
         return name.Length >= 2 && name[0] == '"' && name[name.Length - 1] == '"' ? name.Substring(1, name.Length - 2) : name;
