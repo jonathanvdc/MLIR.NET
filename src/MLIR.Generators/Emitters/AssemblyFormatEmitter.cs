@@ -57,7 +57,11 @@ internal static class AssemblyFormatEmitter
         builder.AppendLine();
         builder.AppendLine("    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)");
         builder.AppendLine("    {");
-        builder.AppendLine("        var body = (" + className + "BodySyntax)syntax.Body;");
+        builder.AppendLine("        if (syntax.Body is not " + className + "BodySyntax body)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, \"Expected a " + className + "BodySyntax but found \" + syntax.Body.GetType().Name + \".\"));");
+        builder.AppendLine("            return new UninterpretedOperation(syntax, definition.Name);");
+        builder.AppendLine("        }");
         builder.AppendLine("        if (syntax.ResultTokens.Count != " + operation.Results.Count.ToString(CultureInfo.InvariantCulture) + ")");
         builder.AppendLine("        {");
         builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, \"Expected exactly " + operation.Results.Count.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultTokens.Count + \".\"));");

@@ -102,6 +102,36 @@ public sealed class DialectGeneratorTests
     }
 
     [Fact]
+    public void GeneratedBindMethodUsesPatternMatchInsteadOfHardCastForBodyType()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {\n" +
+            "  let summary = \"integer addition\";\n" +
+            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        // The Bind method must use a safe pattern-match rather than a hard cast so that
+        // a wrong body type yields a diagnostic instead of an InvalidCastException.
+        Assert.Contains("if (syntax.Body is not MiniArith_AddIOpBodySyntax body)", registrationSource);
+        Assert.DoesNotContain("(MiniArith_AddIOpBodySyntax)syntax.Body", registrationSource);
+    }
+
+    [Fact]
     public void BodySyntaxClassIsNotGeneratedForOperationsWithoutDeclarativeAssemblyFormat()
     {
         const string source =
