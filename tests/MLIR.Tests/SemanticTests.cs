@@ -981,11 +981,10 @@ public sealed class SemanticTests
     [Fact]
     public void SyntheticBlockHasNullSyntaxAndUnknownLocation()
     {
-        var syntheticBlock = new Block("^entry", [], []);
+        var syntheticBlock = new Block(new BlockReference("^entry"), [], []);
 
         Assert.Null(syntheticBlock.Syntax);
         Assert.Equal("^entry", syntheticBlock.Label);
-        Assert.Null(syntheticBlock.LabelReference);
         Assert.False(syntheticBlock.Location.IsKnown);
     }
 

@@ -110,10 +110,40 @@ public static class AssemblySyntaxBuilder
                 operation.Results,
                 operation.Operands,
                 operation.Successors,
-                operation.Regions.Select(r => r.Syntax).ToList(),
-                operation.Attributes.Select(a => Factory.Attr(a.Name, a.Value.Syntax.Text)).ToList(),
+                operation.Regions.Select(BuildRegion).ToList(),
+                operation.Attributes.Select(BuildNamedAttribute).ToList(),
                 operation.TypeSignatureReference != null ? operation.TypeSignatureReference.Syntax : null
             ).Body;
+        }
+
+        public NamedAttributeSyntax BuildNamedAttribute(NamedAttribute attribute)
+        {
+            if (attribute.Syntax != null)
+            {
+                return attribute.Syntax;
+            }
+
+            // Synthesize an attribute syntax for a synthetic attribute with no source syntax.
+            return new NamedAttributeSyntax(
+                new SyntaxToken(attribute.Name),
+                new SyntaxToken("="),
+                BuildAttributeValue(attribute.Value));
+        }
+
+        public AttributeValueSyntax BuildAttributeValue(AttributeValue attributeValue)
+        {
+            if (attributeValue.Syntax != null)
+            {
+                return attributeValue.Syntax;
+            }
+
+            if (attributeValue is UnknownAttributeValue unknownAttributeValue)
+            {
+                // For unknown attribute values, we want to preserve the original syntax if possible, even if it was not recognized as a valid attribute value.
+                return unknownAttributeValue.Syntax!;
+            }
+
+            throw new InvalidOperationException($"Cannot build syntax for unrecognized attribute value of type {attributeValue.GetType().FullName}.");
         }
 
         public RegionSyntax BuildRegion(Region region)
