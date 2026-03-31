@@ -104,7 +104,7 @@ public static class AssemblySyntaxBuilder
                 return genericBody;
             }
 
-            // TODO: preserve tokens, avoid stringifying and reparsing type signatures, etc.
+            // TODO: preserve tokens
             return (GenericOperationBodySyntax)Factory.Op(
                 operation.Name,
                 operation.Results,
