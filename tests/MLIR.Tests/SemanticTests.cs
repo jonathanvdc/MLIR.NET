@@ -240,7 +240,7 @@ public sealed class SemanticTests
                 binder.BindTypeReference(body.TypeSignature));
         }
 
-        public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
+        public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
         {
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");

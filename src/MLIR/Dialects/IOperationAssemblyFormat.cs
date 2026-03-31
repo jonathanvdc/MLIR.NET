@@ -43,10 +43,10 @@ public interface IOperationAssemblyFormat
     Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder);
 
     /// <summary>
-    /// Rewrites the supplied operation into custom concrete syntax.
+    /// Builds a custom concrete syntax tree for the supplied operation.
     /// </summary>
     /// <param name="operation">The operation to rewrite.</param>
     /// <param name="context">The CST transformation context.</param>
-    /// <returns>The rewritten operation syntax.</returns>
-    OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context);
+    /// <returns>The custom assembly operation syntax.</returns>
+    OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context);
 }

@@ -6,11 +6,11 @@ using MLIR.Syntax;
 /// <summary>
 /// Provides dialect assembly rewriters controlled access to semantic-to-syntax transforms.
 /// </summary>
-public sealed class OperationSyntaxTransformContext
+public sealed class ConcreteSyntaxBuilderContext
 {
     private readonly ConcreteSyntaxBuilder.Builder builder;
 
-    internal OperationSyntaxTransformContext(ConcreteSyntaxBuilder.Builder builder)
+    internal ConcreteSyntaxBuilderContext(ConcreteSyntaxBuilder.Builder builder)
     {
         this.builder = builder;
     }

@@ -66,7 +66,7 @@ public sealed class ParsingTests
             return true;
         }
 
-        public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)
+        public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
         {
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }

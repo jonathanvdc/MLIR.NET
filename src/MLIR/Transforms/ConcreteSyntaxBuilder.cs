@@ -108,7 +108,7 @@ public static class ConcreteSyntaxBuilder
             var assemblyFormat = operation.Definition?.AssemblyFormat;
             if (options.OperationSyntaxPreference == OperationSyntaxPreference.PreferCustomAssembly && assemblyFormat != null)
             {
-                return assemblyFormat.Rewrite(operation, new OperationSyntaxTransformContext(this));
+                return assemblyFormat.BuildCustomAssemblySyntax(operation, new ConcreteSyntaxBuilderContext(this));
             }
 
             var body = BuildGenericBody(operation);

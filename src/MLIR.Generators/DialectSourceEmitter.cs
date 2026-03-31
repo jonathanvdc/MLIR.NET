@@ -464,7 +464,7 @@ internal static class DialectSourceEmitter
         builder.AppendLine("        throw new NotImplementedException(\"Custom assembly format binding is not yet implemented for this operation.\");");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public OperationSyntax Rewrite(Operation operation, OperationSyntaxTransformContext context)");
+        builder.AppendLine("    public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)");
         builder.AppendLine("    {");
         builder.AppendLine("        return context.RewriteOperation(operation, context.TransformGenericBody(operation));");
         builder.AppendLine("    }");
