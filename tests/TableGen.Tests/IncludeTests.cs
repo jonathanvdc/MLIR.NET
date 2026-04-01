@@ -172,6 +172,7 @@ public sealed class IncludeTests
         // The first resolver wins.
         var record = document.Evaluate().Records.Single();
         Assert.Equal("FromFirst", record.Name);
+        Assert.Equal(1L, Assert.IsType<IntegerValue>(record.GetField("X")).Value);
     }
 
     [Fact]

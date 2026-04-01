@@ -267,7 +267,6 @@ public sealed class IncludeResolutionTests
         var doc = Document.Load("include \"mlir/OpBase.td\"", composite);
 
         // Pure should be available as a record.
-        var record = doc.Evaluate().Records.Single(static r => r.Name == "Pure");
-        Assert.Equal("Pure", record.Name);
+        Assert.NotNull(doc.Evaluate().Records.Single(static r => r.Name == "Pure"));
     }
 }

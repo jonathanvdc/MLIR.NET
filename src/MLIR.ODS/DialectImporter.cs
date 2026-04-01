@@ -127,8 +127,12 @@ public static class DialectImporter
             return null;
         }
 
+        // An empty string is treated as absent, matching the ODS convention that
+        // empty string = "not set". This ensures prelude defaults like
+        // `string cppClassName = ""` behave identically to a missing field.
         return field switch
         {
+            StringValue { Value.Length: 0 } => null,
             StringValue stringValue => stringValue.Value,
             SymbolReferenceValue symbol => symbol.SymbolName,
             RecordReferenceValue recordReference => recordReference.RecordName,
