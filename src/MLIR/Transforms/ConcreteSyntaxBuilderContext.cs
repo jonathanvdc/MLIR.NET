@@ -62,4 +62,22 @@ public sealed class ConcreteSyntaxBuilderContext
     {
         return builder.RewriteOperation(operation, body, nameToken);
     }
+
+    /// <summary>
+    /// Builds an <see cref="AttributeValueSyntax"/> for the supplied semantic attribute value,
+    /// reusing its original syntax when available.
+    /// </summary>
+    public AttributeValueSyntax BuildAttributeValueSyntax(AttributeValue value)
+    {
+        return builder.BuildAttributeValue(value);
+    }
+
+    /// <summary>
+    /// Builds a delimited attribute-dictionary syntax list from the supplied collection.
+    /// An empty collection produces a list with no open token (absent attribute dictionary).
+    /// </summary>
+    public DelimitedSyntaxList<NamedAttributeSyntax> BuildAttrDict(NamedAttributeCollection attributes)
+    {
+        return builder.BuildAttrDict(attributes);
+    }
 }

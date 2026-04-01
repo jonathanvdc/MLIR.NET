@@ -217,10 +217,7 @@ internal static class AssemblyFormatEmitter
         builder.AppendLine("            " + GetTypeBindExpression(syntaxDescriptor, bodySyntaxMetadata) + ");");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return context.RewriteOperation(operation, context.TransformGenericBody(operation));");
-        builder.AppendLine("    }");
+        BuildCustomAssemblySyntaxEmitter.Emit(builder, operation, bodySyntaxMetadata);
         builder.AppendLine("}");
     }
 }

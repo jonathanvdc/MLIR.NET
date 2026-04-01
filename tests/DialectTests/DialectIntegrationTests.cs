@@ -6,6 +6,7 @@ using MLIR.Miniarith;
 using MLIR.Minitest;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Transforms;
 using Xunit;
 
 public sealed class DialectIntegrationTests
@@ -458,5 +459,181 @@ public sealed class DialectIntegrationTests
         Assert.Equal("minitest.config", operation.Name);
         Assert.Null(operation.Stride);
         Assert.Null(operation.Padding);
+    }
+
+    // -----------------------------------------------------------------------
+    // BuildCustomAssemblySyntax – printing with ReplaceExistingSyntax
+    // -----------------------------------------------------------------------
+
+    private static ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions CustomAssemblyOptions =>
+        new(ConcreteSyntaxBuilder.OperationSyntaxPreference.PreferCustomAssembly,
+            ConcreteSyntaxBuilder.ExistingSyntaxHandling.ReplaceExistingSyntax);
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxEmitsCustomNameAndBodyForAddIOp()
+    {
+        // Parse from custom format, bind, then force custom printing (ReplaceExistingSyntax).
+        // The result must use the unquoted operation name and parse back as MiniArith_AddIOpBodySyntax.
+        const string source = "%result = miniarith.addi %lhs, %rhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        // Should not use the generic (quoted) name.
+        Assert.DoesNotContain("\"miniarith.addi\"", printed);
+        Assert.Contains("miniarith.addi", printed);
+
+        // Output should round-trip: parse back to the same custom body type and semantic data.
+        var module2 = Document.Parse(printed, registry).Bind(registry);
+        Assert.Empty(module2.AssemblyDiagnostics);
+        var op = Assert.IsType<MiniArith_AddIOp>(Assert.Single(module2.Operations));
+        Assert.Equal("%lhs", op.Lhs.Name);
+        Assert.Equal("%rhs", op.Rhs.Name);
+        Assert.Equal("%result", op.ResultValue.Name);
+    }
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxEmitsCustomNameAndBodyForConstantOp()
+    {
+        // miniarith.constant uses "$value attr-dict" (no type directive).
+        const string source = "%result = miniarith.constant 42";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.DoesNotContain("\"miniarith.constant\"", printed);
+        Assert.Contains("miniarith.constant", printed);
+
+        var module2 = Document.Parse(printed, registry).Bind(registry);
+        Assert.Empty(module2.AssemblyDiagnostics);
+        var op = Assert.IsType<MiniArith_ConstantOp>(Assert.Single(module2.Operations));
+        Assert.Equal("value", op.Value.Name);
+        Assert.Equal("%result", op.ResultValue.Name);
+    }
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxEmitsCustomBodyForCastOp()
+    {
+        // minitest.cast uses "$input attr-dict `:` qualified(type($result))".
+        const string source = "%result = minitest.cast %input : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.DoesNotContain("\"minitest.cast\"", printed);
+        Assert.Contains("minitest.cast", printed);
+
+        var module2 = Document.Parse(printed, registry).Bind(registry);
+        Assert.Empty(module2.AssemblyDiagnostics);
+        var op = Assert.IsType<MiniTest_CastOp>(Assert.Single(module2.Operations));
+        Assert.Equal("%input", op.Input.Name);
+        Assert.Equal("%result", op.ResultValue.Name);
+    }
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxEmitsOptionalGroupWhenRhsPresent()
+    {
+        // minitest.binary with rhs present – the optional group should be emitted.
+        const string source = "%result = minitest.binary %lhs, %rhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.Contains("minitest.binary", printed);
+
+        var module2 = Document.Parse(printed, registry).Bind(registry);
+        Assert.Empty(module2.AssemblyDiagnostics);
+        var op = Assert.IsType<MiniTest_BinaryOp>(Assert.Single(module2.Operations));
+        Assert.Equal("%lhs", op.Lhs.Name);
+        Assert.NotNull(op.Rhs);
+        Assert.Equal("%rhs", op.Rhs!.Value.Name);
+        Assert.Equal("%result", op.ResultValue.Name);
+    }
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxOmitsOptionalGroupWhenRhsAbsent()
+    {
+        // minitest.binary without rhs – the optional group should be absent from output.
+        const string source = "%result = minitest.binary %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.Contains("minitest.binary", printed);
+
+        var module2 = Document.Parse(printed, registry).Bind(registry);
+        Assert.Empty(module2.AssemblyDiagnostics);
+        var op = Assert.IsType<MiniTest_BinaryOp>(Assert.Single(module2.Operations));
+        Assert.Equal("%lhs", op.Lhs.Name);
+        Assert.Null(op.Rhs);
+        Assert.Equal("%result", op.ResultValue.Name);
+    }
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxEmitsOilistClausesForConfigOp()
+    {
+        // minitest.config with both attributes – both oilist clauses should be emitted.
+        const string source =
+            "minitest.config\n" +
+            "    stride 4\n" +
+            "    padding 0\n" +
+            "    {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.Contains("minitest.config", printed);
+        Assert.Contains("stride", printed);
+        Assert.Contains("padding", printed);
+
+        var module2 = Document.Parse(printed, registry).Bind(registry);
+        Assert.Empty(module2.AssemblyDiagnostics);
+        var op = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module2.Operations));
+        Assert.NotNull(op.Stride);
+        Assert.NotNull(op.Padding);
+    }
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxOmitsAbsentOilistClauseForConfigOp()
+    {
+        // minitest.config with only stride – padding clause should be absent.
+        const string source =
+            "minitest.config\n" +
+            "    stride 4\n" +
+            "    {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.Contains("minitest.config", printed);
+        Assert.Contains("stride", printed);
+        Assert.DoesNotContain("padding", printed);
+
+        var module2 = Document.Parse(printed, registry).Bind(registry);
+        Assert.Empty(module2.AssemblyDiagnostics);
+        var op = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module2.Operations));
+        Assert.NotNull(op.Stride);
+        Assert.Null(op.Padding);
     }
 }

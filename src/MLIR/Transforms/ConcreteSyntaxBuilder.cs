@@ -227,6 +227,33 @@ public static class ConcreteSyntaxBuilder
             throw new InvalidOperationException($"Cannot build syntax for unrecognized attribute value of type {attributeValue.GetType().FullName}.");
         }
 
+        /// <summary>
+        /// Builds a delimited attribute-dictionary syntax list from the supplied collection.
+        /// Attributes are rendered as <c>{ name = value, ... }</c>; an empty collection
+        /// produces a list with no open token (representing an absent attribute dictionary).
+        /// </summary>
+        public DelimitedSyntaxList<NamedAttributeSyntax> BuildAttrDict(NamedAttributeCollection attributes)
+        {
+            if (attributes.Count == 0)
+            {
+                return new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null);
+            }
+
+            var items = new List<NamedAttributeSyntax>(attributes.Count);
+            var separators = new List<SyntaxToken>(attributes.Count - 1);
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                if (i > 0)
+                {
+                    separators.Add(new SyntaxToken(","));
+                }
+
+                items.Add(BuildNamedAttribute(attributes[i]));
+            }
+
+            return new DelimitedSyntaxList<NamedAttributeSyntax>(new SyntaxToken("{"), items, separators, new SyntaxToken("}"));
+        }
+
         public RegionSyntax BuildRegion(Region region)
         {
             var blocks = new List<BlockSyntax>(region.Blocks.Count);
