@@ -20,6 +20,7 @@ internal sealed class DialectEmitter
         builder.AppendLine("namespace " + DialectGeneratorNaming.GetGeneratedNamespace(dialect) + ";");
         builder.AppendLine();
         builder.AppendLine("using System.Collections.Generic;");
+        builder.AppendLine("using System.Linq;");
         builder.AppendLine("using MLIR.Dialects;");
         builder.AppendLine("using MLIR.Semantics;");
         builder.AppendLine("using MLIR.Syntax;");
@@ -104,9 +105,17 @@ internal sealed class DialectEmitter
             builder.AppendLine("                operation.Result(\"" + result + "\");");
         }
 
+        var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
         foreach (var attribute in operation.Attributes)
         {
-            builder.AppendLine("                operation.OptionalAttribute(\"" + attribute + "\");");
+            if (requiredVariables.Contains(attribute))
+            {
+                builder.AppendLine("                operation.RequiredAttribute(\"" + attribute + "\");");
+            }
+            else
+            {
+                builder.AppendLine("                operation.OptionalAttribute(\"" + attribute + "\");");
+            }
         }
 
         builder.AppendLine("                operation.WithFactory(static context => new " + operationClassName + "(context));");
