@@ -246,6 +246,7 @@ internal static class Lexer
                 "def" => TokenKind.DefKeyword,
                 "let" => TokenKind.LetKeyword,
                 "in" => TokenKind.InKeyword,
+                "include" => TokenKind.IncludeKeyword,
                 _ => TokenKind.Identifier,
             };
         }

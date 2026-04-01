@@ -9,7 +9,10 @@ using TableGen;
 
 internal static class DialectGeneratorInput
 {
-    public static ParsedDialectFile ParseFile(AdditionalText file, System.Threading.CancellationToken cancellationToken)
+    public static ParsedDialectFile ParseFile(
+        AdditionalText file,
+        TableGenIncludeResolver? resolver,
+        System.Threading.CancellationToken cancellationToken)
     {
         var text = file.GetText(cancellationToken);
         if (text == null)
@@ -19,7 +22,10 @@ internal static class DialectGeneratorInput
 
         try
         {
-            var document = Document.Parse(text.ToString());
+            var sourceFile = new TableGenSourceFile(file.Path);
+            var document = resolver != null
+                ? Document.Load(text.ToString(), resolver, sourceFile)
+                : Document.Parse(text.ToString());
             var dialects = DialectImporter.Import(document.Evaluate());
             return new ParsedDialectFile(file.Path, dialects, null);
         }

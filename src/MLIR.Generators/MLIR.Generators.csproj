@@ -22,4 +22,10 @@
     <ProjectReference Include="..\MLIR\MLIR.csproj" />
     <ProjectReference Include="..\TableGen\TableGen.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Prelude\mlir\OpBase.td" LogicalName="mlir/OpBase.td" />
+    <EmbeddedResource Include="Prelude\mlir\CommonTypes.td" LogicalName="mlir/CommonTypes.td" />
+    <EmbeddedResource Include="Prelude\mlir\CommonAttrs.td" LogicalName="mlir/CommonAttrs.td" />
+  </ItemGroup>
 </Project>

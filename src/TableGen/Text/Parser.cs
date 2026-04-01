@@ -33,6 +33,12 @@ internal sealed class Parser
 
     private TopLevelSyntax ParseTopLevel()
     {
+        if (TryMatch(TokenKind.IncludeKeyword))
+        {
+            var path = Expect(TokenKind.String, "Expected a string literal after 'include'.");
+            return new IncludeDirectiveSyntax(path.Text);
+        }
+
         if (TryMatch(TokenKind.ClassKeyword))
         {
             return ParseClass();
