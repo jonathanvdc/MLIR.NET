@@ -8,9 +8,37 @@ using MLIR.ODS.Model;
 internal static class AssemblyFormatEmitter
 {
     /// <summary>
+    /// Returns the C# type of the body field with the given name, or <c>null</c> if the field
+    /// is not found in the metadata.
+    /// </summary>
+    private static string? GetFieldCsType(OperationBodySyntaxMetadata metadata, string fieldName)
+    {
+        foreach (var f in metadata.Fields)
+        {
+            if (f.Name == fieldName)
+            {
+                return f.CsType;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns <c>true</c> when the body field with the given name has a nullable type (i.e., its
+    /// C# type ends with <c>?</c>), meaning the field may be absent.
+    /// </summary>
+    private static bool IsNullableField(OperationBodySyntaxMetadata metadata, string fieldName)
+    {
+        var csType = GetFieldCsType(metadata, fieldName);
+        return csType != null && csType.EndsWith("?", System.StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Returns an expression for reading <paramref name="fieldName"/> from <c>body</c> in
     /// a way that is safe regardless of whether the field is a nullable value type
     /// (<c>SyntaxToken?</c>) or a nullable reference type (<c>TypeSyntax?</c>, etc.).
+    /// This helper is used for directives that always expect a value (e.g. type directives).
     /// </summary>
     /// <remarks>
     /// <list type="bullet">
@@ -27,26 +55,18 @@ internal static class AssemblyFormatEmitter
     /// </remarks>
     private static string SafeFieldAccess(OperationBodySyntaxMetadata metadata, string fieldName)
     {
-        foreach (var f in metadata.Fields)
+        var csType = GetFieldCsType(metadata, fieldName);
+
+        if (csType == "SyntaxToken?")
         {
-            if (f.Name != fieldName)
-            {
-                continue;
-            }
+            // Nullable value type: unwrap with ?? default so the expression has type SyntaxToken.
+            return "(body." + fieldName + " ?? default)";
+        }
 
-            if (f.CsType == "SyntaxToken?")
-            {
-                // Nullable value type: unwrap with ?? default so the expression has type SyntaxToken.
-                return "(body." + fieldName + " ?? default)";
-            }
-
-            if (f.CsType.EndsWith("?", System.StringComparison.Ordinal))
-            {
-                // Nullable reference type: use null-forgiving to satisfy the non-null parameter.
-                return "body." + fieldName + "!";
-            }
-
-            break;
+        if (csType != null && csType.EndsWith("?", System.StringComparison.Ordinal))
+        {
+            // Nullable reference type: use null-forgiving to satisfy the non-null parameter.
+            return "body." + fieldName + "!";
         }
 
         return "body." + fieldName;
@@ -56,7 +76,15 @@ internal static class AssemblyFormatEmitter
     {
         if (plan.OperandFields.TryGetValue(operandName, out var fieldName))
         {
-            return "binder.BindValueReference(" + SafeFieldAccess(metadata, fieldName) + ")";
+            // When the body field is nullable (e.g. SyntaxToken? for an optional group operand),
+            // emit a conditional expression that produces null when the operand is absent.
+            if (IsNullableField(metadata, fieldName))
+            {
+                var access = "body." + fieldName;
+                return access + ".HasValue ? (ValueReference?)binder.BindValueReference(" + access + ".Value) : null";
+            }
+
+            return "binder.BindValueReference(body." + fieldName + ")";
         }
 
         if (plan.OperandsField != null)
@@ -71,7 +99,18 @@ internal static class AssemblyFormatEmitter
     {
         if (plan.AttributeFields.TryGetValue(attributeName, out var fieldName))
         {
-            return "new NamedAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attributeName) + ", binder.BindAttributeValue(" + SafeFieldAccess(metadata, fieldName) + "))";
+            var quotedName = EmitterHelpers.ToCSharpStringLiteral(attributeName);
+            var access = "body." + fieldName;
+            var bindCall = "new NamedAttribute(" + quotedName + ", binder.BindAttributeValue(" + access + "))";
+
+            // When the body field is nullable (e.g. AttributeValueSyntax? for an oilist clause),
+            // emit a conditional expression that produces null when the attribute is absent.
+            if (IsNullableField(metadata, fieldName))
+            {
+                return access + " is not null ? " + bindCall + " : (NamedAttribute?)null";
+            }
+
+            return bindCall;
         }
 
         throw new InvalidOperationException("No body field was generated for attribute '" + attributeName + "'.");
@@ -129,18 +168,50 @@ internal static class AssemblyFormatEmitter
         }
         else
         {
-            builder.Append("            NamedAttributeCollection.Create(");
+            // Determine whether any attribute field is optional (nullable body field).
+            var hasOptionalAttributes = false;
             for (var i = 0; i < operation.Attributes.Count; i++)
             {
-                if (i > 0)
+                if (syntaxDescriptor.AttributeFields.TryGetValue(operation.Attributes[i], out var fieldNameCheck) &&
+                    IsNullableField(bodySyntaxMetadata, fieldNameCheck))
                 {
-                    builder.Append(", ");
+                    hasOptionalAttributes = true;
+                    break;
                 }
-
-                builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
             }
 
-            builder.AppendLine("),");
+            if (hasOptionalAttributes)
+            {
+                // Some attributes may be absent: use a nullable array + LINQ filter so that
+                // only the present attributes end up in the collection.
+                builder.Append("            new NamedAttributeCollection(new NamedAttribute?[] { ");
+                for (var i = 0; i < operation.Attributes.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
+                }
+
+                builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
+            }
+            else
+            {
+                builder.Append("            NamedAttributeCollection.Create(");
+                for (var i = 0; i < operation.Attributes.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
+                }
+
+                builder.AppendLine("),");
+            }
         }
 
         builder.AppendLine("            " + GetTypeBindExpression(syntaxDescriptor, bodySyntaxMetadata) + ");");

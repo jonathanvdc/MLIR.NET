@@ -1,15 +1,14 @@
-namespace MLIR.Generators.Emitters;
+namespace MLIR.ODS.Model;
 
 using System;
 using System.Collections.Generic;
-using MLIR.ODS.Model;
 using MLIR.ODS.Model.AssemblyFormat;
 
 /// <summary>
 /// Analyzes a declarative assembly format to determine which variables are required
 /// (always present) versus optional (conditionally present).
 /// </summary>
-internal static class AssemblyFormatAnalyzer
+public static class AssemblyFormatAnalyzer
 {
     /// <summary>
     /// Returns the set of variable names that are unconditionally required by the assembly format.
@@ -18,7 +17,10 @@ internal static class AssemblyFormatAnalyzer
     /// </summary>
     /// <remarks>
     /// When <paramref name="operation"/> has no declarative assembly format an empty set is
-    /// returned, which causes all variables to be treated as optional.
+    /// returned. An empty required set is the safe default: all variables are then treated as
+    /// optional, so generated properties are nullable and registration calls use
+    /// <c>OptionalAttribute</c>. This avoids false required-variable claims for operations
+    /// whose format is not known statically.
     /// </remarks>
     public static HashSet<string> GetRequiredVariables(OperationModel operation)
     {

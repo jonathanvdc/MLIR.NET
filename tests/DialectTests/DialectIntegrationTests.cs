@@ -401,4 +401,62 @@ public sealed class DialectIntegrationTests
         Assert.Equal("stride", operation.Stride!.Name);
         Assert.Equal("padding", operation.Padding!.Name);
     }
+
+    [Fact]
+    public void BinaryOpBindsWithOptionalRhsAbsent()
+    {
+        // The optional group "(`,` $rhs^)?" is absent; Rhs should be null after binding.
+        const string source = "%result = minitest.binary %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+
+        Assert.Empty(module.AssemblyDiagnostics);
+        var operation = Assert.IsType<MiniTest_BinaryOp>(Assert.Single(module.Operations));
+        Assert.Equal("minitest.binary", operation.Name);
+        Assert.Equal("%lhs", operation.Lhs.Name);
+        Assert.Null(operation.Rhs);
+        Assert.Equal("%result", operation.ResultValue.Name);
+    }
+
+    [Fact]
+    public void ConfigOpBindsWithOnlyStridePresent()
+    {
+        // The padding oilist clause is absent; Padding should be null after binding.
+        const string source =
+            "minitest.config\n" +
+            "    stride 4\n" +
+            "    {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+
+        Assert.Empty(module.AssemblyDiagnostics);
+        var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
+        Assert.Equal("minitest.config", operation.Name);
+        Assert.Equal("stride", operation.Stride!.Name);
+        Assert.Null(operation.Padding);
+    }
+
+    [Fact]
+    public void ConfigOpBindsWithNeitherAttributePresent()
+    {
+        // No oilist clauses at all; both Stride and Padding should be null after binding.
+        const string source = "minitest.config {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+
+        Assert.Empty(module.AssemblyDiagnostics);
+        var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
+        Assert.Equal("minitest.config", operation.Name);
+        Assert.Null(operation.Stride);
+        Assert.Null(operation.Padding);
+    }
 }
