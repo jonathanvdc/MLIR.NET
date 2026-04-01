@@ -381,4 +381,132 @@ public sealed class DialectGeneratorTests
         // Keyword literal produces an ExpectKeyword call.
         Assert.Contains("context.ExpectKeyword(\"to\", ", registrationSource);
     }
+
+    [Fact]
+    public void TryParseGeneratesQualifiedTypeField()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_ConvertOp : MyDialect_Op<\"convert\", []> {\n" +
+            "  let arguments = (ins I32:$input);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$input attr-dict `:` qualified(type($result))\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // qualified(...) does not affect parsing – a TypeSyntax field is generated and a type is parsed.
+        Assert.Contains("TypeSyntax", registrationSource);
+        // The generated parse call should be one of the type-parsing variants.
+        Assert.Contains("context.ParseTypeSyntax()", registrationSource);
+        Assert.Contains("return true;", registrationSource);
+    }
+
+    [Fact]
+    public void TryParseGeneratesResultsTypeField()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_GenOp : MyDialect_Op<\"gen\", []> {\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"attr-dict `:` results\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // A TypeSyntax field called ResultsType should be generated for the results directive.
+        Assert.Contains("ResultsType", registrationSource);
+        Assert.Contains("TypeSyntax", registrationSource);
+        Assert.Contains("return true;", registrationSource);
+    }
+
+    [Fact]
+    public void TryParseGeneratesOptionalGroupConditionalCode()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_BinaryOp : MyDialect_Op<\"binary\", []> {\n" +
+            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$lhs (`,` $rhs^)? attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // Optional group fields are nullable.
+        Assert.Contains("SyntaxToken?", registrationSource);
+
+        // The conditional guard uses TryMatch for the leading comma.
+        Assert.Contains("context.TryMatch(TokenKind.Comma,", registrationSource);
+
+        // The TryParse returns true for the success path.
+        Assert.Contains("return true;", registrationSource);
+    }
+
+    [Fact]
+    public void TryParseGeneratesOilistDoWhileLoop()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_ConfigOp : MyDialect_Op<\"config\", []> {\n" +
+            "  let arguments = (ins I32Attr:$stride, I32Attr:$padding);\n" +
+            "  let assemblyFormat = \"oilist(`stride` $stride | `padding` $padding) attr-dict\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // Oilist fields are nullable.
+        Assert.Contains("SyntaxToken?", registrationSource);
+        Assert.Contains("AttributeValueSyntax?", registrationSource);
+
+        // The oilist loop is emitted.
+        Assert.Contains("bool foundOilist;", registrationSource);
+        Assert.Contains("while (foundOilist);", registrationSource);
+
+        // IsKeyword is used to dispatch each clause.
+        Assert.Contains("context.IsKeyword(\"stride\")", registrationSource);
+        Assert.Contains("context.IsKeyword(\"padding\")", registrationSource);
+
+        Assert.Contains("return true;", registrationSource);
+    }
 }

@@ -259,8 +259,213 @@ internal static class EmitterHelpers
                 break;
             }
 
-            // OptionalGroup, OilistDirectiveChunk, CustomDirectiveChunk, FunctionalTypeDirectiveChunk,
-            // QualifiedDirectiveChunk, RefDirectiveChunk, ResultsDirectiveChunk → not stored in this CST class
+            case QualifiedDirectiveChunk qualified:
+            {
+                // qualified(...) does not change parsing behaviour, so represent the inner
+                // type as a plain TypeSyntax field just like TypeDirectiveChunk does.
+                var baseName = qualified.Operand is TypeDirectiveOperand tdo && tdo.Operand is VariableOperand tVar
+                    ? DialectGeneratorNaming.ToPascalCase(tVar.Name) + "Type"
+                    : qualified.Operand is VariableOperand vOp
+                        ? DialectGeneratorNaming.ToPascalCase(vOp.Name) + "Type"
+                        : "Type";
+                var name = MakeUnique(baseName, usedNames);
+                var field = new BodySyntaxField(name, "TypeSyntax",
+                    name + ".WriteTo(writer, \" \");");
+                metadata.AddField(field);
+                metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Type, GetDirectiveOperandName(qualified.Operand), field.Name));
+                break;
+            }
+
+            case ResultsDirectiveChunk _:
+            {
+                var name = MakeUnique("ResultsType", usedNames);
+                var field = new BodySyntaxField(name, "TypeSyntax",
+                    name + ".WriteTo(writer, \" \");");
+                metadata.AddField(field);
+                metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Type, "Results", field.Name));
+                break;
+            }
+
+            case OptionalGroup optionalGroup:
+            {
+                // Each element inside an optional group contributes a nullable field.
+                foreach (var inner in optionalGroup.ThenElements)
+                {
+                    AppendBodySyntaxFieldsNullable(usedNames, inner, operation, metadata);
+                }
+
+                if (optionalGroup.ElseElements != null)
+                {
+                    foreach (var inner in optionalGroup.ElseElements)
+                    {
+                        AppendBodySyntaxFieldsNullable(usedNames, inner, operation, metadata);
+                    }
+                }
+
+                break;
+            }
+
+            case OilistDirectiveChunk oilist:
+            {
+                // Each clause contributes a nullable keyword field followed by nullable
+                // fields for the elements the clause contains.
+                foreach (var clause in oilist.Clauses)
+                {
+                    var kwName = MakeUnique(DialectGeneratorNaming.ToPascalCase(clause.Keyword) + "Keyword", usedNames);
+                    var kwField = new BodySyntaxField(
+                        kwName, "SyntaxToken?",
+                        "if (" + kwName + ".HasValue) writer.WriteToken(" + kwName + ".Value, \" \");");
+                    metadata.AddField(kwField);
+                    metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Keyword:" + clause.Keyword, kwField.Name));
+
+                    foreach (var oiElem in clause.Elements)
+                    {
+                        AppendBodySyntaxFieldsForOilistElement(usedNames, oiElem, operation, metadata);
+                    }
+                }
+
+                break;
+            }
+
+            // CustomDirectiveChunk, FunctionalTypeDirectiveChunk, RefDirectiveChunk → not stored in this CST class
+        }
+    }
+
+    /// <summary>
+    /// Generates nullable body-syntax fields for an element that appears inside an optional group.
+    /// </summary>
+    public static void AppendBodySyntaxFieldsNullable(HashSet<string> usedNames, Element element, OperationModel operation, OperationBodySyntaxMetadata metadata)
+    {
+        switch (element)
+        {
+            case LiteralChunk literal:
+                foreach (var lit in literal.Value)
+                {
+                    switch (lit)
+                    {
+                        case PunctuationLiteral punc:
+                        {
+                            var name = MakeUnique(GetPunctuationFieldName(punc.TokenKind), usedNames);
+                            var field = new BodySyntaxField(name, "SyntaxToken?",
+                                "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, string.Empty);");
+                            metadata.AddField(field);
+                            metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Punctuation:" + punc.TokenKind, field.Name));
+                            break;
+                        }
+
+                        case KeywordLiteral kw:
+                        {
+                            var name = MakeUnique(DialectGeneratorNaming.ToPascalCase(kw.Spelling) + "Keyword", usedNames);
+                            var field = new BodySyntaxField(name, "SyntaxToken?",
+                                "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \" \");");
+                            metadata.AddField(field);
+                            metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Keyword:" + kw.Spelling, field.Name));
+                            break;
+                        }
+                    }
+                }
+
+                break;
+
+            case VariableChunk variable:
+            {
+                var pascalName = DialectGeneratorNaming.ToPascalCase(variable.Name);
+                if (ContainsName(operation.Attributes, variable.Name))
+                {
+                    var name = MakeUnique(pascalName, usedNames);
+                    var field = new BodySyntaxField(name, "AttributeValueSyntax?",
+                        name + "?.WriteTo(writer, \" \");");
+                    metadata.AddField(field);
+                    metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variable.Name, field.Name));
+                }
+                else
+                {
+                    var name = MakeUnique(pascalName, usedNames);
+                    var field = new BodySyntaxField(name, "SyntaxToken?",
+                        "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \" \");");
+                    metadata.AddField(field);
+                    metadata.AddComponentField(new BodyComponentField(
+                        GetComponentKindForVariable(operation, variable.Name),
+                        variable.Name,
+                        field.Name));
+                }
+
+                break;
+            }
+
+            case TypeDirectiveChunk typeDir:
+            {
+                var baseName = typeDir.Operand is VariableOperand varOp
+                    ? DialectGeneratorNaming.ToPascalCase(varOp.Name) + "Type"
+                    : "Type";
+                var name = MakeUnique(baseName, usedNames);
+                var field = new BodySyntaxField(name, "TypeSyntax?",
+                    name + "?.WriteTo(writer, \" \");");
+                metadata.AddField(field);
+                metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Type, GetDirectiveOperandName(typeDir.Operand), field.Name));
+                break;
+            }
+
+            // Other element types inside optional groups are uncommon; if encountered they are skipped here.
+        }
+    }
+
+    /// <summary>
+    /// Generates nullable body-syntax fields for a single element within an oilist clause.
+    /// </summary>
+    private static void AppendBodySyntaxFieldsForOilistElement(HashSet<string> usedNames, OilistElement element, OperationModel operation, OperationBodySyntaxMetadata metadata)
+    {
+        switch (element)
+        {
+            case OilistVariableElement variable:
+            {
+                var pascalName = DialectGeneratorNaming.ToPascalCase(variable.Name);
+                if (ContainsName(operation.Attributes, variable.Name))
+                {
+                    var name = MakeUnique(pascalName, usedNames);
+                    var field = new BodySyntaxField(name, "AttributeValueSyntax?",
+                        name + "?.WriteTo(writer, \" \");");
+                    metadata.AddField(field);
+                    metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variable.Name, field.Name));
+                }
+                else
+                {
+                    var name = MakeUnique(pascalName, usedNames);
+                    var field = new BodySyntaxField(name, "SyntaxToken?",
+                        "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \" \");");
+                    metadata.AddField(field);
+                    metadata.AddComponentField(new BodyComponentField(
+                        GetComponentKindForVariable(operation, variable.Name),
+                        variable.Name,
+                        field.Name));
+                }
+
+                break;
+            }
+
+            case OilistTypeDirectiveElement typeDir:
+            {
+                var baseName = typeDir.Operand is VariableOperand varOp
+                    ? DialectGeneratorNaming.ToPascalCase(varOp.Name) + "Type"
+                    : "Type";
+                var name = MakeUnique(baseName, usedNames);
+                var field = new BodySyntaxField(name, "TypeSyntax?",
+                    name + "?.WriteTo(writer, \" \");");
+                metadata.AddField(field);
+                metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Type, GetDirectiveOperandName(typeDir.Operand), field.Name));
+                break;
+            }
+
+            case OilistLiteralElement literal:
+            {
+                var spellingPascal = DialectGeneratorNaming.ToPascalCase(literal.Value);
+                var name = MakeUnique(spellingPascal + "Token", usedNames);
+                var field = new BodySyntaxField(name, "SyntaxToken?",
+                    "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, string.Empty);");
+                metadata.AddField(field);
+                metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "OilistLiteral:" + literal.Value, field.Name));
+                break;
+            }
         }
     }
 

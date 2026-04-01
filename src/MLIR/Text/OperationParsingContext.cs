@@ -137,6 +137,15 @@ public sealed class OperationParsingContext
     }
 
     /// <summary>
+    /// Returns <see langword="true"/> when the current token is an identifier whose text
+    /// equals <paramref name="spelling"/> (case-sensitive, exact match).
+    /// </summary>
+    public bool IsKeyword(string spelling)
+    {
+        return parser.IsKeywordInternal(spelling);
+    }
+
+    /// <summary>
     /// Parses a type, consuming tokens until an operation boundary is reached.
     /// </summary>
     public TypeSyntax ParseTypeSyntax()

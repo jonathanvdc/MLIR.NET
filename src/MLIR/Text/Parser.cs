@@ -755,6 +755,11 @@ public sealed class Parser
         return new DelimitedSyntaxList<SyntaxToken>(openParen, operands, commas, ToSyntaxToken(closeParen));
     }
 
+    internal bool IsKeywordInternal(string spelling)
+    {
+        return Is(TokenKind.Identifier) && string.Equals(Current.Text, spelling, System.StringComparison.Ordinal);
+    }
+
     private static string NormalizeOperationName(string name)
     {
         return name.Length >= 2 && name[0] == '"' && name[name.Length - 1] == '"' ? name.Substring(1, name.Length - 2) : name;

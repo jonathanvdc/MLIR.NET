@@ -90,7 +90,7 @@ internal sealed class TryParseEmitter
         var elements = format.Elements;
         for (var i = 0; i < elements.Count; i++)
         {
-            EmitElement(builder, elements[i], i, elements);
+            EmitElement(builder, elements[i], i, elements, indent: "        ", declare: true);
         }
 
         EmitBodyConstruction(builder);
@@ -102,50 +102,61 @@ internal sealed class TryParseEmitter
     // Element dispatch
     // -----------------------------------------------------------------------
 
-    private void EmitElement(StringBuilder builder, Element element, int elementIndex, IReadOnlyList<Element> allElements)
+    /// <param name="declare">
+    /// When <see langword="true"/>, emit <c>var name = expr;</c>.
+    /// When <see langword="false"/>, emit <c>name = expr;</c> (assignment into a pre-declared nullable local).
+    /// </param>
+    private void EmitElement(StringBuilder builder, Element element, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
         switch (element)
         {
             case LiteralChunk literal:
-                EmitLiteral(builder, literal);
+                EmitLiteral(builder, literal, indent, declare);
                 break;
             case VariableChunk variable:
-                EmitVariable(builder, variable, elementIndex, allElements);
+                EmitVariable(builder, variable, elementIndex, allElements, indent, declare);
                 break;
             case AttrDictDirectiveChunk _:
-                EmitAttrDict(builder);
+                EmitAttrDict(builder, indent, declare);
                 break;
             case AttrDictWithKeywordDirectiveChunk _:
-                EmitAttrDictWithKeyword(builder);
+                EmitAttrDictWithKeyword(builder, indent, declare);
                 break;
             case PropDictDirectiveChunk _:
-                EmitPropDict(builder);
+                EmitPropDict(builder, indent, declare);
                 break;
             case TypeDirectiveChunk typeDir:
-                EmitType(builder, typeDir, elementIndex, allElements);
+                EmitType(builder, typeDir, elementIndex, allElements, indent, declare);
+                break;
+            case QualifiedDirectiveChunk qualified:
+                EmitQualifiedType(builder, qualified, elementIndex, allElements, indent, declare);
+                break;
+            case ResultsDirectiveChunk _:
+                EmitResultsType(builder, elementIndex, allElements, indent, declare);
                 break;
             case RegionsDirectiveChunk _:
-                EmitRegions(builder);
+                EmitRegions(builder, indent, declare);
                 break;
             case SuccessorsDirectiveChunk _:
-                EmitSuccessors(builder);
+                EmitSuccessors(builder, indent, declare);
                 break;
             case OperandsDirectiveChunk _:
-                EmitOperands(builder);
+                EmitOperands(builder, indent, declare);
                 break;
-
-            // OptionalGroup, OilistDirectiveChunk, CustomDirectiveChunk,
-            // FunctionalTypeDirectiveChunk, QualifiedDirectiveChunk,
-            // RefDirectiveChunk, ResultsDirectiveChunk → not yet supported;
-            // CanHandleFormat already rejects formats containing these.
+            case OptionalGroup optionalGroup:
+                EmitOptionalGroup(builder, optionalGroup, elementIndex, allElements, indent);
+                break;
+            case OilistDirectiveChunk oilist:
+                EmitOilist(builder, oilist, indent);
+                break;
         }
     }
 
     // -----------------------------------------------------------------------
-    // Per-element emission
+    // Per-element emission – mandatory (non-optional) elements
     // -----------------------------------------------------------------------
 
-    private void EmitLiteral(StringBuilder builder, LiteralChunk literal)
+    private void EmitLiteral(StringBuilder builder, LiteralChunk literal, string indent, bool declare)
     {
         foreach (var lit in literal.Value)
         {
@@ -155,9 +166,9 @@ internal sealed class TryParseEmitter
                 {
                     var field = NextField();
                     var varName = EmitterHelpers.LowerFirst(field.Name);
-                    builder.AppendLine(
-                        "        var " + varName + " = context.Expect(TokenKind." + punc.TokenKind +
-                        ", \"Expected '" + EscapeForStringLiteral(GetPunctuationDisplay(punc.TokenKind)) + "'.\");");
+                    var expr = "context.Expect(TokenKind." + punc.TokenKind +
+                               ", \"Expected '" + EscapeForStringLiteral(GetPunctuationDisplay(punc.TokenKind)) + "'.\")";
+                    builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
                     break;
                 }
 
@@ -165,10 +176,10 @@ internal sealed class TryParseEmitter
                 {
                     var field = NextField();
                     var varName = EmitterHelpers.LowerFirst(field.Name);
-                    builder.AppendLine(
-                        "        var " + varName + " = context.ExpectKeyword(" +
-                        EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) +
-                        ", \"Expected '" + EscapeForStringLiteral(kw.Spelling) + "'.\");");
+                    var expr = "context.ExpectKeyword(" +
+                               EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) +
+                               ", \"Expected '" + EscapeForStringLiteral(kw.Spelling) + "'.\")";
+                    builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
                     break;
                 }
 
@@ -177,92 +188,306 @@ internal sealed class TryParseEmitter
         }
     }
 
-    private void EmitVariable(StringBuilder builder, VariableChunk variable, int elementIndex, IReadOnlyList<Element> allElements)
+    private void EmitVariable(StringBuilder builder, VariableChunk variable, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
 
         if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
         {
-            // Attribute variable: parse raw attribute value, stopping at the next
-            // meaningful delimiter so we don't over-consume into the next element.
             var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
-            if (delimiters.Count > 0)
+            var expr = delimiters.Count > 0
+                ? "context.ParseAttributeValueSyntax(" + BuildDelimiterList(delimiters) + ")"
+                : "context.ParseAttributeValueSyntax()";
+            builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+        }
+        else
+        {
+            builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseSsaToken()", declare, field.CsType) + ";");
+        }
+    }
+
+    private void EmitAttrDict(StringBuilder builder, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseAttrDict()", declare, field.CsType) + ";");
+    }
+
+    private void EmitAttrDictWithKeyword(StringBuilder builder, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseAttrDictWithKeyword()", declare, field.CsType) + ";");
+    }
+
+    private void EmitPropDict(StringBuilder builder, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseAttrDict()", declare, field.CsType) + ";");
+    }
+
+    private void EmitType(StringBuilder builder, TypeDirectiveChunk typeDir, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var expr = BuildTypeParseExpr(elementIndex, allElements);
+        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+    }
+
+    private void EmitQualifiedType(StringBuilder builder, QualifiedDirectiveChunk qualified, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
+    {
+        // qualified(...) does not change parsing behaviour; treat the same as a plain type.
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var expr = BuildTypeParseExpr(elementIndex, allElements);
+        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+    }
+
+    private void EmitResultsType(StringBuilder builder, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var expr = BuildTypeParseExpr(elementIndex, allElements);
+        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+    }
+
+    private void EmitRegions(StringBuilder builder, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseRegions()", declare, field.CsType) + ";");
+    }
+
+    private void EmitSuccessors(StringBuilder builder, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseSuccessors()", declare, field.CsType) + ";");
+    }
+
+    private void EmitOperands(StringBuilder builder, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseOperands()", declare, field.CsType) + ";");
+    }
+
+    // -----------------------------------------------------------------------
+    // Optional group – conditional parsing
+    // -----------------------------------------------------------------------
+
+    private void EmitOptionalGroup(StringBuilder builder, OptionalGroup group, int elementIndex, IReadOnlyList<Element> allElements, string indent)
+    {
+        var thenFieldCount = CountInnerFields(group.ThenElements);
+        var elseFieldCount = group.ElseElements != null ? CountInnerFields(group.ElseElements) : 0;
+        var groupStart = fieldIndex;
+
+        // Pre-declare all group fields as nullable locals initialised to their default value.
+        for (var i = 0; i < thenFieldCount + elseFieldCount; i++)
+        {
+            var f = metadata.Fields[groupStart + i];
+            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = default;");
+        }
+
+        if (thenFieldCount == 0)
+        {
+            fieldIndex += elseFieldCount;
+            return;
+        }
+
+        // Build the guard for the optional group.
+        fieldIndex = groupStart;
+        var (guardExpr, firstFieldAssignExpr) = BuildOptionalGroupGuard(group.ThenElements);
+
+        if (guardExpr == null)
+        {
+            // No supported guard – skip the group; fields stay at their default values.
+            fieldIndex = groupStart + thenFieldCount + elseFieldCount;
+            return;
+        }
+
+        builder.AppendLine(indent + "if (" + guardExpr + ")");
+        builder.AppendLine(indent + "{");
+
+        if (firstFieldAssignExpr != null)
+        {
+            // The guard evaluated using TryMatch which consumed and produced the first token.
+            // Assign the first field from the local the TryMatch already populated.
+            var firstField = metadata.Fields[groupStart];
+            builder.AppendLine(indent + "    " + EmitterHelpers.LowerFirst(firstField.Name) + " = " + firstFieldAssignExpr + ";");
+            fieldIndex = groupStart + 1;
+            // Emit remaining then-elements as assignments.
+            for (var i = 1; i < group.ThenElements.Count; i++)
             {
-                var delimList = BuildDelimiterList(delimiters);
-                builder.AppendLine("        var " + varName + " = context.ParseAttributeValueSyntax(" + delimList + ");");
-            }
-            else
-            {
-                builder.AppendLine("        var " + varName + " = context.ParseAttributeValueSyntax();");
+                EmitElement(builder, group.ThenElements[i], i, group.ThenElements, indent + "    ", declare: false);
             }
         }
         else
         {
-            // Operand or result variable: parse SSA value reference.
-            builder.AppendLine("        var " + varName + " = context.ParseSsaToken();");
+            fieldIndex = groupStart;
+            for (var i = 0; i < group.ThenElements.Count; i++)
+            {
+                EmitElement(builder, group.ThenElements[i], i, group.ThenElements, indent + "    ", declare: false);
+            }
         }
-    }
 
-    private void EmitAttrDict(StringBuilder builder)
-    {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine("        var " + varName + " = context.ParseAttrDict();");
-    }
+        builder.AppendLine(indent + "}");
 
-    private void EmitAttrDictWithKeyword(StringBuilder builder)
-    {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine("        var " + varName + " = context.ParseAttrDictWithKeyword();");
-    }
-
-    private void EmitPropDict(StringBuilder builder)
-    {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine("        var " + varName + " = context.ParseAttrDict();");
-    }
-
-    private void EmitType(StringBuilder builder, TypeDirectiveChunk typeDir, int elementIndex, IReadOnlyList<Element> allElements)
-    {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
-
-        // Stop at the next punctuation / attr-dict boundary so we don't over-consume
-        // when this type directive appears before other elements.
-        var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
-        if (delimiters.Count > 0)
+        if (group.ElseElements != null && group.ElseElements.Count > 0)
         {
-            var delimList = BuildDelimiterList(delimiters);
-            builder.AppendLine("        var " + varName + " = new RawTypeSyntax(context.ParseRawUntilDelimiter(" + delimList + "));");
+            builder.AppendLine(indent + "else");
+            builder.AppendLine(indent + "{");
+            fieldIndex = groupStart + thenFieldCount;
+            for (var i = 0; i < group.ElseElements.Count; i++)
+            {
+                EmitElement(builder, group.ElseElements[i], i, group.ElseElements, indent + "    ", declare: false);
+            }
+
+            builder.AppendLine(indent + "}");
         }
-        else
+
+        fieldIndex = groupStart + thenFieldCount + elseFieldCount;
+    }
+
+    /// <summary>
+    /// Builds the guard condition for an optional group.
+    /// Returns <c>(null, null)</c> when no supported guard can be derived.
+    /// The second item is the expression to assign the first field from when the guard
+    /// used <c>TryMatch</c> (which consumes the token as a side-effect).
+    /// </summary>
+    private (string? guardExpr, string? firstFieldAssignExpr) BuildOptionalGroupGuard(IReadOnlyList<Element> thenElements)
+    {
+        if (thenElements.Count == 0)
         {
-            builder.AppendLine("        var " + varName + " = context.ParseTypeSyntax();");
+            return (null, null);
         }
+
+        var first = thenElements[0];
+        if (first is LiteralChunk lit)
+        {
+            foreach (var l in lit.Value)
+            {
+                if (l is PunctuationLiteral punc)
+                {
+                    // Use TryMatch so the token is both checked and consumed in one call.
+                    var firstVarName = EmitterHelpers.LowerFirst(metadata.Fields[fieldIndex].Name);
+                    var guardExpr = "context.TryMatch(TokenKind." + punc.TokenKind + ", out var " + firstVarName + "Parsed)";
+                    return (guardExpr, firstVarName + "Parsed");
+                }
+
+                if (l is KeywordLiteral kw)
+                {
+                    return ("context.IsKeyword(" + EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) + ")", null);
+                }
+            }
+        }
+        else if (first is VariableChunk variable && !EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
+        {
+            // Guard on SSA name presence (operand or result variable).
+            return ("context.Is(TokenKind.SsaName)", null);
+        }
+
+        return (null, null);
     }
 
-    private void EmitRegions(StringBuilder builder)
+    // -----------------------------------------------------------------------
+    // Oilist – order-independent keyword-guarded clauses
+    // -----------------------------------------------------------------------
+
+    private void EmitOilist(StringBuilder builder, OilistDirectiveChunk oilist, string indent)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine("        var " + varName + " = context.ParseRegions();");
+        var oilistStart = fieldIndex;
+
+        // Count total fields for all clauses.
+        var totalFields = 0;
+        foreach (var clause in oilist.Clauses)
+        {
+            totalFields += 1 + CountFieldsForOilistElements(clause.Elements);
+        }
+
+        // Pre-declare all oilist fields as nullable locals.
+        for (var i = 0; i < totalFields; i++)
+        {
+            var f = metadata.Fields[oilistStart + i];
+            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = default;");
+        }
+
+        builder.AppendLine(indent + "bool foundOilist;");
+        builder.AppendLine(indent + "do");
+        builder.AppendLine(indent + "{");
+        builder.AppendLine(indent + "    foundOilist = false;");
+
+        fieldIndex = oilistStart;
+        var first = true;
+        foreach (var clause in oilist.Clauses)
+        {
+            var clauseFieldCount = 1 + CountFieldsForOilistElements(clause.Elements);
+            var kwField = metadata.Fields[fieldIndex];
+            var kwVarName = EmitterHelpers.LowerFirst(kwField.Name);
+
+            var ifKw = first ? "if" : "else if";
+            builder.AppendLine(indent + "    " + ifKw + " (!" + kwVarName + ".HasValue && context.IsKeyword(" + EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) + "))");
+            builder.AppendLine(indent + "    {");
+            builder.AppendLine(indent + "        " + kwVarName + " = context.ExpectKeyword(" +
+                               EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) +
+                               ", \"Expected '" + EscapeForStringLiteral(clause.Keyword) + "'.\");");
+            fieldIndex++; // advance past keyword field
+
+            // Emit parsing for each oilist element in this clause.
+            for (var i = 0; i < clause.Elements.Count; i++)
+            {
+                EmitOilistElement(builder, clause.Elements[i], i, clause.Elements, indent + "        ");
+            }
+
+            builder.AppendLine(indent + "        foundOilist = true;");
+            builder.AppendLine(indent + "    }");
+            first = false;
+        }
+
+        builder.AppendLine(indent + "}");
+        builder.AppendLine(indent + "while (foundOilist);");
+
+        fieldIndex = oilistStart + totalFields;
     }
 
-    private void EmitSuccessors(StringBuilder builder)
+    private void EmitOilistElement(StringBuilder builder, OilistElement element, int elementIndex, IReadOnlyList<OilistElement> siblings, string indent)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine("        var " + varName + " = context.ParseSuccessors();");
-    }
+        switch (element)
+        {
+            case OilistVariableElement variable:
+            {
+                var f = metadata.Fields[fieldIndex++];
+                var varName = EmitterHelpers.LowerFirst(f.Name);
+                if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
+                {
+                    builder.AppendLine(indent + varName + " = context.ParseAttributeValueSyntax();");
+                }
+                else
+                {
+                    builder.AppendLine(indent + varName + " = context.ParseSsaToken();");
+                }
 
-    private void EmitOperands(StringBuilder builder)
-    {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine("        var " + varName + " = context.ParseOperands();");
+                break;
+            }
+
+            case OilistTypeDirectiveElement _:
+            {
+                var f = metadata.Fields[fieldIndex++];
+                var varName = EmitterHelpers.LowerFirst(f.Name);
+                builder.AppendLine(indent + varName + " = context.ParseTypeSyntax();");
+                break;
+            }
+
+            case OilistLiteralElement literal:
+            {
+                var f = metadata.Fields[fieldIndex++];
+                var varName = EmitterHelpers.LowerFirst(f.Name);
+                builder.AppendLine(indent + varName + " = context.Expect(TokenKind.Identifier, \"Expected '" + EscapeForStringLiteral(literal.Value) + "'.\");");
+                break;
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -311,11 +536,80 @@ internal sealed class TryParseEmitter
             AttrDictWithKeywordDirectiveChunk _ => true,
             PropDictDirectiveChunk _ => true,
             TypeDirectiveChunk _ => true,
+            QualifiedDirectiveChunk _ => true,
+            ResultsDirectiveChunk _ => true,
             RegionsDirectiveChunk _ => true,
             SuccessorsDirectiveChunk _ => true,
             OperandsDirectiveChunk _ => true,
+            OptionalGroup _ => true,
+            OilistDirectiveChunk _ => true,
             _ => false,
         };
+    }
+
+    private static int CountInnerFields(IReadOnlyList<Element> elements)
+    {
+        var count = 0;
+        foreach (var e in elements)
+        {
+            count += CountFieldsForElement(e);
+        }
+
+        return count;
+    }
+
+    private static int CountFieldsForElement(Element element)
+    {
+        switch (element)
+        {
+            case LiteralChunk literal:
+            {
+                var n = 0;
+                foreach (var lit in literal.Value)
+                {
+                    if (lit is PunctuationLiteral || lit is KeywordLiteral) n++;
+                }
+
+                return n;
+            }
+
+            case VariableChunk _: return 1;
+            case AttrDictDirectiveChunk _: return 1;
+            case AttrDictWithKeywordDirectiveChunk _: return 1;
+            case PropDictDirectiveChunk _: return 1;
+            case TypeDirectiveChunk _: return 1;
+            case QualifiedDirectiveChunk _: return 1;
+            case ResultsDirectiveChunk _: return 1;
+            case RegionsDirectiveChunk _: return 1;
+            case SuccessorsDirectiveChunk _: return 1;
+            case OperandsDirectiveChunk _: return 1;
+            case OptionalGroup group:
+                return CountInnerFields(group.ThenElements) +
+                       (group.ElseElements != null ? CountInnerFields(group.ElseElements) : 0);
+            case OilistDirectiveChunk oilist:
+            {
+                var total = 0;
+                foreach (var clause in oilist.Clauses)
+                {
+                    total += 1 + CountFieldsForOilistElements(clause.Elements);
+                }
+
+                return total;
+            }
+
+            default: return 0;
+        }
+    }
+
+    private static int CountFieldsForOilistElements(IReadOnlyList<OilistElement> elements)
+    {
+        var count = 0;
+        foreach (var e in elements)
+        {
+            count += e is OilistVariableElement || e is OilistTypeDirectiveElement || e is OilistLiteralElement ? 1 : 0;
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -323,16 +617,6 @@ internal sealed class TryParseEmitter
     /// delimiter token kinds that should stop raw parsing for the element at
     /// <paramref name="currentIndex"/>.
     /// </summary>
-    /// <remarks>
-    /// Rules, in priority order:
-    /// <list type="number">
-    ///   <item>The first punctuation literal encountered → use its token kind.</item>
-    ///   <item>An <c>attr-dict</c>, <c>attr-dict-with-keyword</c>, or <c>prop-dict</c>
-    ///         directive → stop at <c>{</c> so the dict parser can decide whether
-    ///         the brace is actually present.</item>
-    /// </list>
-    /// An empty list means "stop at operation boundary only".
-    /// </remarks>
     private static IReadOnlyList<TokenKind> FindNextDelimitersForRawParsing(int currentIndex, IReadOnlyList<Element> elements)
     {
         for (var i = currentIndex + 1; i < elements.Count; i++)
@@ -357,6 +641,17 @@ internal sealed class TryParseEmitter
         return System.Array.Empty<TokenKind>();
     }
 
+    private string BuildTypeParseExpr(int elementIndex, IReadOnlyList<Element> allElements)
+    {
+        var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
+        if (delimiters.Count > 0)
+        {
+            return "new RawTypeSyntax(context.ParseRawUntilDelimiter(" + BuildDelimiterList(delimiters) + "))";
+        }
+
+        return "context.ParseTypeSyntax()";
+    }
+
     private static string BuildDelimiterList(IReadOnlyList<TokenKind> delimiters)
     {
         var parts = new List<string>(delimiters.Count);
@@ -366,6 +661,21 @@ internal sealed class TryParseEmitter
         }
 
         return string.Join(", ", parts);
+    }
+
+    /// <summary>
+    /// Returns either <c>var varName = expr</c> (when <paramref name="declare"/> is <see langword="true"/>)
+    /// or <c>varName = expr</c> (when <see langword="false"/>).
+    /// The <paramref name="csType"/> is only used for the declaration form.
+    /// </summary>
+    private static string DeclareOrAssign(string varName, string expr, bool declare, string csType)
+    {
+        if (declare)
+        {
+            return "var " + varName + " = " + expr;
+        }
+
+        return varName + " = " + expr;
     }
 
     private static string GetPunctuationDisplay(TokenKind kind)
@@ -400,3 +710,4 @@ internal sealed class TryParseEmitter
         return text.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 }
+
