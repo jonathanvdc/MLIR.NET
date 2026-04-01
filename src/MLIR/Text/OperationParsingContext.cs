@@ -136,4 +136,82 @@ public sealed class OperationParsingContext
         return commas;
     }
 
+    /// <summary>
+    /// Returns <see langword="true"/> when the current token is an identifier whose text
+    /// equals <paramref name="spelling"/> (case-sensitive, exact match).
+    /// </summary>
+    public bool IsKeyword(string spelling)
+    {
+        return parser.IsKeywordInternal(spelling);
+    }
+
+    /// <summary>
+    /// Parses a type, consuming tokens until an operation boundary is reached.
+    /// </summary>
+    public TypeSyntax ParseTypeSyntax()
+    {
+        return new RawTypeSyntax(parser.ParseRawUntilOperationBoundaryInternal());
+    }
+
+    /// <summary>
+    /// Parses an attribute value, stopping before any of the supplied delimiter tokens or
+    /// an operation boundary, whichever comes first.
+    /// </summary>
+    public AttributeValueSyntax ParseAttributeValueSyntax(params TokenKind[] stopBefore)
+    {
+        return new RawAttributeValueSyntax(parser.ParseRawUntilDelimiterOrBoundaryInternal(stopBefore));
+    }
+
+    /// <summary>
+    /// Parses an optional attribute dictionary of the form <c>{ name = value, ... }</c>.
+    /// Returns an empty list when no opening brace is present.
+    /// </summary>
+    public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDict()
+    {
+        return parser.ParseAttrDictInternal();
+    }
+
+    /// <summary>
+    /// Parses an optional keyword-prefixed attribute dictionary of the form
+    /// <c>attributes { name = value, ... }</c>.
+    /// Returns an empty list when the <c>attributes</c> keyword is absent.
+    /// </summary>
+    public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictWithKeyword()
+    {
+        return parser.ParseAttrDictWithKeywordInternal();
+    }
+
+    /// <summary>
+    /// Expects an identifier token whose text matches <paramref name="spelling"/> exactly.
+    /// </summary>
+    public SyntaxToken ExpectKeyword(string spelling, string message)
+    {
+        return parser.ExpectKeywordInternal(spelling, message);
+    }
+
+    /// <summary>
+    /// Parses zero or more consecutive regions, each delimited by <c>{ ... }</c>.
+    /// </summary>
+    public IReadOnlyList<RegionSyntax> ParseRegions()
+    {
+        return parser.ParseRegionsInternal();
+    }
+
+    /// <summary>
+    /// Parses an optional successor list of the form <c>[ ^bb1, ^bb2, ... ]</c>.
+    /// Returns an empty list when no opening bracket is present.
+    /// </summary>
+    public DelimitedSyntaxList<SyntaxToken> ParseSuccessors()
+    {
+        return parser.ParseSuccessorsInternal();
+    }
+
+    /// <summary>
+    /// Parses an operand list of the form <c>( %a, %b, ... )</c>.
+    /// </summary>
+    public DelimitedSyntaxList<SyntaxToken> ParseOperands()
+    {
+        return parser.ParseOperandsInternal();
+    }
+
 }

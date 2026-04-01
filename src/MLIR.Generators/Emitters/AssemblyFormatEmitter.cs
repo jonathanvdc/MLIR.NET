@@ -7,11 +7,56 @@ using MLIR.ODS.Model;
 
 internal static class AssemblyFormatEmitter
 {
-    private static string GetOperandBindExpression(OperationBodySyntaxConstructionPlan plan, string operandName, int operandIndex)
+    /// <summary>
+    /// Returns an expression for reading <paramref name="fieldName"/> from <c>body</c> in
+    /// a way that is safe regardless of whether the field is a nullable value type
+    /// (<c>SyntaxToken?</c>) or a nullable reference type (<c>TypeSyntax?</c>, etc.).
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    /// <item>
+    ///   <c>SyntaxToken?</c> — a nullable value type — cannot be implicitly passed where a
+    ///   non-nullable <c>SyntaxToken</c> is expected (CS1503).  We unwrap with <c>?? default</c>.
+    /// </item>
+    /// <item>
+    ///   Nullable reference types (<c>AttributeValueSyntax?</c>, <c>TypeSyntax?</c>) generate
+    ///   a possible-null-reference warning (CS8604).  We suppress with the null-forgiving
+    ///   operator (<c>!</c>).
+    /// </item>
+    /// </list>
+    /// </remarks>
+    private static string SafeFieldAccess(OperationBodySyntaxMetadata metadata, string fieldName)
+    {
+        foreach (var f in metadata.Fields)
+        {
+            if (f.Name != fieldName)
+            {
+                continue;
+            }
+
+            if (f.CsType == "SyntaxToken?")
+            {
+                // Nullable value type: unwrap with ?? default so the expression has type SyntaxToken.
+                return "(body." + fieldName + " ?? default)";
+            }
+
+            if (f.CsType.EndsWith("?", System.StringComparison.Ordinal))
+            {
+                // Nullable reference type: use null-forgiving to satisfy the non-null parameter.
+                return "body." + fieldName + "!";
+            }
+
+            break;
+        }
+
+        return "body." + fieldName;
+    }
+
+    private static string GetOperandBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata, string operandName, int operandIndex)
     {
         if (plan.OperandFields.TryGetValue(operandName, out var fieldName))
         {
-            return "binder.BindValueReference(body." + fieldName + ")";
+            return "binder.BindValueReference(" + SafeFieldAccess(metadata, fieldName) + ")";
         }
 
         if (plan.OperandsField != null)
@@ -22,24 +67,24 @@ internal static class AssemblyFormatEmitter
         throw new InvalidOperationException("No body field was generated for operand '" + operandName + "'.");
     }
 
-    private static string GetAttributeBindExpression(OperationBodySyntaxConstructionPlan plan, string attributeName)
+    private static string GetAttributeBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata, string attributeName)
     {
         if (plan.AttributeFields.TryGetValue(attributeName, out var fieldName))
         {
-            return "new NamedAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attributeName) + ", binder.BindAttributeValue(body." + fieldName + "))";
+            return "new NamedAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attributeName) + ", binder.BindAttributeValue(" + SafeFieldAccess(metadata, fieldName) + "))";
         }
 
         throw new InvalidOperationException("No body field was generated for attribute '" + attributeName + "'.");
     }
 
-    private static string GetTypeBindExpression(OperationBodySyntaxConstructionPlan plan)
+    private static string GetTypeBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata)
     {
         if (plan.TypeField == null)
         {
             return "null";
         }
 
-        return "binder.BindTypeReference(body." + plan.TypeField + ")";
+        return "binder.BindTypeReference(" + SafeFieldAccess(metadata, plan.TypeField) + ")";
     }
 
     public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata bodySyntaxMetadata)
@@ -49,11 +94,7 @@ internal static class AssemblyFormatEmitter
 
         builder.AppendLine("public sealed class " + className + "AssemblyFormat : IOperationAssemblyFormat");
         builder.AppendLine("{");
-        builder.AppendLine("    public bool TryParse(SyntaxToken nameToken, IReadOnlyList<SyntaxToken> resultTokens, IReadOnlyList<SyntaxToken> resultCommaTokens, SyntaxToken? equalsToken, OperationParsingContext context, out OperationBodySyntax? body)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        body = null;");
-        builder.AppendLine("        return false;");
-        builder.AppendLine("    }");
+        TryParseEmitter.Emit(builder, operation, bodySyntaxMetadata);
         builder.AppendLine();
         builder.AppendLine("    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)");
         builder.AppendLine("    {");
@@ -74,7 +115,7 @@ internal static class AssemblyFormatEmitter
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {
-            builder.AppendLine("            " + GetOperandBindExpression(syntaxDescriptor, operation.Operands[i], i) + ",");
+            builder.AppendLine("            " + GetOperandBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Operands[i], i) + ",");
         }
 
         for (var i = 0; i < operation.Results.Count; i++)
@@ -96,13 +137,13 @@ internal static class AssemblyFormatEmitter
                     builder.Append(", ");
                 }
 
-                builder.Append(GetAttributeBindExpression(syntaxDescriptor, operation.Attributes[i]));
+                builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
             }
 
             builder.AppendLine("),");
         }
 
-        builder.AppendLine("            " + GetTypeBindExpression(syntaxDescriptor) + ");");
+        builder.AppendLine("            " + GetTypeBindExpression(syntaxDescriptor, bodySyntaxMetadata) + ");");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)");
