@@ -252,15 +252,16 @@ public sealed class DialectGeneratorTests
         Assert.Contains("public override NamedAttributeCollection Attributes { get; }", registrationSource);
 
         // Individual named attribute is a derived accessor, not a data-holding property.
-        Assert.Contains("public NamedAttribute Value => Attributes[\"value\"];", registrationSource);
+        // MiniArith_ConstantOp has no assembly format, so 'value' cannot be determined to
+        // be required – it is generated as a nullable optional accessor.
+        Assert.Contains("public NamedAttribute? Value => Attributes.TryGet(\"value\",", registrationSource);
         Assert.DoesNotContain("public NamedAttribute Value { get; }", registrationSource);
 
         // Constructors use NamedAttributeCollection attributes parameter instead of individual NamedAttribute params.
         Assert.Contains("NamedAttributeCollection attributes,", registrationSource);
 
-        // Per-attribute convenience constructor also exists (using individual NamedAttribute params).
-        Assert.Contains("NamedAttribute value,", registrationSource);
-        Assert.Contains("attributes: NamedAttributeCollection.Create(value),", registrationSource);
+        // Per-attribute convenience constructor also exists (using individual NamedAttribute? param for optional).
+        Assert.Contains("NamedAttribute? value,", registrationSource);
 
         // Context constructor passes context.Attributes directly.
         Assert.Contains("attributes: context.Attributes,", registrationSource);
@@ -508,5 +509,173 @@ public sealed class DialectGeneratorTests
         Assert.Contains("context.IsKeyword(\"padding\")", registrationSource);
 
         Assert.Contains("return true;", registrationSource);
+    }
+
+    [Fact]
+    public void RequiredAttributeInAssemblyFormatGeneratesNonNullablePropertyAndRequiredRegistration()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
+            "  let summary = \"integer constant\";\n" +
+            "  let arguments = (ins I32Attr:$value);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$value attr-dict\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        // $value appears directly at the top level of the format → required.
+        // The accessor property is non-nullable.
+        Assert.Contains("public NamedAttribute Value => Attributes[\"value\"];", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute? Value", registrationSource);
+
+        // Per-attribute convenience constructor uses non-nullable NamedAttribute.
+        Assert.Contains("NamedAttribute value,", registrationSource);
+        Assert.DoesNotContain("NamedAttribute? value,", registrationSource);
+        Assert.Contains("NamedAttributeCollection.Create(value),", registrationSource);
+
+        // OperationDefinition registration uses RequiredAttribute, not OptionalAttribute.
+        Assert.Contains("operation.RequiredAttribute(\"value\");", registrationSource);
+        Assert.DoesNotContain("operation.OptionalAttribute(\"value\")", registrationSource);
+    }
+
+    [Fact]
+    public void OptionalAttributeInOptionalGroupGeneratesNullablePropertyAndOptionalRegistration()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_FlagOp : MyDialect_Op<\"flag\", []> {\n" +
+            "  let arguments = (ins I32Attr:$optAttr);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"($optAttr^)? attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // $optAttr is inside an optional group → optional.
+        // The accessor property is nullable.
+        Assert.Contains("public NamedAttribute? OptAttr", registrationSource);
+        Assert.Contains("Attributes.TryGet(\"optAttr\",", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute OptAttr", registrationSource);
+
+        // OperationDefinition registration uses OptionalAttribute.
+        Assert.Contains("operation.OptionalAttribute(\"optAttr\");", registrationSource);
+        Assert.DoesNotContain("operation.RequiredAttribute(\"optAttr\")", registrationSource);
+    }
+
+    [Fact]
+    public void RequiredOperandInAssemblyFormatGeneratesNonNullableProperty()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure]> {\n" +
+            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        // Both operands appear at the top level → required, non-nullable.
+        Assert.Contains("public ValueReference Lhs { get; }", registrationSource);
+        Assert.Contains("public ValueReference Rhs { get; }", registrationSource);
+        Assert.DoesNotContain("public ValueReference? Lhs", registrationSource);
+        Assert.DoesNotContain("public ValueReference? Rhs", registrationSource);
+    }
+
+    [Fact]
+    public void OptionalOperandInOptionalGroupGeneratesNullableProperty()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_BinaryOp : MyDialect_Op<\"binary\", []> {\n" +
+            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$lhs (`,` $rhs^)? attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // $lhs at the top level → required, non-nullable.
+        Assert.Contains("public ValueReference Lhs { get; }", registrationSource);
+        Assert.DoesNotContain("public ValueReference? Lhs", registrationSource);
+
+        // $rhs inside optional group → optional, nullable.
+        Assert.Contains("public ValueReference? Rhs { get; }", registrationSource);
+        Assert.DoesNotContain("public ValueReference Rhs { get; }", registrationSource);
+    }
+
+    [Fact]
+    public void OilistAttributesAreOptionalInRegistration()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_ConfigOp : MyDialect_Op<\"config\", []> {\n" +
+            "  let arguments = (ins I32Attr:$stride, I32Attr:$padding);\n" +
+            "  let assemblyFormat = \"oilist(`stride` $stride | `padding` $padding) attr-dict\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // Attributes inside oilist are optional.
+        Assert.Contains("operation.OptionalAttribute(\"stride\");", registrationSource);
+        Assert.Contains("operation.OptionalAttribute(\"padding\");", registrationSource);
+        Assert.DoesNotContain("operation.RequiredAttribute(\"stride\")", registrationSource);
+        Assert.DoesNotContain("operation.RequiredAttribute(\"padding\")", registrationSource);
+
+        // Nullable accessor properties for the optional attributes.
+        Assert.Contains("public NamedAttribute? Stride", registrationSource);
+        Assert.Contains("public NamedAttribute? Padding", registrationSource);
     }
 }

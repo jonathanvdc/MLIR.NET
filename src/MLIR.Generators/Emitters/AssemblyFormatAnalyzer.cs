@@ -38,16 +38,26 @@ internal static class AssemblyFormatAnalyzer
 
     private static void CollectRequiredVariables(Element element, HashSet<string> required)
     {
-        // Only a VariableChunk that appears directly at the top level of the format is
-        // required. Variables inside OptionalGroup or OilistDirectiveChunk are conditional
-        // and therefore optional.
+        // A VariableChunk that appears directly at the top level of the format is required.
         if (element is VariableChunk variable)
         {
             required.Add(variable.Name);
+            return;
         }
 
-        // All other element types are either non-variable directives (literals, attr-dict,
-        // type(...), etc.) or conditional containers (OptionalGroup, OilistDirectiveChunk)
-        // and do not contribute to the required variable set.
+        // All non-variable top-level elements fall into one of two categories:
+        //
+        // 1. Leaf directives that contain no child Elements: LiteralChunk, TypeDirectiveChunk,
+        //    AttrDictDirectiveChunk, AttrDictWithKeywordDirectiveChunk, PropDictDirectiveChunk,
+        //    RegionsDirectiveChunk, SuccessorsDirectiveChunk, OperandsDirectiveChunk,
+        //    ResultsDirectiveChunk, QualifiedDirectiveChunk, FunctionalTypeDirectiveChunk,
+        //    CustomDirectiveChunk, RefDirectiveChunk.
+        //    These do not contain child Element instances (their operands, if any, are
+        //    DirectiveOperand nodes which are a separate type hierarchy), so no recursion
+        //    is needed for them.
+        //
+        // 2. Conditional containers: OptionalGroup and OilistDirectiveChunk.
+        //    Variables inside these containers are only conditionally present, so they are
+        //    NOT required and we intentionally do not recurse into them.
     }
 }

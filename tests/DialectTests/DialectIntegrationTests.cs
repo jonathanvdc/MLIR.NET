@@ -398,7 +398,7 @@ public sealed class DialectIntegrationTests
         Assert.Empty(module.AssemblyDiagnostics);
         var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
         Assert.Equal("minitest.config", operation.Name);
-        Assert.Equal("stride", operation.Stride.Name);
-        Assert.Equal("padding", operation.Padding.Name);
+        Assert.Equal("stride", operation.Stride!.Name);
+        Assert.Equal("padding", operation.Padding!.Name);
     }
 }

@@ -159,14 +159,10 @@ internal static class OperationEmitter
                 builder.Append(", ");
             }
 
-            // When the member type is nullable (e.g. ValueReference?) but the list element type
-            // is non-nullable, unwrap with GetValueOrDefault so the array initializer compiles.
-            if (members[i].TypeName.EndsWith("?", System.StringComparison.Ordinal) &&
-                !members[i].TypeName.Equals(itemType + "?", System.StringComparison.Ordinal) == false)
-            {
-                builder.Append(members[i].PropertyName + ".GetValueOrDefault()");
-            }
-            else if (members[i].TypeName == itemType + "?")
+            // When the member holds a nullable value type (e.g. ValueReference?) but the list
+            // element type is the non-nullable counterpart, unwrap with GetValueOrDefault so
+            // the array initializer compiles cleanly.
+            if (members[i].TypeName == itemType + "?")
             {
                 builder.Append(members[i].PropertyName + ".GetValueOrDefault()");
             }
@@ -312,13 +308,44 @@ internal static class OperationEmitter
         AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
         AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
 
-        if (attributeMembers.Count == 1)
+        // Check whether any attribute is optional (nullable).
+        var hasOptionalAttributes = false;
+        for (var i = 0; i < attributeMembers.Count; i++)
         {
-            builder.AppendLine("            attributes: NamedAttributeCollection.Create(" + attributeMembers[0].ParameterName + "),");
+            if (attributeMembers[i].TypeName == "NamedAttribute?")
+            {
+                hasOptionalAttributes = true;
+                break;
+            }
+        }
+
+        if (!hasOptionalAttributes)
+        {
+            // All required: use the simple NamedAttributeCollection.Create form.
+            if (attributeMembers.Count == 1)
+            {
+                builder.AppendLine("            attributes: NamedAttributeCollection.Create(" + attributeMembers[0].ParameterName + "),");
+            }
+            else
+            {
+                builder.Append("            attributes: NamedAttributeCollection.Create(");
+                for (var i = 0; i < attributeMembers.Count; i++)
+                {
+                    if (i > 0)
+                    {
+                        builder.Append(", ");
+                    }
+
+                    builder.Append(attributeMembers[i].ParameterName);
+                }
+
+                builder.AppendLine("),");
+            }
         }
         else
         {
-            builder.Append("            attributes: NamedAttributeCollection.Create(");
+            // Some attributes are optional: build the collection by filtering out null entries.
+            builder.Append("            attributes: new NamedAttributeCollection(new NamedAttribute?[] { ");
             for (var i = 0; i < attributeMembers.Count; i++)
             {
                 if (i > 0)
@@ -329,7 +356,7 @@ internal static class OperationEmitter
                 builder.Append(attributeMembers[i].ParameterName);
             }
 
-            builder.AppendLine("),");
+            builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
         }
 
         builder.AppendLine("            typeSignatureReference: typeSignatureReference)");
@@ -374,9 +401,10 @@ internal static class OperationEmitter
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var resultReferenceName = operation.Results.Count == 1 ? "ResultValue" : null;
-        var operandMembers = GetOperandMembers(operation);
+        var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
+        var operandMembers = GetOperandMembers(operation, requiredVariables);
         var resultMembers = GetResultMembers(operation);
-        var attributeMembers = GetAttributeMembers(operation);
+        var attributeMembers = GetAttributeMembers(operation, requiredVariables);
 
         EmitterHelpers.AppendXmlDocComment(builder, operation.Summary, operation.Description);
         builder.AppendLine("public sealed class " + className + " : Operation");
