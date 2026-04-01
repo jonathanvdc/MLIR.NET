@@ -3,6 +3,7 @@ namespace DialectTests;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Miniarith;
+using MLIR.Minitest;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using Xunit;
@@ -194,5 +195,210 @@ public sealed class DialectIntegrationTests
         // Assert: one diagnostic reported, operation is uninterpreted
         Assert.Single(module.AssemblyDiagnostics);
         Assert.IsType<UninterpretedOperation>(Assert.Single(module.Operations));
+    }
+
+    // -----------------------------------------------------------------------
+    // MiniTest dialect: QualifiedDirectiveChunk, OptionalGroup, OilistDirectiveChunk
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void MinitestDialectRegistrationExposesAllOperations()
+    {
+        var dialect = MinitestDialectRegistration.Create();
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(dialect);
+
+        Assert.Equal("minitest", dialect.Name);
+
+        Assert.True(registry.TryGetOperation("minitest.cast", out var castDef));
+        Assert.NotNull(castDef!.AssemblyFormat);
+
+        Assert.True(registry.TryGetOperation("minitest.binary", out var binaryDef));
+        Assert.NotNull(binaryDef!.AssemblyFormat);
+
+        Assert.True(registry.TryGetOperation("minitest.config", out var configDef));
+        Assert.NotNull(configDef!.AssemblyFormat);
+    }
+
+    // -----------------------------------------------------------------------
+    // minitest.cast — QualifiedDirectiveChunk
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void CastOpParsesQualifiedTypeFormat()
+    {
+        // minitest.cast uses qualified(type($result)) in its assembly format.
+        // Parsing is identical to a plain type(...) directive.
+        const string source = "%result = minitest.cast %input : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var document = Document.Parse(source, registry);
+
+        var op = Assert.Single(document.Module.Operations);
+        var body = Assert.IsType<MiniTest_CastOpBodySyntax>(op.Body);
+        Assert.Equal("%input", body.Input.Text);
+        Assert.Equal("i32", body.ResultType.GetRawText().Text);
+    }
+
+    [Fact]
+    public void CastOpBindsToTypedOperation()
+    {
+        const string source = "%result = minitest.cast %input : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+
+        Assert.Empty(module.AssemblyDiagnostics);
+        var operation = Assert.IsType<MiniTest_CastOp>(Assert.Single(module.Operations));
+        Assert.Equal("minitest.cast", operation.Name);
+        Assert.Equal("%input", operation.Input.Name);
+        Assert.Equal("%result", operation.ResultValue.Name);
+    }
+
+    // -----------------------------------------------------------------------
+    // minitest.binary — OptionalGroup (punctuation guard)
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void BinaryOpParsesWithBothOperands()
+    {
+        // The optional group is guarded by a leading comma; when present both rhs and
+        // commaToken fields must be populated.
+        const string source = "%result = minitest.binary %lhs, %rhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var document = Document.Parse(source, registry);
+
+        var op = Assert.Single(document.Module.Operations);
+        var body = Assert.IsType<MiniTest_BinaryOpBodySyntax>(op.Body);
+        Assert.Equal("%lhs", body.Lhs.Text);
+        Assert.True(body.CommaToken.HasValue);
+        Assert.Equal(",", body.CommaToken!.Value.Text);
+        Assert.True(body.Rhs.HasValue);
+        Assert.Equal("%rhs", body.Rhs!.Value.Text);
+        Assert.Equal("i32", body.ResultType.GetRawText().Text);
+    }
+
+    [Fact]
+    public void BinaryOpParsesWithOptionalOperandAbsent()
+    {
+        // When no comma follows lhs, the optional group is skipped and rhs/commaToken stay null.
+        const string source = "%result = minitest.binary %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var document = Document.Parse(source, registry);
+
+        var op = Assert.Single(document.Module.Operations);
+        var body = Assert.IsType<MiniTest_BinaryOpBodySyntax>(op.Body);
+        Assert.Equal("%lhs", body.Lhs.Text);
+        Assert.False(body.CommaToken.HasValue);
+        Assert.False(body.Rhs.HasValue);
+        Assert.Equal("i32", body.ResultType.GetRawText().Text);
+    }
+
+    // -----------------------------------------------------------------------
+    // minitest.config — OilistDirectiveChunk
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void ConfigOpParsesWithStrideThenPadding()
+    {
+        // Oilist clause order: stride before padding.
+        const string source =
+            "minitest.config\n" +
+            "    stride 4\n" +
+            "    padding 0\n" +
+            "    {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var document = Document.Parse(source, registry);
+
+        var op = Assert.Single(document.Module.Operations);
+        var body = Assert.IsType<MiniTest_ConfigOpBodySyntax>(op.Body);
+        Assert.True(body.StrideKeyword.HasValue);
+        Assert.Equal("stride", body.StrideKeyword!.Value.Text);
+        Assert.NotNull(body.Stride);
+        Assert.True(body.PaddingKeyword.HasValue);
+        Assert.Equal("padding", body.PaddingKeyword!.Value.Text);
+        Assert.NotNull(body.Padding);
+    }
+
+    [Fact]
+    public void ConfigOpParsesWithPaddingThenStride()
+    {
+        // Oilist allows any clause order; padding before stride must produce the same fields.
+        const string source =
+            "minitest.config\n" +
+            "    padding 0\n" +
+            "    stride 4\n" +
+            "    {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var document = Document.Parse(source, registry);
+
+        var op = Assert.Single(document.Module.Operations);
+        var body = Assert.IsType<MiniTest_ConfigOpBodySyntax>(op.Body);
+        Assert.True(body.StrideKeyword.HasValue);
+        Assert.Equal("stride", body.StrideKeyword!.Value.Text);
+        Assert.NotNull(body.Stride);
+        Assert.True(body.PaddingKeyword.HasValue);
+        Assert.Equal("padding", body.PaddingKeyword!.Value.Text);
+        Assert.NotNull(body.Padding);
+    }
+
+    [Fact]
+    public void ConfigOpParsesWithOnlyOneClause()
+    {
+        // Oilist clauses are optional individually; only stride being present is valid.
+        const string source =
+            "minitest.config\n" +
+            "    stride 4\n" +
+            "    {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var document = Document.Parse(source, registry);
+
+        var op = Assert.Single(document.Module.Operations);
+        var body = Assert.IsType<MiniTest_ConfigOpBodySyntax>(op.Body);
+        Assert.True(body.StrideKeyword.HasValue);
+        Assert.Equal("stride", body.StrideKeyword!.Value.Text);
+        Assert.NotNull(body.Stride);
+        Assert.False(body.PaddingKeyword.HasValue);
+        Assert.Null(body.Padding);
+    }
+
+    [Fact]
+    public void ConfigOpBindsWithBothAttributes()
+    {
+        const string source =
+            "minitest.config\n" +
+            "    stride 4\n" +
+            "    padding 0\n" +
+            "    {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+
+        Assert.Empty(module.AssemblyDiagnostics);
+        var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
+        Assert.Equal("minitest.config", operation.Name);
+        Assert.Equal("stride", operation.Stride.Name);
+        Assert.Equal("padding", operation.Padding.Name);
     }
 }
