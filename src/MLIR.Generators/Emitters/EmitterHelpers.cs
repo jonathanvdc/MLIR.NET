@@ -264,7 +264,7 @@ internal static class EmitterHelpers
                 // fields for the elements the clause contains.
                 foreach (var clause in oilist.Clauses)
                 {
-                    AppendKeywordField(usedNames, clause.Keyword, metadata, nullable: true);
+                    AppendKeywordField(usedNames, clause.Keyword, metadata, nullable: true, isOilistKeyword: true);
 
                     foreach (var oiElem in clause.Elements)
                     {
@@ -322,12 +322,16 @@ internal static class EmitterHelpers
         metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Punctuation:" + tokenKind, field.Name));
     }
 
-    private static void AppendKeywordField(HashSet<string> usedNames, string spelling, OperationBodySyntaxMetadata metadata, bool nullable)
+    private static void AppendKeywordField(HashSet<string> usedNames, string spelling, OperationBodySyntaxMetadata metadata, bool nullable, bool isOilistKeyword = false)
     {
         var name = MakeUnique(DialectGeneratorNaming.ToPascalCase(spelling) + "Keyword", usedNames);
+        // Oilist keywords default to "\n    " so each synthesized clause starts on its own line.
+        // ParseAttributeValueSyntax stops at newlines (operation boundaries), so without a newline
+        // the first clause's raw value would greedily consume the next clause's keyword.
+        var leadingTrivia = isOilistKeyword ? "\\n    " : " ";
         var (csType, writeStmt) = nullable
-            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \" \");")
-            : ("SyntaxToken", "writer.WriteToken(" + name + ", \" \");");
+            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
+            : ("SyntaxToken", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Keyword:" + spelling, field.Name));
