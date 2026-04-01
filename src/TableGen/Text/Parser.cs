@@ -51,8 +51,12 @@ internal sealed class Parser
         var name = Expect(TokenKind.Identifier, "Expected a class name.").Text;
         var templateParameters = ParseOptionalTemplateParameters();
         var bases = ParseOptionalBases();
-        var bodyItems = ParseOptionalBody();
-        Expect(TokenKind.Semicolon, "Expected ';' after the class declaration.");
+        var (hadBraces, bodyItems) = ParseOptionalBody();
+        if (!hadBraces || Is(TokenKind.Semicolon))
+        {
+            Expect(TokenKind.Semicolon, "Expected ';' after the class declaration.");
+        }
+
         return new ClassSyntax(name, templateParameters, bases, bodyItems);
     }
 
@@ -60,8 +64,12 @@ internal sealed class Parser
     {
         var name = Expect(TokenKind.Identifier, "Expected a definition name.").Text;
         var bases = ParseOptionalBases();
-        var bodyItems = ParseOptionalBody();
-        Expect(TokenKind.Semicolon, "Expected ';' after the definition.");
+        var (hadBraces, bodyItems) = ParseOptionalBody();
+        if (!hadBraces || Is(TokenKind.Semicolon))
+        {
+            Expect(TokenKind.Semicolon, "Expected ';' after the definition.");
+        }
+
         return new DefSyntax(name, bases, bodyItems);
     }
 
@@ -137,12 +145,12 @@ internal sealed class Parser
         return arguments;
     }
 
-    private IReadOnlyList<BodyItemSyntax> ParseOptionalBody()
+    private (bool hadBraces, IReadOnlyList<BodyItemSyntax> items) ParseOptionalBody()
     {
         var items = new List<BodyItemSyntax>();
         if (!TryMatch(TokenKind.LBrace))
         {
-            return items;
+            return (false, items);
         }
 
         while (!TryMatch(TokenKind.RBrace))
@@ -150,7 +158,7 @@ internal sealed class Parser
             items.Add(ParseBodyItem());
         }
 
-        return items;
+        return (true, items);
     }
 
     private BodyItemSyntax ParseBodyItem()
@@ -209,6 +217,18 @@ internal sealed class Parser
 
     private ExpressionSyntax ParseExpression()
     {
+        var left = ParsePrimaryExpression();
+        while (TryMatch(TokenKind.Hash))
+        {
+            var right = ParsePrimaryExpression();
+            left = new ConcatSyntax(left, right);
+        }
+
+        return left;
+    }
+
+    private ExpressionSyntax ParsePrimaryExpression()
+    {
         if (TryMatch(TokenKind.Integer, out var integerToken))
         {
             return new IntegerSyntax(int.Parse(integerToken.Text, CultureInfo.InvariantCulture));
@@ -226,7 +246,20 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.Identifier, out var identifierToken))
         {
+            if (Is(TokenKind.LessThan))
+            {
+                var arguments = ParseOptionalArgumentList();
+                Expect(TokenKind.Dot, "Expected '.' after the template argument list.");
+                var fieldName = Expect(TokenKind.Identifier, "Expected a field name.").Text;
+                return new ClassInstantiationSyntax(identifierToken.Text, arguments, fieldName);
+            }
+
             return new IdentifierSyntax(identifierToken.Text);
+        }
+
+        if (TryMatch(TokenKind.BangKeyword, out var bangToken))
+        {
+            return ParseBangExpression(bangToken.Text);
         }
 
         if (TryMatch(TokenKind.LBracket))
@@ -273,6 +306,40 @@ internal sealed class Parser
         }
 
         throw Error("Expected an expression.");
+    }
+
+    private ExpressionSyntax ParseBangExpression(string operatorName)
+    {
+        if (operatorName == "foldl")
+        {
+            Expect(TokenKind.LParen, "Expected '(' after '!foldl'.");
+            var init = ParseExpression();
+            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            var list = ParseExpression();
+            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            var accVar = Expect(TokenKind.Identifier, "Expected an accumulator variable name in '!foldl'.").Text;
+            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            var curVar = Expect(TokenKind.Identifier, "Expected a current-element variable name in '!foldl'.").Text;
+            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            var body = ParseExpression();
+            Expect(TokenKind.RParen, "Expected ')' to close '!foldl'.");
+            return new FoldlSyntax(init, list, accVar, curVar, body);
+        }
+
+        Expect(TokenKind.LParen, $"Expected '(' after '!{operatorName}'.");
+        var args = new List<ExpressionSyntax>();
+        if (!TryMatch(TokenKind.RParen))
+        {
+            do
+            {
+                args.Add(ParseExpression());
+            }
+            while (TryMatch(TokenKind.Comma));
+
+            Expect(TokenKind.RParen, $"Expected ')' to close '!{operatorName}'.");
+        }
+
+        return new BangCallSyntax(operatorName, args);
     }
 
     private bool Is(TokenKind kind)
