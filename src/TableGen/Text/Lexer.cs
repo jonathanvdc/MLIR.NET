@@ -65,6 +65,19 @@ internal static class Lexer
                     continue;
                 }
 
+                if (current == '!')
+                {
+                    Advance();
+                    var operatorName = ReadWhile(static c => char.IsLetterOrDigit(c) || c == '_');
+                    if (operatorName.Length == 0)
+                    {
+                        throw Error("Expected a bang operator name after '!'.");
+                    }
+
+                    tokens.Add(new Token(TokenKind.BangKeyword, operatorName, tokenStart, tokenLine, tokenColumn));
+                    continue;
+                }
+
                 Advance();
                 tokens.Add(new Token(GetPunctuationKind(current), current.ToString(), tokenStart, tokenLine, tokenColumn));
             }
@@ -134,6 +147,16 @@ internal static class Lexer
 
                     Advance();
                     Advance();
+                    continue;
+                }
+
+                if (Current == '#' && position + 1 < source.Length && char.IsLetter(source[position + 1]))
+                {
+                    while (!IsAtEnd && Current != '\n')
+                    {
+                        Advance();
+                    }
+
                     continue;
                 }
 
@@ -244,6 +267,8 @@ internal static class Lexer
                 '[' => TokenKind.LBracket,
                 ']' => TokenKind.RBracket,
                 '$' => TokenKind.Dollar,
+                '#' => TokenKind.Hash,
+                '.' => TokenKind.Dot,
                 _ => throw Error($"Unexpected character '{c}'."),
             };
         }

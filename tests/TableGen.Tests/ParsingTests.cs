@@ -118,6 +118,100 @@ public sealed class ParsingTests
     }
 
     [Fact]
+    public void ParsesConcatenationExpression()
+    {
+        const string source = "def Example { string Value = \"hello\" # \" \" # \"world\"; };";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var outer = Assert.IsType<ConcatSyntax>(field.Initializer);
+        var inner = Assert.IsType<ConcatSyntax>(outer.Left);
+
+        Assert.IsType<StringSyntax>(inner.Left);
+        Assert.IsType<StringSyntax>(inner.Right);
+        Assert.IsType<StringSyntax>(outer.Right);
+    }
+
+    [Fact]
+    public void ParsesBangCallExpressions()
+    {
+        const string source =
+            "def Example {\n" +
+            "  int N = !size(\"hello\");\n" +
+            "  string U = !toupper(\"hi\");\n" +
+            "  int S = !add(2, 3);\n" +
+            "};";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+
+        var sizeField = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var size = Assert.IsType<BangCallSyntax>(sizeField.Initializer);
+        Assert.Equal("size", size.OperatorName);
+        Assert.Single(size.Arguments);
+
+        var upperField = Assert.IsType<FieldSyntax>(def.BodyItems[1]);
+        var upper = Assert.IsType<BangCallSyntax>(upperField.Initializer);
+        Assert.Equal("toupper", upper.OperatorName);
+
+        var addField = Assert.IsType<FieldSyntax>(def.BodyItems[2]);
+        var add = Assert.IsType<BangCallSyntax>(addField.Initializer);
+        Assert.Equal("add", add.OperatorName);
+        Assert.Equal(2, add.Arguments.Count);
+    }
+
+    [Fact]
+    public void ParsesBangIfExpression()
+    {
+        const string source = "def Example { string V = !if(!gt(1, 0), \"yes\", \"no\"); };";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var ifExpr = Assert.IsType<BangCallSyntax>(field.Initializer);
+
+        Assert.Equal("if", ifExpr.OperatorName);
+        Assert.Equal(3, ifExpr.Arguments.Count);
+        var cond = Assert.IsType<BangCallSyntax>(ifExpr.Arguments[0]);
+        Assert.Equal("gt", cond.OperatorName);
+    }
+
+    [Fact]
+    public void ParsesFoldlExpression()
+    {
+        const string source = "def Example { string V = !foldl(\"\", [\"a\", \"b\"], acc, cur, acc # cur); };";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var foldl = Assert.IsType<FoldlSyntax>(field.Initializer);
+
+        Assert.Equal("acc", foldl.AccVar);
+        Assert.Equal("cur", foldl.CurVar);
+        Assert.IsType<StringSyntax>(foldl.Init);
+        Assert.IsType<ListSyntax>(foldl.List);
+        Assert.IsType<ConcatSyntax>(foldl.Body);
+    }
+
+    [Fact]
+    public void ParsesClassInstantiationExpression()
+    {
+        const string source =
+            "class StrUpper<string s> { string result = !toupper(s); };\n" +
+            "def Example { string V = StrUpper<\"hello\">.result; };";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[1]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var inst = Assert.IsType<ClassInstantiationSyntax>(field.Initializer);
+
+        Assert.Equal("StrUpper", inst.ClassName);
+        Assert.Single(inst.Arguments);
+        Assert.Equal("result", inst.FieldName);
+    }
+
+    [Fact]
     public void ReportsMissingTemplateParameterNames()
     {
         var exception = Assert.Throws<ParseException>(() => Document.Parse("class Base<int>;"));

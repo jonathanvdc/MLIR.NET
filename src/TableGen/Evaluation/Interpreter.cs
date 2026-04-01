@@ -184,9 +184,263 @@ public static class Interpreter
                 IdentifierSyntax identifier => ResolveIdentifier(identifier.Name, scope),
                 ListSyntax list => new ListValue(list.Items.Select(item => EvaluateExpression(item, scope)).ToList()),
                 DagSyntax dag => new DagValue(dag.OperatorName, dag.Arguments.Select(argument => new DagArgumentValue(EvaluateExpression(argument.Value, scope), argument.Name)).ToList()),
+                ConcatSyntax concat => EvaluateConcatenation(concat, scope),
+                BangCallSyntax bangCall => EvaluateBangCall(bangCall, scope),
+                FoldlSyntax foldl => EvaluateFoldl(foldl, scope),
+                ClassInstantiationSyntax instantiation => EvaluateClassInstantiation(instantiation, scope),
                 _ => throw new InvalidOperationException("Unknown TableGen expression."),
             };
         }
+
+        private Value EvaluateConcatenation(ConcatSyntax concat, IReadOnlyDictionary<string, Value> scope)
+        {
+            var left = EvaluateExpression(concat.Left, scope);
+            var right = EvaluateExpression(concat.Right, scope);
+            return new StringValue(ValueToString(left) + ValueToString(right));
+        }
+
+        private Value EvaluateBangCall(BangCallSyntax bangCall, IReadOnlyDictionary<string, Value> scope)
+        {
+            switch (bangCall.OperatorName)
+            {
+                case "if":
+                {
+                    var cond = EvaluateExpression(bangCall.Arguments[0], scope);
+                    return IsTruthy(cond)
+                        ? EvaluateExpression(bangCall.Arguments[1], scope)
+                        : EvaluateExpression(bangCall.Arguments[2], scope);
+                }
+
+                case "gt":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!gt");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!gt");
+                    return new IntegerValue(a > b ? 1 : 0);
+                }
+
+                case "ge":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!ge");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!ge");
+                    return new IntegerValue(a >= b ? 1 : 0);
+                }
+
+                case "lt":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!lt");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!lt");
+                    return new IntegerValue(a < b ? 1 : 0);
+                }
+
+                case "le":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!le");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!le");
+                    return new IntegerValue(a <= b ? 1 : 0);
+                }
+
+                case "eq":
+                {
+                    var a = EvaluateExpression(bangCall.Arguments[0], scope);
+                    var b = EvaluateExpression(bangCall.Arguments[1], scope);
+                    return new IntegerValue(ValuesEqual(a, b) ? 1 : 0);
+                }
+
+                case "ne":
+                {
+                    var a = EvaluateExpression(bangCall.Arguments[0], scope);
+                    var b = EvaluateExpression(bangCall.Arguments[1], scope);
+                    return new IntegerValue(ValuesEqual(a, b) ? 0 : 1);
+                }
+
+                case "add":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!add");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!add");
+                    return new IntegerValue(a + b);
+                }
+
+                case "sub":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!sub");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!sub");
+                    return new IntegerValue(a - b);
+                }
+
+                case "mul":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!mul");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!mul");
+                    return new IntegerValue(a * b);
+                }
+
+                case "and":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!and");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!and");
+                    return new IntegerValue(a & b);
+                }
+
+                case "or":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!or");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!or");
+                    return new IntegerValue(a | b);
+                }
+
+                case "not":
+                {
+                    var val = EvaluateExpression(bangCall.Arguments[0], scope);
+                    return new IntegerValue(IsTruthy(val) ? 0 : 1);
+                }
+
+                case "size":
+                {
+                    var val = EvaluateExpression(bangCall.Arguments[0], scope);
+                    return val switch
+                    {
+                        StringValue str => new IntegerValue(str.Value.Length),
+                        ListValue list => new IntegerValue(list.Items.Count),
+                        _ => throw new InvalidOperationException($"!size requires a string or list argument, got {val.GetType().Name}."),
+                    };
+                }
+
+                case "toupper":
+                {
+                    var str = ToString(EvaluateExpression(bangCall.Arguments[0], scope), "!toupper");
+                    return new StringValue(str.ToUpperInvariant());
+                }
+
+                case "tolower":
+                {
+                    var str = ToString(EvaluateExpression(bangCall.Arguments[0], scope), "!tolower");
+                    return new StringValue(str.ToLowerInvariant());
+                }
+
+                case "substr":
+                {
+                    var str = ToString(EvaluateExpression(bangCall.Arguments[0], scope), "!substr");
+                    var start = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!substr");
+                    var clampedStart = System.Math.Max(0, System.Math.Min(start, str.Length));
+                    if (bangCall.Arguments.Count >= 3)
+                    {
+                        var len = ToInteger(EvaluateExpression(bangCall.Arguments[2], scope), "!substr");
+                        var clampedLen = System.Math.Max(0, System.Math.Min(len, str.Length - clampedStart));
+                        return new StringValue(str.Substring(clampedStart, clampedLen));
+                    }
+
+                    return new StringValue(str.Substring(clampedStart));
+                }
+
+                case "find":
+                {
+                    var str = ToString(EvaluateExpression(bangCall.Arguments[0], scope), "!find");
+                    var sub = ToString(EvaluateExpression(bangCall.Arguments[1], scope), "!find");
+                    var startIndex = bangCall.Arguments.Count >= 3
+                        ? ToInteger(EvaluateExpression(bangCall.Arguments[2], scope), "!find")
+                        : 0;
+                    return new IntegerValue(str.IndexOf(sub, startIndex, System.StringComparison.Ordinal));
+                }
+
+                case "range":
+                {
+                    var start = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!range");
+                    var end = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!range");
+                    var items = new System.Collections.Generic.List<Value>(System.Math.Max(0, end - start));
+                    for (var i = start; i < end; i++)
+                    {
+                        items.Add(new IntegerValue(i));
+                    }
+
+                    return new ListValue(items);
+                }
+
+                case "listconcat":
+                {
+                    var a = (ListValue)EvaluateExpression(bangCall.Arguments[0], scope);
+                    var b = (ListValue)EvaluateExpression(bangCall.Arguments[1], scope);
+                    var items = new System.Collections.Generic.List<Value>(a.Items.Count + b.Items.Count);
+                    items.AddRange(a.Items);
+                    items.AddRange(b.Items);
+                    return new ListValue(items);
+                }
+
+                case "strconcat":
+                {
+                    var result = string.Concat(bangCall.Arguments.Select(arg => ToString(EvaluateExpression(arg, scope), "!strconcat")));
+                    return new StringValue(result);
+                }
+
+                default:
+                    throw new InvalidOperationException($"Unknown bang operator '!{bangCall.OperatorName}'.");
+            }
+        }
+
+        private Value EvaluateFoldl(FoldlSyntax foldl, IReadOnlyDictionary<string, Value> scope)
+        {
+            var accValue = EvaluateExpression(foldl.Init, scope);
+            var listValue = (ListValue)EvaluateExpression(foldl.List, scope);
+            foreach (var item in listValue.Items)
+            {
+                var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
+                innerScope[foldl.AccVar] = accValue;
+                innerScope[foldl.CurVar] = item;
+                accValue = EvaluateExpression(foldl.Body, innerScope);
+            }
+
+            return accValue;
+        }
+
+        private Value EvaluateClassInstantiation(ClassInstantiationSyntax instantiation, IReadOnlyDictionary<string, Value> scope)
+        {
+            if (!classes.TryGetValue(instantiation.ClassName, out var classSyntax))
+            {
+                throw new KeyNotFoundException($"Unknown TableGen class '{instantiation.ClassName}'.");
+            }
+
+            var fields = InstantiateClass(classSyntax, instantiation.Arguments, scope);
+            if (!fields.TryGetValue(instantiation.FieldName, out var fieldValue))
+            {
+                throw new KeyNotFoundException($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'.");
+            }
+
+            return fieldValue;
+        }
+
+        private static bool IsTruthy(Value value) => value switch
+        {
+            IntegerValue integer => integer.Value != 0,
+            BitValue bit => bit.Value,
+            _ => throw new InvalidOperationException($"Expected a boolean-like condition, got {value.GetType().Name}."),
+        };
+
+        private static int ToInteger(Value value, string context) => value switch
+        {
+            IntegerValue integer => integer.Value,
+            _ => throw new InvalidOperationException($"{context} requires an integer argument, got {value.GetType().Name}."),
+        };
+
+        private static string ToString(Value value, string context) => value switch
+        {
+            StringValue str => str.Value,
+            _ => throw new InvalidOperationException($"{context} requires a string argument, got {value.GetType().Name}."),
+        };
+
+        private static string ValueToString(Value value) => value switch
+        {
+            StringValue str => str.Value,
+            IntegerValue integer => integer.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            BitValue bit => bit.Value ? "1" : "0",
+            _ => throw new InvalidOperationException($"Cannot convert {value.GetType().Name} to string for concatenation."),
+        };
+
+        private static bool ValuesEqual(Value a, Value b) => (a, b) switch
+        {
+            (IntegerValue ia, IntegerValue ib) => ia.Value == ib.Value,
+            (StringValue sa, StringValue sb) => sa.Value == sb.Value,
+            (BitValue ba, BitValue bb) => ba.Value == bb.Value,
+            _ => false,
+        };
 
         private Value ResolveIdentifier(string name, IReadOnlyDictionary<string, Value> scope)
         {

@@ -24,4 +24,7 @@ internal enum TokenKind
     LBracket,
     RBracket,
     Dollar,
+    Hash,
+    Dot,
+    BangKeyword,
 }
