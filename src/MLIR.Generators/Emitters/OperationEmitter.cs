@@ -36,13 +36,14 @@ internal static class OperationEmitter
         return char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
     }
 
-    private static IReadOnlyList<GeneratedMember> GetOperandMembers(OperationModel operation)
+    private static IReadOnlyList<GeneratedMember> GetOperandMembers(OperationModel operation, HashSet<string> requiredVariables)
     {
         var members = new List<GeneratedMember>(operation.Operands.Count);
         for (var i = 0; i < operation.Operands.Count; i++)
         {
             var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Operands[i]);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "ValueReference", operation.Operands[i]));
+            var typeName = requiredVariables.Contains(operation.Operands[i]) ? "ValueReference" : "ValueReference?";
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operation.Operands[i]));
         }
 
         return members;
@@ -62,13 +63,14 @@ internal static class OperationEmitter
         return members;
     }
 
-    private static IReadOnlyList<GeneratedMember> GetAttributeMembers(OperationModel operation)
+    private static IReadOnlyList<GeneratedMember> GetAttributeMembers(OperationModel operation, HashSet<string> requiredVariables)
     {
         var members = new List<GeneratedMember>(operation.Attributes.Count);
         for (var i = 0; i < operation.Attributes.Count; i++)
         {
             var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Attributes[i]);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "NamedAttribute", operation.Attributes[i]));
+            var typeName = requiredVariables.Contains(operation.Attributes[i]) ? "NamedAttribute" : "NamedAttribute?";
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operation.Attributes[i]));
         }
 
         return members;
@@ -88,7 +90,22 @@ internal static class OperationEmitter
         for (var i = 0; i < attributeMembers.Count; i++)
         {
             var member = attributeMembers[i];
-            builder.AppendLine("    public NamedAttribute " + member.PropertyName + " => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
+            if (member.TypeName == "NamedAttribute?")
+            {
+                // Optional attribute: use TryGet for null-safe access.
+                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                builder.AppendLine(
+                    "    public NamedAttribute? " + member.PropertyName +
+                    " => Attributes.TryGet(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) +
+                    ", out var " + localName + ") ? " + localName + " : null;");
+            }
+            else
+            {
+                // Required attribute: direct indexer access.
+                builder.AppendLine(
+                    "    public NamedAttribute " + member.PropertyName +
+                    " => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
+            }
         }
     }
 
@@ -142,7 +159,21 @@ internal static class OperationEmitter
                 builder.Append(", ");
             }
 
-            builder.Append(members[i].PropertyName);
+            // When the member type is nullable (e.g. ValueReference?) but the list element type
+            // is non-nullable, unwrap with GetValueOrDefault so the array initializer compiles.
+            if (members[i].TypeName.EndsWith("?", System.StringComparison.Ordinal) &&
+                !members[i].TypeName.Equals(itemType + "?", System.StringComparison.Ordinal) == false)
+            {
+                builder.Append(members[i].PropertyName + ".GetValueOrDefault()");
+            }
+            else if (members[i].TypeName == itemType + "?")
+            {
+                builder.Append(members[i].PropertyName + ".GetValueOrDefault()");
+            }
+            else
+            {
+                builder.Append(members[i].PropertyName);
+            }
         }
 
         builder.AppendLine(" };");
