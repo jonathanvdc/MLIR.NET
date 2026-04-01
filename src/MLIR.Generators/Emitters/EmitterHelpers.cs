@@ -126,6 +126,10 @@ internal static class EmitterHelpers
     /// Appends body-syntax fields produced by <paramref name="element"/> into
     /// <paramref name="metadata"/>.
     /// </summary>
+    /// <param name="usedNames">Tracks already-used field names to ensure uniqueness.</param>
+    /// <param name="element">The assembly-format element to generate fields for.</param>
+    /// <param name="operation">The operation model providing attribute/operand/result name lists.</param>
+    /// <param name="metadata">Accumulates the generated fields and component descriptors.</param>
     /// <param name="nullable">
     /// When <see langword="true"/> every field is generated with a nullable C# type
     /// (e.g. <c>SyntaxToken?</c> instead of <c>SyntaxToken</c>).  This is used for

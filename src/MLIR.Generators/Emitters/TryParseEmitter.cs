@@ -102,6 +102,11 @@ internal sealed class TryParseEmitter
     // Element dispatch
     // -----------------------------------------------------------------------
 
+    /// <param name="builder">The <see cref="StringBuilder"/> to append generated code to.</param>
+    /// <param name="element">The assembly-format element to emit parsing code for.</param>
+    /// <param name="elementIndex">The index of <paramref name="element"/> within <paramref name="allElements"/>.</param>
+    /// <param name="allElements">All sibling elements in the current sequence (used for lookahead context).</param>
+    /// <param name="indent">The indentation string to prepend to each emitted line.</param>
     /// <param name="declare">
     /// When <see langword="true"/>, emit <c>var name = expr;</c>.
     /// When <see langword="false"/>, emit <c>name = expr;</c> (assignment into a pre-declared nullable local).
