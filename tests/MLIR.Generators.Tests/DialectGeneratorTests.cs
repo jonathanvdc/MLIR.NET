@@ -621,8 +621,8 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
 
         // Both operands appear at the top level → required, non-nullable.
-        Assert.Contains("public Value Lhs => OperandUses[0].Value!;", registrationSource);
-        Assert.Contains("public Value Rhs => OperandUses[1].Value!;", registrationSource);
+        Assert.Contains("public Value Lhs => Operands[0].Value!;", registrationSource);
+        Assert.Contains("public Value Rhs => Operands[1].Value!;", registrationSource);
         Assert.DoesNotContain("public Value? Lhs", registrationSource);
         Assert.DoesNotContain("public Value? Rhs", registrationSource);
     }
@@ -651,11 +651,11 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
         // $lhs at the top level → required, non-nullable.
-        Assert.Contains("public Value Lhs => OperandUses[0].Value!;", registrationSource);
+        Assert.Contains("public Value Lhs => Operands[0].Value!;", registrationSource);
         Assert.DoesNotContain("public Value? Lhs", registrationSource);
 
         // $rhs inside optional group → optional, nullable.
-        Assert.Contains("public Value? Rhs => OperandUses[1].Value;", registrationSource);
+        Assert.Contains("public Value? Rhs => Operands[1].Value;", registrationSource);
         Assert.DoesNotContain("public Value Rhs { get; }", registrationSource);
     }
 

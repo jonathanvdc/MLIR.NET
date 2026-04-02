@@ -145,7 +145,7 @@ public static class ConcreteSyntaxBuilder
             var resultTokens = new List<SyntaxToken>(results.Count);
             foreach (var result in results)
             {
-                resultTokens.Add(new SyntaxToken(result));
+                resultTokens.Add(new SyntaxToken(result.Name));
             }
 
             var resultCommaTokens = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
@@ -197,9 +197,9 @@ public static class ConcreteSyntaxBuilder
 
             return (GenericOperationBodySyntax)Factory.Op(
                 operation.Name,
-                operation.Results,
-                operation.Operands,
-                operation.Successors,
+                operation.Results.Select(static result => result.Name).ToList(),
+                operation.OperandValues.Select(static operand => operand.Name).ToList(),
+                operation.Successors.Select(static successor => successor.Label).ToList(),
                 operation.Regions.Select(BuildRegion).ToList(),
                 operation.Attributes.Select(BuildNamedAttribute).ToList(),
                 operation.TypeSignatureReference != null ? operation.TypeSignatureReference.Syntax : null)

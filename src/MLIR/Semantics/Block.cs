@@ -105,7 +105,7 @@ public sealed class Block
     private void AttachOperation(Operation operation, bool invalidateSyntax)
     {
         var renamedResult = false;
-        foreach (var result in operation.ResultValues)
+        foreach (var result in operation.Results)
         {
             var originalName = result.Name;
             var finalName = AssignValueName(result, result.Name, uniquify: true);

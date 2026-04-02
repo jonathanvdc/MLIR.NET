@@ -104,12 +104,12 @@ public abstract class Operation
     /// <summary>
     /// Gets the typed SSA results produced by the operation.
     /// </summary>
-    public IReadOnlyList<OperationResult> ResultValues => results;
+    public IReadOnlyList<OperationResult> Results => results;
 
     /// <summary>
     /// Gets the operand slots owned by the operation.
     /// </summary>
-    public IReadOnlyList<OpOperand> OperandUses => operands;
+    public IReadOnlyList<OpOperand> Operands => operands;
 
     /// <summary>
     /// Gets the typed SSA operand values that are currently present.
@@ -119,7 +119,7 @@ public abstract class Operation
     /// <summary>
     /// Gets the typed block successor references used by the operation.
     /// </summary>
-    public IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;
+    public IReadOnlyList<BlockReference> Successors => successorReferences;
 
     /// <summary>
     /// Gets a value indicating whether the operation was recognized by a registered dialect.
@@ -142,21 +142,6 @@ public abstract class Operation
             return separatorIndex >= 0 ? Name.Substring(0, separatorIndex) : string.Empty;
         }
     }
-
-    /// <summary>
-    /// Gets the SSA results produced by the operation.
-    /// </summary>
-    public IReadOnlyList<string> Results => GetNames(ResultValues);
-
-    /// <summary>
-    /// Gets the SSA operands passed to the operation.
-    /// </summary>
-    public IReadOnlyList<string> Operands => GetNames(OperandValues);
-
-    /// <summary>
-    /// Gets the successor block labels referenced by the operation.
-    /// </summary>
-    public IReadOnlyList<string> Successors => GetLabels(SuccessorReferences);
 
     /// <summary>
     /// Gets the source location of the operation name, if known.
@@ -252,28 +237,5 @@ public abstract class Operation
     internal void Bind(Block parentBlock)
     {
         ParentBlock = parentBlock;
-    }
-
-    private static IReadOnlyList<string> GetNames<TValue>(IReadOnlyList<TValue> values)
-        where TValue : Value
-    {
-        var names = new List<string>(values.Count);
-        foreach (var value in values)
-        {
-            names.Add(value.Name);
-        }
-
-        return names;
-    }
-
-    private static IReadOnlyList<string> GetLabels(IReadOnlyList<BlockReference> blocks)
-    {
-        var labels = new List<string>(blocks.Count);
-        foreach (var block in blocks)
-        {
-            labels.Add(block.Label);
-        }
-
-        return labels;
     }
 }

@@ -26,7 +26,7 @@ public sealed partial class SemanticTests
         Assert.Equal("\"arith.addi\"", operation.SyntaxName);
         Assert.Equal("arith", operation.DialectName);
         Assert.NotNull(operation.Definition);
-        Assert.Equal("%0", operation.ResultValues[0].Name);
+        Assert.Equal("%0", operation.Results[0].Name);
         Assert.Equal("%lhs", operation.OperandValues[0].Name);
     }
 
@@ -166,8 +166,8 @@ public sealed partial class SemanticTests
 
         var operation = module.Operations[0];
 
-        Assert.Equal("^then", operation.SuccessorReferences[0].Label);
-        Assert.Equal("^else", operation.SuccessorReferences[1].Label);
+        Assert.Equal("^then", operation.Successors[0].Label);
+        Assert.Equal("^else", operation.Successors[1].Label);
     }
 
     [Fact]
@@ -245,11 +245,11 @@ public sealed partial class SemanticTests
 
         Assert.Equal(1, operation.Location.Line);
         Assert.Equal(6, operation.Location.Column);
-        Assert.Equal(1, operation.ResultValues[0].Location.Line);
-        Assert.Equal(1, operation.ResultValues[0].Location.Column);
+        Assert.Equal(1, operation.Results[0].Location.Line);
+        Assert.Equal(1, operation.Results[0].Location.Column);
         Assert.Equal(1, operation.OperandValues[0].Location.Line);
         Assert.Equal(19, operation.OperandValues[0].Location.Column);
-        Assert.Equal(1, operation.SuccessorReferences[0].Location.Line);
-        Assert.Equal(32, operation.SuccessorReferences[0].Location.Column);
+        Assert.Equal(1, operation.Successors[0].Location.Line);
+        Assert.Equal(32, operation.Successors[0].Location.Column);
     }
 }

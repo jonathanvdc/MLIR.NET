@@ -56,19 +56,19 @@ public sealed partial class SemanticTests
                 "%1 = \"test.right\"() : () -> i32\n" +
                 "%2 = \"test.consumer\"(%0) : (i32) -> i32"));
 
-        var originalValue = module.Operations[0].ResultValues[0];
-        var replacementValue = module.Operations[1].ResultValues[0];
+        var originalValue = module.Operations[0].Results[0];
+        var replacementValue = module.Operations[1].Results[0];
         var consumer = module.Operations[2];
 
         Assert.Single(originalValue.Uses);
         Assert.Empty(replacementValue.Uses);
-        Assert.Same(originalValue, consumer.OperandUses[0].Value);
+        Assert.Same(originalValue, consumer.Operands[0].Value);
 
         originalValue.ReplaceAllUsesWith(replacementValue);
 
         Assert.Empty(originalValue.Uses);
         Assert.Single(replacementValue.Uses);
-        Assert.Same(replacementValue, consumer.OperandUses[0].Value);
+        Assert.Same(replacementValue, consumer.Operands[0].Value);
         Assert.Same(consumer, replacementValue.Uses[0].Owner);
     }
 
@@ -98,7 +98,7 @@ public sealed partial class SemanticTests
         Assert.Null(block.Syntax);
         Assert.Null(region.Syntax);
         Assert.Null(outerOperation.Syntax);
-        Assert.Same(block.Arguments[1], terminator.OperandUses[0].Value);
+        Assert.Same(block.Arguments[1], terminator.Operands[0].Value);
     }
 
     [Fact]
@@ -129,8 +129,8 @@ public sealed partial class SemanticTests
         Assert.Same(block, argument.Owner);
         Assert.Equal(0, argument.Index);
         Assert.Same(block, operation.ParentBlock);
-        Assert.Same(operation, operation.ResultValues[0].DefiningOperation);
-        Assert.Equal(0, operation.ResultValues[0].ResultIndex);
+        Assert.Same(operation, operation.Results[0].DefiningOperation);
+        Assert.Equal(0, operation.Results[0].ResultIndex);
         Assert.Null(region.Syntax);
         Assert.Null(block.Syntax);
     }
@@ -167,7 +167,7 @@ public sealed partial class SemanticTests
                 "%1 = \"test.right\"() : () -> i32\n" +
                 "%2 = \"test.consumer\"(%0) : (i32) -> i32"));
 
-        module.Operations[0].ResultValues[0].ReplaceAllUsesWith(module.Operations[1].ResultValues[0]);
+        module.Operations[0].Results[0].ReplaceAllUsesWith(module.Operations[1].Results[0]);
 
         Assert.Equal(
             "%0 = \"test.left\"() : () -> i32\n" +
@@ -233,8 +233,8 @@ public sealed partial class SemanticTests
 
         block.AddOperation(duplicate);
 
-        Assert.Equal("%value", block.Operations[0].ResultValues[0].Name);
-        Assert.Equal("%value_1", duplicate.ResultValues[0].Name);
+        Assert.Equal("%value", block.Operations[0].Results[0].Name);
+        Assert.Equal("%value_1", duplicate.Results[0].Name);
     }
 
     [Fact]

@@ -44,7 +44,7 @@ public sealed class Binder
         {
             var boundOperation = binder.BindOperation(operation);
             operations.Add(boundOperation);
-            foreach (var result in boundOperation.ResultValues)
+            foreach (var result in boundOperation.Results)
             {
                 binder.DefineValue(result);
             }
@@ -247,7 +247,7 @@ public sealed class Binder
         {
             var boundOperation = BindOperation(operation);
             operations.Add(boundOperation);
-            foreach (var result in boundOperation.ResultValues)
+            foreach (var result in boundOperation.Results)
             {
                 DefineValue(result);
             }
