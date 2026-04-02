@@ -11,11 +11,9 @@ public abstract class TypeReference
     /// <summary>
     /// Initializes a new instance of the <see cref="TypeReference"/> class.
     /// </summary>
-    protected TypeReference(TypeSyntax syntax, string? name, TypeDefinition? definition, SourceLocation location)
+    protected TypeReference(TypeSyntax syntax, SourceLocation location)
     {
         Syntax = syntax;
-        Name = name;
-        Definition = definition;
         Location = location;
     }
 
@@ -27,12 +25,12 @@ public abstract class TypeReference
     /// <summary>
     /// Gets the canonical type name, if one was recognized.
     /// </summary>
-    public string? Name { get; }
+    public abstract string? Name { get; }
 
     /// <summary>
     /// Gets the registered definition, if one exists.
     /// </summary>
-    public TypeDefinition? Definition { get; }
+    public abstract TypeDefinition? Definition { get; }
 
     /// <summary>
     /// Gets a value indicating whether the type was recognized by a registered dialect.

@@ -14,9 +14,12 @@ internal static class TypeEmitter
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(context.Syntax, context.Name, context.Definition, context.Location)");
+        builder.AppendLine("        : base(context.Syntax, context.Location)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public override string? Name => TypeDefinition.Name;");
+        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
         builder.AppendLine("}");
     }
 }

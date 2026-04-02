@@ -12,7 +12,15 @@ public sealed class UnknownTypeReference : TypeReference
     /// Initializes a new instance of the <see cref="UnknownTypeReference"/> class.
     /// </summary>
     public UnknownTypeReference(TypeSyntax syntax, string? name, TypeDefinition? definition, SourceLocation location)
-        : base(syntax, name, definition, location)
+        : base(syntax, location)
     {
+        Name = name;
+        Definition = definition;
     }
+
+    /// <inheritdoc/>
+    public override string? Name { get; }
+
+    /// <inheritdoc/>
+    public override TypeDefinition? Definition { get; }
 }
