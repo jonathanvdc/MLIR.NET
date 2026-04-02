@@ -10,7 +10,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void SyntheticBlockHasNullSyntaxAndUnknownLocation()
     {
-        var syntheticBlock = new Block(new BlockReference("^entry"), [], []);
+        var syntheticBlock = new Block("^entry", [], []);
 
         Assert.Null(syntheticBlock.Syntax);
         Assert.Equal("^entry", syntheticBlock.Label);
@@ -104,7 +104,7 @@ public sealed partial class SemanticTests
     public void MutableContainersWireParentsAndIndices()
     {
         var region = new Region(null, []);
-        var block = new Block(new BlockReference("^entry"), [], []);
+        var block = new Block("^entry", [], []);
         var typeSyntax = new RawTypeSyntax(new RawSyntaxText("i32"));
         var argument = new BlockArgument(
             new BlockArgumentSyntax(new SyntaxToken("%arg0"), new SyntaxToken(":"), typeSyntax),
@@ -182,7 +182,7 @@ public sealed partial class SemanticTests
             Parser.ParseModule("\"outer.op\"() : () -> ()"));
 
         var newRegion = new Region(null, []);
-        var newBlock = new Block(new BlockReference("^entry"), [], []);
+        var newBlock = new Block("^entry", [], []);
         var newOperation = new UnknownOperation(
             new OperationSyntax([], "\"inserted.op\"", [], [], [], [], null),
             "inserted.op",
@@ -208,7 +208,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void AddOperationUniquifiesConflictingResultNames()
     {
-        var block = new Block(new BlockReference("^entry"), [], []);
+        var block = new Block("^entry", [], []);
         block.AddOperation(new UnknownOperation(
             new OperationSyntax([], "\"test.first\"", [], [], [], [], null),
             "test.first",
@@ -239,7 +239,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void RenameUniquifiesConflictingNamesWithinABlock()
     {
-        var block = new Block(new BlockReference("^entry"), [], []);
+        var block = new Block("^entry", [], []);
         var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
         var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
 
@@ -256,7 +256,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void RenameCanRejectConflictingNamesWhenUniquifyIsDisabled()
     {
-        var block = new Block(new BlockReference("^entry"), [], []);
+        var block = new Block("^entry", [], []);
         var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
         var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
 
@@ -273,8 +273,8 @@ public sealed partial class SemanticTests
     public void AddBlockRejectsConflictingLabels()
     {
         var region = new Region(null, []);
-        var first = new Block(new BlockReference("^bb0"), [], []);
-        var duplicate = new Block(new BlockReference("^bb0"), [], []);
+        var first = new Block("^bb0", [], []);
+        var duplicate = new Block("^bb0", [], []);
 
         region.AddBlock(first);
 

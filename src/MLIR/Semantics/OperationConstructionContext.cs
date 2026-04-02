@@ -18,7 +18,7 @@ public sealed class OperationConstructionContext
         TypeReference? typeSignatureReference,
         IReadOnlyList<OperationResult> resultValues,
         IReadOnlyList<Value?> operandValues,
-        IReadOnlyList<BlockReference> successorReferences)
+        IReadOnlyList<Block?> successors)
     {
         Syntax = syntax;
         Name = name;
@@ -28,7 +28,7 @@ public sealed class OperationConstructionContext
         TypeSignatureReference = typeSignatureReference;
         ResultValues = resultValues;
         OperandValues = operandValues;
-        SuccessorReferences = successorReferences;
+        Successors = successors;
     }
 
     /// <summary>
@@ -72,9 +72,10 @@ public sealed class OperationConstructionContext
     public IReadOnlyList<Value?> OperandValues { get; }
 
     /// <summary>
-    /// Gets the typed block successor references.
+    /// Gets the resolved successor blocks in definition order. An entry is null when the
+    /// successor label could not be resolved to a block within the enclosing region.
     /// </summary>
-    public IReadOnlyList<BlockReference> SuccessorReferences { get; }
+    public IReadOnlyList<Block?> Successors { get; }
 
     /// <summary>
     /// Gets an attribute by name.

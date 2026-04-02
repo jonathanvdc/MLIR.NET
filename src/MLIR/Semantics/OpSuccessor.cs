@@ -8,14 +8,13 @@ using MLIR.Syntax;
 public sealed class OpSuccessor
 {
     private Block? block;
-    private readonly string label;
 
-    internal OpSuccessor(Operation owner, int index, BlockReference reference)
+    internal OpSuccessor(Operation owner, int index, Block? block)
     {
         Owner = owner;
         Index = index;
-        Token = reference.Token;
-        label = reference.Label;
+        this.block = block;
+        this.block?.AddUse(this);
     }
 
     /// <summary>
@@ -29,9 +28,21 @@ public sealed class OpSuccessor
     public int Index { get; }
 
     /// <summary>
-    /// Gets the syntax token for the block label, or null if this is a synthetic successor with no corresponding source token.
+    /// Gets the syntax token for the block label at the use site, derived from the owning operation's
+    /// generic body syntax, or null if no such token is available.
     /// </summary>
-    public SyntaxToken? Token { get; }
+    public SyntaxToken? LabelToken
+    {
+        get
+        {
+            if (Owner.Syntax?.Body is GenericOperationBodySyntax body && Index < body.SuccessorList.Items.Count)
+            {
+                return body.SuccessorList.Items[Index];
+            }
+
+            return null;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the successor block used by this slot.
@@ -54,12 +65,20 @@ public sealed class OpSuccessor
     }
 
     /// <summary>
-    /// Gets the block label, derived from the successor block when one is set, or from the original reference otherwise.
+    /// Gets the block label, derived from the successor block when one is set, or from the original
+    /// source token otherwise.
     /// </summary>
-    public string Label => block?.Label ?? label;
+    public string Label => block?.Label ?? LabelToken?.Text ?? string.Empty;
 
     /// <summary>
-    /// Gets the source location of the block label, if known.
+    /// Gets the use-site source location of the block label, if available from the owning operation's syntax.
     /// </summary>
-    public SourceLocation Location => Token.HasValue ? SourceLocation.FromToken(Token.Value) : SourceLocation.Unknown;
+    public SourceLocation Location
+    {
+        get
+        {
+            var token = LabelToken;
+            return token.HasValue ? SourceLocation.FromToken(token.Value) : SourceLocation.Unknown;
+        }
+    }
 }

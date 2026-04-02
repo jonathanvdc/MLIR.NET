@@ -25,7 +25,7 @@ public abstract class Operation
         TypeReference? typeSignatureReference = null,
         IReadOnlyList<OperationResult>? resultValues = null,
         IReadOnlyList<Value?>? operandValues = null,
-        IReadOnlyList<BlockReference>? successorReferences = null)
+        IReadOnlyList<Block?>? successors = null)
     {
         Syntax = syntax;
         Attributes = attributes ?? NamedAttributeCollection.Empty;
@@ -33,7 +33,7 @@ public abstract class Operation
         this.regions = new List<Region>(regions?.Count ?? 0);
         this.results = new List<OperationResult>(resultValues?.Count ?? 0);
         operands = new List<OpOperand>(operandValues?.Count ?? 0);
-        this.successors = new List<OpSuccessor>(successorReferences?.Count ?? 0);
+        this.successors = new List<OpSuccessor>(successors?.Count ?? 0);
 
         if (regions != null)
         {
@@ -61,11 +61,11 @@ public abstract class Operation
             }
         }
 
-        if (successorReferences != null)
+        if (successors != null)
         {
-            for (var i = 0; i < successorReferences.Count; i++)
+            for (var i = 0; i < successors.Count; i++)
             {
-                successors.Add(new OpSuccessor(this, i, successorReferences[i]));
+                this.successors.Add(new OpSuccessor(this, i, successors[i]));
             }
         }
     }

@@ -128,7 +128,7 @@ public sealed partial class SemanticTests
                 context.TypeSignatureReference,
                 context.ResultValues,
                 context.OperandValues,
-                context.SuccessorReferences)
+                context.Successors)
         {
             definition = context.Definition;
         }
@@ -154,7 +154,7 @@ public sealed partial class SemanticTests
                 context.TypeSignatureReference,
                 context.ResultValues,
                 context.OperandValues,
-                context.SuccessorReferences)
+                context.Successors)
         {
             definition = context.Definition;
         }

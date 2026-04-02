@@ -267,7 +267,7 @@ internal static class OperationEmitter
         }
 
         builder.AppendLine(" },");
-        builder.AppendLine("            global::System.Array.Empty<BlockReference>())");
+        builder.AppendLine("            global::System.Array.Empty<global::MLIR.Semantics.Block?>())");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();

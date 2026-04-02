@@ -170,6 +170,6 @@ public sealed class OperationDefinition(
             context.TypeSignatureReference,
             context.ResultValues,
             context.OperandValues,
-            context.SuccessorReferences);
+            context.Successors);
     }
 }

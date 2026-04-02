@@ -21,8 +21,8 @@ public sealed class UnknownOperation : Operation
         TypeReference? typeSignatureReference,
         IReadOnlyList<OperationResult> resultValues,
         IReadOnlyList<Value?> operandValues,
-        IReadOnlyList<BlockReference> successorReferences)
-        : base(syntax, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences)
+        IReadOnlyList<Block?> successors)
+        : base(syntax, regions, attributes, typeSignatureReference, resultValues, operandValues, successors)
     {
         this.name = name;
         Definition = definition;
