@@ -11,6 +11,7 @@ public sealed class Block
     private readonly List<BlockArgument> arguments;
     private readonly List<Operation> operations;
     private readonly Dictionary<string, Value> valuesByName = [];
+    private readonly List<OpSuccessor> uses = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Block"/> class from a concrete syntax node.
@@ -74,6 +75,11 @@ public sealed class Block
     /// Gets the source location of the block label, if known.
     /// </summary>
     public SourceLocation Location => LabelReference.Location;
+
+    /// <summary>
+    /// Gets the uses of this block as a successor of an operation.
+    /// </summary>
+    public IReadOnlyList<OpSuccessor> Uses => uses;
 
     /// <summary>
     /// Adds an argument to the block.
@@ -168,6 +174,16 @@ public sealed class Block
     internal void Bind(Region parentRegion)
     {
         ParentRegion = parentRegion;
+    }
+
+    internal void AddUse(OpSuccessor successor)
+    {
+        uses.Add(successor);
+    }
+
+    internal void RemoveUse(OpSuccessor successor)
+    {
+        uses.Remove(successor);
     }
 
     internal string AssignValueName(Value value, string preferredName, bool uniquify)

@@ -171,6 +171,46 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
+    public void BindsSuccessorsToBlockInstances()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule(
+                "\"func.func\"() {\n" +
+                "^bb0:\n" +
+                "  \"cf.br\"() [^bb1] : () -> ()\n" +
+                "^bb1:\n" +
+                "  \"func.return\"() : () -> ()\n" +
+                "} : () -> ()"));
+
+        var region = module.Operations[0].Regions[0];
+        var branchOp = region.Blocks[0].Operations[0];
+        var bb1 = region.Blocks[1];
+
+        Assert.Same(bb1, branchOp.Successors[0].Block);
+        Assert.Equal("^bb1", branchOp.Successors[0].Label);
+    }
+
+    [Fact]
+    public void BlockTracksItsSuccessorUses()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule(
+                "\"func.func\"() {\n" +
+                "^bb0:\n" +
+                "  \"cf.br\"() [^bb1] : () -> ()\n" +
+                "^bb1:\n" +
+                "  \"func.return\"() : () -> ()\n" +
+                "} : () -> ()"));
+
+        var region = module.Operations[0].Regions[0];
+        var branchOp = region.Blocks[0].Operations[0];
+        var bb1 = region.Blocks[1];
+
+        Assert.Single(bb1.Uses);
+        Assert.Same(branchOp.Successors[0], bb1.Uses[0]);
+    }
+
+    [Fact]
     public void DocumentBindUsesTheDialectRegistry()
     {
         var registry = new DialectRegistry();

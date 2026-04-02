@@ -222,6 +222,31 @@ public sealed class Binder
             blocks.Add(BindBlock(block));
         }
 
+        // Resolve successor labels to the Block instances within this region.
+        if (blocks.Count > 0)
+        {
+            var blocksByLabel = new Dictionary<string, Block>(blocks.Count);
+            foreach (var block in blocks)
+            {
+                blocksByLabel[block.Label] = block;
+            }
+
+            foreach (var block in blocks)
+            {
+                foreach (var op in block.Operations)
+                {
+                    for (var i = 0; i < op.Successors.Count; i++)
+                    {
+                        var successor = op.Successors[i];
+                        if (successor.Block == null && blocksByLabel.TryGetValue(successor.Label, out var resolvedBlock))
+                        {
+                            op.SetSuccessor(i, resolvedBlock);
+                        }
+                    }
+                }
+            }
+        }
+
         return new Region(syntax, blocks);
     }
 
