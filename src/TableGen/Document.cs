@@ -53,9 +53,9 @@ public sealed class Document(DocumentSyntax syntax)
         TableGenIncludeResolver resolver,
         TableGenSourceFile? sourceFile = null)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var defines = new HashSet<string>(StringComparer.Ordinal);
         var declarations = new List<TopLevelSyntax>();
-        ExpandIncludes(source, sourceFile, resolver, seen, declarations);
+        ExpandIncludes(source, sourceFile, resolver, defines, declarations);
         return new Document(new DocumentSyntax(declarations));
     }
 
@@ -72,10 +72,11 @@ public sealed class Document(DocumentSyntax syntax)
         string source,
         TableGenSourceFile? sourceFile,
         TableGenIncludeResolver resolver,
-        HashSet<string> seen,
+        HashSet<string> defines,
         List<TopLevelSyntax> output)
     {
-        var syntax = Parser.ParseDocument(source);
+        var preprocessed = TableGenPreprocessor.Process(source, defines);
+        var syntax = Parser.ParseDocument(preprocessed);
         foreach (var declaration in syntax.Declarations)
         {
             if (declaration is IncludeDirectiveSyntax include)
@@ -89,12 +90,8 @@ public sealed class Document(DocumentSyntax syntax)
                         $"Could not resolve include '{include.Path}'{location}.");
                 }
 
-                // Guard against double inclusion using the resolved logical path.
-                if (seen.Add(resolved.LogicalPath))
-                {
-                    var includedFile = new TableGenSourceFile(resolved.LogicalPath);
-                    ExpandIncludes(resolved.SourceText, includedFile, resolver, seen, output);
-                }
+                var includedFile = new TableGenSourceFile(resolved.LogicalPath);
+                ExpandIncludes(resolved.SourceText, includedFile, resolver, defines, output);
             }
             else
             {

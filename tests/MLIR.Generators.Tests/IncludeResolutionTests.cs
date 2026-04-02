@@ -269,4 +269,120 @@ public sealed class IncludeResolutionTests
         // Pure should be available as a record.
         Assert.NotNull(doc.Evaluate().Records.Single(static r => r.Name == "Pure"));
     }
+
+    // -----------------------------------------------------------------------
+    // New mlir/IR/ prelude files
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void GeneratorResolvesEmbeddedDialectBaseTd()
+    {
+        const string source =
+            "include \"mlir/IR/DialectBase.td\"\n" +
+            "\n" +
+            "class DB_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<DB_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def DB_Dialect : Dialect {\n" +
+            "  let name = \"db\";\n" +
+            "  let cppNamespace = \"::mlir::db\";\n" +
+            "};\n" +
+            "\n" +
+            "def DB_NoopOp : DB_Op<\"noop\", [Pure]> {\n" +
+            "  let arguments = (ins);\n" +
+            "  let results  = (outs);\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("db.td", source));
+
+        var registration = Assert.Single(
+            generatedSources.Where(static r => r.HintName == "DbDialectRegistration.g.cs"));
+        Assert.Contains("namespace MLIR.Db;", registration.SourceText.ToString());
+    }
+
+    [Fact]
+    public void GeneratorResolvesEmbeddedCommonTypeConstraintsTd()
+    {
+        const string source =
+            "include \"mlir/IR/CommonTypeConstraints.td\"\n" +
+            "\n" +
+            "class TCTest_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<TCTest_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def TCTest_Dialect : Dialect {\n" +
+            "  let name = \"tctest\";\n" +
+            "  let cppNamespace = \"::mlir::tctest\";\n" +
+            "};\n" +
+            "\n" +
+            "def TCTest_AddOp : TCTest_Op<\"add\", [Pure]> {\n" +
+            "  let arguments = (ins I32:$lhs, I64:$rhs);\n" +
+            "  let results  = (outs I64:$result);\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("tctest.td", source));
+
+        var registration = Assert.Single(
+            generatedSources.Where(static r => r.HintName == "TctestDialectRegistration.g.cs"));
+        Assert.Contains("namespace MLIR.Tctest;", registration.SourceText.ToString());
+    }
+
+    [Fact]
+    public void GeneratorResolvesEmbeddedCommonAttrConstraintsTd()
+    {
+        const string source =
+            "include \"mlir/IR/CommonAttrConstraints.td\"\n" +
+            "\n" +
+            "class ACTest_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<ACTest_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def ACTest_Dialect : Dialect {\n" +
+            "  let name = \"actest\";\n" +
+            "  let cppNamespace = \"::mlir::actest\";\n" +
+            "};\n" +
+            "\n" +
+            "def ACTest_ConstOp : ACTest_Op<\"const\", [Pure]> {\n" +
+            "  let arguments = (ins I32Attr:$value);\n" +
+            "  let results  = (outs I32:$result);\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("actest.td", source));
+
+        var registration = Assert.Single(
+            generatedSources.Where(static r => r.HintName == "ActestDialectRegistration.g.cs"));
+        Assert.Contains("namespace MLIR.Actest;", registration.SourceText.ToString());
+    }
+
+    [Fact]
+    public void GeneratorResolvesEmbeddedUtilsTd()
+    {
+        const string source =
+            "include \"mlir/IR/Utils.td\"\n" +
+            "\n" +
+            "class Utils_Op<string mnemonic> :\n" +
+            "    Op<Utils_Dialect, mnemonic, []>;\n" +
+            "\n" +
+            "def Utils_Dialect : Dialect {\n" +
+            "  let name = \"utils\";\n" +
+            "  let cppNamespace = \"::mlir::utils\";\n" +
+            "};\n" +
+            "\n" +
+            "def Utils_NoopOp : Utils_Op<\"noop\"> {\n" +
+            "  let arguments = (ins);\n" +
+            "  let results  = (outs);\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("utils.td", source));
+
+        var registration = Assert.Single(
+            generatedSources.Where(static r => r.HintName == "UtilsDialectRegistration.g.cs"));
+        Assert.Contains("namespace MLIR.Utils;", registration.SourceText.ToString());
+    }
 }

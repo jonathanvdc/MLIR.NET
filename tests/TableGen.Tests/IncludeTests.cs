@@ -84,9 +84,15 @@ public sealed class IncludeTests
     }
 
     [Fact]
-    public void LoadPreventsDoubleInclusionOfSamePath()
+    public void LoadDeduplicatesViaIncludeGuards()
     {
-        const string sharedSource = "def Shared { int X = 1; };";
+        // When a file has proper #ifndef include guards, including it twice should
+        // result in exactly one expansion.
+        const string sharedSource =
+            "#ifndef SHARED_TD\n" +
+            "#define SHARED_TD\n" +
+            "def Shared { int X = 1; };\n" +
+            "#endif\n";
         const string mainSource =
             "include \"shared.td\"\n" +
             "include \"shared.td\"\n";
@@ -204,6 +210,121 @@ public sealed class IncludeTests
 
         Assert.NotNull(trackingResolver.CapturedIncludingFile);
         Assert.Equal("main.td", trackingResolver.CapturedIncludingFile!.LogicalPath);
+    }
+
+    // -----------------------------------------------------------------------
+    // TableGenPreprocessor tests
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void PreprocessorPassesThroughSourceWithNoDirectives()
+    {
+        const string source = "def Foo { int X = 1; };";
+        var defines = new System.Collections.Generic.HashSet<string>();
+        var result = TableGenPreprocessor.Process(source, defines);
+        Assert.Contains("def Foo", result);
+    }
+
+    [Fact]
+    public void PreprocessorHandlesDefineDirective()
+    {
+        const string source = "#define MY_SYMBOL\ndef Foo { int X = 1; };";
+        var defines = new System.Collections.Generic.HashSet<string>();
+        TableGenPreprocessor.Process(source, defines);
+        Assert.Contains("MY_SYMBOL", defines);
+    }
+
+    [Fact]
+    public void PreprocessorIfndefSkipsBlockWhenSymbolDefined()
+    {
+        const string source =
+            "#ifndef MY_SYMBOL\n" +
+            "def ShouldBeSkipped { int X = 1; };\n" +
+            "#endif\n";
+        var defines = new System.Collections.Generic.HashSet<string> { "MY_SYMBOL" };
+        var result = TableGenPreprocessor.Process(source, defines);
+        Assert.DoesNotContain("ShouldBeSkipped", result);
+    }
+
+    [Fact]
+    public void PreprocessorIfndefIncludesBlockWhenSymbolNotDefined()
+    {
+        const string source =
+            "#ifndef MY_SYMBOL\n" +
+            "def ShouldBeIncluded { int X = 1; };\n" +
+            "#endif\n";
+        var defines = new System.Collections.Generic.HashSet<string>();
+        var result = TableGenPreprocessor.Process(source, defines);
+        Assert.Contains("ShouldBeIncluded", result);
+    }
+
+    [Fact]
+    public void PreprocessorElseBranchIsActiveWhenIfBranchIsNot()
+    {
+        const string source =
+            "#ifndef MY_SYMBOL\n" +
+            "def IfBranch { int X = 1; };\n" +
+            "#else\n" +
+            "def ElseBranch { int X = 2; };\n" +
+            "#endif\n";
+        var defines = new System.Collections.Generic.HashSet<string> { "MY_SYMBOL" };
+        var result = TableGenPreprocessor.Process(source, defines);
+        Assert.DoesNotContain("IfBranch", result);
+        Assert.Contains("ElseBranch", result);
+    }
+
+    [Fact]
+    public void PreprocessorHandlesNestedConditionals()
+    {
+        const string source =
+            "#ifndef OUTER\n" +
+            "  #ifndef INNER\n" +
+            "  def BothAbsent { int X = 1; };\n" +
+            "  #endif\n" +
+            "#endif\n";
+        var defines = new System.Collections.Generic.HashSet<string>();
+        var result = TableGenPreprocessor.Process(source, defines);
+        Assert.Contains("BothAbsent", result);
+    }
+
+    [Fact]
+    public void PreprocessorIncludeGuardPreventsDoubleExpansionWhenIncludedTwice()
+    {
+        const string guardedSource =
+            "#ifndef GUARDED_TD\n" +
+            "#define GUARDED_TD\n" +
+            "def GuardedDef { int X = 1; };\n" +
+            "#endif\n";
+        const string mainSource =
+            "include \"guarded.td\"\n" +
+            "include \"guarded.td\"\n";
+
+        var resolver = new TableGenDictionaryIncludeResolver(
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["guarded.td"] = guardedSource,
+            });
+
+        var doc = Document.Load(mainSource, resolver);
+
+        // GuardedDef must appear exactly once.
+        Assert.Single(doc.Syntax.Declarations);
+    }
+
+    [Fact]
+    public void PreprocessorPreservesLineCountForDiagnostics()
+    {
+        // Inactive lines are replaced with blank lines; line numbers are preserved.
+        const string source =
+            "#ifndef MY_SYMBOL\n" +
+            "def Line2 { int X = 1; };\n" +
+            "#endif\n" +
+            "def Line4 { int X = 2; };\n";
+        var defines = new System.Collections.Generic.HashSet<string> { "MY_SYMBOL" };
+        var result = TableGenPreprocessor.Process(source, defines);
+        var resultLines = result.Split('\n');
+        // Line 4 (index 3) of the output should still contain the def.
+        Assert.Contains("Line4", resultLines[3]);
     }
 
     private sealed class TrackingResolver : TableGenIncludeResolver
