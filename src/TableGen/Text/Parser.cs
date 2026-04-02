@@ -8,16 +8,18 @@ using TableGen.Syntax;
 internal sealed class Parser
 {
     private readonly IReadOnlyList<Token> tokens;
+    private readonly string? sourceFilePath;
     private int position;
 
-    private Parser(string source)
+    private Parser(string source, string? sourceFilePath)
     {
-        tokens = Lexer.Lex(source);
+        tokens = Lexer.Lex(source, sourceFilePath);
+        this.sourceFilePath = sourceFilePath;
     }
 
-    public static DocumentSyntax ParseDocument(string source)
+    public static DocumentSyntax ParseDocument(string source, string? sourceFilePath = null)
     {
-        return new Parser(source).ParseDocumentCore();
+        return new Parser(source, sourceFilePath).ParseDocumentCore();
     }
 
     private DocumentSyntax ParseDocumentCore()
@@ -462,6 +464,6 @@ internal sealed class Parser
     private ParseException Error(string message)
     {
         var token = Current;
-        return new ParseException(new Diagnostic(message, token.Line, token.Column));
+        return new ParseException(new Diagnostic(message, token.Line, token.Column, sourceFilePath));
     }
 }

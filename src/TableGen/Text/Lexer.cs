@@ -5,23 +5,25 @@ using System.Text;
 
 internal static class Lexer
 {
-    public static IReadOnlyList<Token> Lex(string source)
+    public static IReadOnlyList<Token> Lex(string source, string? sourceFilePath = null)
     {
-        var lexer = new LexerImpl(source);
+        var lexer = new LexerImpl(source, sourceFilePath);
         return lexer.Lex();
     }
 
     private sealed class LexerImpl
     {
         private readonly string source;
+        private readonly string? sourceFilePath;
         private readonly List<Token> tokens = new List<Token>();
         private int position;
         private int line = 1;
         private int column = 1;
 
-        public LexerImpl(string source)
+        public LexerImpl(string source, string? sourceFilePath)
         {
             this.source = source;
+            this.sourceFilePath = sourceFilePath;
         }
 
         public IReadOnlyList<Token> Lex()
@@ -278,7 +280,7 @@ internal static class Lexer
 
         private ParseException Error(string message)
         {
-            return new ParseException(new Diagnostic(message, line, column));
+            return new ParseException(new Diagnostic(message, line, column, sourceFilePath));
         }
     }
 }

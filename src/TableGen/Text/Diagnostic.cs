@@ -3,7 +3,7 @@ namespace TableGen.Text;
 /// <summary>
 /// Represents a TableGen parse diagnostic.
 /// </summary>
-public sealed class Diagnostic(string message, int line, int column)
+public sealed class Diagnostic(string message, int line, int column, string? sourceFilePath = null)
 {
     /// <summary>
     /// Gets the diagnostic message.
@@ -19,4 +19,9 @@ public sealed class Diagnostic(string message, int line, int column)
     /// Gets the 1-based column number.
     /// </summary>
     public int Column { get; } = column;
+
+    /// <summary>
+    /// Gets the logical source-file path, if known.
+    /// </summary>
+    public string? SourceFilePath { get; } = sourceFilePath;
 }

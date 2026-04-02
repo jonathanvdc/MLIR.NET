@@ -30,6 +30,17 @@ public sealed class Document(DocumentSyntax syntax)
     }
 
     /// <summary>
+    /// Parses a TableGen document from source text with optional source-file context for diagnostics.
+    /// </summary>
+    /// <param name="source">The source text to parse.</param>
+    /// <param name="sourceFile">The logical source file used in diagnostics, if known.</param>
+    /// <returns>The parsed document.</returns>
+    public static Document Parse(string source, TableGenSourceFile? sourceFile)
+    {
+        return new Document(Parser.ParseDocument(source, sourceFile?.LogicalPath));
+    }
+
+    /// <summary>
     /// Loads a TableGen document from source text, recursively expanding all include directives
     /// using the provided <paramref name="resolver"/>.
     /// </summary>
@@ -76,7 +87,7 @@ public sealed class Document(DocumentSyntax syntax)
         List<TopLevelSyntax> output)
     {
         var preprocessed = TableGenPreprocessor.Process(source, defines);
-        var syntax = Parser.ParseDocument(preprocessed);
+        var syntax = Parser.ParseDocument(preprocessed, sourceFile?.LogicalPath);
         foreach (var declaration in syntax.Declarations)
         {
             if (declaration is IncludeDirectiveSyntax include)

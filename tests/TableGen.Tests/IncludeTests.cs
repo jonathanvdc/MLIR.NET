@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TableGen.Evaluation;
 using TableGen.Syntax;
+using TableGen.Text;
 using Xunit;
 
 public sealed class IncludeTests
@@ -159,6 +160,22 @@ public sealed class IncludeTests
 
         Assert.Contains("missing.td", exception.Message);
         Assert.Contains("my_ops.td", exception.Message);
+    }
+
+    [Fact]
+    public void LoadParseDiagnosticIncludesIncludedFileNameWhenKnown()
+    {
+        const string mainSource = "include \"dep.td\"";
+        const string dependencySource = "def Broken : Base<1;";
+
+        var resolver = new TableGenDictionaryIncludeResolver(
+            new Dictionary<string, string> { ["dep.td"] = dependencySource });
+
+        var exception = Assert.Throws<ParseException>(
+            () => Document.Load(mainSource, resolver, new TableGenSourceFile("main.td")));
+
+        Assert.Contains("dep.td", exception.Message);
+        Assert.Equal("dep.td", exception.Diagnostic.SourceFilePath);
     }
 
     [Fact]
