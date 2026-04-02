@@ -125,9 +125,15 @@ public sealed class SemanticTests
     private sealed class DenseAttributeValue : AttributeValue
     {
         public DenseAttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax, context.Name, context.Definition, context.Location)
+            : base(context.Syntax, context.Location)
         {
+            Name = context.Name;
+            Definition = context.Definition;
         }
+
+        public override string? Name { get; }
+
+        public override AttributeDefinition? Definition { get; }
 
         public string? Kind { get; private set; }
 
@@ -197,9 +203,15 @@ public sealed class SemanticTests
     private sealed class BuiltinIntegerTypeReference : TypeReference
     {
         public BuiltinIntegerTypeReference(TypeReferenceConstructionContext context)
-            : base(context.Syntax, context.Name, context.Definition, context.Location)
+            : base(context.Syntax, context.Location)
         {
+            Name = context.Name;
+            Definition = context.Definition;
         }
+
+        public override string? Name { get; }
+
+        public override TypeDefinition? Definition { get; }
 
         public int? Width { get; private set; }
 
@@ -212,9 +224,15 @@ public sealed class SemanticTests
     private sealed class I32AttributeValue : AttributeValue
     {
         public I32AttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax, context.Name, context.Definition, context.Location)
+            : base(context.Syntax, context.Location)
         {
+            Name = context.Name;
+            Definition = context.Definition;
         }
+
+        public override string? Name { get; }
+
+        public override AttributeDefinition? Definition { get; }
 
         public int? Value { get; private set; }
 
@@ -323,9 +341,14 @@ public sealed class SemanticTests
     private sealed class SyntheticAttributeValue : AttributeValue
     {
         public SyntheticAttributeValue(string name)
-            : base(null, name, null, SourceLocation.Unknown)
+            : base(null, SourceLocation.Unknown)
         {
+            Name = name;
         }
+
+        public override string? Name { get; }
+
+        public override AttributeDefinition? Definition => null;
     }
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat

@@ -12,7 +12,15 @@ public sealed class UnknownAttributeValue : AttributeValue
     /// Initializes a new instance of the <see cref="UnknownAttributeValue"/> class.
     /// </summary>
     public UnknownAttributeValue(AttributeValueSyntax syntax, string? name, AttributeDefinition? definition, SourceLocation location)
-        : base(syntax, name, definition, location)
+        : base(syntax, location)
     {
+        Name = name;
+        Definition = definition;
     }
+
+    /// <inheritdoc/>
+    public override string? Name { get; }
+
+    /// <inheritdoc/>
+    public override AttributeDefinition? Definition { get; }
 }

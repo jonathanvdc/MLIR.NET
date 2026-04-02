@@ -11,11 +11,9 @@ public abstract class AttributeValue
     /// <summary>
     /// Initializes a new instance of the <see cref="AttributeValue"/> class.
     /// </summary>
-    protected AttributeValue(AttributeValueSyntax? syntax, string? name, AttributeDefinition? definition, SourceLocation location)
+    protected AttributeValue(AttributeValueSyntax? syntax, SourceLocation location)
     {
         Syntax = syntax;
-        Name = name;
-        Definition = definition;
         Location = location;
     }
 
@@ -27,12 +25,12 @@ public abstract class AttributeValue
     /// <summary>
     /// Gets the canonical attribute name, if one was recognized.
     /// </summary>
-    public string? Name { get; }
+    public abstract string? Name { get; }
 
     /// <summary>
     /// Gets the registered definition, if one exists.
     /// </summary>
-    public AttributeDefinition? Definition { get; }
+    public abstract AttributeDefinition? Definition { get; }
 
     /// <summary>
     /// Gets a value indicating whether the attribute value was recognized by a registered dialect.

@@ -14,9 +14,12 @@ internal static class AttributeEmitter
         builder.AppendLine("        new AttributeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(attribute.Name) + ", factory: static context => new " + className + "(context));");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
-        builder.AppendLine("        : base(context.Syntax, context.Name, context.Definition, context.Location)");
+        builder.AppendLine("        : base(context.Syntax, context.Location)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
+        builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
         builder.AppendLine("}");
     }
 }
