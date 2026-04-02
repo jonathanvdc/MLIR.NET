@@ -81,7 +81,7 @@ internal static class AssemblyFormatEmitter
             if (IsNullableField(metadata, fieldName))
             {
                 var access = "body." + fieldName;
-                return access + ".HasValue ? (ValueReference?)binder.BindValueReference(" + access + ".Value) : null";
+                return access + ".HasValue ? (Value?)binder.BindValueReference(" + access + ".Value) : null";
             }
 
             return "binder.BindValueReference(body." + fieldName + ")";
@@ -172,7 +172,7 @@ internal static class AssemblyFormatEmitter
 
         for (var i = 0; i < operation.Results.Count; i++)
         {
-            builder.AppendLine("            binder.BindValueReference(syntax.ResultTokens[" + i.ToString(CultureInfo.InvariantCulture) + "]),");
+            builder.AppendLine("            new OperationResult(syntax.ResultTokens[" + i.ToString(CultureInfo.InvariantCulture) + "]),");
         }
 
         if (operation.Attributes.Count == 0)

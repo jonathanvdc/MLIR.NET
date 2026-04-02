@@ -43,8 +43,8 @@ public sealed class SemanticRewriterTests
         public override IReadOnlyList<Region> Regions => [];
         public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;
         public override TypeReference? TypeSignatureReference => null;
-        public override IReadOnlyList<ValueReference> ResultValues => [];
-        public override IReadOnlyList<ValueReference> OperandValues => [];
+        public override IReadOnlyList<OperationResult> ResultValues => [];
+        public override IReadOnlyList<Value> OperandValues => [];
         public override IReadOnlyList<BlockReference> SuccessorReferences => [];
         public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
     }
@@ -386,8 +386,8 @@ public sealed class SemanticRewriterTests
         public override IReadOnlyList<Region> Regions => [];
         public override NamedAttributeCollection Attributes => NamedAttributeCollection.Create(new NamedAttribute("val", attributeValue));
         public override TypeReference? TypeSignatureReference => null;
-        public override IReadOnlyList<ValueReference> ResultValues => [];
-        public override IReadOnlyList<ValueReference> OperandValues => [];
+        public override IReadOnlyList<OperationResult> ResultValues => [];
+        public override IReadOnlyList<Value> OperandValues => [];
         public override IReadOnlyList<BlockReference> SuccessorReferences => [];
 
         public override Operation RewriteChildren(SemanticRewriter rewriter)

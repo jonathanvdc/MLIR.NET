@@ -18,6 +18,7 @@ public sealed class Binder
 
     private readonly List<AssemblyDiagnostic> diagnostics = [];
     private readonly DialectRegistry? dialectRegistry;
+    private readonly Stack<Dictionary<string, Value>> valueScopes = new();
 
     /// <summary>
     /// Reports a binding diagnostic for the current operation.
@@ -38,11 +39,18 @@ public sealed class Binder
     {
         var operations = new List<Operation>();
         var binder = new Binder(dialectRegistry);
+        binder.PushValueScope();
         foreach (var operation in syntax.Operations)
         {
-            operations.Add(binder.BindOperation(operation));
+            var boundOperation = binder.BindOperation(operation);
+            operations.Add(boundOperation);
+            foreach (var result in boundOperation.ResultValues)
+            {
+                binder.DefineValue(result);
+            }
         }
 
+        binder.PopValueScope();
         return new Module(syntax, operations, binder.diagnostics);
     }
 
@@ -99,8 +107,8 @@ public sealed class Binder
             typeSignatureReference = BindTypeReference(body.TypeSignatureSyntax);
         }
 
-        var resultValues = BindValueReferences(syntax.ResultTokens);
-        var operandValues = BindValueReferences(body.OperandList.Items);
+        var resultValues = BindOperationResults(syntax.ResultTokens);
+        var operandValues = BindValueUses(body.OperandList.Items);
         var successorReferences = BindBlockReferences(body.SuccessorList.Items);
         Operation operation;
         if (definition != null && CheckGenericOperationConstraints(syntax, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences))
@@ -140,8 +148,8 @@ public sealed class Binder
         IReadOnlyList<Region> regions,
         NamedAttributeCollection attributes,
         TypeReference? typeSignatureReference,
-        IReadOnlyList<ValueReference> resultValues,
-        IReadOnlyList<ValueReference> operandValues,
+        IReadOnlyList<OperationResult> resultValues,
+        IReadOnlyList<Value> operandValues,
         IReadOnlyList<BlockReference> successorReferences)
     {
         var isValid = true;
@@ -224,18 +232,28 @@ public sealed class Binder
     /// <returns>The semantic block.</returns>
     public Block BindBlock(BlockSyntax syntax)
     {
+        PushValueScope();
+
         var arguments = new List<BlockArgument>();
         foreach (var argument in syntax.Arguments)
         {
-            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.TypeSyntax)));
+            var blockArgument = new BlockArgument(argument, BindTypeReference(argument.TypeSyntax));
+            arguments.Add(blockArgument);
+            DefineValue(blockArgument);
         }
 
         var operations = new List<Operation>();
         foreach (var operation in syntax.Operations)
         {
-            operations.Add(BindOperation(operation));
+            var boundOperation = BindOperation(operation);
+            operations.Add(boundOperation);
+            foreach (var result in boundOperation.ResultValues)
+            {
+                DefineValue(result);
+            }
         }
 
+        PopValueScope();
         return new Block(syntax, arguments, operations);
     }
 
@@ -250,27 +268,47 @@ public sealed class Binder
     }
 
     /// <summary>
-    /// Binds a syntax token to a value reference, which may refer to an SSA value defined by another operation in the same module.
-    /// The token text is expected to be in the form of an SSA value name (e.g. "%1", "%foo", etc.); otherwise, the resulting reference may be invalid.
+    /// Binds a syntax token to a semantic SSA value use, resolving it to the nearest visible definition when possible.
     /// </summary>
     /// <param name="token">The syntax token to bind.</param>
-    /// <returns>The semantic value reference.</returns>
-    public ValueReference BindValueReference(SyntaxToken token)
+    /// <returns>The semantic value.</returns>
+    public Value BindValueReference(SyntaxToken token)
     {
-        return new ValueReference(token);
+        if (TryLookupValue(token.Text, out var value))
+        {
+            return value;
+        }
+
+        return new UnresolvedValue(token);
     }
 
     /// <summary>
-    /// Creates value references for the given tokens, which may refer to SSA values defined by other operations in the same module.
+    /// Creates semantic SSA value uses for the given tokens.
     /// </summary>
-    /// <param name="tokens">The tokens for which to create references.</param>
-    /// <returns>The list of value references.</returns>
-    public IReadOnlyList<ValueReference> BindValueReferences(IReadOnlyList<SyntaxToken> tokens)
+    /// <param name="tokens">The tokens for which to create values.</param>
+    /// <returns>The list of semantic values.</returns>
+    public IReadOnlyList<Value> BindValueUses(IReadOnlyList<SyntaxToken> tokens)
     {
-        var values = new List<ValueReference>(tokens.Count);
+        var values = new List<Value>(tokens.Count);
         foreach (var token in tokens)
         {
             values.Add(BindValueReference(token));
+        }
+
+        return values;
+    }
+
+    /// <summary>
+    /// Creates operation result definitions for the given result tokens.
+    /// </summary>
+    /// <param name="tokens">The result tokens.</param>
+    /// <returns>The unbound operation results.</returns>
+    public IReadOnlyList<OperationResult> BindOperationResults(IReadOnlyList<SyntaxToken> tokens)
+    {
+        var values = new List<OperationResult>(tokens.Count);
+        foreach (var token in tokens)
+        {
+            values.Add(new OperationResult(token));
         }
 
         return values;
@@ -503,5 +541,34 @@ public sealed class Binder
         }
 
         return index > 0 ? text.Substring(0, index) : null;
+    }
+
+    private void PushValueScope()
+    {
+        valueScopes.Push(new Dictionary<string, Value>());
+    }
+
+    private void PopValueScope()
+    {
+        valueScopes.Pop();
+    }
+
+    private void DefineValue(Value value)
+    {
+        valueScopes.Peek()[value.Name] = value;
+    }
+
+    private bool TryLookupValue(string name, out Value value)
+    {
+        foreach (var scope in valueScopes)
+        {
+            if (scope.TryGetValue(name, out value!))
+            {
+                return true;
+            }
+        }
+
+        value = null!;
+        return false;
     }
 }

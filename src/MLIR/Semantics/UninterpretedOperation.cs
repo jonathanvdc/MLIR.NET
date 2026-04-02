@@ -27,10 +27,10 @@ public sealed class UninterpretedOperation(OperationSyntax syntax, string name) 
     public override TypeReference? TypeSignatureReference => null;
 
     /// <inheritdoc/>
-    public override IReadOnlyList<ValueReference> ResultValues => [];
+    public override IReadOnlyList<OperationResult> ResultValues => [];
 
     /// <inheritdoc/>
-    public override IReadOnlyList<ValueReference> OperandValues => [];
+    public override IReadOnlyList<Value> OperandValues => [];
 
     /// <inheritdoc/>
     public override IReadOnlyList<BlockReference> SuccessorReferences => [];
