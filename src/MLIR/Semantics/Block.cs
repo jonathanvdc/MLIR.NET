@@ -38,6 +38,8 @@ public sealed class Block
     /// Initializes a new instance of the <see cref="Block"/> class as a synthetic block with no corresponding source text.
     /// </summary>
     /// <param name="label">The block label, including the leading <c>^</c>.</param>
+    /// <param name="arguments">The block arguments.</param>
+    /// <param name="operations">The operations contained in the block.</param>
     public Block(string label, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
     {
         this.label = label;
