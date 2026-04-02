@@ -83,7 +83,7 @@ public abstract class DialectParsingContext
     /// Parses a nested attribute value syntax node, preferring the supplied expected attribute definition
     /// when one is known, and stopping before any of the supplied delimiters.
     /// </summary>
-    public AttributeValueSyntax ParseAttributeValueSyntax(AttributeDefinition expectedDefinition, params TokenKind[] stopBefore)
+    public AttributeValueSyntax ParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
     {
         return Parser.ParseAttributeValueSyntaxInternal(expectedDefinition, stopBefore);
     }

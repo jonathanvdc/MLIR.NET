@@ -108,7 +108,7 @@ internal static class AssemblyFormatEmitter
             var access = "body." + fieldName;
             var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
             var expectedDefinitionExpr = !string.IsNullOrEmpty(expectedConstraint)
-                ? resolver.TryResolveAttributeDefinitionExpression(expectedConstraint!)
+                ? resolver.TryResolveAttributeConstraintDefinitionExpression(expectedConstraint!)
                 : null;
             var bindCall = "new NamedAttribute(" + quotedName + ", binder.BindAttributeValue(" + access;
             if (!string.IsNullOrEmpty(expectedDefinitionExpr))

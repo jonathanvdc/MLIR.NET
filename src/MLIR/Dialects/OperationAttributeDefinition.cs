@@ -8,7 +8,8 @@ namespace MLIR.Dialects;
 /// </remarks>
 /// <param name="name">The attribute name.</param>
 /// <param name="isRequired">Indicates whether the attribute must be present.</param>
-public sealed class OperationAttributeDefinition(string name, bool isRequired = true)
+/// <param name="constraintDefinition">The expected attribute constraint definition, if one is known.</param>
+public sealed class OperationAttributeDefinition(string name, bool isRequired = true, AttributeConstraintDefinition? constraintDefinition = null)
 {
     /// <summary>
     /// Gets the attribute name.
@@ -19,4 +20,9 @@ public sealed class OperationAttributeDefinition(string name, bool isRequired = 
     /// Gets a value indicating whether the attribute must be present.
     /// </summary>
     public bool IsRequired { get; } = isRequired;
+
+    /// <summary>
+    /// Gets the expected attribute constraint definition, if one is known.
+    /// </summary>
+    public AttributeConstraintDefinition? ConstraintDefinition { get; } = constraintDefinition;
 }

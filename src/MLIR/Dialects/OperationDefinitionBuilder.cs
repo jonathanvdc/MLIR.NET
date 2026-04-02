@@ -15,7 +15,6 @@ public sealed class OperationDefinitionBuilder
     private readonly List<OperationSegmentDefinition> regionDefinitions = new List<OperationSegmentDefinition>();
     private readonly List<OperationSegmentDefinition> successorDefinitions = new List<OperationSegmentDefinition>();
     private readonly List<OperationAttributeDefinition> attributeDefinitions = new List<OperationAttributeDefinition>();
-    private readonly List<string> requiredAttributes = new List<string>();
     private IOperationVerifier? verifier;
     private IOperationAssemblyFormat? assemblyFormat;
     private Func<OperationConstructionContext, Operation> factory = static context => new GenericOperation(
@@ -113,19 +112,18 @@ public sealed class OperationDefinitionBuilder
     /// <summary>
     /// Adds a required attribute definition.
     /// </summary>
-    public OperationDefinitionBuilder RequiredAttribute(string name)
+    public OperationDefinitionBuilder RequiredAttribute(string name, AttributeConstraintDefinition? constraintDefinition = null)
     {
-        attributeDefinitions.Add(new OperationAttributeDefinition(name));
-        requiredAttributes.Add(name);
+        attributeDefinitions.Add(new OperationAttributeDefinition(name, constraintDefinition: constraintDefinition));
         return this;
     }
 
     /// <summary>
     /// Adds an optional attribute definition.
     /// </summary>
-    public OperationDefinitionBuilder OptionalAttribute(string name)
+    public OperationDefinitionBuilder OptionalAttribute(string name, AttributeConstraintDefinition? constraintDefinition = null)
     {
-        attributeDefinitions.Add(new OperationAttributeDefinition(name, isRequired: false));
+        attributeDefinitions.Add(new OperationAttributeDefinition(name, isRequired: false, constraintDefinition: constraintDefinition));
         return this;
     }
 
@@ -233,7 +231,6 @@ public sealed class OperationDefinitionBuilder
             regionDefinitions,
             successorDefinitions,
             attributeDefinitions,
-            requiredAttributes,
             verifier,
             assemblyFormat,
             factory);

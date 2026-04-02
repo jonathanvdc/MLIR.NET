@@ -15,7 +15,6 @@ using MLIR.Semantics;
 /// <param name="regionDefinitions">The declarative region segments, if available.</param>
 /// <param name="successorDefinitions">The declarative successor segments, if available.</param>
 /// <param name="attributeDefinitions">The declarative operation attribute definitions, if available.</param>
-/// <param name="requiredAttributes">The attribute names that must be present on the operation.</param>
 /// <param name="verifier">The optional verifier for the operation.</param>
 /// <param name="assemblyFormat">The optional custom assembly format.</param>
 /// <param name="factory">The optional typed operation factory.</param>
@@ -26,7 +25,6 @@ public sealed class OperationDefinition(
     IReadOnlyList<OperationSegmentDefinition>? regionDefinitions = null,
     IReadOnlyList<OperationSegmentDefinition>? successorDefinitions = null,
     IReadOnlyList<OperationAttributeDefinition>? attributeDefinitions = null,
-    IReadOnlyList<string>? requiredAttributes = null,
     IOperationVerifier? verifier = null,
     IOperationAssemblyFormat? assemblyFormat = null,
     System.Func<OperationConstructionContext, Operation>? factory = null)
@@ -102,11 +100,6 @@ public sealed class OperationDefinition(
     public int SuccessorMinCount => InferMinCount(SuccessorDefinitions);
 
     /// <summary>
-    /// Gets the attribute names that must be present on the operation.
-    /// </summary>
-    public IReadOnlyList<string> RequiredAttributes { get; } = requiredAttributes ?? EmptyRequiredAttributes;
-
-    /// <summary>
     /// Gets the verifier for the operation, if one is registered.
     /// </summary>
     public IOperationVerifier? Verifier { get; } = verifier;
@@ -123,7 +116,6 @@ public sealed class OperationDefinition(
 
     private static readonly IReadOnlyList<OperationSegmentDefinition> EmptySegmentDefinitions = new OperationSegmentDefinition[0];
     private static readonly IReadOnlyList<OperationAttributeDefinition> EmptyAttributeDefinitions = new OperationAttributeDefinition[0];
-    private static readonly IReadOnlyList<string> EmptyRequiredAttributes = new string[0];
 
     private static int InferMinCount(IReadOnlyList<OperationSegmentDefinition> definitions)
     {

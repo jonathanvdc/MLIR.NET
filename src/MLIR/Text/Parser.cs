@@ -332,22 +332,22 @@ public sealed class Parser
         }
 
         var equalsToken = ExpectToken(TokenKind.Equal, "Expected '=' after attribute name.");
-        var value = ParseAttributeValueSyntax(false, (AttributeDefinition?)null, TokenKind.Comma, TokenKind.RBrace);
+        var value = ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace);
         return new NamedAttributeSyntax(nameToken, equalsToken, value);
     }
 
     private AttributeValueSyntax ParseAttributeValueSyntax(bool stopAtOperationBoundary, string? expectedDefinitionName, params TokenKind[] stopBefore)
     {
-        AttributeDefinition? expectedDefinition = null;
+        AttributeConstraintDefinition? expectedDefinition = null;
         if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
         {
-            dialectRegistry.TryResolveAttributeForParsing(expectedDefinitionName!, out expectedDefinition);
+            dialectRegistry.TryResolveAttributeConstraint(expectedDefinitionName!, out expectedDefinition);
         }
 
         return ParseAttributeValueSyntax(stopAtOperationBoundary, expectedDefinition, stopBefore);
     }
 
-    private AttributeValueSyntax ParseAttributeValueSyntax(bool stopAtOperationBoundary, AttributeDefinition? expectedDefinition, params TokenKind[] stopBefore)
+    private AttributeValueSyntax ParseAttributeValueSyntax(bool stopAtOperationBoundary, AttributeConstraintDefinition? expectedDefinition, params TokenKind[] stopBefore)
     {
         if (expectedDefinition != null && TryParseCustomAttributeSyntax(expectedDefinition, out var syntax))
         {
@@ -417,7 +417,7 @@ public sealed class Parser
             && TryParseCustomAttributeSyntax(definition, out syntax);
     }
 
-    private bool TryParseCustomAttributeSyntax(AttributeDefinition? definition, out AttributeValueSyntax syntax)
+    private bool TryParseCustomAttributeSyntax(AttributeConstraintDefinition? definition, out AttributeValueSyntax syntax)
     {
         syntax = null!;
         if (definition?.AssemblyFormat == null)
@@ -736,7 +736,7 @@ public sealed class Parser
         return ParseAttributeValueSyntax(false, expectedDefinitionName, delimiters);
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(AttributeDefinition expectedDefinition, params TokenKind[] delimiters)
+    internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
         return ParseAttributeValueSyntax(false, expectedDefinition, delimiters);
     }
@@ -751,7 +751,7 @@ public sealed class Parser
         return ParseAttributeValueSyntax(true, expectedDefinitionName, delimiters);
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(AttributeDefinition expectedDefinition, params TokenKind[] delimiters)
+    internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
         return ParseAttributeValueSyntax(true, expectedDefinition, delimiters);
     }

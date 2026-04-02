@@ -8,7 +8,7 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class AttributeParsingContext : DialectParsingContext
 {
-    internal AttributeParsingContext(Parser parser, DialectRegistry? dialectRegistry, AttributeDefinition? expectedDefinition)
+    internal AttributeParsingContext(Parser parser, DialectRegistry? dialectRegistry, AttributeConstraintDefinition? expectedDefinition)
         : base(parser)
     {
         DialectRegistry = dialectRegistry;
@@ -23,5 +23,5 @@ public sealed class AttributeParsingContext : DialectParsingContext
     /// <summary>
     /// Gets the attribute definition expected by the caller, if one is known.
     /// </summary>
-    public AttributeDefinition? ExpectedDefinition { get; }
+    public AttributeConstraintDefinition? ExpectedDefinition { get; }
 }

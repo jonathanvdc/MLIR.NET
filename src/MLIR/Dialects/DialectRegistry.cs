@@ -12,6 +12,7 @@ public sealed class DialectRegistry
     private readonly Dictionary<string, OperationDefinition> operationsByName = new Dictionary<string, OperationDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, AttributeDefinition> attributesByName = new Dictionary<string, AttributeDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, AttributeDefinition> attributesByParserName = new Dictionary<string, AttributeDefinition>(StringComparer.Ordinal);
+    private readonly Dictionary<string, AttributeConstraintDefinition> attributeConstraintsByName = new Dictionary<string, AttributeConstraintDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, TypeDefinition> typesByName = new Dictionary<string, TypeDefinition>(StringComparer.Ordinal);
 
     /// <summary>
@@ -41,12 +42,12 @@ public sealed class DialectRegistry
 
         foreach (var attribute in dialect.Attributes)
         {
-            if (attributesByName.ContainsKey(attribute.Name))
+            if (attribute.Name != null && attributesByName.ContainsKey(attribute.Name))
             {
                 throw new ArgumentException($"The attribute '{attribute.Name}' is already registered.", nameof(dialect));
             }
 
-            if (attributesByParserName.ContainsKey(attribute.Name))
+            if (attribute.Name != null && attributesByParserName.ContainsKey(attribute.Name))
             {
                 throw new ArgumentException($"The attribute parser name '{attribute.Name}' is already registered.", nameof(dialect));
             }
@@ -57,6 +58,14 @@ public sealed class DialectRegistry
                 {
                     throw new ArgumentException($"The attribute parser name '{alias}' is already registered.", nameof(dialect));
                 }
+            }
+        }
+
+        foreach (var attributeConstraint in dialect.AttributeConstraints)
+        {
+            if (attributeConstraint.Name != null && attributeConstraintsByName.ContainsKey(attributeConstraint.Name))
+            {
+                throw new ArgumentException($"The attribute constraint '{attributeConstraint.Name}' is already registered.", nameof(dialect));
             }
         }
 
@@ -78,9 +87,18 @@ public sealed class DialectRegistry
         {
             attributesByName.Add(attribute.Name, attribute);
             attributesByParserName.Add(attribute.Name, attribute);
+            attributeConstraintsByName.Add(attribute.Name, attribute);
             foreach (var alias in attribute.ParserAliases)
             {
                 attributesByParserName.Add(alias, attribute);
+            }
+        }
+
+        foreach (var attributeConstraint in dialect.AttributeConstraints)
+        {
+            if (attributeConstraint.Name != null)
+            {
+                attributeConstraintsByName.Add(attributeConstraint.Name, attributeConstraint);
             }
         }
 
@@ -115,6 +133,20 @@ public sealed class DialectRegistry
     public bool TryResolveAttributeForParsing(string name, out AttributeDefinition attribute)
     {
         return attributesByParserName.TryGetValue(name, out attribute!);
+    }
+
+    /// <summary>
+    /// Tries to resolve an attribute constraint definition by name.
+    /// </summary>
+    public bool TryResolveAttributeConstraint(string name, out AttributeConstraintDefinition attributeConstraint)
+    {
+        if (attributesByParserName.TryGetValue(name, out var attribute))
+        {
+            attributeConstraint = attribute;
+            return true;
+        }
+
+        return attributeConstraintsByName.TryGetValue(name, out attributeConstraint!);
     }
 
     /// <summary>

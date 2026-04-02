@@ -76,7 +76,7 @@ internal static class OperationEmitter
         return members;
     }
 
-    private static void EmitDefinition(StringBuilder builder, string className, OperationModel operation)
+    private static void EmitDefinition(StringBuilder builder, string className, OperationModel operation, DialectSymbolResolver resolver)
     {
         var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
 
@@ -100,13 +100,20 @@ internal static class OperationEmitter
 
         foreach (var attribute in operation.Attributes)
         {
+            var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, attribute);
+            var expectedConstraintExpr = !string.IsNullOrEmpty(expectedConstraint)
+                ? resolver.TryResolveAttributeConstraintDefinitionExpression(expectedConstraint!)
+                : null;
+            var constraintSuffix = !string.IsNullOrEmpty(expectedConstraintExpr)
+                ? ", " + expectedConstraintExpr
+                : string.Empty;
             if (requiredVariables.Contains(attribute))
             {
-                builder.AppendLine("        operation.RequiredAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attribute) + ");");
+                builder.AppendLine("        operation.RequiredAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attribute) + constraintSuffix + ");");
             }
             else
             {
-                builder.AppendLine("        operation.OptionalAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attribute) + ");");
+                builder.AppendLine("        operation.OptionalAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attribute) + constraintSuffix + ");");
             }
         }
 
@@ -397,7 +404,7 @@ internal static class OperationEmitter
         public IReadOnlyList<GeneratedMember> Attributes { get; }
     }
 
-    public static EmittedOperationMembers Emit(StringBuilder builder, OperationModel operation)
+    public static EmittedOperationMembers Emit(StringBuilder builder, OperationModel operation, DialectSymbolResolver resolver)
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
@@ -408,7 +415,7 @@ internal static class OperationEmitter
         EmitterHelpers.AppendXmlDocComment(builder, operation.Summary, operation.Description);
         builder.AppendLine("public sealed class " + className + " : Operation");
         builder.AppendLine("{");
-        EmitDefinition(builder, className, operation);
+        EmitDefinition(builder, className, operation, resolver);
         EmitOperandAndResultProperties(builder, operandMembers, resultMembers, operation);
         EmitAttributeProperties(builder, attributeMembers);
         EmitContextConstructor(builder, className, operandMembers, resultMembers);

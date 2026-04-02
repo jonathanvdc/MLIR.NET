@@ -12,11 +12,13 @@ using System.Collections.Generic;
 /// <param name="operations">The operation definitions exported by the dialect.</param>
 /// <param name="attributes">The attribute definitions exported by the dialect.</param>
 /// <param name="types">The type definitions exported by the dialect.</param>
+/// <param name="attributeConstraints">The context-directed attribute constraint definitions exported by the dialect.</param>
 public sealed class Dialect(
     string name,
     IReadOnlyList<OperationDefinition> operations,
     IReadOnlyList<AttributeDefinition>? attributes = null,
-    IReadOnlyList<TypeDefinition>? types = null)
+    IReadOnlyList<TypeDefinition>? types = null,
+    IReadOnlyList<AttributeConstraintDefinition>? attributeConstraints = null)
 {
     /// <summary>
     /// Creates a dialect from a fluent builder callback.
@@ -47,10 +49,16 @@ public sealed class Dialect(
     public IReadOnlyList<AttributeDefinition> Attributes { get; } = attributes ?? EmptyAttributes;
 
     /// <summary>
+    /// Gets the context-directed attribute constraint definitions exported by the dialect.
+    /// </summary>
+    public IReadOnlyList<AttributeConstraintDefinition> AttributeConstraints { get; } = attributeConstraints ?? EmptyAttributeConstraints;
+
+    /// <summary>
     /// Gets the type definitions exported by the dialect.
     /// </summary>
     public IReadOnlyList<TypeDefinition> Types { get; } = types ?? EmptyTypes;
 
     private static readonly IReadOnlyList<AttributeDefinition> EmptyAttributes = new AttributeDefinition[0];
+    private static readonly IReadOnlyList<AttributeConstraintDefinition> EmptyAttributeConstraints = new AttributeConstraintDefinition[0];
     private static readonly IReadOnlyList<TypeDefinition> EmptyTypes = new TypeDefinition[0];
 }

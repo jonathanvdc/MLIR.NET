@@ -21,6 +21,7 @@ public static class DialectImporter
     /// <item><description>a dialect definition derived from <c>Dialect</c> with fields such as <c>name</c>, <c>cppNamespace</c>, <c>summary</c>, <c>description</c>, and <c>hasConstantMaterializer</c></description></item>
     /// <item><description>an operation derived from <c>Op</c> with fields such as <c>dialectName</c>, <c>mnemonic</c>, optional <c>cppClassName</c>, optional <c>operands</c>/<c>results</c>/<c>attributes</c>, and optional <c>hasCustomAssemblyFormat</c></description></item>
     /// <item><description>an attribute derived from <c>AttrDef</c> with fields such as <c>dialectName</c>, <c>attrName</c>, and optional <c>cppClassName</c></description></item>
+    /// <item><description>an attribute constraint derived from <c>Attr</c> with context-directed parsing behavior such as <c>I32Attr</c></description></item>
     /// <item><description>a type derived from <c>TypeDef</c> with fields such as <c>dialectName</c>, <c>typeName</c>, and optional <c>cppClassName</c></description></item>
     /// </list>
     /// Unsupported records are ignored for now.
@@ -28,6 +29,7 @@ public static class DialectImporter
     public static IReadOnlyList<DialectModel> Import(InterpretedDocument document)
     {
         var dialectsByName = new Dictionary<string, MutableDialectModel>(StringComparer.Ordinal);
+        var sharedAttributeConstraints = new List<AttributeConstraintModel>();
         foreach (var record in document.Records)
         {
             if (record.HasBaseClass("Dialect") && TryGetStringField(record, "name", out var definedDialectName))
@@ -84,6 +86,14 @@ public static class DialectImporter
                 continue;
             }
 
+            if (record.HasBaseClass("Attr")
+                && !record.HasBaseClass("AttrDef")
+                && TryGetAttributeConstraintKind(record, out var constraintKind))
+            {
+                sharedAttributeConstraints.Add(new AttributeConstraintModel(record.Name, record.Name, constraintKind));
+                continue;
+            }
+
             if (record.HasBaseClass("TypeDef")
                 && TryGetDialectName(record, document.Records, out var typeDialectName)
                 && TryGetStringField(record, "typeName", out var typeName))
@@ -94,7 +104,7 @@ public static class DialectImporter
         }
 
         return dialectsByName.Values
-            .Select(static dialect => dialect.ToImmutable())
+            .Select(dialect => dialect.ToImmutable(sharedAttributeConstraints))
             .OrderBy(static dialect => dialect.Name, StringComparer.Ordinal)
             .ToArray();
     }
@@ -282,9 +292,9 @@ public static class DialectImporter
         public List<AttributeModel> Attributes { get; } = new List<AttributeModel>();
         public List<TypeModel> Types { get; } = new List<TypeModel>();
 
-        public DialectModel ToImmutable()
+        public DialectModel ToImmutable(IReadOnlyList<AttributeConstraintModel> sharedAttributeConstraints)
         {
-            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, Types);
+            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, sharedAttributeConstraints, Types);
         }
     }
 
@@ -312,5 +322,23 @@ public static class DialectImporter
         Operand,
         Result,
         Attribute,
+    }
+
+    private static bool TryGetAttributeConstraintKind(Record record, out AttributeConstraintKind kind)
+    {
+        if (record.HasBaseClass("AnyIntegerAttrBase")
+            || record.HasBaseClass("SignlessIntegerAttrBase")
+            || record.HasBaseClass("TypedSignlessIntegerAttrBase")
+            || record.HasBaseClass("SignedIntegerAttrBase")
+            || record.HasBaseClass("TypedSignedIntegerAttrBase")
+            || record.HasBaseClass("UnsignedIntegerAttrBase")
+            || record.HasBaseClass("TypedUnsignedIntegerAttrBase"))
+        {
+            kind = AttributeConstraintKind.IntegerLiteral;
+            return true;
+        }
+
+        kind = AttributeConstraintKind.None;
+        return false;
     }
 }

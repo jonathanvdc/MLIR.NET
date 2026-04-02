@@ -28,9 +28,9 @@ public abstract class AttributeValue
     public abstract string? Name { get; }
 
     /// <summary>
-    /// Gets the registered definition, if one exists.
+    /// Gets the registered constraint definition, if one exists.
     /// </summary>
-    public abstract AttributeDefinition? Definition { get; }
+    public abstract AttributeConstraintDefinition? Definition { get; }
 
     /// <summary>
     /// Gets a value indicating whether the attribute value was recognized by a registered dialect.

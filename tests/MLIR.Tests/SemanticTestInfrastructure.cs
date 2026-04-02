@@ -195,7 +195,7 @@ public sealed partial class SemanticTests
 
         public override string? Name { get; }
 
-        public override AttributeDefinition? Definition => null;
+        public override AttributeConstraintDefinition? Definition => null;
     }
 
     private sealed class DenseAttributeValue : AttributeValue
@@ -209,7 +209,7 @@ public sealed partial class SemanticTests
 
         public override string? Name { get; }
 
-        public override AttributeDefinition? Definition { get; }
+        public override AttributeConstraintDefinition? Definition { get; }
 
         public string? Kind { get; private set; }
 
@@ -314,7 +314,7 @@ public sealed partial class SemanticTests
 
         public override string? Name { get; }
 
-        public override AttributeDefinition? Definition { get; }
+        public override AttributeConstraintDefinition? Definition { get; }
 
         public int? Value { get; private set; }
 
@@ -425,9 +425,9 @@ public sealed partial class SemanticTests
 
     private sealed class ContextDirectedConstantAssemblyFormat : IOperationAssemblyFormat
     {
-        private readonly AttributeDefinition expectedAttributeDefinition;
+        private readonly AttributeConstraintDefinition expectedAttributeDefinition;
 
-        public ContextDirectedConstantAssemblyFormat(AttributeDefinition expectedAttributeDefinition)
+        public ContextDirectedConstantAssemblyFormat(AttributeConstraintDefinition expectedAttributeDefinition)
         {
             this.expectedAttributeDefinition = expectedAttributeDefinition;
         }
@@ -511,7 +511,7 @@ public sealed partial class SemanticTests
             return true;
         }
 
-        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeDefinition definition, Binder binder)
+        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
         {
             var denseAttribute = new DenseAttributeValue(new AttributeValueConstructionContext(syntax, "dense", definition, syntax.Location));
             denseAttribute.BindDense();
@@ -580,7 +580,7 @@ public sealed partial class SemanticTests
             return true;
         }
 
-        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeDefinition definition, Binder binder)
+        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
         {
             var attribute = new I32AttributeValue(new AttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));
             attribute.BindValue(int.Parse(syntax.GetRawText().Text));

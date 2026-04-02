@@ -43,6 +43,11 @@ internal static class DialectGeneratorNaming
         return attribute.ClassName ?? ToPascalCase(attribute.Name.Replace('.', '_')) + "AttributeValue";
     }
 
+    public static string GetAttributeConstraintClassName(AttributeConstraintModel attributeConstraint)
+    {
+        return ToPascalCase(attributeConstraint.RecordName.Replace('.', '_')) + "ConstraintAttributeValue";
+    }
+
     public static string GetTypeClassName(TypeModel type)
     {
         return type.ClassName ?? ToPascalCase(type.Name.Replace('.', '_')) + "TypeReference";

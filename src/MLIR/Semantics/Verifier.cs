@@ -52,14 +52,6 @@ public static class Verifier
         VerifyCount("region", definition.RegionDefinitions, definition.RegionCount, operation.Regions.Count, operation, context);
         VerifyCount("successor", definition.SuccessorDefinitions, definition.SuccessorCount, operation.Successors.Count, operation, context);
 
-        foreach (var attributeName in definition.RequiredAttributes)
-        {
-            if (!operation.HasAttribute(attributeName))
-            {
-                context.Report($"'{operation.Name}' requires the '{attributeName}' attribute.");
-            }
-        }
-
         foreach (var attribute in definition.AttributeDefinitions)
         {
             if (attribute.IsRequired && !operation.HasAttribute(attribute.Name))

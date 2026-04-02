@@ -22,10 +22,10 @@ public interface IAttributeAssemblyFormat
     /// Interprets the supplied attribute-value syntax into a semantic attribute value.
     /// </summary>
     /// <param name="syntax">The attribute-value syntax to interpret.</param>
-    /// <param name="definition">The attribute definition.</param>
+    /// <param name="definition">The attribute constraint definition.</param>
     /// <param name="binder">The binding context.</param>
     /// <returns>The interpreted attribute value.</returns>
-    AttributeValue Bind(AttributeValueSyntax syntax, AttributeDefinition definition, Binder binder);
+    AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder);
 
     /// <summary>
     /// Builds a custom concrete syntax tree for the supplied attribute value.

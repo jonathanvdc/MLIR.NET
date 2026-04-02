@@ -10,6 +10,7 @@ internal static class DialectGeneratorModel
     {
         var operations = new List<OperationModel>();
         var attributes = new List<AttributeModel>();
+        var attributeConstraints = new List<AttributeConstraintModel>();
         var types = new List<TypeModel>();
         string? cppNamespace = null;
         string? summary = null;
@@ -24,9 +25,22 @@ internal static class DialectGeneratorModel
             hasConstantMaterializer |= dialect.HasConstantMaterializer;
             operations.AddRange(dialect.Operations);
             attributes.AddRange(dialect.Attributes);
+            attributeConstraints.AddRange(dialect.AttributeConstraints);
             types.AddRange(dialect.Types);
         }
 
-        return new DialectModel(group.Key, cppNamespace, summary, description, hasConstantMaterializer, operations, attributes, types);
+        return new DialectModel(
+            group.Key,
+            cppNamespace,
+            summary,
+            description,
+            hasConstantMaterializer,
+            operations,
+            attributes,
+            attributeConstraints
+                .GroupBy(static constraint => constraint.RecordName, System.StringComparer.Ordinal)
+                .Select(static constraints => constraints.First())
+                .ToArray(),
+            types);
     }
 }

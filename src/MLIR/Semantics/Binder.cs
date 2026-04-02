@@ -99,7 +99,7 @@ public sealed class Binder
         var attributeList = new List<NamedAttribute>();
         foreach (var attribute in body.Attributes)
         {
-            attributeList.Add(BindNamedAttribute(attribute));
+            attributeList.Add(BindNamedAttribute(attribute, definition));
         }
 
         var attributes = new NamedAttributeCollection(attributeList);
@@ -208,11 +208,11 @@ public sealed class Binder
             isValid = false;
         }
 
-        foreach (var requiredAttribute in definition.RequiredAttributes)
+        foreach (var attributeDefinition in definition.AttributeDefinitions)
         {
-            if (!attributes.Any(a => a.Name == requiredAttribute))
+            if (attributeDefinition.IsRequired && !attributes.Any(a => a.Name == attributeDefinition.Name))
             {
-                Report(new AssemblyDiagnostic(syntax.Location, $"{definition.Name} expects a '{requiredAttribute}' required attribute."));
+                Report(new AssemblyDiagnostic(syntax.Location, $"{definition.Name} expects a '{attributeDefinition.Name}' required attribute."));
                 isValid = false;
             }
         }
@@ -373,7 +373,7 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax)
     {
-        return BindAttributeValue(syntax, (AttributeDefinition?)null);
+        return BindAttributeValue(syntax, (AttributeConstraintDefinition?)null);
     }
 
     /// <summary>
@@ -384,10 +384,10 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, string? expectedDefinitionName)
     {
-        AttributeDefinition? expectedDefinition = null;
+        AttributeConstraintDefinition? expectedDefinition = null;
         if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
         {
-            dialectRegistry.TryResolveAttributeForParsing(expectedDefinitionName!, out expectedDefinition);
+            dialectRegistry.TryResolveAttributeConstraint(expectedDefinitionName!, out expectedDefinition);
         }
 
         return BindAttributeValue(syntax, expectedDefinition);
@@ -399,7 +399,7 @@ public sealed class Binder
     /// <param name="syntax">The concrete syntax tree to bind.</param>
     /// <param name="expectedDefinition">The expected attribute definition, if one is known.</param>
     /// <returns>The semantic attribute value.</returns>
-    public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, AttributeDefinition? expectedDefinition)
+    public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, AttributeConstraintDefinition? expectedDefinition)
     {
         if (syntax.TryGetRawText(out var rawAttributeValueSyntax))
         {
@@ -422,10 +422,10 @@ public sealed class Binder
         return BindAttributeValueCore(new RawAttributeValueSyntax(syntax), syntax, null);
     }
 
-    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax, AttributeDefinition? expectedDefinition)
+    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax, AttributeConstraintDefinition? expectedDefinition)
     {
         var canonicalName = TryGetAttributeDefinitionName(rawSyntax.Text);
-        AttributeDefinition? definition = null;
+        AttributeConstraintDefinition? definition = null;
         if (expectedDefinition != null)
         {
             definition = expectedDefinition;
@@ -433,7 +433,10 @@ public sealed class Binder
 
         if (definition == null && canonicalName != null && dialectRegistry != null)
         {
-            dialectRegistry.TryGetAttribute(canonicalName, out definition);
+            if (dialectRegistry.TryGetAttribute(canonicalName, out var attributeDefinition))
+            {
+                definition = attributeDefinition;
+            }
         }
 
         AttributeValue attribute;
@@ -459,7 +462,30 @@ public sealed class Binder
     /// <returns>The semantic named attribute.</returns>
     public NamedAttribute BindNamedAttribute(NamedAttributeSyntax syntax)
     {
-        var value = BindAttributeValue(syntax.ValueSyntax);
+        return BindNamedAttribute(syntax, null);
+    }
+
+    /// <summary>
+    /// Binds a named attribute syntax tree to a semantic named attribute, preferring the operation's
+    /// declared attribute constraint when one is available.
+    /// </summary>
+    public NamedAttribute BindNamedAttribute(NamedAttributeSyntax syntax, OperationDefinition? operationDefinition)
+    {
+        AttributeConstraintDefinition? expectedConstraint = null;
+        if (operationDefinition != null)
+        {
+            for (var i = 0; i < operationDefinition.AttributeDefinitions.Count; i++)
+            {
+                var attributeDefinition = operationDefinition.AttributeDefinitions[i];
+                if (attributeDefinition.Name == syntax.Name)
+                {
+                    expectedConstraint = attributeDefinition.ConstraintDefinition;
+                    break;
+                }
+            }
+        }
+
+        var value = BindAttributeValue(syntax.ValueSyntax, expectedConstraint);
         return new NamedAttribute(syntax, value);
     }
 

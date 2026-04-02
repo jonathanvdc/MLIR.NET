@@ -86,7 +86,7 @@ public sealed partial class SemanticTests
                     new OperationDefinition(
                         "arith.constant",
                         resultDefinitions: [new OperationSegmentDefinition("result")],
-                        requiredAttributes: ["value"]),
+                        attributeDefinitions: [new OperationAttributeDefinition("value")]),
                 ]));
 
         var module = Binder.BindModule(

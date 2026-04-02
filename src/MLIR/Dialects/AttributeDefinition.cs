@@ -18,27 +18,17 @@ public sealed class AttributeDefinition(
     IAttributeAssemblyFormat? assemblyFormat = null,
     IReadOnlyList<string>? parserAliases = null,
     System.Func<AttributeValueConstructionContext, AttributeValue>? factory = null)
+    : AttributeConstraintDefinition(name, assemblyFormat, factory)
 {
     /// <summary>
     /// Gets the canonical attribute name.
     /// </summary>
-    public string Name { get; } = name;
+    public new string Name => base.Name!;
 
     /// <summary>
     /// Gets additional names that may resolve to this attribute during parsing.
     /// </summary>
     public IReadOnlyList<string> ParserAliases { get; } = parserAliases ?? EmptyAliases;
-
-    /// <summary>
-    /// Gets the custom assembly interpretation hook, if one is registered.
-    /// </summary>
-    public IAttributeAssemblyFormat? AssemblyFormat { get; } = assemblyFormat;
-
-    /// <summary>
-    /// Gets the typed attribute-value factory.
-    /// </summary>
-    public System.Func<AttributeValueConstructionContext, AttributeValue> Factory { get; } =
-        factory ?? (static context => new UnknownAttributeValue(context.Syntax, context.Name, context.Definition, context.Location));
 
     private static readonly IReadOnlyList<string> EmptyAliases = new string[0];
 }

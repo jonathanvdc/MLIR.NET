@@ -11,7 +11,7 @@ public sealed class UnknownAttributeValue : AttributeValue
     /// <summary>
     /// Initializes a new instance of the <see cref="UnknownAttributeValue"/> class.
     /// </summary>
-    public UnknownAttributeValue(AttributeValueSyntax syntax, string? name, AttributeDefinition? definition, SourceLocation location)
+    public UnknownAttributeValue(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition? definition, SourceLocation location)
         : base(syntax, location)
     {
         Name = name;
@@ -22,5 +22,5 @@ public sealed class UnknownAttributeValue : AttributeValue
     public override string? Name { get; }
 
     /// <inheritdoc/>
-    public override AttributeDefinition? Definition { get; }
+    public override AttributeConstraintDefinition? Definition { get; }
 }

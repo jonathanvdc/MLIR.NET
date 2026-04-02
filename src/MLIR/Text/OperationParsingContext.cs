@@ -137,7 +137,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// Parses an attribute value, preferring the supplied expected attribute definition and
     /// stopping before any of the supplied delimiter tokens or an operation boundary, whichever comes first.
     /// </summary>
-    public new AttributeValueSyntax ParseAttributeValueSyntax(AttributeDefinition expectedDefinition, params TokenKind[] stopBefore)
+    public new AttributeValueSyntax ParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
     {
         return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinition, stopBefore);
     }

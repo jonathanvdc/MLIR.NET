@@ -500,7 +500,7 @@ internal sealed class TryParseEmitter
     private string BuildAttributeParseExpr(string? expectedConstraintRecordName, IReadOnlyList<TokenKind> delimiters)
     {
         var expectedDefinitionExpr = !string.IsNullOrEmpty(expectedConstraintRecordName)
-            ? resolver.TryResolveAttributeDefinitionExpression(expectedConstraintRecordName!)
+            ? resolver.TryResolveAttributeConstraintDefinitionExpression(expectedConstraintRecordName!)
             : null;
         var hasExpectedConstraint = !string.IsNullOrEmpty(expectedDefinitionExpr);
         var hasDelimiters = delimiters.Count > 0;

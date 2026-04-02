@@ -36,7 +36,7 @@ internal sealed class DialectEmitter
 
         foreach (var operation in dialect.Operations)
         {
-            OperationEmitter.Emit(builder, operation);
+            OperationEmitter.Emit(builder, operation, resolver);
             builder.AppendLine();
 
             if (operation.AssemblyFormat != null)
@@ -53,6 +53,12 @@ internal sealed class DialectEmitter
         foreach (var attribute in dialect.Attributes)
         {
             AttributeEmitter.Emit(builder, attribute);
+            builder.AppendLine();
+        }
+
+        foreach (var attributeConstraint in dialect.AttributeConstraints)
+        {
+            AttributeConstraintEmitter.Emit(builder, attributeConstraint);
             builder.AppendLine();
         }
 
@@ -78,6 +84,11 @@ internal sealed class DialectEmitter
         foreach (var attribute in dialect.Attributes)
         {
             builder.AppendLine("            dialect.AddAttribute(" + DialectGeneratorNaming.GetAttributeClassName(attribute) + ".AttributeDefinition);");
+        }
+
+        foreach (var attributeConstraint in dialect.AttributeConstraints)
+        {
+            builder.AppendLine("            dialect.AddAttributeConstraint(" + DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint) + ".AttributeConstraintDefinition);");
         }
 
         foreach (var type in dialect.Types)

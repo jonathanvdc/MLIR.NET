@@ -563,7 +563,7 @@ public sealed class DialectGeneratorTests
         Assert.Contains("NamedAttributeCollection.Create(value),", registrationSource);
 
         // OperationDefinition registration uses RequiredAttribute, not OptionalAttribute.
-        Assert.Contains("operation.RequiredAttribute(\"value\");", registrationSource);
+        Assert.Contains("operation.RequiredAttribute(\"value\",", registrationSource);
         Assert.DoesNotContain("operation.OptionalAttribute(\"value\")", registrationSource);
     }
 
@@ -598,7 +598,7 @@ public sealed class DialectGeneratorTests
         Assert.DoesNotContain("public NamedAttribute OptAttr", registrationSource);
 
         // OperationDefinition registration uses OptionalAttribute.
-        Assert.Contains("operation.OptionalAttribute(\"optAttr\");", registrationSource);
+        Assert.Contains("operation.OptionalAttribute(\"optAttr\",", registrationSource);
         Assert.DoesNotContain("operation.RequiredAttribute(\"optAttr\")", registrationSource);
     }
 
@@ -695,8 +695,8 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
         // Attributes inside oilist are optional.
-        Assert.Contains("operation.OptionalAttribute(\"stride\");", registrationSource);
-        Assert.Contains("operation.OptionalAttribute(\"padding\");", registrationSource);
+        Assert.Contains("operation.OptionalAttribute(\"stride\",", registrationSource);
+        Assert.Contains("operation.OptionalAttribute(\"padding\",", registrationSource);
         Assert.DoesNotContain("operation.RequiredAttribute(\"stride\")", registrationSource);
         Assert.DoesNotContain("operation.RequiredAttribute(\"padding\")", registrationSource);
 

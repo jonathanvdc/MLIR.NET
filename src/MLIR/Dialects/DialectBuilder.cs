@@ -11,6 +11,7 @@ public sealed class DialectBuilder
     private readonly string name;
     private readonly List<OperationDefinition> operations = new List<OperationDefinition>();
     private readonly List<AttributeDefinition> attributes = new List<AttributeDefinition>();
+    private readonly List<AttributeConstraintDefinition> attributeConstraints = new List<AttributeConstraintDefinition>();
     private readonly List<TypeDefinition> types = new List<TypeDefinition>();
 
     /// <summary>
@@ -52,6 +53,15 @@ public sealed class DialectBuilder
     }
 
     /// <summary>
+    /// Adds an attribute constraint definition.
+    /// </summary>
+    public DialectBuilder AddAttributeConstraint(AttributeConstraintDefinition attributeConstraint)
+    {
+        attributeConstraints.Add(attributeConstraint);
+        return this;
+    }
+
+    /// <summary>
     /// Adds a type definition.
     /// </summary>
     public DialectBuilder AddType(TypeDefinition type)
@@ -65,6 +75,6 @@ public sealed class DialectBuilder
     /// </summary>
     public Dialect Build()
     {
-        return new Dialect(name, operations, attributes, types);
+        return new Dialect(name, operations, attributes, types, attributeConstraints);
     }
 }

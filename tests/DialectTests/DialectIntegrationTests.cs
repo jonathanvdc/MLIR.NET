@@ -6,6 +6,7 @@ using MLIR.Miniarith;
 using MLIR.Minitest;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;
 
@@ -110,6 +111,22 @@ public sealed class DialectIntegrationTests
         Assert.Equal("%rhs", operation.Rhs.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
         Assert.NotNull(operation.TypeSignatureReference);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesPrimitiveAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_immediate 1, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddImmediateOp>(Assert.Single(module.Operations));
+        Assert.Equal("%lhs", operation.Lhs.Name);
+        Assert.Equal("value", operation.Value.Name);
+        Assert.Equal("1", operation.Value.Value.Syntax!.GetRawText().Text);
     }
 
     [Fact]

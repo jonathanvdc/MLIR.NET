@@ -13,9 +13,9 @@ public sealed class AttributeValueConstructionContext
     /// </summary>
     /// <param name="syntax">The attribute-value syntax.</param>
     /// <param name="name">The canonical attribute name, if one was recognized.</param>
-    /// <param name="definition">The registered attribute definition.</param>
+    /// <param name="definition">The registered attribute constraint definition.</param>
     /// <param name="location">The source location of the attribute value.</param>
-    public AttributeValueConstructionContext(AttributeValueSyntax syntax, string? name, AttributeDefinition definition, SourceLocation location)
+    public AttributeValueConstructionContext(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition definition, SourceLocation location)
     {
         Syntax = syntax;
         Name = name;
@@ -34,9 +34,9 @@ public sealed class AttributeValueConstructionContext
     public string? Name { get; }
 
     /// <summary>
-    /// Gets the registered attribute definition.
+    /// Gets the registered attribute constraint definition.
     /// </summary>
-    public AttributeDefinition Definition { get; }
+    public AttributeConstraintDefinition Definition { get; }
 
     /// <summary>
     /// Gets the source location of the attribute value, if known.

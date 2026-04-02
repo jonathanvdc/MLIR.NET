@@ -30,3 +30,12 @@ def MiniArith_AddIOp : MiniArith_Op<"addi", [Pure, Commutative]> {
 
   let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
 };
+
+def MiniArith_AddImmediateOp : MiniArith_Op<"add_immediate", [Pure]> {
+  let summary = "integer addition with an immediate";
+
+  let arguments = (ins I32Attr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};
