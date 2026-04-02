@@ -23,9 +23,12 @@ internal static class TestHelpers
     }
 
     private static readonly IReadOnlyDictionary<string, string> PreludeFiles = Directory
-        .GetFiles(Path.Combine(GetRepositoryRoot(), "src", "MLIR.Generators", "Prelude", "mlir", "IR"), "*.td")
+        .GetFiles(Path.Combine(GetRepositoryRoot(), "src", "MLIR.Generators", "Prelude", "mlir"), "*.td", SearchOption.AllDirectories)
         .ToDictionary(
-            static path => "mlir/IR/" + Path.GetFileName(path),
+            static path => Path.GetRelativePath(
+                    Path.Combine(GetRepositoryRoot(), "src", "MLIR.Generators", "Prelude"),
+                    path)
+                .Replace('\\', '/'),
             static path => File.ReadAllText(path));
 
     private static string GetRepositoryRoot()

@@ -34,5 +34,18 @@
     <EmbeddedResource Include="Prelude\mlir\IR\Interfaces.td" LogicalName="mlir/IR/Interfaces.td" />
     <EmbeddedResource Include="Prelude\mlir\IR\Properties.td" LogicalName="mlir/IR/Properties.td" />
     <EmbeddedResource Include="Prelude\mlir\IR\Traits.td" LogicalName="mlir/IR/Traits.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\BuiltinAttributeInterfaces.td" LogicalName="mlir/IR/BuiltinAttributeInterfaces.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\OpAsmInterface.td" LogicalName="mlir/IR/OpAsmInterface.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\EnumAttr.td" LogicalName="mlir/IR/EnumAttr.td" />
+    <EmbeddedResource Include="Prelude\mlir\Interfaces\CastInterfaces.td" LogicalName="mlir/Interfaces/CastInterfaces.td" />
+    <EmbeddedResource Include="Prelude\mlir\Interfaces\ControlFlowInterfaces.td" LogicalName="mlir/Interfaces/ControlFlowInterfaces.td" />
+    <EmbeddedResource Include="Prelude\mlir\Interfaces\InferIntRangeInterface.td" LogicalName="mlir/Interfaces/InferIntRangeInterface.td" />
+    <EmbeddedResource Include="Prelude\mlir\Interfaces\InferTypeOpInterface.td" LogicalName="mlir/Interfaces/InferTypeOpInterface.td" />
+    <EmbeddedResource Include="Prelude\mlir\Interfaces\SideEffectInterfaceBase.td" LogicalName="mlir/Interfaces/SideEffectInterfaceBase.td" />
+    <EmbeddedResource Include="Prelude\mlir\Interfaces\SideEffectInterfaces.td" LogicalName="mlir/Interfaces/SideEffectInterfaces.td" />
+    <EmbeddedResource Include="Prelude\mlir\Interfaces\VectorInterfaces.td" LogicalName="mlir/Interfaces/VectorInterfaces.td" />
+    <EmbeddedResource Include="Prelude\mlir\Dialect\Arith\IR\ArithBase.td" LogicalName="mlir/Dialect/Arith/IR/ArithBase.td" />
+    <EmbeddedResource Include="Prelude\mlir\Dialect\Arith\IR\ArithOpsInterfaces.td" LogicalName="mlir/Dialect/Arith/IR/ArithOpsInterfaces.td" />
+    <EmbeddedResource Include="Prelude\mlir\Dialect\Arith\IR\ArithOps.td" LogicalName="mlir/Dialect/Arith/IR/ArithOps.td" />
   </ItemGroup>
 </Project>

@@ -11,7 +11,9 @@ using TableGen;
 /// <remarks>
 /// The following virtual include paths are supported:
 /// <list type="bullet">
-/// <item><description><c>mlir/IR/OpBase.td</c> – upstream MLIR ODS op base definitions and recursive IR dependencies</description></item>
+/// <item><description><c>mlir/IR/*</c> – upstream MLIR IR prelude definitions embedded as resources</description></item>
+/// <item><description><c>mlir/Interfaces/*</c> – upstream MLIR interface definitions required by embedded dialect preludes</description></item>
+/// <item><description><c>mlir/Dialect/Arith/IR/*</c> – upstream MLIR Arith ODS definitions</description></item>
 /// </list>
 /// </remarks>
 internal sealed class EmbeddedPreludeResolver : TableGenIncludeResolver

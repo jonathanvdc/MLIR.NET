@@ -384,4 +384,17 @@ public sealed class IncludeResolutionTests
             generatedSources.Where(static r => r.HintName == "UtilsDialectRegistration.g.cs"));
         Assert.Contains("namespace MLIR.Utils;", registration.SourceText.ToString());
     }
+
+    [Fact]
+    public void TableGenResolverLoadsEmbeddedArithOpsPrelude()
+    {
+        const string source = "include \"mlir/Dialect/Arith/IR/ArithOps.td\"";
+
+        var document = GeneratorTestHelpers.LoadTableGenFromPrelude(source);
+        var records = document.Evaluate().Records;
+
+        Assert.Contains(records, static record => record.Name == "Arith_Dialect");
+        Assert.Contains(records, static record => record.Name == "Arith_AddIOp");
+        Assert.Contains(records, static record => record.Name == "Arith_CmpFOp");
+    }
 }

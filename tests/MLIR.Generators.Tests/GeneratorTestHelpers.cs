@@ -75,6 +75,11 @@ internal static class GeneratorTestHelpers
         return Document.Load(EnsureUpstreamPrelude(source), new TableGenDictionaryIncludeResolver(PreludeFiles));
     }
 
+    public static Document LoadTableGenFromPrelude(string source)
+    {
+        return Document.Load(source, new TableGenDictionaryIncludeResolver(PreludeFiles));
+    }
+
     private static string EnsureUpstreamPrelude(string source)
     {
         return source.Contains("include \"mlir/IR/OpBase.td\"", System.StringComparison.Ordinal)
@@ -83,9 +88,12 @@ internal static class GeneratorTestHelpers
     }
 
     private static readonly IReadOnlyDictionary<string, string> PreludeFiles = Directory
-        .GetFiles(Path.Combine(GetRepositoryRoot(), "src", "MLIR.Generators", "Prelude", "mlir", "IR"), "*.td")
+        .GetFiles(Path.Combine(GetRepositoryRoot(), "src", "MLIR.Generators", "Prelude", "mlir"), "*.td", SearchOption.AllDirectories)
         .ToDictionary(
-            static path => "mlir/IR/" + Path.GetFileName(path),
+            static path => Path.GetRelativePath(
+                    Path.Combine(GetRepositoryRoot(), "src", "MLIR.Generators", "Prelude"),
+                    path)
+                .Replace('\\', '/'),
             static path => File.ReadAllText(path));
 
     private static string GetRepositoryRoot()
