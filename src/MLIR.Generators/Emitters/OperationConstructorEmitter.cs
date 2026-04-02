@@ -179,7 +179,7 @@ internal static class OperationConstructorEmitter
                     builder.Append(", ");
                 }
 
-                builder.Append(GetAttributeToNamedAttributeExpression(attributeMembers[i]));
+                builder.Append(OperationAttributeValueHelpers.GetNamedAttributeExpression(attributeMembers[i], attributeMembers[i].ParameterName));
             }
 
             builder.AppendLine("),");
@@ -194,7 +194,7 @@ internal static class OperationConstructorEmitter
                     builder.Append(", ");
                 }
 
-                builder.Append(GetAttributeToNamedAttributeExpression(attributeMembers[i]));
+                builder.Append(OperationAttributeValueHelpers.GetNamedAttributeExpression(attributeMembers[i], attributeMembers[i].ParameterName));
             }
 
             builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
@@ -204,52 +204,5 @@ internal static class OperationConstructorEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
-    }
-
-    private static string GetAttributeToNamedAttributeExpression(GeneratedMember member)
-    {
-        var sourceName = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
-        var paramName = member.ParameterName;
-        var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
-
-        if (member.ConstraintKind == AttributeConstraintKind.None)
-        {
-            return paramName;
-        }
-
-        if (IsPrimitiveConstraintKind(member.ConstraintKind))
-        {
-            var constraintClass = member.ConstraintClassName!;
-            if (!isOptional)
-            {
-                return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + paramName + "))";
-            }
-            else if (IsValueTypeConstraintKind(member.ConstraintKind))
-            {
-                return paramName + ".HasValue ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + paramName + ".Value)) : null";
-            }
-            else
-            {
-                return paramName + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + paramName + ")) : null";
-            }
-        }
-
-        if (!isOptional)
-        {
-            return "new NamedAttribute(" + sourceName + ", " + paramName + ")";
-        }
-
-        return paramName + " != null ? new NamedAttribute(" + sourceName + ", " + paramName + ") : null";
-    }
-
-    private static bool IsPrimitiveConstraintKind(AttributeConstraintKind kind)
-    {
-        return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral
-            or AttributeConstraintKind.StringLiteral or AttributeConstraintKind.FloatingPointLiteral;
-    }
-
-    private static bool IsValueTypeConstraintKind(AttributeConstraintKind kind)
-    {
-        return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral;
     }
 }
