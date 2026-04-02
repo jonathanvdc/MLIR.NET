@@ -1,6 +1,7 @@
 namespace TableGen.Evaluation;
 
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 /// <summary>
 /// Represents an evaluated TableGen value.
@@ -105,4 +106,27 @@ public sealed class DagValue(string operatorName, IReadOnlyList<DagArgumentValue
     /// Gets the dag arguments.
     /// </summary>
     public IReadOnlyList<DagArgumentValue> Arguments { get; } = arguments;
+}
+
+/// <summary>
+/// Represents the TableGen unset ('?') value.
+/// </summary>
+public sealed class UnsetValue : Value
+{
+}
+
+/// <summary>
+/// Represents an anonymously instantiated class record value.
+/// </summary>
+public sealed class AnonymousRecordValue(string className, IReadOnlyDictionary<string, Value> fields) : Value
+{
+    /// <summary>
+    /// Gets the class name that was instantiated.
+    /// </summary>
+    public string ClassName { get; } = className;
+
+    /// <summary>
+    /// Gets the field values of the instantiated record.
+    /// </summary>
+    public IReadOnlyDictionary<string, Value> Fields { get; } = fields;
 }

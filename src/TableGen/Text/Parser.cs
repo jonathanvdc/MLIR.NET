@@ -49,7 +49,16 @@ internal sealed class Parser
             return ParseDef();
         }
 
-        throw Error("Expected 'class' or 'def'.");
+        if (TryMatch(TokenKind.DefVarKeyword))
+        {
+            var name = Expect(TokenKind.Identifier, "Expected a name after 'defvar'.").Text;
+            Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
+            var value = ParseExpression();
+            Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
+            return new DefVarSyntax(name, value);
+        }
+
+        throw Error("Expected 'class', 'def', or 'defvar'.");
     }
 
     private ClassSyntax ParseClass()
@@ -235,6 +244,11 @@ internal sealed class Parser
 
     private ExpressionSyntax ParsePrimaryExpression()
     {
+        if (TryMatch(TokenKind.QuestionMark))
+        {
+            return new UnsetSyntax();
+        }
+
         if (TryMatch(TokenKind.Integer, out var integerToken))
         {
             return new IntegerSyntax(int.Parse(integerToken.Text, CultureInfo.InvariantCulture));
@@ -255,17 +269,15 @@ internal sealed class Parser
             if (Is(TokenKind.LessThan))
             {
                 var arguments = ParseOptionalArgumentList();
-                Expect(TokenKind.Dot, "Expected '.' after the template argument list.");
-                var fieldName = Expect(TokenKind.Identifier, "Expected a field name.").Text;
-                return new ClassInstantiationSyntax(identifierToken.Text, arguments, fieldName);
+                return ApplyFieldAccess(new AnonymousClassInstantiationSyntax(identifierToken.Text, arguments));
             }
 
-            return new IdentifierSyntax(identifierToken.Text);
+            return ApplyFieldAccess(new IdentifierSyntax(identifierToken.Text));
         }
 
         if (TryMatch(TokenKind.BangKeyword, out var bangToken))
         {
-            return ParseBangExpression(bangToken.Text);
+            return ApplyFieldAccess(ParseBangExpression(bangToken.Text));
         }
 
         if (TryMatch(TokenKind.LBracket))
@@ -314,6 +326,17 @@ internal sealed class Parser
         throw Error("Expected an expression.");
     }
 
+    private ExpressionSyntax ApplyFieldAccess(ExpressionSyntax expr)
+    {
+        while (TryMatch(TokenKind.Dot))
+        {
+            var field = Expect(TokenKind.Identifier, "Expected a field name after '.'.");
+            expr = new FieldAccessSyntax(expr, field.Text);
+        }
+
+        return expr;
+    }
+
     private ExpressionSyntax ParseBangExpression(string operatorName)
     {
         if (operatorName == "foldl")
@@ -330,6 +353,29 @@ internal sealed class Parser
             var body = ParseExpression();
             Expect(TokenKind.RParen, "Expected ')' to close '!foldl'.");
             return new FoldlSyntax(init, list, accVar, curVar, body);
+        }
+
+        if (operatorName == "foreach")
+        {
+            Expect(TokenKind.LParen, "Expected '(' after '!foreach'.");
+            var varName = Expect(TokenKind.Identifier, "Expected variable name in '!foreach'.").Text;
+            Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
+            var list = ParseExpression();
+            Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
+            var body = ParseExpression();
+            Expect(TokenKind.RParen, "Expected ')' to close '!foreach'.");
+            return new ForeachSyntax(varName, list, body);
+        }
+
+        if (operatorName == "cast")
+        {
+            Expect(TokenKind.LessThan, "Expected '<' after '!cast'.");
+            Consume();
+            Expect(TokenKind.GreaterThan, "Expected '>' after '!cast' type.");
+            Expect(TokenKind.LParen, "Expected '(' after '!cast<type>'.");
+            var arg = ParseExpression();
+            Expect(TokenKind.RParen, "Expected ')' to close '!cast'.");
+            return new BangCallSyntax("cast", [arg]);
         }
 
         Expect(TokenKind.LParen, $"Expected '(' after '!{operatorName}'.");

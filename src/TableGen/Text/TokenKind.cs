@@ -27,5 +27,7 @@ internal enum TokenKind
     Dollar,
     Hash,
     Dot,
+    QuestionMark,
     BangKeyword,
+    DefVarKeyword,
 }
