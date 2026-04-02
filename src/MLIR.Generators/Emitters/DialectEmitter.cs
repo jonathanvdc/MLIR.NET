@@ -72,8 +72,11 @@ internal sealed class DialectEmitter
         foreach (var attribute in dialect.Attributes)
         {
             var attributeClassName = DialectGeneratorNaming.GetAttributeClassName(attribute);
+            var parserAliases = string.Equals(attribute.Name, attribute.ClassName, System.StringComparison.Ordinal)
+                ? "null"
+                : "new[] { " + EmitterHelpers.ToCSharpStringLiteral(attribute.ClassName!) + " }";
             builder.AppendLine(
-                "            dialect.AddAttribute(new AttributeDefinition(\"" + attribute.Name + "\", factory: static context => new " + attributeClassName + "(context)));");
+                "            dialect.AddAttribute(new AttributeDefinition(\"" + attribute.Name + "\", parserAliases: " + parserAliases + ", factory: static context => new " + attributeClassName + "(context)));");
         }
 
         foreach (var type in dialect.Types)

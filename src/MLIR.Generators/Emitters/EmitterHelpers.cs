@@ -98,6 +98,11 @@ internal static class EmitterHelpers
         return false;
     }
 
+    public static string? TryGetAttributeConstraint(OperationModel operation, string attributeName)
+    {
+        return operation.AttributeConstraints.TryGetValue(attributeName, out var constraint) ? constraint : null;
+    }
+
     public static BodyComponentKind GetComponentKindForVariable(OperationModel operation, string variableName)
     {
         if (ContainsName(operation.Results, variableName))

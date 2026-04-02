@@ -310,9 +310,20 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax)
     {
+        return BindAttributeValue(syntax, null);
+    }
+
+    /// <summary>
+    /// Binds an attribute value syntax tree to a semantic attribute value, preferring the supplied expected attribute definition when known.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <param name="expectedDefinitionName">The expected parser-facing attribute definition name, if one is known.</param>
+    /// <returns>The semantic attribute value.</returns>
+    public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, string? expectedDefinitionName)
+    {
         if (syntax.TryGetRawText(out var rawAttributeValueSyntax))
         {
-            return BindAttributeValueCore(syntax, rawAttributeValueSyntax!);
+            return BindAttributeValueCore(syntax, rawAttributeValueSyntax!, expectedDefinitionName);
         }
         else
         {
@@ -328,14 +339,19 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(RawSyntaxText syntax)
     {
-        return BindAttributeValueCore(new RawAttributeValueSyntax(syntax), syntax);
+        return BindAttributeValueCore(new RawAttributeValueSyntax(syntax), syntax, null);
     }
 
-    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax)
+    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax, string? expectedDefinitionName)
     {
         var canonicalName = TryGetAttributeDefinitionName(rawSyntax.Text);
         AttributeDefinition? definition = null;
-        if (canonicalName != null && dialectRegistry != null)
+        if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
+        {
+            dialectRegistry.TryResolveAttributeForParsing(expectedDefinitionName!, out definition);
+        }
+
+        if (definition == null && canonicalName != null && dialectRegistry != null)
         {
             dialectRegistry.TryGetAttribute(canonicalName, out definition);
         }

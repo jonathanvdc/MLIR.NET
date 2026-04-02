@@ -52,6 +52,9 @@ public static class DialectImporter
                 var dialect = GetOrCreateDialect(dialectsByName, opDialectName);
                 var argumentMembers = GetDagMembers(record, "arguments");
                 var resultMembers = GetDagMembers(record, "results");
+                var attributeConstraints = argumentMembers
+                    .Where(static member => member.Kind == DagMemberKind.Attribute && member.ConstraintName != null)
+                    .ToDictionary(static member => member.Name, static member => member.ConstraintName!, StringComparer.Ordinal);
                 var assemblyFormatString = GetOptionalStringField(record, "assemblyFormat");
                 var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
                     ? AssemblyFormatParser.Parse(assemblyFormatString!)
@@ -63,6 +66,7 @@ public static class DialectImporter
                         argumentMembers.Where(static member => member.Kind == DagMemberKind.Operand).Select(static member => member.Name).ToArray(),
                         resultMembers.Where(static member => member.Kind == DagMemberKind.Result).Select(static member => member.Name).ToArray(),
                         argumentMembers.Where(static member => member.Kind == DagMemberKind.Attribute).Select(static member => member.Name).ToArray(),
+                        attributeConstraints,
                         assemblyFormat != null,
                         GetOptionalStringField(record, "summary"),
                         GetOptionalStringField(record, "description"),

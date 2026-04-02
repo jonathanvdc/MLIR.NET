@@ -54,6 +54,7 @@ public sealed class DialectImporterTests
         Assert.Equal("MiniArith_ConstantOp", constantOp.ClassName);
         Assert.Equal(["result"], constantOp.Results);
         Assert.Equal(["value"], constantOp.Attributes);
+        Assert.Equal("I32Attr", constantOp.AttributeConstraints["value"]);
         Assert.Empty(constantOp.Operands);
         Assert.Equal(["Pure"], constantOp.Traits);
         Assert.NotNull(constantOp.AssemblyFormat);

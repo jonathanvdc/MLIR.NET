@@ -95,13 +95,20 @@ internal static class AssemblyFormatEmitter
         throw new InvalidOperationException("No body field was generated for operand '" + operandName + "'.");
     }
 
-    private static string GetAttributeBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata, string attributeName)
+    private static string GetAttributeBindExpression(OperationModel operation, OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata, string attributeName)
     {
         if (plan.AttributeFields.TryGetValue(attributeName, out var fieldName))
         {
             var quotedName = EmitterHelpers.ToCSharpStringLiteral(attributeName);
             var access = "body." + fieldName;
-            var bindCall = "new NamedAttribute(" + quotedName + ", binder.BindAttributeValue(" + access + "))";
+            var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
+            var bindCall = "new NamedAttribute(" + quotedName + ", binder.BindAttributeValue(" + access;
+            if (!string.IsNullOrEmpty(expectedConstraint))
+            {
+                bindCall += ", " + EmitterHelpers.ToCSharpStringLiteral(expectedConstraint!);
+            }
+
+            bindCall += "))";
 
             // When the body field is nullable (e.g. AttributeValueSyntax? for an oilist clause),
             // emit a conditional expression that produces null when the attribute is absent.
@@ -192,7 +199,7 @@ internal static class AssemblyFormatEmitter
                         builder.Append(", ");
                     }
 
-                    builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
+                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
                 }
 
                 builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
@@ -207,7 +214,7 @@ internal static class AssemblyFormatEmitter
                         builder.Append(", ");
                     }
 
-                    builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
+                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
                 }
 
                 builder.AppendLine("),");

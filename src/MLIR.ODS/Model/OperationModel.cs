@@ -16,6 +16,7 @@ public sealed class OperationModel
         IReadOnlyList<string>? operands = null,
         IReadOnlyList<string>? results = null,
         IReadOnlyList<string>? attributes = null,
+        IReadOnlyDictionary<string, string>? attributeConstraints = null,
         bool hasCustomAssemblyFormat = false,
         string? summary = null,
         string? description = null,
@@ -27,6 +28,7 @@ public sealed class OperationModel
         Operands = operands ?? EmptyItems;
         Results = results ?? EmptyItems;
         Attributes = attributes ?? EmptyItems;
+        AttributeConstraints = attributeConstraints ?? EmptyAttributeConstraints;
         HasCustomAssemblyFormat = hasCustomAssemblyFormat;
         Summary = summary;
         Description = description;
@@ -60,6 +62,11 @@ public sealed class OperationModel
     public IReadOnlyList<string> Attributes { get; }
 
     /// <summary>
+    /// Gets the declared attribute constraint names keyed by logical attribute name.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> AttributeConstraints { get; }
+
+    /// <summary>
     /// Gets a value indicating whether the operation declares a custom assembly format.
     /// </summary>
     public bool HasCustomAssemblyFormat { get; }
@@ -85,4 +92,5 @@ public sealed class OperationModel
     public IReadOnlyList<string> Traits { get; }
 
     private static readonly IReadOnlyList<string> EmptyItems = new string[0];
+    private static readonly IReadOnlyDictionary<string, string> EmptyAttributeConstraints = new Dictionary<string, string>();
 }

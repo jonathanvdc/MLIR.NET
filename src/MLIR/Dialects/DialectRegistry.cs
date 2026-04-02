@@ -11,6 +11,7 @@ public sealed class DialectRegistry
     private readonly Dictionary<string, Dialect> dialectsByName = new Dictionary<string, Dialect>(StringComparer.Ordinal);
     private readonly Dictionary<string, OperationDefinition> operationsByName = new Dictionary<string, OperationDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, AttributeDefinition> attributesByName = new Dictionary<string, AttributeDefinition>(StringComparer.Ordinal);
+    private readonly Dictionary<string, AttributeDefinition> attributesByParserName = new Dictionary<string, AttributeDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, TypeDefinition> typesByName = new Dictionary<string, TypeDefinition>(StringComparer.Ordinal);
 
     /// <summary>
@@ -44,6 +45,19 @@ public sealed class DialectRegistry
             {
                 throw new ArgumentException($"The attribute '{attribute.Name}' is already registered.", nameof(dialect));
             }
+
+            if (attributesByParserName.ContainsKey(attribute.Name))
+            {
+                throw new ArgumentException($"The attribute parser name '{attribute.Name}' is already registered.", nameof(dialect));
+            }
+
+            foreach (var alias in attribute.ParserAliases)
+            {
+                if (attributesByParserName.ContainsKey(alias))
+                {
+                    throw new ArgumentException($"The attribute parser name '{alias}' is already registered.", nameof(dialect));
+                }
+            }
         }
 
         foreach (var type in dialect.Types)
@@ -63,6 +77,11 @@ public sealed class DialectRegistry
         foreach (var attribute in dialect.Attributes)
         {
             attributesByName.Add(attribute.Name, attribute);
+            attributesByParserName.Add(attribute.Name, attribute);
+            foreach (var alias in attribute.ParserAliases)
+            {
+                attributesByParserName.Add(alias, attribute);
+            }
         }
 
         foreach (var type in dialect.Types)
@@ -88,6 +107,14 @@ public sealed class DialectRegistry
     public bool TryGetAttribute(string name, out AttributeDefinition attribute)
     {
         return attributesByName.TryGetValue(name, out attribute!);
+    }
+
+    /// <summary>
+    /// Tries to resolve an attribute definition by a parser-facing name, including registered aliases.
+    /// </summary>
+    public bool TryResolveAttributeForParsing(string name, out AttributeDefinition attribute)
+    {
+        return attributesByParserName.TryGetValue(name, out attribute!);
     }
 
     /// <summary>

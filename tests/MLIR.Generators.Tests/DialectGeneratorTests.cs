@@ -344,7 +344,7 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
 
         // Attribute variable is parsed as an attribute value.
-        Assert.Contains("context.ParseAttributeValueSyntax(", registrationSource);
+        Assert.Contains("context.ParseAttributeValueSyntax(\"I32Attr\"", registrationSource);
 
         // Attribute dictionary is parsed.
         Assert.Contains("var attrDict = context.ParseAttrDict();", registrationSource);

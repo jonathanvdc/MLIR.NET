@@ -201,9 +201,8 @@ internal sealed class TryParseEmitter
         if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
         {
             var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
-            var expr = delimiters.Count > 0
-                ? "context.ParseAttributeValueSyntax(" + BuildDelimiterList(delimiters) + ")"
-                : "context.ParseAttributeValueSyntax()";
+            var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
+            var expr = BuildAttributeParseExpr(expectedConstraint, delimiters);
             builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
         }
         else
@@ -467,7 +466,8 @@ internal sealed class TryParseEmitter
                 var varName = EmitterHelpers.LowerFirst(f.Name);
                 if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
                 {
-                    builder.AppendLine(indent + varName + " = context.ParseAttributeValueSyntax();");
+                    var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
+                    builder.AppendLine(indent + varName + " = " + BuildAttributeParseExpr(expectedConstraint, Array.Empty<TokenKind>()) + ";");
                 }
                 else
                 {
@@ -493,6 +493,33 @@ internal sealed class TryParseEmitter
                 break;
             }
         }
+    }
+
+    private static string BuildAttributeParseExpr(string? expectedConstraint, IReadOnlyList<TokenKind> delimiters)
+    {
+        var hasExpectedConstraint = !string.IsNullOrEmpty(expectedConstraint);
+        var hasDelimiters = delimiters.Count > 0;
+
+        if (hasExpectedConstraint && hasDelimiters)
+        {
+            return "context.ParseAttributeValueSyntax(" +
+                EmitterHelpers.ToCSharpStringLiteral(expectedConstraint!) +
+                ", " +
+                BuildDelimiterList(delimiters) +
+                ")";
+        }
+
+        if (hasExpectedConstraint)
+        {
+            return "context.ParseAttributeValueSyntax(" + EmitterHelpers.ToCSharpStringLiteral(expectedConstraint!) + ")";
+        }
+
+        if (hasDelimiters)
+        {
+            return "context.ParseAttributeValueSyntax(" + BuildDelimiterList(delimiters) + ")";
+        }
+
+        return "context.ParseAttributeValueSyntax()";
     }
 
     // -----------------------------------------------------------------------
@@ -715,4 +742,3 @@ internal sealed class TryParseEmitter
         return text.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 }
-

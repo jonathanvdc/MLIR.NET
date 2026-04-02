@@ -122,6 +122,17 @@ public sealed class OperationParsingContext : DialectParsingContext
     }
 
     /// <summary>
+    /// Parses an attribute value, preferring the supplied expected attribute definition and
+    /// stopping before any of the supplied delimiter tokens or an operation boundary, whichever comes first.
+    /// </summary>
+    // This intentionally shadows the base overload: operation custom assembly parsing must also
+    // stop at operation boundaries (for example a newline ending the op), not just explicit delimiters.
+    public new AttributeValueSyntax ParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
+    {
+        return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinitionName, stopBefore);
+    }
+
+    /// <summary>
     /// Parses an optional attribute dictionary of the form <c>{ name = value, ... }</c>.
     /// Returns an empty list when no opening brace is present.
     /// </summary>
