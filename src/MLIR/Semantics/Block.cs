@@ -12,7 +12,7 @@ public sealed class Block
     private readonly List<Operation> operations;
     private readonly Dictionary<string, Value> valuesByName = [];
     private readonly List<OpSuccessor> uses = [];
-    private readonly string label;
+    private string label;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Block"/> class from a concrete syntax node.
@@ -184,6 +184,12 @@ public sealed class Block
     internal void AddOperationFromSyntax(Operation operation)
     {
         AttachOperation(operation, invalidateSyntax: false);
+    }
+
+    internal void SetLabelWithoutValidation(string newLabel)
+    {
+        label = newLabel;
+        InvalidateSyntax();
     }
 
     internal void Bind(Region parentRegion)
