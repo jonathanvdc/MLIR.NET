@@ -708,7 +708,7 @@ public static class Interpreter
             return typeName switch
             {
                 "int" when value is not IntegerValue => throw new InvalidOperationException($"Expected an integer value for '{typeName}'."),
-                "string" when value is not StringValue => throw new InvalidOperationException($"Expected a string value for '{typeName}'."),
+                "string" when value is not StringValue => new StringValue(ValueToString(value)),
                 "code" => value,
                 "bit" when value is IntegerValue integer => new BitValue(integer.Value != 0),
                 "bit" when value is BitValue => value,
