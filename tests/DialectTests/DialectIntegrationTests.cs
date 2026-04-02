@@ -558,7 +558,7 @@ public sealed class DialectIntegrationTests
         var op = Assert.IsType<MiniTest_BinaryOp>(Assert.Single(module2.Operations));
         Assert.Equal("%lhs", op.Lhs.Name);
         Assert.NotNull(op.Rhs);
-        Assert.Equal("%rhs", op.Rhs!.Value.Name);
+        Assert.Equal("%rhs", op.Rhs!.Name);
         Assert.Equal("%result", op.ResultValue.Name);
     }
 

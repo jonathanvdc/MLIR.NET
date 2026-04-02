@@ -13,8 +13,8 @@ public sealed class UnknownOperation : Operation
     private readonly IReadOnlyList<Region> regions;
     private readonly NamedAttributeCollection attributes;
     private readonly TypeReference? typeSignatureReference;
-    private readonly IReadOnlyList<ValueReference> resultValues;
-    private readonly IReadOnlyList<ValueReference> operandValues;
+    private readonly IReadOnlyList<OperationResult> resultValues;
+    private readonly IReadOnlyList<Value> operandValues;
     private readonly IReadOnlyList<BlockReference> successorReferences;
     /// <summary>
     /// Initializes a new instance of the <see cref="UnknownOperation"/> class.
@@ -26,8 +26,8 @@ public sealed class UnknownOperation : Operation
         IReadOnlyList<Region> regions,
         NamedAttributeCollection attributes,
         TypeReference? typeSignatureReference,
-        IReadOnlyList<ValueReference> resultValues,
-        IReadOnlyList<ValueReference> operandValues,
+        IReadOnlyList<OperationResult> resultValues,
+        IReadOnlyList<Value> operandValues,
         IReadOnlyList<BlockReference> successorReferences)
         : base(syntax)
     {
@@ -36,7 +36,7 @@ public sealed class UnknownOperation : Operation
         this.regions = regions;
         this.attributes = attributes;
         this.typeSignatureReference = typeSignatureReference;
-        this.resultValues = resultValues;
+        this.resultValues = BindResults(resultValues);
         this.operandValues = operandValues;
         this.successorReferences = successorReferences;
     }
@@ -57,10 +57,10 @@ public sealed class UnknownOperation : Operation
     public override TypeReference? TypeSignatureReference => typeSignatureReference;
 
     /// <inheritdoc/>
-    public override IReadOnlyList<ValueReference> ResultValues => resultValues;
+    public override IReadOnlyList<OperationResult> ResultValues => resultValues;
 
     /// <inheritdoc/>
-    public override IReadOnlyList<ValueReference> OperandValues => operandValues;
+    public override IReadOnlyList<Value> OperandValues => operandValues;
 
     /// <inheritdoc/>
     public override IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;
@@ -98,6 +98,17 @@ public sealed class UnknownOperation : Operation
         }
 
         return new UnknownOperation(Syntax!, name, definition, finalRegions, finalAttributes, finalTypeRef, resultValues, operandValues, successorReferences);
+    }
+
+    private IReadOnlyList<OperationResult> BindResults(IReadOnlyList<OperationResult> unboundResults)
+    {
+        var boundResults = new List<OperationResult>(unboundResults.Count);
+        for (int i = 0; i < unboundResults.Count; i++)
+        {
+            boundResults.Add(unboundResults[i].Bind(this, i));
+        }
+
+        return boundResults;
     }
 
 }

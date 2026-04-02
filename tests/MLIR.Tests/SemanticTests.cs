@@ -85,21 +85,21 @@ public sealed class SemanticTests
         private readonly GeneratedConstantOperation? typedOperation;
         public IReadOnlyList<string> Results => operation.Results;
         public NamedAttribute ValueAttribute => operation.GetAttribute("value");
-        public ValueReference ResultValue => operation.ResultValues[0];
+        public OperationResult ResultValue => operation.ResultValues[0];
     }
 
     private sealed class GeneratedConstantOperation : Operation
     {
         private readonly OperationDefinition definition;
         public readonly NamedAttribute ValueAttribute;
-        public readonly ValueReference ResultValue;
+        public readonly OperationResult ResultValue;
 
-        public GeneratedConstantOperation(OperationSyntax syntax, OperationDefinition definition, ValueReference resultValue, AttributeValue value, TypeReference typeSignatureReference)
+        public GeneratedConstantOperation(OperationSyntax syntax, OperationDefinition definition, OperationResult resultValue, AttributeValue value, TypeReference typeSignatureReference)
             : base(syntax)
         {
             this.definition = definition;
             ValueAttribute = new NamedAttribute("value", value);
-            ResultValue = resultValue;
+            ResultValue = resultValue.Bind(this, 0);
             TypeSignatureReference = typeSignatureReference;
         }
 
@@ -108,7 +108,7 @@ public sealed class SemanticTests
         {
             definition = context.Definition;
             ValueAttribute = context.GetAttribute("value");
-            ResultValue = context.ResultValues.Single();
+            ResultValue = context.ResultValues.Single().Bind(this, 0);
             TypeSignatureReference = context.TypeSignatureReference;
         }
 
@@ -117,8 +117,8 @@ public sealed class SemanticTests
         public override IReadOnlyList<Region> Regions => [];
         public override NamedAttributeCollection Attributes => NamedAttributeCollection.Create(ValueAttribute);
         public override TypeReference? TypeSignatureReference { get; }
-        public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
-        public override IReadOnlyList<ValueReference> OperandValues => [];
+        public override IReadOnlyList<OperationResult> ResultValues => [ResultValue];
+        public override IReadOnlyList<Value> OperandValues => [];
         public override IReadOnlyList<BlockReference> SuccessorReferences => [];
         public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
     }
@@ -312,14 +312,14 @@ public sealed class SemanticTests
         public override IReadOnlyList<Region> Regions => EmptyRegions;
         public override NamedAttributeCollection Attributes => EmptyAttributes;
         public override TypeReference? TypeSignatureReference => null;
-        public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
-        public override IReadOnlyList<ValueReference> OperandValues => [LeftOperand, RightOperand];
+        public override IReadOnlyList<OperationResult> ResultValues => [ResultValue];
+        public override IReadOnlyList<Value> OperandValues => [LeftOperand, RightOperand];
         public override IReadOnlyList<BlockReference> SuccessorReferences => EmptySuccessors;
         public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
 
-        public ValueReference LeftOperand { get; }
-        public ValueReference RightOperand { get; }
-        public ValueReference ResultValue { get; }
+        public Value LeftOperand { get; }
+        public Value RightOperand { get; }
+        public OperationResult ResultValue { get; }
     }
 
     private sealed class SyntheticOperation : Operation
@@ -335,8 +335,8 @@ public sealed class SemanticTests
         public override IReadOnlyList<Region> Regions => [];
         public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;
         public override TypeReference? TypeSignatureReference => null;
-        public override IReadOnlyList<ValueReference> ResultValues => [];
-        public override IReadOnlyList<ValueReference> OperandValues => [];
+        public override IReadOnlyList<OperationResult> ResultValues => [];
+        public override IReadOnlyList<Value> OperandValues => [];
         public override IReadOnlyList<BlockReference> SuccessorReferences => [];
         public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
     }
@@ -385,7 +385,7 @@ public sealed class SemanticTests
             return new GeneratedConstantOperation(
                 syntax,
                 definition,
-                binder.BindValueReference(syntax.ResultTokens.Single()),
+                new OperationResult(syntax.ResultTokens.Single()),
                 binder.BindAttributeValue(body.Value),
                 binder.BindTypeReference(body.TypeSignature));
         }
@@ -443,7 +443,7 @@ public sealed class SemanticTests
             return new GeneratedConstantOperation(
                 syntax,
                 definition,
-                binder.BindValueReference(syntax.ResultTokens.Single()),
+                new OperationResult(syntax.ResultTokens.Single()),
                 binder.BindAttributeValue(body.Attributes[0].ValueSyntax, expectedAttributeDefinition),
                 binder.BindTypeReference(body.TypeSignature));
         }
@@ -673,7 +673,7 @@ public sealed class SemanticTests
         Assert.Single(nestedOperation.Attributes);
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
         Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax!.GetRawText().Text);
-        Assert.Equal("%arg0", block.Arguments[0].Value.Name);
+        Assert.Equal("%arg0", block.Arguments[0].Name);
         Assert.Equal("i32", block.Arguments[0].TypeReference.Name);
     }
 

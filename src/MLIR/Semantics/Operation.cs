@@ -50,12 +50,12 @@ public abstract class Operation
     /// <summary>
     /// Gets the typed SSA result references produced by the operation.
     /// </summary>
-    public abstract IReadOnlyList<ValueReference> ResultValues { get; }
+    public abstract IReadOnlyList<OperationResult> ResultValues { get; }
 
     /// <summary>
     /// Gets the typed SSA operand references passed to the operation.
     /// </summary>
-    public abstract IReadOnlyList<ValueReference> OperandValues { get; }
+    public abstract IReadOnlyList<Value> OperandValues { get; }
 
     /// <summary>
     /// Gets the typed block successor references used by the operation.
@@ -135,7 +135,8 @@ public abstract class Operation
         throw new KeyNotFoundException($"The operation '{Name}' does not have an attribute named '{name}'.");
     }
 
-    private static IReadOnlyList<string> GetNames(IReadOnlyList<ValueReference> values)
+    private static IReadOnlyList<string> GetNames<TValue>(IReadOnlyList<TValue> values)
+        where TValue : Value
     {
         var names = new List<string>(values.Count);
         foreach (var value in values)

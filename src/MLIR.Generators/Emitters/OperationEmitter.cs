@@ -42,7 +42,7 @@ internal static class OperationEmitter
         for (var i = 0; i < operation.Operands.Count; i++)
         {
             var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Operands[i]);
-            var typeName = requiredVariables.Contains(operation.Operands[i]) ? "ValueReference" : "ValueReference?";
+            var typeName = requiredVariables.Contains(operation.Operands[i]) ? "Value" : "Value?";
             members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operation.Operands[i]));
         }
 
@@ -57,7 +57,7 @@ internal static class OperationEmitter
             var propertyName = operation.Results.Count == 1
                 ? "ResultValue"
                 : DialectGeneratorNaming.ToPascalCase(operation.Results[i]);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "ValueReference", operation.Results[i]));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "OperationResult", operation.Results[i]));
         }
 
         return members;
@@ -198,7 +198,17 @@ internal static class OperationEmitter
             return;
         }
 
-        builder.Append("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => new " + itemType + "[] { ");
+        var hasNullableMembers = false;
+        for (var i = 0; i < members.Count; i++)
+        {
+            if (members[i].TypeName == itemType + "?")
+            {
+                hasNullableMembers = true;
+                break;
+            }
+        }
+
+        builder.Append("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => new " + itemType + (hasNullableMembers ? "?" : string.Empty) + "[] { ");
         for (var i = 0; i < members.Count; i++)
         {
             if (i > 0)
@@ -206,20 +216,12 @@ internal static class OperationEmitter
                 builder.Append(", ");
             }
 
-            // When the member holds a nullable value type (e.g. ValueReference?) but the list
-            // element type is the non-nullable counterpart, unwrap with GetValueOrDefault so
-            // the array initializer compiles cleanly.
-            if (members[i].TypeName == itemType + "?")
-            {
-                builder.Append(members[i].PropertyName + ".GetValueOrDefault()");
-            }
-            else
-            {
-                builder.Append(members[i].PropertyName);
-            }
+            builder.Append(members[i].PropertyName);
         }
 
-        builder.AppendLine(" };");
+        builder.AppendLine(hasNullableMembers
+            ? " }.Where(value => value is not null).Select(value => value!).ToArray();"
+            : " };");
     }
 
     private static void EmitPropertyDeclarations(
@@ -236,7 +238,7 @@ internal static class OperationEmitter
         if (resultReferenceName != null && operation.Results[0] != "result")
         {
             builder.AppendLine(
-                "    public ValueReference " + DialectGeneratorNaming.ToPascalCase(operation.Results[0]) + " => " + resultReferenceName + ";");
+                "    public OperationResult " + DialectGeneratorNaming.ToPascalCase(operation.Results[0]) + " => " + resultReferenceName + ";");
         }
 
         builder.AppendLine("    public override NamedAttributeCollection Attributes { get; }");
@@ -292,7 +294,11 @@ internal static class OperationEmitter
         builder.AppendLine("    {");
         builder.AppendLine("        this.typeSignatureReference = typeSignatureReference;");
         AppendAssignments(builder, operandMembers);
-        AppendAssignments(builder, resultMembers);
+        for (var i = 0; i < resultMembers.Count; i++)
+        {
+            var member = resultMembers[i];
+            builder.AppendLine("        " + member.PropertyName + " = " + member.ParameterName + ".Bind(this, " + i.ToString(CultureInfo.InvariantCulture) + ");");
+        }
         builder.AppendLine("        Attributes = attributes;");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -438,8 +444,8 @@ internal static class OperationEmitter
     {
         builder.AppendLine("    public override IReadOnlyList<Region> Regions => global::System.Array.Empty<Region>();");
         builder.AppendLine("    public override TypeReference? TypeSignatureReference => typeSignatureReference;");
-        AppendDerivedListProperty(builder, "ValueReference", "ResultValues", resultMembers);
-        AppendDerivedListProperty(builder, "ValueReference", "OperandValues", operandMembers);
+        AppendDerivedListProperty(builder, "OperationResult", "ResultValues", resultMembers);
+        AppendDerivedListProperty(builder, "Value", "OperandValues", operandMembers);
         builder.AppendLine("    public override IReadOnlyList<BlockReference> SuccessorReferences => global::System.Array.Empty<BlockReference>();");
     }
 

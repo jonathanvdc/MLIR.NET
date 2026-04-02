@@ -414,7 +414,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
         else
         {
-            // Required operand/result: op.Lhs is ValueReference (non-nullable)
+            // Required operand/result: op.Lhs is Value (non-nullable)
             return "op." + propName + ".Token ?? new SyntaxToken(op." + propName + ".Name)";
         }
     }
@@ -434,9 +434,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
         else
         {
-            // Nullable operand: op.Rhs is ValueReference?
-            // Use GetValueOrDefault() to access without CS8629 warning.
-            return "op." + propName + ".GetValueOrDefault().Token ?? new SyntaxToken(op." + propName + ".GetValueOrDefault().Name)";
+            // Nullable operand: op.Rhs is Value?
+            return "op." + propName + "!.Token ?? new SyntaxToken(op." + propName + "!.Name)";
         }
     }
 
@@ -470,8 +469,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
         else
         {
-            // Operand or result: ValueReference?
-            return "op." + propName + ".HasValue";
+            // Operand or result: Value?
+            return "op." + propName + " != null";
         }
     }
 
@@ -493,7 +492,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 }
                 else
                 {
-                    return "op." + propName + ".HasValue";
+                    return "op." + propName + " != null";
                 }
             }
         }
