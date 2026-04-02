@@ -1,5 +1,6 @@
 namespace MLIR.Generators.Emitters;
 
+using System;
 using System.Globalization;
 using System.Text;
 using System.Collections.Generic;
@@ -10,11 +11,18 @@ internal static class OperationEmitter
     public sealed class GeneratedMember
     {
         public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
+            : this(propertyName, parameterName, typeName, sourceName, AttributeConstraintKind.None, null)
+        {
+        }
+
+        public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName, AttributeConstraintKind constraintKind, string? constraintClassName)
         {
             PropertyName = propertyName;
             ParameterName = parameterName;
             TypeName = typeName;
             SourceName = sourceName;
+            ConstraintKind = constraintKind;
+            ConstraintClassName = constraintClassName;
         }
 
         public string PropertyName { get; }
@@ -24,6 +32,10 @@ internal static class OperationEmitter
         public string TypeName { get; }
 
         public string SourceName { get; }
+
+        public AttributeConstraintKind ConstraintKind { get; }
+
+        public string? ConstraintClassName { get; }
     }
 
     private static string GetParameterName(string propertyName)
@@ -63,17 +75,73 @@ internal static class OperationEmitter
         return members;
     }
 
-    private static IReadOnlyList<GeneratedMember> GetAttributeMembers(OperationModel operation, HashSet<string> requiredVariables)
+    private static IReadOnlyList<GeneratedMember> GetAttributeMembers(OperationModel operation, HashSet<string> requiredVariables, DialectSymbolResolver resolver)
     {
         var members = new List<GeneratedMember>(operation.Attributes.Count);
         for (var i = 0; i < operation.Attributes.Count; i++)
         {
-            var propertyName = DialectGeneratorNaming.ToPascalCase(operation.Attributes[i]);
-            var typeName = requiredVariables.Contains(operation.Attributes[i]) ? "NamedAttribute" : "NamedAttribute?";
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operation.Attributes[i]));
+            var attributeName = operation.Attributes[i];
+            var propertyName = DialectGeneratorNaming.ToPascalCase(attributeName);
+            var isRequired = requiredVariables.Contains(attributeName);
+
+            var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
+            var constraintKind = AttributeConstraintKind.None;
+            string? constraintClassName = null;
+
+            if (!string.IsNullOrEmpty(constraintRecordName))
+            {
+                constraintKind = resolver.TryResolveAttributeConstraintKind(constraintRecordName!);
+                if (constraintKind != AttributeConstraintKind.None)
+                {
+                    constraintClassName = resolver.TryResolveAttributeConstraintClassName(constraintRecordName!);
+                    if (constraintClassName == null)
+                    {
+                        constraintKind = AttributeConstraintKind.None;
+                    }
+                }
+            }
+
+            var typeName = GetAttributeTypeName(constraintKind, isRequired);
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintKind, constraintClassName));
         }
 
         return members;
+    }
+
+    private static string GetAttributeTypeName(AttributeConstraintKind kind, bool isRequired)
+    {
+        var baseType = kind switch
+        {
+            AttributeConstraintKind.IntegerLiteral => "BigInteger",
+            AttributeConstraintKind.BooleanLiteral => "bool",
+            AttributeConstraintKind.StringLiteral => "string",
+            AttributeConstraintKind.FloatingPointLiteral => "string",
+            AttributeConstraintKind.DenseArrayAttribute => "ArrayAttributeValue",
+            AttributeConstraintKind.ElementsAttribute => "ElementsAttributeValue",
+            AttributeConstraintKind.DictionaryAttribute => "DictionaryAttributeValue",
+            AttributeConstraintKind.TypeAttribute => "TypeAttributeValue",
+            AttributeConstraintKind.UnitAttribute => "UnitAttributeValue",
+            AttributeConstraintKind.OpaqueAttribute => "OpaqueAttributeValue",
+            _ => null,
+        };
+
+        if (baseType == null)
+        {
+            return isRequired ? "NamedAttribute" : "NamedAttribute?";
+        }
+
+        return isRequired ? baseType : baseType + "?";
+    }
+
+    private static bool IsPrimitiveConstraintKind(AttributeConstraintKind kind)
+    {
+        return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral
+            or AttributeConstraintKind.StringLiteral or AttributeConstraintKind.FloatingPointLiteral;
+    }
+
+    private static bool IsValueTypeConstraintKind(AttributeConstraintKind kind)
+    {
+        return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral;
     }
 
     private static void EmitDefinition(StringBuilder builder, string className, OperationModel operation, DialectSymbolResolver resolver)
@@ -164,28 +232,102 @@ internal static class OperationEmitter
         for (var i = 0; i < attributeMembers.Count; i++)
         {
             var member = attributeMembers[i];
-            if (member.TypeName == "NamedAttribute?")
+            var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
+
+            if (member.ConstraintKind == AttributeConstraintKind.None)
             {
-                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                // Legacy NamedAttribute behavior
+                if (isOptional)
+                {
+                    var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                    builder.AppendLine(
+                        "    public NamedAttribute? " + member.PropertyName);
+                    builder.AppendLine("    {");
+                    builder.AppendLine(
+                        "        get => Attributes.TryGet(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) +
+                        ", out var " + localName + ") ? " + localName + " : null;");
+                    builder.AppendLine(
+                        "        set => SetAttribute(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ", value);");
+                    builder.AppendLine("    }");
+                }
+                else
+                {
+                    builder.AppendLine(
+                        "    public NamedAttribute " + member.PropertyName);
+                    builder.AppendLine("    {");
+                    builder.AppendLine(
+                        "        get => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
+                    builder.AppendLine(
+                        "        set => SetAttribute(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ", value);");
+                    builder.AppendLine("    }");
+                }
+            }
+            else if (IsPrimitiveConstraintKind(member.ConstraintKind))
+            {
+                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+                var castExpr = GetPrimitiveAttributeCastExpression(member.ConstraintKind);
+                var constraintClass = member.ConstraintClassName!;
+
                 builder.AppendLine(
-                    "    public NamedAttribute? " + member.PropertyName);
+                    "    public " + member.TypeName + " " + member.PropertyName);
                 builder.AppendLine("    {");
-                builder.AppendLine(
-                    "        get => Attributes.TryGet(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) +
-                    ", out var " + localName + ") ? " + localName + " : null;");
-                builder.AppendLine(
-                    "        set => SetAttribute(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ", value);");
+
+                if (!isOptional)
+                {
+                    builder.AppendLine(
+                        "        get => " + castExpr + "Attributes[" + sourceNameLiteral + "].Value)" + GetPrimitiveValueAccess(member.ConstraintKind) + ";");
+                    builder.AppendLine(
+                        "        set => SetAttribute(" + sourceNameLiteral + ", new NamedAttribute(" + sourceNameLiteral + ", new " + constraintClass + "(value)));");
+                }
+                else if (IsValueTypeConstraintKind(member.ConstraintKind))
+                {
+                    var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                    builder.AppendLine(
+                        "        get => Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " +
+                        castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member.ConstraintKind) + " : null;");
+                    builder.AppendLine(
+                        "        set => SetAttribute(" + sourceNameLiteral + ", value.HasValue ? new NamedAttribute(" + sourceNameLiteral + ", new " + constraintClass + "(value.Value)) : null);");
+                }
+                else
+                {
+                    // Nullable reference type (string?)
+                    var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                    builder.AppendLine(
+                        "        get => Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " +
+                        castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member.ConstraintKind) + " : null;");
+                    builder.AppendLine(
+                        "        set => SetAttribute(" + sourceNameLiteral + ", value != null ? new NamedAttribute(" + sourceNameLiteral + ", new " + constraintClass + "(value)) : null);");
+                }
+
                 builder.AppendLine("    }");
             }
             else
             {
+                // AttributeValue subclass property
+                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+                var baseTypeName = isOptional ? member.TypeName.Substring(0, member.TypeName.Length - 1) : member.TypeName;
+                var castExpr = "(" + baseTypeName + ")";
+
                 builder.AppendLine(
-                    "    public NamedAttribute " + member.PropertyName);
+                    "    public " + member.TypeName + " " + member.PropertyName);
                 builder.AppendLine("    {");
-                builder.AppendLine(
-                    "        get => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
-                builder.AppendLine(
-                    "        set => SetAttribute(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ", value);");
+
+                if (!isOptional)
+                {
+                    builder.AppendLine(
+                        "        get => " + castExpr + "Attributes[" + sourceNameLiteral + "].Value;");
+                    builder.AppendLine(
+                        "        set => SetAttribute(" + sourceNameLiteral + ", new NamedAttribute(" + sourceNameLiteral + ", value));");
+                }
+                else
+                {
+                    var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                    builder.AppendLine(
+                        "        get => Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + castExpr + localName + ".Value : null;");
+                    builder.AppendLine(
+                        "        set => SetAttribute(" + sourceNameLiteral + ", value != null ? new NamedAttribute(" + sourceNameLiteral + ", value) : null);");
+                }
+
                 builder.AppendLine("    }");
             }
         }
@@ -194,6 +336,27 @@ internal static class OperationEmitter
         {
             builder.AppendLine();
         }
+    }
+
+    private static string GetPrimitiveAttributeCastExpression(AttributeConstraintKind kind)
+    {
+        return kind switch
+        {
+            AttributeConstraintKind.IntegerLiteral => "((IntegerAttributeValue)",
+            AttributeConstraintKind.BooleanLiteral => "((BooleanAttributeValue)",
+            AttributeConstraintKind.StringLiteral => "((StringAttributeValue)",
+            AttributeConstraintKind.FloatingPointLiteral => "((FloatingPointAttributeValue)",
+            _ => "((AttributeValue)",
+        };
+    }
+
+    private static string GetPrimitiveValueAccess(AttributeConstraintKind kind)
+    {
+        return kind switch
+        {
+            AttributeConstraintKind.FloatingPointLiteral => ".LiteralText",
+            _ => ".Value",
+        };
     }
 
     private static void AppendConstructorParameters(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
@@ -341,7 +504,7 @@ internal static class OperationEmitter
         var hasOptionalAttributes = false;
         for (var i = 0; i < attributeMembers.Count; i++)
         {
-            if (attributeMembers[i].TypeName == "NamedAttribute?")
+            if (attributeMembers[i].TypeName.EndsWith("?", StringComparison.Ordinal))
             {
                 hasOptionalAttributes = true;
                 break;
@@ -358,7 +521,7 @@ internal static class OperationEmitter
                     builder.Append(", ");
                 }
 
-                builder.Append(attributeMembers[i].ParameterName);
+                builder.Append(GetAttributeToNamedAttributeExpression(attributeMembers[i]));
             }
 
             builder.AppendLine("),");
@@ -373,7 +536,7 @@ internal static class OperationEmitter
                     builder.Append(", ");
                 }
 
-                builder.Append(attributeMembers[i].ParameterName);
+                builder.Append(GetAttributeToNamedAttributeExpression(attributeMembers[i]));
             }
 
             builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
@@ -404,13 +567,49 @@ internal static class OperationEmitter
         public IReadOnlyList<GeneratedMember> Attributes { get; }
     }
 
+    private static string GetAttributeToNamedAttributeExpression(GeneratedMember member)
+    {
+        var sourceName = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+        var paramName = member.ParameterName;
+        var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
+
+        if (member.ConstraintKind == AttributeConstraintKind.None)
+        {
+            return paramName;
+        }
+
+        if (IsPrimitiveConstraintKind(member.ConstraintKind))
+        {
+            var constraintClass = member.ConstraintClassName!;
+            if (!isOptional)
+            {
+                return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + paramName + "))";
+            }
+            else if (IsValueTypeConstraintKind(member.ConstraintKind))
+            {
+                return paramName + ".HasValue ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + paramName + ".Value)) : null";
+            }
+            else
+            {
+                return paramName + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + paramName + ")) : null";
+            }
+        }
+
+        if (!isOptional)
+        {
+            return "new NamedAttribute(" + sourceName + ", " + paramName + ")";
+        }
+
+        return paramName + " != null ? new NamedAttribute(" + sourceName + ", " + paramName + ") : null";
+    }
+
     public static EmittedOperationMembers Emit(StringBuilder builder, OperationModel operation, DialectSymbolResolver resolver)
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
         var operandMembers = GetOperandMembers(operation, requiredVariables);
         var resultMembers = GetResultMembers(operation);
-        var attributeMembers = GetAttributeMembers(operation, requiredVariables);
+        var attributeMembers = GetAttributeMembers(operation, requiredVariables, resolver);
 
         EmitterHelpers.AppendXmlDocComment(builder, operation.Summary, operation.Description);
         builder.AppendLine("public sealed class " + className + " : Operation");

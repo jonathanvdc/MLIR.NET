@@ -15,6 +15,7 @@ using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;
+using System.Numerics;
 
 public sealed class DialectIntegrationTests
 {
@@ -131,10 +132,7 @@ public sealed class DialectIntegrationTests
 
         var operation = Assert.IsType<MiniArith_AddImmediateOp>(Assert.Single(module.Operations));
         Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("value", operation.Value.Name);
-        Assert.IsAssignableFrom<IntegerAttributeValue>(operation.Value.Value);
-        Assert.IsType<IntegerAttributeValueSyntax>(operation.Value.Value.Syntax);
-        Assert.Equal("1", operation.Value.Value.Syntax!.GetRawText().Text);
+        Assert.Equal((BigInteger)1, operation.Value);
     }
 
     [Fact]
@@ -148,9 +146,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddBoolImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<BooleanAttributeValue>(operation.Value.Value);
-        Assert.True(value.Value);
-        Assert.IsType<BooleanAttributeValueSyntax>(value.Syntax);
+        Assert.True(operation.Value);
     }
 
     [Fact]
@@ -164,9 +160,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddFloatImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<FloatingPointAttributeValue>(operation.Value.Value);
-        Assert.Equal("1.5", value.LiteralText);
-        Assert.IsType<FloatingPointAttributeValueSyntax>(value.Syntax);
+        Assert.Equal("1.5", operation.Value);
     }
 
     [Fact]
@@ -180,9 +174,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddStringImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<StringAttributeValue>(operation.Value.Value);
-        Assert.Equal("hi", value.Value);
-        Assert.IsType<StringAttributeValueSyntax>(value.Syntax);
+        Assert.Equal("hi", operation.Value);
     }
 
     [Fact]
@@ -196,7 +188,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddTypeImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<TypeAttributeValue>(operation.Value.Value);
+        var value = operation.Value;
         Assert.Equal("i32", value.TypeSyntax.GetRawText().Text);
         Assert.IsType<TypeAttributeValueSyntax>(value.Syntax);
     }
@@ -212,7 +204,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddUnitImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<UnitAttributeValue>(operation.Value.Value);
+        var value = operation.Value;
         Assert.IsType<UnitAttributeValueSyntax>(value.Syntax);
         Assert.Equal("unit", value.Syntax!.GetRawText().Text);
     }
@@ -228,7 +220,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddArrayImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<ArrayAttributeValue>(operation.Value.Value);
+        var value = operation.Value;
         Assert.IsType<DenseArrayAttributeValueSyntax>(value.Syntax);
         var first = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Items[0]);
         var second = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Items[1]);
@@ -247,7 +239,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddElementsImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<ElementsAttributeValue>(operation.Value.Value);
+        var value = operation.Value;
         Assert.IsType<ElementsAttributeValueSyntax>(value.Syntax);
         var payload = Assert.IsAssignableFrom<ArrayAttributeValue>(value.Payload);
         var first = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[0]);
@@ -268,7 +260,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddDictionaryImmediateOp>(Assert.Single(module.Operations));
-        var value = Assert.IsAssignableFrom<DictionaryAttributeValue>(operation.Value.Value);
+        var value = operation.Value;
         Assert.IsType<DictionaryAttributeValueSyntax>(value.Syntax);
         var inner = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Attributes["inner"].Value);
         Assert.Equal(new System.Numerics.BigInteger(1), inner.Value);
@@ -303,7 +295,7 @@ public sealed class DialectIntegrationTests
         var operation = Assert.IsType<MiniArith_ConstantOp>(Assert.Single(module.Operations));
         Assert.Equal("miniarith.constant", operation.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
-        Assert.Equal("value", operation.Value.Name);
+        Assert.Equal((BigInteger)42, operation.Value);
         Assert.Null(operation.TypeSignatureReference);
     }
 
@@ -564,8 +556,8 @@ public sealed class DialectIntegrationTests
         Assert.Empty(module.AssemblyDiagnostics);
         var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
         Assert.Equal("minitest.config", operation.Name);
-        Assert.Equal("stride", operation.Stride!.Name);
-        Assert.Equal("padding", operation.Padding!.Name);
+        Assert.Equal((BigInteger)4, operation.Stride);
+        Assert.Equal((BigInteger)0, operation.Padding);
     }
 
     [Fact]
@@ -630,7 +622,7 @@ public sealed class DialectIntegrationTests
         Assert.Empty(module.AssemblyDiagnostics);
         var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
         Assert.Equal("minitest.config", operation.Name);
-        Assert.Equal("stride", operation.Stride!.Name);
+        Assert.Equal((BigInteger)4, operation.Stride);
         Assert.Null(operation.Padding);
     }
 
@@ -662,17 +654,10 @@ public sealed class DialectIntegrationTests
 
         var module = Document.Parse(source, registry).Bind(registry);
         var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
-        var stride = new NamedAttribute(
-            "stride",
-            new UnknownAttributeValue(
-                new RawAttributeValueSyntax(new RawSyntaxText("4")),
-                name: null,
-                definition: null,
-                SourceLocation.Unknown));
 
-        operation.Stride = stride;
+        operation.Stride = (BigInteger)4;
 
-        Assert.Same(stride, operation.Stride);
+        Assert.Equal((BigInteger)4, operation.Stride);
         Assert.Contains("stride 4", module.ToText(CustomAssemblyOptions));
 
         operation.Stride = null;
@@ -733,7 +718,7 @@ public sealed class DialectIntegrationTests
         var module2 = Document.Parse(printed, registry).Bind(registry);
         Assert.Empty(module2.AssemblyDiagnostics);
         var op = Assert.IsType<MiniArith_ConstantOp>(Assert.Single(module2.Operations));
-        Assert.Equal("value", op.Value.Name);
+        Assert.Equal((BigInteger)42, op.Value);
         Assert.Equal("%result", op.ResultValue.Name);
     }
 

@@ -34,6 +34,17 @@ internal static class AttributeConstraintEmitter
         }
         builder.AppendLine("    {");
         builder.AppendLine("    }");
+
+        var valueConstructorParam = GetValueConstructorParameter(attributeConstraint.Kind);
+        if (valueConstructorParam != null)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    public " + className + "(" + valueConstructorParam + " value)");
+            builder.AppendLine("        : base(value)");
+            builder.AppendLine("    {");
+            builder.AppendLine("    }");
+        }
+
         builder.AppendLine();
         builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
         builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
@@ -89,6 +100,18 @@ internal static class AttributeConstraintEmitter
             AttributeConstraintKind.OpaqueAttribute => "context",
             AttributeConstraintKind.TypeAttribute => "context, ((TypeAttributeValueSyntax)context.Syntax).TypeSyntax",
             AttributeConstraintKind.UnitAttribute => "context",
+            _ => null,
+        };
+    }
+
+    private static string? GetValueConstructorParameter(AttributeConstraintKind kind)
+    {
+        return kind switch
+        {
+            AttributeConstraintKind.IntegerLiteral => "global::System.Numerics.BigInteger",
+            AttributeConstraintKind.BooleanLiteral => "bool",
+            AttributeConstraintKind.StringLiteral => "string",
+            AttributeConstraintKind.FloatingPointLiteral => "string",
             _ => null,
         };
     }

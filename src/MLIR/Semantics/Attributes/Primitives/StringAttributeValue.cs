@@ -18,6 +18,16 @@ public abstract class StringAttributeValue : AttributeValue
     }
 
     /// <summary>
+    /// Initializes a new synthetic instance of the <see cref="StringAttributeValue"/> class with no associated source syntax.
+    /// </summary>
+    /// <param name="value">The string value.</param>
+    protected StringAttributeValue(string value)
+        : base(null, SourceLocation.Unknown)
+    {
+        Value = value;
+    }
+
+    /// <summary>
     /// Gets the unescaped string value.
     /// </summary>
     public string Value { get; }

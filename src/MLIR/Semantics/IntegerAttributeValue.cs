@@ -21,6 +21,16 @@ public abstract class IntegerAttributeValue : AttributeValue
     }
 
     /// <summary>
+    /// Initializes a new synthetic instance of the <see cref="IntegerAttributeValue"/> class with no associated source syntax.
+    /// </summary>
+    /// <param name="value">The integer value.</param>
+    protected IntegerAttributeValue(BigInteger value)
+        : base(null, SourceLocation.Unknown)
+    {
+        Value = value;
+    }
+
+    /// <summary>
     /// Gets the parsed integer value.
     /// </summary>
     public BigInteger Value { get; }
