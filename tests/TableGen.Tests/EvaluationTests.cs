@@ -191,6 +191,16 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void EvaluatesAdjacentStringLiteralConcatenation()
+    {
+        const string source = "def Example { string Value = \"hello\" \", \" \"world\"; };";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("hello, world", Assert.IsType<StringValue>(record.GetField("Value")).Value);
+    }
+
+    [Fact]
     public void EvaluatesBangArithmetic()
     {
         const string source =

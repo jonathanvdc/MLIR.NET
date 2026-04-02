@@ -134,6 +134,22 @@ public sealed class ParsingTests
     }
 
     [Fact]
+    public void ParsesAdjacentStringLiteralConcatenation()
+    {
+        const string source = "def Example { string Value = \"hello\" \" \" \"world\"; };";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var outer = Assert.IsType<ConcatSyntax>(field.Initializer);
+        var inner = Assert.IsType<ConcatSyntax>(outer.Left);
+
+        Assert.IsType<StringSyntax>(inner.Left);
+        Assert.IsType<StringSyntax>(inner.Right);
+        Assert.IsType<StringSyntax>(outer.Right);
+    }
+
+    [Fact]
     public void ParsesBangCallExpressions()
     {
         const string source =

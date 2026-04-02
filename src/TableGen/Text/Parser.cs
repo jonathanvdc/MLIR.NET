@@ -256,12 +256,12 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.String, out var stringToken))
         {
-            return new StringSyntax(stringToken.Text);
+            return ParseAdjacentStringLiterals(new StringSyntax(stringToken.Text));
         }
 
         if (TryMatch(TokenKind.CodeBlock, out var codeBlockToken))
         {
-            return new StringSyntax(codeBlockToken.Text);
+            return ParseAdjacentStringLiterals(new StringSyntax(codeBlockToken.Text));
         }
 
         if (TryMatch(TokenKind.Identifier, out var identifierToken))
@@ -324,6 +324,26 @@ internal sealed class Parser
         }
 
         throw Error("Expected an expression.");
+    }
+
+    private ExpressionSyntax ParseAdjacentStringLiterals(ExpressionSyntax left)
+    {
+        while (true)
+        {
+            if (TryMatch(TokenKind.String, out var stringToken))
+            {
+                left = new ConcatSyntax(left, new StringSyntax(stringToken.Text));
+                continue;
+            }
+
+            if (TryMatch(TokenKind.CodeBlock, out var codeBlockToken))
+            {
+                left = new ConcatSyntax(left, new StringSyntax(codeBlockToken.Text));
+                continue;
+            }
+
+            return left;
+        }
     }
 
     private ExpressionSyntax ApplyFieldAccess(ExpressionSyntax expr)

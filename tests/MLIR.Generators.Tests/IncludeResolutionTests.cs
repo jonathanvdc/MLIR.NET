@@ -46,7 +46,7 @@ public sealed class IncludeResolutionTests
 
         Assert.Contains("namespace MLIR.Testprelude;", text);
         Assert.Contains("public sealed class TestPrelude_AddIOp : Operation", text);
-        Assert.Contains("dialect.AddOperation(\"testprelude.addi\"", text);
+        Assert.Contains("dialect.AddOperation(TestPrelude_AddIOp.OperationDefinition);", text);
     }
 
     [Fact]
