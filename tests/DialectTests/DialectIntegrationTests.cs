@@ -126,6 +126,8 @@ public sealed class DialectIntegrationTests
         var operation = Assert.IsType<MiniArith_AddImmediateOp>(Assert.Single(module.Operations));
         Assert.Equal("%lhs", operation.Lhs.Name);
         Assert.Equal("value", operation.Value.Name);
+        Assert.IsAssignableFrom<IntegerAttributeValue>(operation.Value.Value);
+        Assert.IsType<IntegerAttributeValueSyntax>(operation.Value.Value.Syntax);
         Assert.Equal("1", operation.Value.Value.Syntax!.GetRawText().Text);
     }
 

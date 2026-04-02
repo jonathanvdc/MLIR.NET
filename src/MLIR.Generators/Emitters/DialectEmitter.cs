@@ -27,6 +27,7 @@ internal sealed class DialectEmitter
         builder.AppendLine();
         builder.AppendLine("using System.Collections.Generic;");
         builder.AppendLine("using System.Linq;");
+        builder.AppendLine("using System.Numerics;");
         builder.AppendLine("using MLIR.Dialects;");
         builder.AppendLine("using MLIR.Semantics;");
         builder.AppendLine("using MLIR.Syntax;");

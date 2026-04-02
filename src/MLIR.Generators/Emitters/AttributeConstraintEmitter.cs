@@ -8,7 +8,10 @@ internal static class AttributeConstraintEmitter
     public static void Emit(StringBuilder builder, AttributeConstraintModel attributeConstraint)
     {
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
-        builder.AppendLine("public sealed class " + className + " : AttributeValue");
+        var baseType = attributeConstraint.Kind == AttributeConstraintKind.IntegerLiteral
+            ? "IntegerAttributeValue"
+            : "AttributeValue";
+        builder.AppendLine("public sealed class " + className + " : " + baseType);
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
         builder.Append("        new AttributeConstraintDefinition(");
@@ -21,12 +24,22 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine(", factory: static context => new " + className + "(context));");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
-        builder.AppendLine("        : base(context.Syntax, context.Location)");
+        if (attributeConstraint.Kind == AttributeConstraintKind.IntegerLiteral)
+        {
+            builder.AppendLine("        : base(context, ((IntegerAttributeValueSyntax)context.Syntax).Value)");
+        }
+        else
+        {
+            builder.AppendLine("        : base(context.Syntax, context.Location)");
+        }
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
-        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
+        if (attributeConstraint.Kind != AttributeConstraintKind.IntegerLiteral)
+        {
+            builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
+            builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
+        }
         builder.AppendLine("}");
     }
 }
