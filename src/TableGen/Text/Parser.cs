@@ -410,6 +410,12 @@ internal sealed class Parser
 
     private ExpressionSyntax ParseBangExpression(string operatorName)
     {
+        string? typeArgument = null;
+        if (TryMatch(TokenKind.LessThan))
+        {
+            typeArgument = ParseTypeArgument();
+        }
+
         if (operatorName == "foldl")
         {
             Expect(TokenKind.LParen, "Expected '(' after '!foldl'.");
@@ -438,15 +444,16 @@ internal sealed class Parser
             return new ForeachSyntax(varName, list, body);
         }
 
-        if (operatorName == "cast")
+        if (operatorName == "filter")
         {
-            Expect(TokenKind.LessThan, "Expected '<' after '!cast'.");
-            Consume();
-            Expect(TokenKind.GreaterThan, "Expected '>' after '!cast' type.");
-            Expect(TokenKind.LParen, "Expected '(' after '!cast<type>'.");
-            var arg = ParseExpression();
-            Expect(TokenKind.RParen, "Expected ')' to close '!cast'.");
-            return new BangCallSyntax("cast", [arg]);
+            Expect(TokenKind.LParen, "Expected '(' after '!filter'.");
+            var varName = ExpectName("Expected variable name in '!filter'.").Text;
+            Expect(TokenKind.Comma, "Expected ',' in '!filter'.");
+            var list = ParseExpression();
+            Expect(TokenKind.Comma, "Expected ',' in '!filter'.");
+            var predicate = ParseExpression();
+            Expect(TokenKind.RParen, "Expected ')' to close '!filter'.");
+            return new BangCallSyntax("filter", [new IdentifierSyntax(varName), list, predicate], typeArgument);
         }
 
         if (operatorName == "cond")
@@ -490,12 +497,47 @@ internal sealed class Parser
             Expect(TokenKind.RParen, $"Expected ')' to close '!{operatorName}'.");
         }
 
-        return new BangCallSyntax(operatorName, args);
+        return new BangCallSyntax(operatorName, args, typeArgument);
     }
 
     private bool Is(TokenKind kind)
     {
         return Current.Kind == kind;
+    }
+
+    private string ParseTypeArgument()
+    {
+        var parts = new List<string>();
+        var depth = 1;
+        while (depth > 0)
+        {
+            var token = Consume();
+            switch (token.Kind)
+            {
+                case TokenKind.LessThan:
+                    depth++;
+                    parts.Add("<");
+                    break;
+                case TokenKind.GreaterThan:
+                    depth--;
+                    if (depth > 0)
+                    {
+                        parts.Add(">");
+                    }
+
+                    break;
+                case TokenKind.EndOfFile:
+                    throw Error("Unexpected end of file while parsing a bang operator type argument.");
+                case TokenKind.String:
+                    parts.Add("\"" + token.Text + "\"");
+                    break;
+                default:
+                    parts.Add(token.Text);
+                    break;
+            }
+        }
+
+        return string.Concat(parts);
     }
 
     private Token Current => position < tokens.Count ? tokens[position] : tokens[tokens.Count - 1];

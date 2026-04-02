@@ -195,6 +195,30 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void EvaluatesTypedBangOperatorsUsedByUpstreamEnumAttr()
+    {
+        const string source =
+            "class Base<int value> {\n" +
+            "  int Value = value;\n" +
+            "};\n" +
+            "class Derived<int value> : Base<value>;\n" +
+            "def Example {\n" +
+            "  Derived<3> derived = Derived<3>;\n" +
+            "  bit IsBase = !isa<Base>(derived);\n" +
+            "  int Shifted = !shl(1, 3);\n" +
+            "  list<int> Filtered = !filter(iter, [1, 2, 3], !gt(iter, 1));\n" +
+            "  int CastValue = !cast<Base>(derived).Value;\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.True(Assert.IsType<BitValue>(record.GetField("IsBase")).Value);
+        Assert.Equal(8, Assert.IsType<IntegerValue>(record.GetField("Shifted")).Value);
+        Assert.Equal([2, 3], Assert.IsType<ListValue>(record.GetField("Filtered")).Items.Cast<IntegerValue>().Select(static item => item.Value).ToArray());
+        Assert.Equal(3, Assert.IsType<IntegerValue>(record.GetField("CastValue")).Value);
+    }
+
+    [Fact]
     public void ReportsMissingTemplateArgumentsWhenNoDefaultExists()
     {
         const string source =

@@ -395,10 +395,22 @@ public static class Interpreter
                     return new StringValue(result);
                 }
 
+                case "shl":
+                {
+                    var a = ToInteger(EvaluateExpression(bangCall.Arguments[0], scope), "!shl");
+                    var b = ToInteger(EvaluateExpression(bangCall.Arguments[1], scope), "!shl");
+                    return new IntegerValue(a << b);
+                }
+
                 case "cast":
                 {
+                    return EvaluateExpression(bangCall.Arguments[0], scope);
+                }
+
+                case "isa":
+                {
                     var val = EvaluateExpression(bangCall.Arguments[0], scope);
-                    return new StringValue(ValueToString(val));
+                    return new IntegerValue(IsValueOfType(val, bangCall.TypeArgument) ? 1 : 0);
                 }
 
                 case "cond":
@@ -461,6 +473,24 @@ public static class Interpreter
                         UnsetValue => new IntegerValue(1),
                         _ => new IntegerValue(0),
                     };
+                }
+
+                case "filter":
+                {
+                    var variable = ((IdentifierSyntax)bangCall.Arguments[0]).Name;
+                    var listValue = (ListValue)EvaluateExpression(bangCall.Arguments[1], scope);
+                    var results = new List<Value>();
+                    foreach (var item in listValue.Items)
+                    {
+                        var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
+                        innerScope[variable] = item;
+                        if (IsTruthy(EvaluateExpression(bangCall.Arguments[2], innerScope)))
+                        {
+                            results.Add(item);
+                        }
+                    }
+
+                    return new ListValue(results);
                 }
 
                 default:
@@ -606,6 +636,37 @@ public static class Interpreter
             (BitValue ba, BitValue bb) => ba.Value == bb.Value,
             _ => false,
         };
+
+        private bool IsValueOfType(Value value, string? typeName)
+        {
+            if (string.IsNullOrEmpty(typeName))
+            {
+                return false;
+            }
+
+            return value switch
+            {
+                AnonymousRecordValue record => ClassIsA(record.ClassName, typeName),
+                RecordReferenceValue recordReference => definitionsByName.TryGetValue(recordReference.RecordName, out var definition)
+                    && definition.Bases.Any(@base => ClassIsA(@base.Name, typeName)),
+                _ => false,
+            };
+        }
+
+        private bool ClassIsA(string className, string typeName)
+        {
+            if (className == typeName)
+            {
+                return true;
+            }
+
+            if (!classes.TryGetValue(className, out var classSyntax))
+            {
+                return false;
+            }
+
+            return classSyntax.Bases.Any(@base => ClassIsA(@base.Name, typeName));
+        }
 
         private Value ResolveIdentifier(string name, IReadOnlyDictionary<string, Value> scope)
         {
