@@ -33,14 +33,6 @@ public static class Interpreter
             classes = document.Declarations
                 .OfType<ClassSyntax>()
                 .ToDictionary(static c => c.Name, static c => c);
-            foreach (var builtin in CreateBuiltinClasses())
-            {
-                if (!classes.ContainsKey(builtin.Name))
-                {
-                    classes.Add(builtin.Name, builtin);
-                }
-            }
-
             Definitions = document.Declarations.OfType<DefSyntax>().ToList();
             definitionsByName = Definitions.ToDictionary(static definition => definition.Name, static definition => definition);
         }
@@ -673,66 +665,6 @@ public static class Interpreter
                 BitValue when replacementValue is BitValue => replacementValue,
                 _ => replacementValue,
             };
-        }
-
-        private static IReadOnlyList<ClassSyntax> CreateBuiltinClasses()
-        {
-            return
-            [
-                new ClassSyntax(
-                    "Dialect",
-                    [],
-                    [],
-                    [
-                        new FieldSyntax("string", "name", null),
-                        new FieldSyntax("string", "cppNamespace", null),
-                        new FieldSyntax("string", "summary", null),
-                        new FieldSyntax("string", "description", null),
-                        new FieldSyntax("bit", "hasConstantMaterializer", new IntegerSyntax(0)),
-                    ]),
-                new ClassSyntax(
-                    "Op",
-                    [
-                        new TemplateParameterSyntax("Dialect", "dialect", null),
-                        new TemplateParameterSyntax("string", "mnemonic", null),
-                        new TemplateParameterSyntax("list<Trait>", "traits", new ListSyntax([])),
-                    ],
-                    [],
-                    [
-                        new FieldSyntax("Dialect", "dialect", new IdentifierSyntax("dialect")),
-                        new FieldSyntax("string", "mnemonic", new IdentifierSyntax("mnemonic")),
-                        new FieldSyntax("list<Trait>", "traits", new IdentifierSyntax("traits")),
-                        new FieldSyntax("string", "summary", null),
-                        new FieldSyntax("dag", "arguments", null),
-                        new FieldSyntax("dag", "results", null),
-                        new FieldSyntax("string", "assemblyFormat", null),
-                        new FieldSyntax("string", "cppClassName", null),
-                    ]),
-                new ClassSyntax(
-                    "AttrDef",
-                    [
-                        new TemplateParameterSyntax("Dialect", "dialect", null),
-                        new TemplateParameterSyntax("string", "attrName", null),
-                    ],
-                    [],
-                    [
-                        new FieldSyntax("Dialect", "dialect", new IdentifierSyntax("dialect")),
-                        new FieldSyntax("string", "attrName", new IdentifierSyntax("attrName")),
-                        new FieldSyntax("string", "cppClassName", null),
-                    ]),
-                new ClassSyntax(
-                    "TypeDef",
-                    [
-                        new TemplateParameterSyntax("Dialect", "dialect", null),
-                        new TemplateParameterSyntax("string", "typeName", null),
-                    ],
-                    [],
-                    [
-                        new FieldSyntax("Dialect", "dialect", new IdentifierSyntax("dialect")),
-                        new FieldSyntax("string", "typeName", new IdentifierSyntax("typeName")),
-                        new FieldSyntax("string", "cppClassName", null),
-                    ]),
-            ];
         }
     }
 }

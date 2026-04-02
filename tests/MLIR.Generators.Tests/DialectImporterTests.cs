@@ -39,7 +39,7 @@ public sealed class DialectImporterTests
             "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
             "};";
 
-        var dialects = DialectImporter.Import(Document.Parse(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
 
         var dialect = Assert.Single(dialects);
         var constantOp = Assert.Single(dialect.Operations, static op => op.Name == "miniarith.constant");
@@ -101,7 +101,7 @@ public sealed class DialectImporterTests
             "\n" +
             "def MyDialect_FooOp : MyDialect_Op<\"foo\">;\n";
 
-        var dialects = DialectImporter.Import(Document.Parse(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
 
         var dialect = Assert.Single(dialects);
         var op = Assert.Single(dialect.Operations);

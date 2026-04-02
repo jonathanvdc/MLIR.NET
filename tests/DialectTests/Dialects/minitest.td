@@ -1,3 +1,5 @@
+include "mlir/IR/OpBase.td"
+
 class MiniTest_Op<string mnemonic, list<Trait> traits = []> :
     Op<MiniTest_Dialect, mnemonic, traits>;
 

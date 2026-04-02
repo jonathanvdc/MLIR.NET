@@ -1,3 +1,5 @@
+include "mlir/IR/OpBase.td"
+
 class MiniArith_Op<string mnemonic, list<Trait> traits = []> :
     Op<MiniArith_Dialect, mnemonic, traits>;
 

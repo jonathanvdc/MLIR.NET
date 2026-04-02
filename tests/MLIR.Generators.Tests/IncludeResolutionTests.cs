@@ -16,11 +16,11 @@ public sealed class IncludeResolutionTests
     // -----------------------------------------------------------------------
 
     [Fact]
-    public void GeneratorResolvesEmbeddedPreludeOpBaseTd()
+    public void GeneratorResolvesEmbeddedPreludeIrOpBaseTd()
     {
-        // A .td file that explicitly includes mlir/OpBase.td from the embedded prelude.
+        // A .td file that explicitly includes mlir/IR/OpBase.td from the embedded prelude.
         const string source =
-            "include \"mlir/OpBase.td\"\n" +
+            "include \"mlir/IR/OpBase.td\"\n" +
             "\n" +
             "class TestPrelude_Op<string mnemonic, list<Trait> traits = []> :\n" +
             "    Op<TestPrelude_Dialect, mnemonic, traits>;\n" +
@@ -50,10 +50,10 @@ public sealed class IncludeResolutionTests
     }
 
     [Fact]
-    public void GeneratorResolvesEmbeddedPreludeCommonTypesTd()
+    public void GeneratorResolvesEmbeddedPreludeCommonTypeConstraintsTd()
     {
         const string source =
-            "include \"mlir/CommonTypes.td\"\n" +
+            "include \"mlir/IR/OpBase.td\"\n" +
             "\n" +
             "class TestTypes_Op<string mnemonic, list<Trait> traits = []> :\n" +
             "    Op<TestTypes_Dialect, mnemonic, traits>;\n" +
@@ -81,10 +81,10 @@ public sealed class IncludeResolutionTests
     }
 
     [Fact]
-    public void GeneratorResolvesEmbeddedPreludeCommonAttrsTd()
+    public void GeneratorResolvesEmbeddedPreludeCommonAttrConstraintsTd()
     {
         const string source =
-            "include \"mlir/CommonAttrs.td\"\n" +
+            "include \"mlir/IR/OpBase.td\"\n" +
             "\n" +
             "class TestAttrs_Op<string mnemonic, list<Trait> traits = []> :\n" +
             "    Op<TestAttrs_Dialect, mnemonic, traits>;\n" +
@@ -113,9 +113,8 @@ public sealed class IncludeResolutionTests
     }
 
     [Fact]
-    public void GeneratorProducesCorrectOutputWithAndWithoutPreludeInclude()
+    public void GeneratorRequiresExplicitPreludeInclude()
     {
-        // Without include: relies on built-in evaluator classes.
         const string withoutInclude =
             "class Arith_Op<string mnemonic, list<Trait> traits = []> :\n" +
             "    Op<Arith_Dialect, mnemonic, traits>;\n" +
@@ -129,12 +128,15 @@ public sealed class IncludeResolutionTests
             "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
             "};";
 
-        // With include: uses embedded prelude.
         const string withInclude =
-            "include \"mlir/OpBase.td\"\n" +
+            "include \"mlir/IR/OpBase.td\"\n" +
             withoutInclude;
 
         var withoutResult = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("arith_no_include.td", withoutInclude));
+
+        var withoutPreludeResult = GeneratorTestHelpers.RunGeneratorRaw(
             new DialectGenerator(),
             ("arith_no_include.td", withoutInclude));
 
@@ -142,14 +144,11 @@ public sealed class IncludeResolutionTests
             new DialectGenerator(),
             ("arith_with_include.td", withInclude));
 
-        // Both should generate the same operation.
         Assert.Single(withoutResult.Where(static r => r.HintName.Contains("Arith")));
+        Assert.Empty(withoutPreludeResult.Where(static r => r.HintName.Contains("Arith")));
         Assert.Single(withResult.Where(static r => r.HintName.Contains("Arith")));
-
-        var withoutText = withoutResult.First(static r => r.HintName.Contains("Arith")).SourceText.ToString();
         var withText = withResult.First(static r => r.HintName.Contains("Arith")).SourceText.ToString();
 
-        Assert.Contains("public sealed class Arith_AddIOp : Operation", withoutText);
         Assert.Contains("public sealed class Arith_AddIOp : Operation", withText);
     }
 
@@ -191,13 +190,13 @@ public sealed class IncludeResolutionTests
     [Fact]
     public void GeneratorPreludeIncludeGuardPreventsDoubleInclusion()
     {
-        // Two .td files both include mlir/OpBase.td – the prelude should only be expanded once.
+        // Two .td files both include mlir/IR/OpBase.td – the prelude should only be expanded once.
         const string fileA =
-            "include \"mlir/OpBase.td\"\n" +
+            "include \"mlir/IR/OpBase.td\"\n" +
             "def A_Dialect : Dialect { let name = \"aaa\"; let cppNamespace = \"::mlir::aaa\"; };";
 
         const string fileB =
-            "include \"mlir/OpBase.td\"\n" +
+            "include \"mlir/IR/OpBase.td\"\n" +
             "def B_Dialect : Dialect { let name = \"bbb\"; let cppNamespace = \"::mlir::bbb\"; };";
 
         // Each file is processed independently, so double inclusion within a single file is the concern.
@@ -258,13 +257,13 @@ public sealed class IncludeResolutionTests
         var preludeResolver = new TableGenDictionaryIncludeResolver(
             new Dictionary<string, string>
             {
-                ["mlir/OpBase.td"] =
+                ["mlir/IR/OpBase.td"] =
                     "class Trait;\n" +
                     "def Pure : Trait;\n",
             });
 
         var composite = new TableGenCompositeIncludeResolver(consumerResolver, preludeResolver);
-        var doc = Document.Load("include \"mlir/OpBase.td\"", composite);
+        var doc = Document.Load("include \"mlir/IR/OpBase.td\"", composite);
 
         // Pure should be available as a record.
         Assert.NotNull(doc.Evaluate().Records.Single(static r => r.Name == "Pure"));

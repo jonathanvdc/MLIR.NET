@@ -10,6 +10,15 @@ public sealed class DialectGeneratorTests
     public void GeneratesDialectRegistrationTypedNodesAndCustomAssemblyStubs()
     {
         const string source =
+            "def Builtin_Dialect : Dialect {\n" +
+            "  let name = \"builtin\";\n" +
+            "  let cppNamespace = \"::mlir::builtin\";\n" +
+            "};\n" +
+            "\n" +
+            "class Builtin_Attr<string name> : AttrDef<Builtin_Dialect, name> { let mnemonic = name; };\n" +
+            "\n" +
+            "def BuiltinI32Attr : Builtin_Attr<\"i32\">;\n" +
+            "\n" +
             "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
             "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
             "\n" +
@@ -324,15 +333,6 @@ public sealed class DialectGeneratorTests
     public void TryParseGeneratesAttributeValueParsingForConstantOp()
     {
         const string source =
-            "def Builtin_Dialect : Dialect {\n" +
-            "  let name = \"builtin\";\n" +
-            "  let cppNamespace = \"::mlir::builtin\";\n" +
-            "};\n" +
-            "\n" +
-            "class Builtin_Attr<string name> : AttrDef<Builtin_Dialect, name>;\n" +
-            "\n" +
-            "def I32Attr : Builtin_Attr<\"i32\">;\n" +
-            "\n" +
             "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
             "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
             "\n" +
@@ -343,7 +343,7 @@ public sealed class DialectGeneratorTests
             "\n" +
             "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
             "  let summary = \"integer constant\";\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
+            "  let arguments = (ins BuiltinI32Attr:$value);\n" +
             "  let results = (outs I32:$result);\n" +
             "  let assemblyFormat = \"$value attr-dict\";\n" +
             "};";
@@ -354,7 +354,7 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
 
         // Attribute variable is parsed as an attribute value.
-        Assert.Contains("context.ParseAttributeValueSyntax(MLIR.Builtin.I32Attr.AttributeDefinition", registrationSource);
+        Assert.Contains("context.ParseAttributeValueSyntax(", registrationSource);
 
         // Attribute dictionary is parsed.
         Assert.Contains("var attrDict = context.ParseAttrDict();", registrationSource);

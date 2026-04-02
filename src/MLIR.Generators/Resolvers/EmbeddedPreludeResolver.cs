@@ -11,10 +11,7 @@ using TableGen;
 /// <remarks>
 /// The following virtual include paths are supported:
 /// <list type="bullet">
-/// <item><description><c>mlir/OpBase.td</c> – core ODS base classes and common traits</description></item>
 /// <item><description><c>mlir/IR/OpBase.td</c> – upstream MLIR ODS op base definitions and recursive IR dependencies</description></item>
-/// <item><description><c>mlir/CommonTypes.td</c> – common integer and floating-point type constraints</description></item>
-/// <item><description><c>mlir/CommonAttrs.td</c> – common attribute constraints</description></item>
 /// </list>
 /// </remarks>
 internal sealed class EmbeddedPreludeResolver : TableGenIncludeResolver
@@ -28,7 +25,7 @@ internal sealed class EmbeddedPreludeResolver : TableGenIncludeResolver
         out TableGenResolvedInclude resolvedInclude)
     {
         // Resource names are stored with the LogicalName set in the .csproj, which uses
-        // forward slashes (e.g. "mlir/OpBase.td").
+        // forward slashes (e.g. "mlir/IR/OpBase.td").
         var resourceStream = ThisAssembly.GetManifestResourceStream(includePath);
         if (resourceStream == null)
         {

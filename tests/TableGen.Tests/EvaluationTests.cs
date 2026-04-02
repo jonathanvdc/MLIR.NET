@@ -143,6 +143,8 @@ public sealed class EvaluationTests
     public void EvaluatesDagExpressionsAndRecordReferences()
     {
         const string source =
+            "include \"mlir/IR/OpBase.td\"\n" +
+            "\n" +
             "class MiniArith_Op<string mnemonic, list<Trait> traits = []> : Op<MiniArith_Dialect, mnemonic, traits>;\n" +
             "def MiniArith_Dialect : Dialect {\n" +
             "  let name = \"miniarith\";\n" +
@@ -151,14 +153,21 @@ public sealed class EvaluationTests
             "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
             "};";
 
-        var record = Document.Parse(source).Evaluate().Records.Single(static record => record.Name == "MiniArith_AddIOp");
+        var record = TestHelpers.LoadWithPrelude(source).Evaluate().Records.Single(static record => record.Name == "MiniArith_AddIOp");
 
         Assert.Contains("MiniArith_Op", record.BaseClasses);
         Assert.Contains("Op", record.BaseClasses);
-        Assert.Equal("addi", Assert.IsType<StringValue>(record.GetField("mnemonic")).Value);
-        Assert.Equal("MiniArith_Dialect", Assert.IsType<RecordReferenceValue>(record.GetField("dialect")).RecordName);
+        Assert.Equal("addi", Assert.IsType<StringValue>(record.GetField("opName")).Value);
+        Assert.Equal("MiniArith_Dialect", Assert.IsType<RecordReferenceValue>(record.GetField("opDialect")).RecordName);
         var traits = Assert.IsType<ListValue>(record.GetField("traits"));
-        Assert.Equal(["Pure", "Commutative"], traits.Items.Cast<SymbolReferenceValue>().Select(static trait => trait.SymbolName).ToArray());
+        Assert.Equal(
+            ["Pure", "Commutative"],
+            traits.Items.Select(static trait => trait switch
+            {
+                SymbolReferenceValue symbol => symbol.SymbolName,
+                RecordReferenceValue recordReference => recordReference.RecordName,
+                _ => throw new InvalidCastException(),
+            }).ToArray());
         var arguments = Assert.IsType<DagValue>(record.GetField("arguments"));
         Assert.Equal("ins", arguments.OperatorName);
         Assert.Equal("lhs", arguments.Arguments[0].Name);

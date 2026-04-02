@@ -47,7 +47,7 @@ public static class DialectImporter
 
             if (record.HasBaseClass("Op")
                 && TryGetDialectName(record, document.Records, out var opDialectName)
-                && TryGetStringField(record, "mnemonic", out var mnemonic))
+                && TryGetOperationName(record, out var mnemonic))
             {
                 var dialect = GetOrCreateDialect(dialectsByName, opDialectName);
                 var argumentMembers = GetDagMembers(record, "arguments");
@@ -173,7 +173,8 @@ public static class DialectImporter
 
     private static bool TryGetDialectName(Record record, IReadOnlyList<Record> allRecords, out string dialectName)
     {
-        if (!record.Fields.TryGetValue("dialect", out var dialectField))
+        if (!record.Fields.TryGetValue("dialect", out var dialectField)
+            && !record.Fields.TryGetValue("opDialect", out dialectField))
         {
             dialectName = string.Empty;
             return false;
@@ -196,6 +197,12 @@ public static class DialectImporter
 
         dialectName = string.Empty;
         return false;
+    }
+
+    private static bool TryGetOperationName(Record record, out string operationName)
+    {
+        return TryGetStringField(record, "mnemonic", out operationName)
+            || TryGetStringField(record, "opName", out operationName);
     }
 
     private static IReadOnlyList<DagMember> GetDagMembers(Record record, string fieldName)

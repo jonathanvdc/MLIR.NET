@@ -45,7 +45,7 @@ The current implementation supports a real ODS-style subset rather than a repo-l
 
 That includes shapes such as:
 
-- `def X : Dialect`
+- `include "mlir/IR/OpBase.td"` with `def X : Dialect`
 - `class Y_Op<string mnemonic, list<Trait> traits = []> : Op<DialectDef, mnemonic, traits>;`
 - `let arguments = (ins ...)`
 - `let results = (outs ...)`
@@ -79,6 +79,8 @@ Type constantType = typeof(MiniArith_ConstantOp);
 That generated API comes from an ODS-style `.td` file such as:
 
 ```tablegen
+include "mlir/IR/OpBase.td"
+
 class MiniArith_Op<string mnemonic, list<Trait> traits = []> :
     Op<MiniArith_Dialect, mnemonic, traits>;
 

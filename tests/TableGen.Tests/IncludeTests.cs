@@ -24,13 +24,13 @@ public sealed class IncludeTests
     [Fact]
     public void ParserProducesIncludeDirectiveSyntaxNode()
     {
-        const string source = "include \"mlir/OpBase.td\"";
+        const string source = "include \"mlir/IR/OpBase.td\"";
 
         var document = Document.Parse(source);
 
         Assert.Single(document.Syntax.Declarations);
         var include = Assert.IsType<IncludeDirectiveSyntax>(document.Syntax.Declarations[0]);
-        Assert.Equal("mlir/OpBase.td", include.Path);
+        Assert.Equal("mlir/IR/OpBase.td", include.Path);
     }
 
     [Fact]
