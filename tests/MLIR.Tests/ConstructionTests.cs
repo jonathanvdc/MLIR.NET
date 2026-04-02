@@ -40,6 +40,8 @@ public sealed class ConstructionTests
             writer.WriteToken(ColonToken, " ");
             writer.WriteRaw(typeSignature, " ");
         }
+
+        public override OperationBodySyntax RewriteChildren(SyntaxRewriter rewriter) => this;
     }
 
     private static GenericOperationBodySyntax GetGenericBody(OperationSyntax operation)

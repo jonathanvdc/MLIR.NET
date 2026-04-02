@@ -64,6 +64,15 @@ public sealed class SemanticTests
             writer.WriteToken(ColonToken, " ");
             writer.WriteType(TypeSignature, " ");
         }
+
+        public override OperationBodySyntax RewriteChildren(SyntaxRewriter rewriter)
+        {
+            var newAttributes = rewriter.VisitNamedAttributeList(Attributes);
+            var newTypeSignature = rewriter.VisitTypeSyntax(TypeSignature);
+            if (ReferenceEquals(newAttributes, Attributes) && ReferenceEquals(newTypeSignature, TypeSignature))
+                return this;
+            return new PrefixConstantBodySyntax(Value, ColonToken, newTypeSignature, newAttributes);
+        }
     }
 
     private sealed class ArithConstantView

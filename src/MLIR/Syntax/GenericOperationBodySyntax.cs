@@ -70,6 +70,23 @@ public sealed class GenericOperationBodySyntax(
     public RawSyntaxText? RawTypeSignature => TypeSignatureSyntax?.GetRawText();
 
     /// <inheritdoc/>
+    public override OperationBodySyntax RewriteChildren(SyntaxRewriter rewriter)
+    {
+        var newRegions = rewriter.VisitRegionList(Regions);
+        var newAttributes = rewriter.VisitNamedAttributeList(Attributes);
+        var newTypeSignature = TypeSignatureSyntax != null ? rewriter.VisitTypeSyntax(TypeSignatureSyntax) : null;
+        if (ReferenceEquals(newRegions, Regions) && ReferenceEquals(newAttributes, Attributes) && ReferenceEquals(newTypeSignature, TypeSignatureSyntax))
+            return this;
+        return new GenericOperationBodySyntax(
+            OperandList,
+            SuccessorList,
+            newRegions,
+            newAttributes,
+            TypeSignatureColonToken,
+            newTypeSignature);
+    }
+
+    /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
     {
         writer.WriteDelimitedList(OperandList, string.Empty);

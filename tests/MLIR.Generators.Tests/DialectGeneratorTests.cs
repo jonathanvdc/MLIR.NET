@@ -115,6 +115,18 @@ public sealed class DialectGeneratorTests
 
         // WriteTo is implemented.
         Assert.Contains("public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)", registrationSource);
+
+        // RewriteChildren is implemented.
+        Assert.Contains("public override OperationBodySyntax RewriteChildren(SyntaxRewriter rewriter)", registrationSource);
+
+        // MiniArith_ConstantOp rewrites its attribute value and attr-dict.
+        Assert.Contains("var newValue = rewriter.VisitAttributeValue(Value);", registrationSource);
+        Assert.Contains("var newAttrDict = rewriter.VisitNamedAttributeList(AttrDict);", registrationSource);
+        Assert.Contains("return new MiniArith_ConstantOpBodySyntax(newValue, newAttrDict);", registrationSource);
+
+        // MiniArith_AddIOp rewrites its attr-dict and type; tokens are passed through unchanged.
+        Assert.Contains("var newResultType = rewriter.VisitTypeSyntax(ResultType);", registrationSource);
+        Assert.Contains("return new MiniArith_AddIOpBodySyntax(Lhs, CommaToken, Rhs, newAttrDict, ColonToken, newResultType);", registrationSource);
     }
 
     [Fact]

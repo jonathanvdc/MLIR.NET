@@ -56,9 +56,130 @@ internal static class OperationBodySyntaxEmitter
         }
 
         builder.AppendLine("    }");
+
+        builder.AppendLine();
+        EmitRewriteChildren(builder, metadata);
+
         builder.AppendLine("}");
 
         return metadata;
+    }
+
+    private static void EmitRewriteChildren(StringBuilder builder, OperationBodySyntaxMetadata metadata)
+    {
+        var fields = metadata.Fields;
+
+        // Build a mapping from field name to component kind.
+        var componentKindByField = new System.Collections.Generic.Dictionary<string, BodyComponentKind>(
+            System.StringComparer.Ordinal);
+        foreach (var comp in metadata.ComponentFields)
+        {
+            componentKindByField[comp.FieldName] = comp.Kind;
+        }
+
+        // Collect fields that can be rewritten (i.e., hold non-token children).
+        var rewritableFields = new System.Collections.Generic.List<BodySyntaxField>();
+        foreach (var field in fields)
+        {
+            if (componentKindByField.TryGetValue(field.Name, out var kind) && IsRewritableKind(kind))
+            {
+                rewritableFields.Add(field);
+            }
+        }
+
+        builder.AppendLine("    public override OperationBodySyntax RewriteChildren(SyntaxRewriter rewriter)");
+        builder.AppendLine("    {");
+
+        if (rewritableFields.Count == 0)
+        {
+            builder.AppendLine("        return this;");
+            builder.AppendLine("    }");
+            return;
+        }
+
+        // Emit local variables for each rewritable field.
+        foreach (var field in rewritableFields)
+        {
+            componentKindByField.TryGetValue(field.Name, out var kind);
+            var varName = "new" + field.Name;
+            var rewriteExpr = GetRewriteExpression(field, kind);
+            builder.AppendLine("        var " + varName + " = " + rewriteExpr + ";");
+        }
+
+        // Emit identity check.
+        builder.Append("        if (");
+        for (int i = 0; i < rewritableFields.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(" && ");
+            }
+
+            var field = rewritableFields[i];
+            builder.Append("ReferenceEquals(new" + field.Name + ", " + field.Name + ")");
+        }
+
+        builder.AppendLine(")");
+        builder.AppendLine("            return this;");
+
+        // Emit constructor call passing rewritten values for rewritable fields and original for others.
+        var rewritableSet = new System.Collections.Generic.HashSet<string>(
+            System.StringComparer.Ordinal);
+        foreach (var f in rewritableFields)
+        {
+            rewritableSet.Add(f.Name);
+        }
+
+        builder.Append("        return new " + metadata.BodyClassName + "(");
+        for (int i = 0; i < fields.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            var fieldName = fields[i].Name;
+            builder.Append(rewritableSet.Contains(fieldName) ? "new" + fieldName : fieldName);
+        }
+
+        builder.AppendLine(");");
+        builder.AppendLine("    }");
+    }
+
+    private static bool IsRewritableKind(BodyComponentKind kind)
+    {
+        return kind switch
+        {
+            BodyComponentKind.AttrDict => true,
+            BodyComponentKind.AttrDictWithKeyword => true,
+            BodyComponentKind.PropDict => true,
+            BodyComponentKind.Regions => true,
+            BodyComponentKind.Type => true,
+            BodyComponentKind.Attribute => true,
+            _ => false,
+        };
+    }
+
+    private static string GetRewriteExpression(BodySyntaxField field, BodyComponentKind kind)
+    {
+        bool nullable = field.CsType.EndsWith("?", System.StringComparison.Ordinal);
+
+        return kind switch
+        {
+            BodyComponentKind.AttrDict or BodyComponentKind.AttrDictWithKeyword or BodyComponentKind.PropDict =>
+                "rewriter.VisitNamedAttributeList(" + field.Name + ")",
+            BodyComponentKind.Regions =>
+                "rewriter.VisitRegionList(" + field.Name + ")",
+            BodyComponentKind.Type when nullable =>
+                field.Name + " != null ? rewriter.VisitTypeSyntax(" + field.Name + ") : null",
+            BodyComponentKind.Type =>
+                "rewriter.VisitTypeSyntax(" + field.Name + ")",
+            BodyComponentKind.Attribute when nullable =>
+                field.Name + " != null ? rewriter.VisitAttributeValue(" + field.Name + ") : null",
+            BodyComponentKind.Attribute =>
+                "rewriter.VisitAttributeValue(" + field.Name + ")",
+            _ => field.Name,
+        };
     }
 
     private static OperationBodySyntaxMetadata ComputeBodySyntaxMetadata(OperationModel operation, AssemblyFormatModel assemblyFormat, string operationClassName)

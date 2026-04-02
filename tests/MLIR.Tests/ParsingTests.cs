@@ -40,6 +40,8 @@ public sealed class ParsingTests
             writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"), " ");
             writer.WriteRaw(typeSignature, " ");
         }
+
+        public override OperationBodySyntax RewriteChildren(SyntaxRewriter rewriter) => this;
     }
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
