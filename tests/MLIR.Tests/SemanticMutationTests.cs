@@ -31,7 +31,6 @@ public sealed partial class SemanticTests
         var syntheticOperation = new SyntheticOperation("test.synthetic");
 
         Assert.Null(syntheticOperation.Syntax);
-        Assert.Null(syntheticOperation.SyntaxName);
         Assert.False(syntheticOperation.Location.IsKnown);
         Assert.Equal("test.synthetic", syntheticOperation.Name);
         Assert.Equal("test", syntheticOperation.DialectName);

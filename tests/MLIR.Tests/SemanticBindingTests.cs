@@ -23,7 +23,7 @@ public sealed partial class SemanticTests
         Assert.True(operation.IsKnown);
         Assert.IsType<UnknownOperation>(operation);
         Assert.Equal("arith.addi", operation.Name);
-        Assert.Equal("\"arith.addi\"", operation.SyntaxName);
+        Assert.Equal("\"arith.addi\"", operation.Syntax?.Name);
         Assert.Equal("arith", operation.DialectName);
         Assert.NotNull(operation.Definition);
         Assert.Equal("%0", operation.Results[0].Name);

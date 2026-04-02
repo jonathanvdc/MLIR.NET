@@ -123,11 +123,6 @@ public abstract class Operation
     public bool IsKnown => Definition != null;
 
     /// <summary>
-    /// Gets the operation name exactly as written in the source, or null if this is a synthetic operation with no corresponding source text.
-    /// </summary>
-    public string? SyntaxName => Syntax?.Name;
-
-    /// <summary>
     /// Gets the dialect namespace portion of the operation name, if present.
     /// </summary>
     public string DialectName
