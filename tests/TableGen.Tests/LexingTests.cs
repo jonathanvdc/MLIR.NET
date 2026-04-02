@@ -60,6 +60,16 @@ public sealed class LexingTests
     }
 
     [Fact]
+    public void DoesNotTreatHashConcatWithoutWhitespaceAsPreprocessor()
+    {
+        const string source = "def Example { string Value = \"a\"#name; };";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("aname", Assert.IsType<StringValue>(record.GetField("Value")).Value);
+    }
+
+    [Fact]
     public void LexesBangKeywordsWithOperatorName()
     {
         const string source = "def Example { string Value = !toupper(\"hello\"); };";

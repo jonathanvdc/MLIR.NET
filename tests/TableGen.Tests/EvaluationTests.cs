@@ -63,6 +63,20 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void EvaluatesTrailingCommaListsAndNegativeIndices()
+    {
+        const string source =
+            "def Example {\n" +
+            "  list<int> Values = [1, 2, 3,];\n" +
+            "  int Last = Values[-1];\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal(3, Assert.IsType<IntegerValue>(record.GetField("Last")).Value);
+    }
+
+    [Fact]
     public void EvaluatesBitInitializersAndOverridesFromIntegersAndBooleans()
     {
         const string source =
@@ -249,6 +263,51 @@ public sealed class EvaluationTests
 
         Assert.Equal("yes", Assert.IsType<StringValue>(record.GetField("A")).Value);
         Assert.Equal("no", Assert.IsType<StringValue>(record.GetField("B")).Value);
+    }
+
+    [Fact]
+    public void EvaluatesBangCondLocalDefvarsAndAsserts()
+    {
+        const string source =
+            "def Example {\n" +
+            "  defvar x = 1;\n" +
+            "  assert !gt(x, 0), \"x must be positive\";\n" +
+            "  string Value = !cond(!eq(x, 0): \"zero\", true: \"positive\",);\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("positive", Assert.IsType<StringValue>(record.GetField("Value")).Value);
+    }
+
+    [Fact]
+    public void EvaluatesBangSubstHeadAndTail()
+    {
+        const string source =
+            "def Example {\n" +
+            "  string Replaced = !subst(\"x\", \"y\", \"xoxo\");\n" +
+            "  int First = !head([4, 5, 6]);\n" +
+            "  list<int> Rest = !tail([4, 5, 6]);\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("yoyo", Assert.IsType<StringValue>(record.GetField("Replaced")).Value);
+        Assert.Equal(4, Assert.IsType<IntegerValue>(record.GetField("First")).Value);
+        Assert.Equal([5, 6], Assert.IsType<ListValue>(record.GetField("Rest")).Items.Cast<IntegerValue>().Select(static item => item.Value).ToArray());
+    }
+
+    [Fact]
+    public void ReportsFailedBodyAssertions()
+    {
+        const string source =
+            "def Example {\n" +
+            "  assert 0, \"boom\";\n" +
+            "};";
+
+        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
+
+        Assert.Contains("boom", exception.Message);
     }
 
     [Fact]

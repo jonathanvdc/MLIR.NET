@@ -50,7 +50,25 @@ internal static class Lexer
 
                 if (char.IsDigit(current))
                 {
-                    var text = ReadWhile(char.IsDigit);
+                    var text = ReadWhile(static c => char.IsLetterOrDigit(c) || c == '_');
+                    var kind = TokenKind.Integer;
+                    foreach (var ch in text)
+                    {
+                        if (char.IsLetter(ch) || ch == '_')
+                        {
+                            kind = TokenKind.Identifier;
+                            break;
+                        }
+                    }
+
+                    tokens.Add(new Token(kind, text, tokenStart, tokenLine, tokenColumn));
+                    continue;
+                }
+
+                if (current == '-' && char.IsDigit(Peek(1)))
+                {
+                    Advance();
+                    var text = source.Substring(tokenStart, position - tokenStart) + ReadWhile(char.IsDigit);
                     tokens.Add(new Token(TokenKind.Integer, text, tokenStart, tokenLine, tokenColumn));
                     continue;
                 }
@@ -152,7 +170,10 @@ internal static class Lexer
                     continue;
                 }
 
-                if (Current == '#' && position + 1 < source.Length && char.IsLetter(source[position + 1]))
+                if (Current == '#' &&
+                    position + 1 < source.Length &&
+                    char.IsLetter(source[position + 1]) &&
+                    IsAtDirectiveStart())
                 {
                     while (!IsAtEnd && Current != '\n')
                     {
@@ -175,6 +196,24 @@ internal static class Lexer
             }
 
             return source.Substring(start, position - start);
+        }
+
+        private bool IsAtDirectiveStart()
+        {
+            for (var i = position - 1; i >= 0; i--)
+            {
+                if (source[i] == '\n')
+                {
+                    return true;
+                }
+
+                if (!char.IsWhiteSpace(source[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private string ReadStringLiteral()
@@ -250,6 +289,7 @@ internal static class Lexer
                 "let" => TokenKind.LetKeyword,
                 "in" => TokenKind.InKeyword,
                 "include" => TokenKind.IncludeKeyword,
+                "assert" => TokenKind.AssertKeyword,
                 _ => TokenKind.Identifier,
             };
         }

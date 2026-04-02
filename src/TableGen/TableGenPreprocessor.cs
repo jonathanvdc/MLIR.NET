@@ -130,13 +130,6 @@ public static class TableGenPreprocessor
                 continue;
             }
 
-            if (trimmed.StartsWith("#"))
-            {
-                // Unknown or unsupported preprocessor directive – skip the line.
-                output.Append('\n');
-                continue;
-            }
-
             // Ordinary source line: emit when active, blank line when inactive.
             if (IsActive())
             {

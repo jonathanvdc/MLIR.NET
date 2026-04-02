@@ -27,10 +27,15 @@
     <EmbeddedResource Include="Prelude\mlir\OpBase.td" LogicalName="mlir/OpBase.td" />
     <EmbeddedResource Include="Prelude\mlir\CommonTypes.td" LogicalName="mlir/CommonTypes.td" />
     <EmbeddedResource Include="Prelude\mlir\CommonAttrs.td" LogicalName="mlir/CommonAttrs.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\OpBase.td" LogicalName="mlir/IR/OpBase.td" />
     <EmbeddedResource Include="Prelude\mlir\IR\Utils.td" LogicalName="mlir/IR/Utils.td" />
     <EmbeddedResource Include="Prelude\mlir\IR\Constraints.td" LogicalName="mlir/IR/Constraints.td" />
     <EmbeddedResource Include="Prelude\mlir\IR\DialectBase.td" LogicalName="mlir/IR/DialectBase.td" />
     <EmbeddedResource Include="Prelude\mlir\IR\CommonTypeConstraints.td" LogicalName="mlir/IR/CommonTypeConstraints.td" />
     <EmbeddedResource Include="Prelude\mlir\IR\CommonAttrConstraints.td" LogicalName="mlir/IR/CommonAttrConstraints.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\AttrTypeBase.td" LogicalName="mlir/IR/AttrTypeBase.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\Interfaces.td" LogicalName="mlir/IR/Interfaces.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\Properties.td" LogicalName="mlir/IR/Properties.td" />
+    <EmbeddedResource Include="Prelude\mlir\IR\Traits.td" LogicalName="mlir/IR/Traits.td" />
   </ItemGroup>
 </Project>

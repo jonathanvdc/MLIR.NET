@@ -108,6 +108,27 @@ public sealed class ParsingTests
     }
 
     [Fact]
+    public void ParsesTrailingCommasNegativeIntegersAndSubscripts()
+    {
+        const string source =
+            "def Example {\n" +
+            "  list<int> Values = [1, 2, 3,];\n" +
+            "  int Last = Values[-1];\n" +
+            "};";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+        var valuesField = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var list = Assert.IsType<ListSyntax>(valuesField.Initializer);
+        var lastField = Assert.IsType<FieldSyntax>(def.BodyItems[1]);
+        var subscript = Assert.IsType<SubscriptSyntax>(lastField.Initializer);
+        var index = Assert.IsType<IntegerSyntax>(subscript.Index);
+
+        Assert.Equal(3, list.Items.Count);
+        Assert.Equal(-1, index.Value);
+    }
+
+    [Fact]
     public void ReportsUnexpectedTopLevelTokens()
     {
         var exception = Assert.Throws<ParseException>(() => Document.Parse("int Width = 1;"));
@@ -191,6 +212,27 @@ public sealed class ParsingTests
         Assert.Equal(3, ifExpr.Arguments.Count);
         var cond = Assert.IsType<BangCallSyntax>(ifExpr.Arguments[0]);
         Assert.Equal("gt", cond.OperatorName);
+    }
+
+    [Fact]
+    public void ParsesBangCondAndBodyLocalStatements()
+    {
+        const string source =
+            "def Example {\n" +
+            "  defvar x = 1;\n" +
+            "  assert !gt(x, 0), \"x must be positive\";\n" +
+            "  string V = !cond(!eq(x, 0): \"zero\", true: \"positive\",);\n" +
+            "};";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+        Assert.IsType<LocalDefVarSyntax>(def.BodyItems[0]);
+        Assert.IsType<AssertSyntax>(def.BodyItems[1]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[2]);
+        var cond = Assert.IsType<BangCallSyntax>(field.Initializer);
+
+        Assert.Equal("cond", cond.OperatorName);
+        Assert.Equal(4, cond.Arguments.Count);
     }
 
     [Fact]

@@ -180,6 +180,24 @@ public static class Interpreter
                         scope[let.Name] = finalValue;
                         break;
                     }
+                    case LocalDefVarSyntax defVar:
+                    {
+                        scope[defVar.Name] = EvaluateExpression(defVar.Value, scope);
+                        break;
+                    }
+                    case AssertSyntax assert:
+                    {
+                        var condition = EvaluateExpression(assert.Condition, scope);
+                        if (!IsTruthy(condition))
+                        {
+                            var message = assert.Message == null
+                                ? "TableGen assertion failed."
+                                : ValueToString(EvaluateExpression(assert.Message, scope));
+                            throw new InvalidOperationException(message);
+                        }
+
+                        break;
+                    }
                 }
             }
         }
@@ -200,6 +218,7 @@ public static class Interpreter
                 ForeachSyntax forEach => EvaluateForeach(forEach, scope),
                 AnonymousClassInstantiationSyntax anonInst => EvaluateAnonymousClassInstantiation(anonInst, scope),
                 FieldAccessSyntax fieldAccess => EvaluateFieldAccess(fieldAccess, scope),
+                SubscriptSyntax subscript => EvaluateSubscript(subscript, scope),
                 ClassInstantiationSyntax instantiation => EvaluateClassInstantiation(instantiation, scope),
                 _ => throw new InvalidOperationException("Unknown TableGen expression."),
             };
@@ -390,11 +409,54 @@ public static class Interpreter
                     return new StringValue(ValueToString(val));
                 }
 
+                case "cond":
+                {
+                    for (var i = 0; i + 1 < bangCall.Arguments.Count; i += 2)
+                    {
+                        if (IsTruthy(EvaluateExpression(bangCall.Arguments[i], scope)))
+                        {
+                            return EvaluateExpression(bangCall.Arguments[i + 1], scope);
+                        }
+                    }
+
+                    throw new InvalidOperationException("!cond requires at least one true condition.");
+                }
+
                 case "interleave":
                 {
                     var listVal = (ListValue)EvaluateExpression(bangCall.Arguments[0], scope);
                     var sep = ToString(EvaluateExpression(bangCall.Arguments[1], scope), "!interleave");
                     return new StringValue(string.Join(sep, listVal.Items.Select(item => ValueToString(item))));
+                }
+
+                case "subst":
+                {
+                    var from = ToString(EvaluateExpression(bangCall.Arguments[0], scope), "!subst");
+                    var to = ToString(EvaluateExpression(bangCall.Arguments[1], scope), "!subst");
+                    var text = ToString(EvaluateExpression(bangCall.Arguments[2], scope), "!subst");
+                    return new StringValue(text.Replace(from, to));
+                }
+
+                case "head":
+                {
+                    var list = (ListValue)EvaluateExpression(bangCall.Arguments[0], scope);
+                    if (list.Items.Count == 0)
+                    {
+                        throw new InvalidOperationException("!head requires a non-empty list.");
+                    }
+
+                    return list.Items[0];
+                }
+
+                case "tail":
+                {
+                    var list = (ListValue)EvaluateExpression(bangCall.Arguments[0], scope);
+                    if (list.Items.Count == 0)
+                    {
+                        throw new InvalidOperationException("!tail requires a non-empty list.");
+                    }
+
+                    return new ListValue(list.Items.Skip(1).ToList());
                 }
 
                 case "empty":
@@ -477,6 +539,18 @@ public static class Interpreter
             return new UnsetValue();
         }
 
+        private Value EvaluateSubscript(SubscriptSyntax subscript, IReadOnlyDictionary<string, Value> scope)
+        {
+            var target = EvaluateExpression(subscript.Target, scope);
+            var index = ToInteger(EvaluateExpression(subscript.Index, scope), "subscript");
+            return target switch
+            {
+                ListValue list => list.Items[NormalizeIndex(index, list.Items.Count, "list subscript")],
+                StringValue str => new StringValue(str.Value[NormalizeIndex(index, str.Value.Length, "string subscript")].ToString()),
+                _ => throw new InvalidOperationException($"Cannot subscript {target.GetType().Name}."),
+            };
+        }
+
         private Value EvaluateForeach(ForeachSyntax forEach, IReadOnlyDictionary<string, Value> scope)
         {
             var listValue = (ListValue)EvaluateExpression(forEach.List, scope);
@@ -515,10 +589,23 @@ public static class Interpreter
             StringValue str => str.Value,
             IntegerValue integer => integer.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
             BitValue bit => bit.Value ? "1" : "0",
+            SymbolReferenceValue symbol => symbol.SymbolName,
+            RecordReferenceValue record => record.RecordName,
             UnsetValue => string.Empty,
             AnonymousRecordValue rec => rec.ClassName,
             _ => throw new InvalidOperationException($"Cannot convert {value.GetType().Name} to string for concatenation."),
         };
+
+        private static int NormalizeIndex(int index, int length, string context)
+        {
+            var normalized = index < 0 ? length + index : index;
+            if (normalized < 0 || normalized >= length)
+            {
+                throw new InvalidOperationException($"{context} index {index} is out of range.");
+            }
+
+            return normalized;
+        }
 
         private static bool ValuesEqual(Value a, Value b) => (a, b) switch
         {

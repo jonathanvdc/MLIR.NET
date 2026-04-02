@@ -12,6 +12,7 @@ internal enum TokenKind
     LetKeyword,
     InKeyword,
     IncludeKeyword,
+    AssertKeyword,
     Colon,
     Semicolon,
     Comma,

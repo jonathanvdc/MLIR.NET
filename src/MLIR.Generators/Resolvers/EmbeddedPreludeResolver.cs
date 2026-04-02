@@ -12,6 +12,7 @@ using TableGen;
 /// The following virtual include paths are supported:
 /// <list type="bullet">
 /// <item><description><c>mlir/OpBase.td</c> – core ODS base classes and common traits</description></item>
+/// <item><description><c>mlir/IR/OpBase.td</c> – upstream MLIR ODS op base definitions and recursive IR dependencies</description></item>
 /// <item><description><c>mlir/CommonTypes.td</c> – common integer and floating-point type constraints</description></item>
 /// <item><description><c>mlir/CommonAttrs.td</c> – common attribute constraints</description></item>
 /// </list>
