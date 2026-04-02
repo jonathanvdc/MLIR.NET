@@ -25,11 +25,11 @@ public sealed class DialectGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(tableGenFiles, static (productionContext, files) =>
         {
-            var resolver = BuildIncludeResolver(files, productionContext.CancellationToken);
+            var includeResolver = BuildIncludeResolver(files, productionContext.CancellationToken);
             var results = ImmutableArray.CreateRange(
                 files,
                 static (file, state) => DialectGeneratorInput.ParseFile(file, state.Resolver, state.Token),
-                (Resolver: resolver, Token: productionContext.CancellationToken));
+                (Resolver: includeResolver, Token: productionContext.CancellationToken));
 
             var dialects = GetMergedDialects(results, productionContext).ToArray();
             var resolver = DialectSymbolResolver.Create(dialects);
