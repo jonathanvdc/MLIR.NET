@@ -8,11 +8,20 @@ namespace MLIR.Semantics;
 /// </summary>
 public sealed class UninterpretedOperation : Operation
 {
+    private readonly string name;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="UninterpretedOperation"/> class.
     /// </summary>
     public UninterpretedOperation(OperationSyntax syntax, string name)
-        : base(syntax, name, null)
+        : base(syntax)
     {
+        this.name = name;
     }
+
+    /// <inheritdoc />
+    public override string Name => name;
+
+    /// <inheritdoc />
+    public override OperationDefinition? Definition => null;
 }

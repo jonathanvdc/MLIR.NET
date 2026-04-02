@@ -20,8 +20,6 @@ public abstract class Operation
     /// </summary>
     protected Operation(
         OperationSyntax? syntax,
-        string name,
-        OperationDefinition? definition,
         IReadOnlyList<Region>? regions = null,
         NamedAttributeCollection? attributes = null,
         TypeReference? typeSignatureReference = null,
@@ -30,8 +28,6 @@ public abstract class Operation
         IReadOnlyList<BlockReference>? successorReferences = null)
     {
         Syntax = syntax;
-        Name = name;
-        Definition = definition;
         Attributes = attributes ?? NamedAttributeCollection.Empty;
         TypeSignatureReference = typeSignatureReference;
         this.regions = new List<Region>(regions?.Count ?? 0);
@@ -74,12 +70,12 @@ public abstract class Operation
     /// <summary>
     /// Gets the canonical operation name without MLIR string-literal quoting.
     /// </summary>
-    public string Name { get; }
+    public abstract string Name { get; }
 
     /// <summary>
     /// Gets the registered operation definition, if one exists.
     /// </summary>
-    public OperationDefinition? Definition { get; }
+    public abstract OperationDefinition? Definition { get; }
 
     /// <summary>
     /// Gets the parent block that owns this operation, if any.

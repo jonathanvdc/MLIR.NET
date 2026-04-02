@@ -7,6 +7,8 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class UnknownOperation : Operation
 {
+    private readonly string name;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="UnknownOperation"/> class.
     /// </summary>
@@ -20,7 +22,15 @@ public sealed class UnknownOperation : Operation
         IReadOnlyList<OperationResult> resultValues,
         IReadOnlyList<Value?> operandValues,
         IReadOnlyList<BlockReference> successorReferences)
-        : base(syntax, name, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences)
+        : base(syntax, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences)
     {
+        this.name = name;
+        Definition = definition;
     }
+
+    /// <inheritdoc />
+    public override string Name => name;
+
+    /// <inheritdoc />
+    public override Dialects.OperationDefinition? Definition { get; }
 }

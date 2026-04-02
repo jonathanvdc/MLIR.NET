@@ -81,6 +81,8 @@ internal static class OperationEmitter
         var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
 
         builder.AppendLine("    public static OperationDefinition OperationDefinition { get; } = CreateOperationDefinition();");
+        builder.AppendLine("    public override string Name => OperationDefinition.Name;");
+        builder.AppendLine("    public override OperationDefinition? Definition => OperationDefinition;");
         builder.AppendLine();
         builder.AppendLine("    private static OperationDefinition CreateOperationDefinition()");
         builder.AppendLine("    {");
@@ -238,8 +240,6 @@ internal static class OperationEmitter
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : base(");
         builder.AppendLine("            syntax,");
-        builder.AppendLine("            OperationDefinition.Name,");
-        builder.AppendLine("            OperationDefinition,");
         builder.AppendLine("            global::System.Array.Empty<Region>(),");
         builder.AppendLine("            attributes,");
         builder.AppendLine("            typeSignatureReference,");
