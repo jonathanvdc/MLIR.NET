@@ -12,22 +12,35 @@ public sealed class Block
     private readonly List<Operation> operations;
     private readonly Dictionary<string, Value> valuesByName = [];
     private readonly List<OpSuccessor> uses = [];
+    private readonly string label;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Block"/> class from a concrete syntax node.
     /// </summary>
     public Block(BlockSyntax syntax, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
-        : this(new BlockReference(syntax.LabelToken), arguments, operations)
     {
         Syntax = syntax;
+        label = syntax.LabelToken.Text;
+        this.arguments = new List<BlockArgument>(arguments.Count);
+        this.operations = new List<Operation>(operations.Count);
+        foreach (var argument in arguments)
+        {
+            AttachArgument(argument, invalidateSyntax: false);
+        }
+
+        foreach (var operation in operations)
+        {
+            AttachOperation(operation, invalidateSyntax: false);
+        }
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Block"/> class as a synthetic block with no corresponding source text.
     /// </summary>
-    public Block(BlockReference labelReference, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
+    /// <param name="label">The block label, including the leading <c>^</c>.</param>
+    public Block(string label, IReadOnlyList<BlockArgument> arguments, IReadOnlyList<Operation> operations)
     {
-        LabelReference = labelReference;
+        this.label = label;
         this.arguments = new List<BlockArgument>(arguments.Count);
         this.operations = new List<Operation>(operations.Count);
         foreach (var argument in arguments)
@@ -47,11 +60,6 @@ public sealed class Block
     public BlockSyntax? Syntax { get; private set; }
 
     /// <summary>
-    /// Gets the semantic reference to the block label.
-    /// </summary>
-    public BlockReference LabelReference { get; }
-
-    /// <summary>
     /// Gets the region that owns this block.
     /// </summary>
     public Region? ParentRegion { get; private set; }
@@ -69,12 +77,12 @@ public sealed class Block
     /// <summary>
     /// Gets the block label, including the leading <c>^</c>.
     /// </summary>
-    public string Label => LabelReference.Label;
+    public string Label => label;
 
     /// <summary>
     /// Gets the source location of the block label, if known.
     /// </summary>
-    public SourceLocation Location => LabelReference.Location;
+    public SourceLocation Location => Syntax != null ? SourceLocation.FromToken(Syntax.LabelToken) : SourceLocation.Unknown;
 
     /// <summary>
     /// Gets the uses of this block as a successor of an operation.
@@ -169,6 +177,11 @@ public sealed class Block
 
             suffix++;
         }
+    }
+
+    internal void AddOperationFromSyntax(Operation operation)
+    {
+        AttachOperation(operation, invalidateSyntax: false);
     }
 
     internal void Bind(Region parentRegion)

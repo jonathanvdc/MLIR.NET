@@ -62,6 +62,9 @@ public sealed class Binder
     /// <param name="syntax">The concrete syntax tree to bind.</param>
     /// <returns>The semantic operation.</returns>
     public Operation BindOperation(OperationSyntax syntax)
+        => BindOperation(syntax, null);
+
+    internal Operation BindOperation(OperationSyntax syntax, IReadOnlyDictionary<string, Block>? blocksByLabel)
     {
         var name = NormalizeOperationName(syntax.Name);
         OperationDefinition? definition = null;
@@ -72,7 +75,7 @@ public sealed class Binder
 
         if (syntax.Body is GenericOperationBodySyntax genericBody)
         {
-            return BindGenericOperation(syntax, genericBody, name, definition);
+            return BindGenericOperation(syntax, genericBody, name, definition, blocksByLabel);
         }
         else if (definition != null && definition.AssemblyFormat != null)
         {
@@ -85,7 +88,7 @@ public sealed class Binder
         }
     }
 
-    internal Operation BindGenericOperation(OperationSyntax syntax, GenericOperationBodySyntax body, string name, OperationDefinition? definition)
+    internal Operation BindGenericOperation(OperationSyntax syntax, GenericOperationBodySyntax body, string name, OperationDefinition? definition, IReadOnlyDictionary<string, Block>? blocksByLabel = null)
     {
         var regions = new List<Region>();
         foreach (var region in body.Regions)
@@ -109,9 +112,17 @@ public sealed class Binder
 
         var resultValues = BindOperationResults(syntax.ResultTokens);
         var operandValues = BindValueUses(body.OperandList.Items);
-        var successorReferences = BindBlockReferences(body.SuccessorList.Items);
+        var successorTokens = body.SuccessorList.Items;
+
+        // Resolve successor label tokens to Block instances using the current region's label map.
+        var successorBlocks = new Block?[successorTokens.Count];
+        for (var i = 0; i < successorTokens.Count; i++)
+        {
+            blocksByLabel?.TryGetValue(successorTokens[i].Text, out successorBlocks[i]);
+        }
+
         Operation operation;
-        if (definition != null && CheckGenericOperationConstraints(syntax, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorReferences))
+        if (definition != null && CheckGenericOperationConstraints(syntax, definition, regions, attributes, typeSignatureReference, resultValues, operandValues, successorTokens))
         {
             var constructionContext = new OperationConstructionContext(
                 syntax,
@@ -122,7 +133,7 @@ public sealed class Binder
                 typeSignatureReference,
                 resultValues,
                 operandValues,
-                successorReferences);
+                successorBlocks);
             operation = definition.Factory(constructionContext);
         }
         else
@@ -136,7 +147,7 @@ public sealed class Binder
                 typeSignatureReference,
                 resultValues,
                 operandValues,
-                successorReferences);
+                successorBlocks);
         }
 
         return operation;
@@ -150,7 +161,7 @@ public sealed class Binder
         TypeReference? typeSignatureReference,
         IReadOnlyList<OperationResult> resultValues,
         IReadOnlyList<Value> operandValues,
-        IReadOnlyList<BlockReference> successorReferences)
+        IReadOnlyList<SyntaxToken> successorTokens)
     {
         var isValid = true;
         if (definition.RegionCount.HasValue && regions.Count != definition.RegionCount.Value)
@@ -186,14 +197,14 @@ public sealed class Binder
             isValid = false;
         }
 
-        if (definition.SuccessorCount.HasValue && successorReferences.Count != definition.SuccessorCount.Value)
+        if (definition.SuccessorCount.HasValue && successorTokens.Count != definition.SuccessorCount.Value)
         {
-            Report(new AssemblyDiagnostic(syntax.Location, $"Expected exactly {definition.SuccessorCount.Value} successor(s) but found {successorReferences.Count}."));
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected exactly {definition.SuccessorCount.Value} successor(s) but found {successorTokens.Count}."));
             isValid = false;
         }
-        else if (successorReferences.Count < definition.SuccessorMinCount)
+        else if (successorTokens.Count < definition.SuccessorMinCount)
         {
-            Report(new AssemblyDiagnostic(syntax.Location, $"Expected at least {definition.SuccessorMinCount} successor(s) but found {successorReferences.Count}."));
+            Report(new AssemblyDiagnostic(syntax.Location, $"Expected at least {definition.SuccessorMinCount} successor(s) but found {successorTokens.Count}."));
             isValid = false;
         }
 
@@ -216,37 +227,51 @@ public sealed class Binder
     /// <returns>The semantic region.</returns>
     public Region BindRegion(RegionSyntax syntax)
     {
-        var blocks = new List<Block>();
-        foreach (var block in syntax.Blocks)
+        // Phase 1: create all Block objects (with arguments, no operations yet) so every
+        // block label is known before any operation's successors are resolved.
+        // No value scope is needed in this phase: BindTypeReference resolves types through the
+        // type registry, not through SSA value lookups. The binder value-scope stack is only
+        // consulted when resolving operand SSA names, which happens in Phase 2.
+        var blocks = new List<Block>(syntax.Blocks.Count);
+        var blocksByLabel = new Dictionary<string, Block>(syntax.Blocks.Count);
+        foreach (var blockSyntax in syntax.Blocks)
         {
-            blocks.Add(BindBlock(block));
+            var arguments = new List<BlockArgument>(blockSyntax.Arguments.Count);
+            foreach (var argument in blockSyntax.Arguments)
+            {
+                arguments.Add(new BlockArgument(argument, BindTypeReference(argument.TypeSyntax)));
+            }
+
+            var block = new Block(blockSyntax, arguments, []);
+            blocks.Add(block);
+            blocksByLabel[block.Label] = block;
         }
 
-        // Resolve successor labels to the Block instances within this region.
-        if (blocks.Count > 0)
+        // Phase 2: bind each block's operations now that the full label map is available.
+        // Successor tokens are resolved to Block instances on the fly, so no post-pass is needed.
+        for (var b = 0; b < syntax.Blocks.Count; b++)
         {
-            var blocksByLabel = new Dictionary<string, Block>(blocks.Count);
-            foreach (var block in blocks)
+            var blockSyntax = syntax.Blocks[b];
+            var block = blocks[b];
+
+            PushValueScope();
+
+            foreach (var argument in block.Arguments)
             {
-                blocksByLabel[block.Label] = block;
+                DefineValue(argument);
             }
 
-            foreach (var block in blocks)
+            foreach (var operation in blockSyntax.Operations)
             {
-                foreach (var op in block.Operations)
+                var boundOperation = BindOperation(operation, blocksByLabel);
+                block.AddOperationFromSyntax(boundOperation);
+                foreach (var result in boundOperation.Results)
                 {
-                    for (var i = 0; i < op.Successors.Count; i++)
-                    {
-                        var successor = op.Successors[i];
-                        // Successors start with Block == null (set only by BlockReference token text);
-                        // skip any that were already resolved by a custom assembly format.
-                        if (successor.Block == null && blocksByLabel.TryGetValue(successor.Label, out var resolvedBlock))
-                        {
-                            op.SetSuccessor(i, resolvedBlock);
-                        }
-                    }
+                    DefineValue(result);
                 }
             }
+
+            PopValueScope();
         }
 
         return new Region(syntax, blocks);
@@ -336,33 +361,6 @@ public sealed class Binder
         foreach (var token in tokens)
         {
             values.Add(new OperationResult(token));
-        }
-
-        return values;
-    }
-
-    /// <summary>
-    /// Binds a syntax token to a block reference, which may refer to a block defined by another operation in the same module.
-    /// The token text is expected to be in the form of a block name (e.g. "^bb1", "^foo", etc.); otherwise, the resulting reference may be invalid.
-    /// </summary>
-    /// <param name="token">The syntax token to bind.</param>
-    /// <returns>The semantic block reference.</returns>
-    public BlockReference BindBlockReference(SyntaxToken token)
-    {
-        return new BlockReference(token);
-    }
-
-    /// <summary>
-    /// Creates block references for the given tokens, which may refer to blocks defined by other operations in the same module.
-    /// </summary>
-    /// <param name="tokens">The tokens for which to create references.</param>
-    /// <returns>The list of block references.</returns>
-    public IReadOnlyList<BlockReference> BindBlockReferences(IReadOnlyList<SyntaxToken> tokens)
-    {
-        var values = new List<BlockReference>(tokens.Count);
-        foreach (var token in tokens)
-        {
-            values.Add(BindBlockReference(token));
         }
 
         return values;
