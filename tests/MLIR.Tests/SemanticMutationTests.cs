@@ -270,6 +270,22 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
+    public void AddBlockRejectsConflictingLabels()
+    {
+        var region = new Region(null, []);
+        var first = new Block(new BlockReference("^bb0"), [], []);
+        var duplicate = new Block(new BlockReference("^bb0"), [], []);
+
+        region.AddBlock(first);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => region.AddBlock(duplicate));
+
+        Assert.Contains("^bb0", exception.Message);
+        Assert.Single(region.Blocks);
+        Assert.Same(first, region.Blocks[0]);
+    }
+
+    [Fact]
     public void ToTextUsesUniquifiedNamesForConflictingInsertedDefinitions()
     {
         var module = Binder.BindModule(

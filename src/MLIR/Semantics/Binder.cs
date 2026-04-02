@@ -238,6 +238,8 @@ public sealed class Binder
                     for (var i = 0; i < op.Successors.Count; i++)
                     {
                         var successor = op.Successors[i];
+                        // Successors start with Block == null (set only by BlockReference token text);
+                        // skip any that were already resolved by a custom assembly format.
                         if (successor.Block == null && blocksByLabel.TryGetValue(successor.Label, out var resolvedBlock))
                         {
                             op.SetSuccessor(i, resolvedBlock);
