@@ -1,5 +1,6 @@
 namespace MLIR.Semantics;
 
+using System.Collections.Generic;
 using MLIR.Syntax;
 
 /// <summary>
@@ -7,6 +8,8 @@ using MLIR.Syntax;
 /// </summary>
 public abstract class Value
 {
+    private readonly List<OpOperand> uses = [];
+
     /// <summary>
     /// Initializes a new instance of the <see cref="Value"/> class.
     /// </summary>
@@ -46,4 +49,36 @@ public abstract class Value
     /// Gets the source location of the SSA value, if known.
     /// </summary>
     public SourceLocation Location => Token.HasValue ? SourceLocation.FromToken(Token.Value) : SourceLocation.Unknown;
+
+    /// <summary>
+    /// Gets the uses of this SSA value.
+    /// </summary>
+    public IReadOnlyList<OpOperand> Uses => uses;
+
+    /// <summary>
+    /// Replaces every use of this value with <paramref name="other"/>.
+    /// </summary>
+    public void ReplaceAllUsesWith(Value other)
+    {
+        if (ReferenceEquals(this, other))
+        {
+            return;
+        }
+
+        var existingUses = uses.ToArray();
+        foreach (var use in existingUses)
+        {
+            use.Value = other;
+        }
+    }
+
+    internal void AddUse(OpOperand operand)
+    {
+        uses.Add(operand);
+    }
+
+    internal void RemoveUse(OpOperand operand)
+    {
+        uses.Remove(operand);
+    }
 }

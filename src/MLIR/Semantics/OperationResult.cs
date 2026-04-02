@@ -33,16 +33,7 @@ public sealed class OperationResult : Value
     /// </summary>
     public int ResultIndex { get; private set; } = -1;
 
-    /// <summary>
-    /// Creates a copy of this result bound to the given defining operation and result index.
-    /// </summary>
-    public OperationResult Bind(Operation definingOperation, int resultIndex)
-    {
-        return new OperationResult(Token, Name, definingOperation, resultIndex);
-    }
-
-    private OperationResult(SyntaxToken? token, string name, Operation definingOperation, int resultIndex)
-        : base(token, name)
+    internal void Bind(Operation definingOperation, int resultIndex)
     {
         DefiningOperation = definingOperation;
         ResultIndex = resultIndex;

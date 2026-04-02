@@ -17,7 +17,7 @@ public sealed class OperationConstructionContext
         NamedAttributeCollection attributes,
         TypeReference? typeSignatureReference,
         IReadOnlyList<OperationResult> resultValues,
-        IReadOnlyList<Value> operandValues,
+        IReadOnlyList<Value?> operandValues,
         IReadOnlyList<BlockReference> successorReferences)
     {
         Syntax = syntax;
@@ -62,14 +62,14 @@ public sealed class OperationConstructionContext
     public TypeReference? TypeSignatureReference { get; }
 
     /// <summary>
-    /// Gets the typed SSA result references.
+    /// Gets the typed SSA result definitions owned by the operation.
     /// </summary>
     public IReadOnlyList<OperationResult> ResultValues { get; }
 
     /// <summary>
-    /// Gets the typed SSA operand references.
+    /// Gets the typed SSA operand values in operation-definition order.
     /// </summary>
-    public IReadOnlyList<Value> OperandValues { get; }
+    public IReadOnlyList<Value?> OperandValues { get; }
 
     /// <summary>
     /// Gets the typed block successor references.

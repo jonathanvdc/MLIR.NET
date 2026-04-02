@@ -90,37 +90,37 @@ public sealed class SemanticTests
 
     private sealed class GeneratedConstantOperation : Operation
     {
-        private readonly OperationDefinition definition;
-        public readonly NamedAttribute ValueAttribute;
-        public readonly OperationResult ResultValue;
-
         public GeneratedConstantOperation(OperationSyntax syntax, OperationDefinition definition, OperationResult resultValue, AttributeValue value, TypeReference typeSignatureReference)
-            : base(syntax)
+            : base(
+                syntax,
+                definition.Name,
+                definition,
+                [],
+                NamedAttributeCollection.Create(new NamedAttribute("value", value)),
+                typeSignatureReference,
+                [resultValue],
+                [],
+                [])
         {
-            this.definition = definition;
-            ValueAttribute = new NamedAttribute("value", value);
-            ResultValue = resultValue.Bind(this, 0);
-            TypeSignatureReference = typeSignatureReference;
         }
 
         public GeneratedConstantOperation(OperationConstructionContext context)
-            : base(context.Syntax)
+            : base(
+                context.Syntax,
+                context.Definition.Name,
+                context.Definition,
+                context.Regions,
+                context.Attributes,
+                context.TypeSignatureReference,
+                context.ResultValues,
+                context.OperandValues,
+                context.SuccessorReferences)
         {
-            definition = context.Definition;
-            ValueAttribute = context.GetAttribute("value");
-            ResultValue = context.ResultValues.Single().Bind(this, 0);
-            TypeSignatureReference = context.TypeSignatureReference;
         }
 
-        public override string Name => definition.Name;
-        public override OperationDefinition? Definition => definition;
-        public override IReadOnlyList<Region> Regions => [];
-        public override NamedAttributeCollection Attributes => NamedAttributeCollection.Create(ValueAttribute);
-        public override TypeReference? TypeSignatureReference { get; }
-        public override IReadOnlyList<OperationResult> ResultValues => [ResultValue];
-        public override IReadOnlyList<Value> OperandValues => [];
-        public override IReadOnlyList<BlockReference> SuccessorReferences => [];
-        public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
+        public NamedAttribute ValueAttribute => GetAttribute("value");
+
+        public OperationResult ResultValue => ResultValues.Single();
     }
 
     private sealed class DenseAttributeValue : AttributeValue
@@ -293,52 +293,33 @@ public sealed class SemanticTests
 
     private sealed class GeneratedAddIOperation : Operation
     {
-        private static readonly IReadOnlyList<Region> EmptyRegions = [];
-        private static readonly NamedAttributeCollection EmptyAttributes = NamedAttributeCollection.Empty;
-        private static readonly IReadOnlyList<BlockReference> EmptySuccessors = [];
-        private readonly OperationDefinition definition;
-
         public GeneratedAddIOperation(OperationConstructionContext context)
-            : base(context.Syntax)
+            : base(
+                context.Syntax,
+                context.Definition.Name,
+                context.Definition,
+                context.Regions,
+                context.Attributes,
+                context.TypeSignatureReference,
+                context.ResultValues,
+                context.OperandValues,
+                context.SuccessorReferences)
         {
-            definition = context.Definition;
-            LeftOperand = context.OperandValues[0];
-            RightOperand = context.OperandValues[1];
-            ResultValue = context.ResultValues[0];
         }
 
-        public override string Name => definition.Name;
-        public override OperationDefinition? Definition => definition;
-        public override IReadOnlyList<Region> Regions => EmptyRegions;
-        public override NamedAttributeCollection Attributes => EmptyAttributes;
-        public override TypeReference? TypeSignatureReference => null;
-        public override IReadOnlyList<OperationResult> ResultValues => [ResultValue];
-        public override IReadOnlyList<Value> OperandValues => [LeftOperand, RightOperand];
-        public override IReadOnlyList<BlockReference> SuccessorReferences => EmptySuccessors;
-        public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
+        public Value LeftOperand => OperandUses[0].Value!;
 
-        public Value LeftOperand { get; }
-        public Value RightOperand { get; }
-        public OperationResult ResultValue { get; }
+        public Value RightOperand => OperandUses[1].Value!;
+
+        public OperationResult ResultValue => ResultValues[0];
     }
 
     private sealed class SyntheticOperation : Operation
     {
         public SyntheticOperation(string name)
-            : base(null)
+            : base(null, name, null)
         {
-            Name = name;
         }
-
-        public override string Name { get; }
-        public override OperationDefinition? Definition => null;
-        public override IReadOnlyList<Region> Regions => [];
-        public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;
-        public override TypeReference? TypeSignatureReference => null;
-        public override IReadOnlyList<OperationResult> ResultValues => [];
-        public override IReadOnlyList<Value> OperandValues => [];
-        public override IReadOnlyList<BlockReference> SuccessorReferences => [];
-        public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
     }
 
     private sealed class SyntheticAttributeValue : AttributeValue
