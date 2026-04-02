@@ -53,7 +53,7 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.DefVarKeyword))
         {
-            var name = Expect(TokenKind.Identifier, "Expected a name after 'defvar'.").Text;
+            var name = ExpectName("Expected a name after 'defvar'.").Text;
             Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
             var value = ParseExpression();
             Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
@@ -65,7 +65,7 @@ internal sealed class Parser
 
     private ClassSyntax ParseClass()
     {
-        var name = Expect(TokenKind.Identifier, "Expected a class name.").Text;
+        var name = ExpectName("Expected a class name.").Text;
         var templateParameters = ParseOptionalTemplateParameters();
         var bases = ParseOptionalBases();
         var (hadBraces, bodyItems) = ParseOptionalBody();
@@ -79,7 +79,7 @@ internal sealed class Parser
 
     private DefSyntax ParseDef()
     {
-        var name = Expect(TokenKind.Identifier, "Expected a definition name.").Text;
+        var name = ExpectName("Expected a definition name.").Text;
         var bases = ParseOptionalBases();
         var (hadBraces, bodyItems) = ParseOptionalBody();
         if (!hadBraces || Is(TokenKind.Semicolon))
@@ -106,7 +106,7 @@ internal sealed class Parser
         do
         {
             var typeName = ParseTypeName();
-            var name = Expect(TokenKind.Identifier, "Expected a template parameter name.").Text;
+            var name = ExpectName("Expected a template parameter name.").Text;
             ExpressionSyntax? defaultValue = null;
             if (TryMatch(TokenKind.Equal))
             {
@@ -131,7 +131,7 @@ internal sealed class Parser
 
         do
         {
-            var name = Expect(TokenKind.Identifier, "Expected a base-class name.").Text;
+            var name = ExpectName("Expected a base-class name.").Text;
             bases.Add(new BaseSyntax(name, ParseOptionalArgumentList()));
         }
         while (TryMatch(TokenKind.Comma) && !Is(TokenKind.GreaterThan));
@@ -182,7 +182,7 @@ internal sealed class Parser
     {
         if (TryMatch(TokenKind.LetKeyword))
         {
-            var name = Expect(TokenKind.Identifier, "Expected a field name after 'let'.").Text;
+            var name = ExpectName("Expected a field name after 'let'.").Text;
             Expect(TokenKind.Equal, "Expected '=' after the field name.");
             var value = ParseExpression();
             Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
@@ -191,7 +191,7 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.DefVarKeyword))
         {
-            var name = Expect(TokenKind.Identifier, "Expected a name after 'defvar'.").Text;
+            var name = ExpectName("Expected a name after 'defvar'.").Text;
             Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
             var value = ParseExpression();
             Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
@@ -212,7 +212,7 @@ internal sealed class Parser
         }
 
         var typeName = ParseTypeName();
-        var nameToken = Expect(TokenKind.Identifier, "Expected a field name.");
+        var nameToken = ExpectName("Expected a field name.");
         ExpressionSyntax? initializer = null;
         if (TryMatch(TokenKind.Equal))
         {
@@ -225,7 +225,7 @@ internal sealed class Parser
 
     private string ParseTypeName()
     {
-        var name = Expect(TokenKind.Identifier, "Expected a type name.").Text;
+        var name = ExpectName("Expected a type name.").Text;
         if (!TryMatch(TokenKind.LessThan))
         {
             return name;
@@ -299,6 +299,17 @@ internal sealed class Parser
             return ApplyPostfixAccess(new IdentifierSyntax(identifierToken.Text));
         }
 
+        if (TryMatchName(out var nameToken))
+        {
+            if (Is(TokenKind.LessThan))
+            {
+                var arguments = ParseOptionalArgumentList();
+                return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(nameToken.Text, arguments));
+            }
+
+            return ApplyPostfixAccess(new IdentifierSyntax(nameToken.Text));
+        }
+
         if (TryMatch(TokenKind.BangKeyword, out var bangToken))
         {
             return ApplyPostfixAccess(ParseBangExpression(bangToken.Text));
@@ -323,7 +334,7 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.LParen))
         {
-            var operatorName = Expect(TokenKind.Identifier, "Expected a dag operator name.").Text;
+            var operatorName = ExpectName("Expected a dag operator name.").Text;
             var arguments = new List<DagArgumentSyntax>();
             while (!TryMatch(TokenKind.RParen))
             {
@@ -332,7 +343,7 @@ internal sealed class Parser
                 if (TryMatch(TokenKind.Colon))
                 {
                     TryMatch(TokenKind.Dollar);
-                    name = Expect(TokenKind.Identifier, "Expected a dag argument name.").Text;
+                    name = ExpectName("Expected a dag argument name.").Text;
                 }
 
                 arguments.Add(new DagArgumentSyntax(value, name));
@@ -406,9 +417,9 @@ internal sealed class Parser
             Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
             var list = ParseExpression();
             Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
-            var accVar = Expect(TokenKind.Identifier, "Expected an accumulator variable name in '!foldl'.").Text;
+            var accVar = ExpectName("Expected an accumulator variable name in '!foldl'.").Text;
             Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
-            var curVar = Expect(TokenKind.Identifier, "Expected a current-element variable name in '!foldl'.").Text;
+            var curVar = ExpectName("Expected a current-element variable name in '!foldl'.").Text;
             Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
             var body = ParseExpression();
             Expect(TokenKind.RParen, "Expected ')' to close '!foldl'.");
@@ -418,7 +429,7 @@ internal sealed class Parser
         if (operatorName == "foreach")
         {
             Expect(TokenKind.LParen, "Expected '(' after '!foreach'.");
-            var varName = Expect(TokenKind.Identifier, "Expected variable name in '!foreach'.").Text;
+            var varName = ExpectName("Expected variable name in '!foreach'.").Text;
             Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
             var list = ParseExpression();
             Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
@@ -520,6 +531,40 @@ internal sealed class Parser
         }
 
         return tokens[position++];
+    }
+
+    private Token ExpectName(string message)
+    {
+        if (TryMatchName(out var token))
+        {
+            return token;
+        }
+
+        throw Error(message);
+    }
+
+    private bool TryMatchName(out Token token)
+    {
+        if (IsNameTokenKind(Current.Kind))
+        {
+            token = tokens[position++];
+            return true;
+        }
+
+        token = default;
+        return false;
+    }
+
+    private static bool IsNameTokenKind(TokenKind kind)
+    {
+        return kind is TokenKind.Identifier
+            or TokenKind.ClassKeyword
+            or TokenKind.DefKeyword
+            or TokenKind.LetKeyword
+            or TokenKind.InKeyword
+            or TokenKind.IncludeKeyword
+            or TokenKind.AssertKeyword
+            or TokenKind.DefVarKeyword;
     }
 
     private Token Consume()

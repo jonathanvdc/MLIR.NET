@@ -175,6 +175,26 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void EvaluatesDagExpressionsWithKeywordShapedArgumentNames()
+    {
+        const string source =
+            "include \"mlir/IR/OpBase.td\"\n" +
+            "\n" +
+            "def Example {\n" +
+            "  dag arguments = (ins I32:$in);\n" +
+            "  dag results = (outs I32:$out);\n" +
+            "};";
+
+        var record = TestHelpers.LoadWithPrelude(source).Evaluate().Records.Single(static record => record.Name == "Example");
+
+        var arguments = Assert.IsType<DagValue>(record.GetField("arguments"));
+        var results = Assert.IsType<DagValue>(record.GetField("results"));
+
+        Assert.Equal("in", arguments.Arguments[0].Name);
+        Assert.Equal("out", results.Arguments[0].Name);
+    }
+
+    [Fact]
     public void ReportsMissingTemplateArgumentsWhenNoDefaultExists()
     {
         const string source =
