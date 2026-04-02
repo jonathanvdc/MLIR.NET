@@ -159,7 +159,7 @@ public static class ConcreteSyntaxBuilder
                 resultTokens,
                 resultCommaTokens,
                 equalsToken,
-                nameToken ?? new SyntaxToken(operation.Name),
+                nameToken ?? new SyntaxToken(QuoteIfNeeded(operation.Name)),
                 body);
         }
 
@@ -328,7 +328,18 @@ public static class ConcreteSyntaxBuilder
                     operations);
             }
 
-            return new BlockSyntax(block.Label, [], operations);
+            var syntheticArguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
+            foreach (var argument in block.Arguments)
+            {
+                syntheticArguments.Add(new BlockArgumentSyntax(argument.Name, BuildTypeReference(argument.TypeReference).GetRawText()));
+            }
+
+            return new BlockSyntax(block.Label, syntheticArguments, operations);
+        }
+
+        private static string QuoteIfNeeded(string name)
+        {
+            return name.Length > 0 && name[0] == '"' ? name : "\"" + name + "\"";
         }
     }
 }

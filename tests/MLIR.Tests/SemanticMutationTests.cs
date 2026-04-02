@@ -134,4 +134,75 @@ public sealed partial class SemanticTests
         Assert.Null(region.Syntax);
         Assert.Null(block.Syntax);
     }
+
+    [Fact]
+    public void ToTextReflectsOperandMutationAfterSyntaxInvalidation()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule(
+                "\"scf.if\"(%cond) {\n" +
+                "  ^bb0(%arg0: i32, %arg1: i32):\n" +
+                "    \"func.return\"(%arg0) : (i32) -> ()\n" +
+                "} : (i1) -> ()"));
+
+        var terminator = module.Operations[0].Regions[0].Blocks[0].Operations[0];
+        var replacementArgument = module.Operations[0].Regions[0].Blocks[0].Arguments[1];
+
+        terminator.SetOperand(0, replacementArgument);
+
+        Assert.Equal(
+            "\"scf.if\"(%cond) {\n" +
+            "  ^bb0(%arg0: i32, %arg1: i32):\n" +
+            "    \"func.return\"(%arg1) : (i32) -> ()\n" +
+            "} : (i1) -> ()",
+            module.ToText());
+    }
+
+    [Fact]
+    public void ToTextReflectsReplaceAllUsesWithAfterMutation()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule(
+                "%0 = \"test.left\"() : () -> i32\n" +
+                "%1 = \"test.right\"() : () -> i32\n" +
+                "%2 = \"test.consumer\"(%0) : (i32) -> i32"));
+
+        module.Operations[0].ResultValues[0].ReplaceAllUsesWith(module.Operations[1].ResultValues[0]);
+
+        Assert.Equal(
+            "%0 = \"test.left\"() : () -> i32\n" +
+            "%1 = \"test.right\"() : () -> i32\n" +
+            "%2 = \"test.consumer\"(%1) : (i32) -> i32",
+            module.ToText());
+    }
+
+    [Fact]
+    public void ToTextPrintsSyntheticInsertionsAfterMutation()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"outer.op\"() : () -> ()"));
+
+        var newRegion = new Region(null, []);
+        var newBlock = new Block(new BlockReference("^entry"), [], []);
+        var newOperation = new UnknownOperation(
+            new OperationSyntax([], "\"inserted.op\"", [], [], [], [], null),
+            "inserted.op",
+            null,
+            [],
+            NamedAttributeCollection.Empty,
+            null,
+            [],
+            [],
+            []);
+
+        newRegion.AddBlock(newBlock);
+        newBlock.AddOperation(newOperation);
+        module.Operations[0].AddRegion(newRegion);
+
+        Assert.Equal(
+            "\"outer.op\"() {\n" +
+            "  \"inserted.op\"()\n" +
+            "} : () -> ()",
+            module.ToText());
+    }
 }
