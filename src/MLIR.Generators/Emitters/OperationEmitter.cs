@@ -76,15 +76,6 @@ internal static class OperationEmitter
         return members;
     }
 
-    private static void AppendAutoProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
-    {
-        for (var i = 0; i < members.Count; i++)
-        {
-            var member = members[i];
-            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName + " { get; }");
-        }
-    }
-
     private static void EmitDefinition(StringBuilder builder, string className, OperationModel operation)
     {
         var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
@@ -126,20 +117,42 @@ internal static class OperationEmitter
         builder.AppendLine("        return operation.Build();");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public override string Name => OperationDefinition.Name;");
-        builder.AppendLine();
-        builder.AppendLine("    public override OperationDefinition? Definition => OperationDefinition;");
+    }
+
+    private static void EmitOperandAndResultProperties(
+        StringBuilder builder,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers,
+        OperationModel operation)
+    {
+        for (var i = 0; i < operandMembers.Count; i++)
+        {
+            var member = operandMembers[i];
+            var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
+            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName + " => OperandUses[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
+        }
+
+        for (var i = 0; i < resultMembers.Count; i++)
+        {
+            var member = resultMembers[i];
+            builder.AppendLine("    public OperationResult " + member.PropertyName + " => ResultValues[" + i.ToString(CultureInfo.InvariantCulture) + "];");
+        }
+
+        if (operation.Results.Count == 1 && operation.Results[0] != "result")
+        {
+            builder.AppendLine("    public OperationResult " + DialectGeneratorNaming.ToPascalCase(operation.Results[0]) + " => ResultValue;");
+        }
+
         builder.AppendLine();
     }
 
-    private static void AppendDerivedAttributeAccessorProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> attributeMembers)
+    private static void EmitAttributeProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> attributeMembers)
     {
         for (var i = 0; i < attributeMembers.Count; i++)
         {
             var member = attributeMembers[i];
             if (member.TypeName == "NamedAttribute?")
             {
-                // Optional attribute: use TryGet for null-safe access.
                 var localName = EmitterHelpers.LowerFirst(member.PropertyName);
                 builder.AppendLine(
                     "    public NamedAttribute? " + member.PropertyName +
@@ -148,11 +161,15 @@ internal static class OperationEmitter
             }
             else
             {
-                // Required attribute: direct indexer access.
                 builder.AppendLine(
                     "    public NamedAttribute " + member.PropertyName +
                     " => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
             }
+        }
+
+        if (attributeMembers.Count > 0)
+        {
+            builder.AppendLine();
         }
     }
 
@@ -162,15 +179,6 @@ internal static class OperationEmitter
         {
             var member = members[i];
             builder.AppendLine("        " + member.TypeName + " " + member.ParameterName + ",");
-        }
-    }
-
-    private static void AppendAssignments(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
-    {
-        for (var i = 0; i < members.Count; i++)
-        {
-            var member = members[i];
-            builder.AppendLine("        " + member.PropertyName + " = " + member.ParameterName + ";");
         }
     }
 
@@ -186,73 +194,11 @@ internal static class OperationEmitter
         }
     }
 
-    private static void AppendDerivedListProperty(
-        StringBuilder builder,
-        string itemType,
-        string propertyName,
-        IReadOnlyList<GeneratedMember> members)
-    {
-        if (members.Count == 0)
-        {
-            builder.AppendLine("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => global::System.Array.Empty<" + itemType + ">();");
-            return;
-        }
-
-        var hasNullableMembers = false;
-        for (var i = 0; i < members.Count; i++)
-        {
-            if (members[i].TypeName == itemType + "?")
-            {
-                hasNullableMembers = true;
-                break;
-            }
-        }
-
-        builder.Append("    public override IReadOnlyList<" + itemType + "> " + propertyName + " => new " + itemType + (hasNullableMembers ? "?" : string.Empty) + "[] { ");
-        for (var i = 0; i < members.Count; i++)
-        {
-            if (i > 0)
-            {
-                builder.Append(", ");
-            }
-
-            builder.Append(members[i].PropertyName);
-        }
-
-        builder.AppendLine(hasNullableMembers
-            ? " }.Where(value => value is not null).Select(value => value!).ToArray();"
-            : " };");
-    }
-
-    private static void EmitPropertyDeclarations(
-        StringBuilder builder,
-        IReadOnlyList<GeneratedMember> operandMembers,
-        IReadOnlyList<GeneratedMember> resultMembers,
-        IReadOnlyList<GeneratedMember> attributeMembers,
-        OperationModel operation,
-        string? resultReferenceName)
-    {
-        AppendAutoProperties(builder, operandMembers);
-        AppendAutoProperties(builder, resultMembers);
-
-        if (resultReferenceName != null && operation.Results[0] != "result")
-        {
-            builder.AppendLine(
-                "    public OperationResult " + DialectGeneratorNaming.ToPascalCase(operation.Results[0]) + " => " + resultReferenceName + ";");
-        }
-
-        builder.AppendLine("    public override NamedAttributeCollection Attributes { get; }");
-        AppendDerivedAttributeAccessorProperties(builder, attributeMembers);
-
-        builder.AppendLine();
-    }
-
     private static void EmitContextConstructor(
         StringBuilder builder,
         string className,
         IReadOnlyList<GeneratedMember> operandMembers,
-        IReadOnlyList<GeneratedMember> resultMembers,
-        IReadOnlyList<GeneratedMember> attributeMembers)
+        IReadOnlyList<GeneratedMember> resultMembers)
     {
         builder.AppendLine("    public " + className + "(OperationConstructionContext context)");
         builder.AppendLine("        : this(");
@@ -261,7 +207,8 @@ internal static class OperationEmitter
         for (var i = 0; i < operandMembers.Count; i++)
         {
             var member = operandMembers[i];
-            builder.AppendLine("            " + member.ParameterName + ": context.OperandValues[" + i.ToString(CultureInfo.InvariantCulture) + "],");
+            var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
+            builder.AppendLine("            " + member.ParameterName + ": context.OperandValues[" + i.ToString(CultureInfo.InvariantCulture) + "]" + suffix + ",");
         }
 
         for (var i = 0; i < resultMembers.Count; i++)
@@ -281,8 +228,7 @@ internal static class OperationEmitter
         StringBuilder builder,
         string className,
         IReadOnlyList<GeneratedMember> operandMembers,
-        IReadOnlyList<GeneratedMember> resultMembers,
-        IReadOnlyList<GeneratedMember> attributeMembers)
+        IReadOnlyList<GeneratedMember> resultMembers)
     {
         builder.AppendLine("    public " + className + "(");
         builder.AppendLine("        OperationSyntax? syntax,");
@@ -290,16 +236,39 @@ internal static class OperationEmitter
         AppendConstructorParameters(builder, resultMembers);
         builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
-        builder.AppendLine("        : base(syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        this.typeSignatureReference = typeSignatureReference;");
-        AppendAssignments(builder, operandMembers);
+        builder.AppendLine("        : base(");
+        builder.AppendLine("            syntax,");
+        builder.AppendLine("            OperationDefinition.Name,");
+        builder.AppendLine("            OperationDefinition,");
+        builder.AppendLine("            global::System.Array.Empty<Region>(),");
+        builder.AppendLine("            attributes,");
+        builder.AppendLine("            typeSignatureReference,");
+        builder.Append("            new OperationResult[] { ");
         for (var i = 0; i < resultMembers.Count; i++)
         {
-            var member = resultMembers[i];
-            builder.AppendLine("        " + member.PropertyName + " = " + member.ParameterName + ".Bind(this, " + i.ToString(CultureInfo.InvariantCulture) + ");");
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(resultMembers[i].ParameterName);
         }
-        builder.AppendLine("        Attributes = attributes;");
+
+        builder.AppendLine(" },");
+        builder.Append("            new Value?[] { ");
+        for (var i = 0; i < operandMembers.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(operandMembers[i].ParameterName);
+        }
+
+        builder.AppendLine(" },");
+        builder.AppendLine("            global::System.Array.Empty<BlockReference>())");
+        builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
     }
@@ -308,8 +277,7 @@ internal static class OperationEmitter
         StringBuilder builder,
         string className,
         IReadOnlyList<GeneratedMember> operandMembers,
-        IReadOnlyList<GeneratedMember> resultMembers,
-        IReadOnlyList<GeneratedMember> attributeMembers)
+        IReadOnlyList<GeneratedMember> resultMembers)
     {
         builder.AppendLine("    public " + className + "(");
         AppendConstructorParameters(builder, operandMembers);
@@ -349,7 +317,6 @@ internal static class OperationEmitter
         AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
         AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
 
-        // Check whether any attribute is optional (nullable).
         var hasOptionalAttributes = false;
         for (var i = 0; i < attributeMembers.Count; i++)
         {
@@ -362,30 +329,21 @@ internal static class OperationEmitter
 
         if (!hasOptionalAttributes)
         {
-            // All required: use the simple NamedAttributeCollection.Create form.
-            if (attributeMembers.Count == 1)
+            builder.Append("            attributes: NamedAttributeCollection.Create(");
+            for (var i = 0; i < attributeMembers.Count; i++)
             {
-                builder.AppendLine("            attributes: NamedAttributeCollection.Create(" + attributeMembers[0].ParameterName + "),");
-            }
-            else
-            {
-                builder.Append("            attributes: NamedAttributeCollection.Create(");
-                for (var i = 0; i < attributeMembers.Count; i++)
+                if (i > 0)
                 {
-                    if (i > 0)
-                    {
-                        builder.Append(", ");
-                    }
-
-                    builder.Append(attributeMembers[i].ParameterName);
+                    builder.Append(", ");
                 }
 
-                builder.AppendLine("),");
+                builder.Append(attributeMembers[i].ParameterName);
             }
+
+            builder.AppendLine("),");
         }
         else
         {
-            // Some attributes are optional: build the collection by filtering out null entries.
             builder.Append("            attributes: new NamedAttributeCollection(new NamedAttribute?[] { ");
             for (var i = 0; i < attributeMembers.Count; i++)
             {
@@ -404,49 +362,6 @@ internal static class OperationEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
-    }
-
-    private static void EmitRewriteChildren(
-        StringBuilder builder,
-        string className,
-        IReadOnlyList<GeneratedMember> operandMembers,
-        IReadOnlyList<GeneratedMember> resultMembers)
-    {
-        builder.AppendLine("    public override Operation RewriteChildren(SemanticRewriter rewriter)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        var finalAttributes = rewriter.VisitNamedAttributeCollection(Attributes);");
-        builder.AppendLine("        var finalTypeRef = typeSignatureReference != null ? rewriter.VisitTypeReference(typeSignatureReference) : null;");
-        builder.AppendLine("        if (ReferenceEquals(finalAttributes, Attributes) && ReferenceEquals(finalTypeRef, typeSignatureReference))");
-        builder.AppendLine("            return this;");
-        builder.AppendLine("        return new " + className + "(");
-        builder.AppendLine("            syntax: Syntax,");
-        foreach (var member in operandMembers)
-        {
-            builder.AppendLine("            " + member.ParameterName + ": " + member.PropertyName + ",");
-        }
-
-        foreach (var member in resultMembers)
-        {
-            builder.AppendLine("            " + member.ParameterName + ": " + member.PropertyName + ",");
-        }
-
-        builder.AppendLine("            attributes: finalAttributes,");
-        builder.AppendLine("            typeSignatureReference: finalTypeRef);");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-    }
-
-    private static void EmitOverrideProperties(
-        StringBuilder builder,
-        IReadOnlyList<GeneratedMember> operandMembers,
-        IReadOnlyList<GeneratedMember> resultMembers,
-        IReadOnlyList<GeneratedMember> attributeMembers)
-    {
-        builder.AppendLine("    public override IReadOnlyList<Region> Regions => global::System.Array.Empty<Region>();");
-        builder.AppendLine("    public override TypeReference? TypeSignatureReference => typeSignatureReference;");
-        AppendDerivedListProperty(builder, "OperationResult", "ResultValues", resultMembers);
-        AppendDerivedListProperty(builder, "Value", "OperandValues", operandMembers);
-        builder.AppendLine("    public override IReadOnlyList<BlockReference> SuccessorReferences => global::System.Array.Empty<BlockReference>();");
     }
 
     public sealed class EmittedOperationMembers
@@ -471,7 +386,6 @@ internal static class OperationEmitter
     public static EmittedOperationMembers Emit(StringBuilder builder, OperationModel operation)
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
-        var resultReferenceName = operation.Results.Count == 1 ? "ResultValue" : null;
         var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
         var operandMembers = GetOperandMembers(operation, requiredVariables);
         var resultMembers = GetResultMembers(operation);
@@ -480,18 +394,13 @@ internal static class OperationEmitter
         EmitterHelpers.AppendXmlDocComment(builder, operation.Summary, operation.Description);
         builder.AppendLine("public sealed class " + className + " : Operation");
         builder.AppendLine("{");
-        builder.AppendLine("    private readonly TypeReference? typeSignatureReference;");
-        builder.AppendLine();
         EmitDefinition(builder, className, operation);
-
-        EmitPropertyDeclarations(builder, operandMembers, resultMembers, attributeMembers, operation, resultReferenceName);
-        EmitContextConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
-        EmitPrimaryConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
-        EmitConvenienceConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
+        EmitOperandAndResultProperties(builder, operandMembers, resultMembers, operation);
+        EmitAttributeProperties(builder, attributeMembers);
+        EmitContextConstructor(builder, className, operandMembers, resultMembers);
+        EmitPrimaryConstructor(builder, className, operandMembers, resultMembers);
+        EmitConvenienceConstructor(builder, className, operandMembers, resultMembers);
         EmitPerAttributeConvenienceConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
-        EmitOverrideProperties(builder, operandMembers, resultMembers, attributeMembers);
-        EmitRewriteChildren(builder, className, operandMembers, resultMembers);
-
         builder.AppendLine("}");
         return new EmittedOperationMembers(operandMembers, resultMembers, attributeMembers);
     }
