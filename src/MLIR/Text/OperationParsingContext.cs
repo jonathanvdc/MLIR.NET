@@ -1,6 +1,7 @@
 namespace MLIR.Text;
 
 using System.Collections.Generic;
+using MLIR.Dialects;
 using MLIR.Syntax;
 
 /// <summary>
@@ -130,6 +131,15 @@ public sealed class OperationParsingContext : DialectParsingContext
     public new AttributeValueSyntax ParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
     {
         return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinitionName, stopBefore);
+    }
+
+    /// <summary>
+    /// Parses an attribute value, preferring the supplied expected attribute definition and
+    /// stopping before any of the supplied delimiter tokens or an operation boundary, whichever comes first.
+    /// </summary>
+    public new AttributeValueSyntax ParseAttributeValueSyntax(AttributeDefinition expectedDefinition, params TokenKind[] stopBefore)
+    {
+        return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinition, stopBefore);
     }
 
     /// <summary>

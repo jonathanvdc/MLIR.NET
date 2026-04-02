@@ -378,6 +378,13 @@ public sealed class SemanticTests
 
     private sealed class ContextDirectedConstantAssemblyFormat : IOperationAssemblyFormat
     {
+        private readonly AttributeDefinition expectedAttributeDefinition;
+
+        public ContextDirectedConstantAssemblyFormat(AttributeDefinition expectedAttributeDefinition)
+        {
+            this.expectedAttributeDefinition = expectedAttributeDefinition;
+        }
+
         public bool TryParse(
             SyntaxToken nameToken,
             IReadOnlyList<SyntaxToken> resultTokens,
@@ -392,7 +399,7 @@ public sealed class SemanticTests
                 return false;
             }
 
-            var value = context.ParseAttributeValueSyntax("I32Attr", TokenKind.Colon);
+            var value = context.ParseAttributeValueSyntax(expectedAttributeDefinition, TokenKind.Colon);
             var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
             var type = context.ParseTypeSyntax();
             var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), value)]);
@@ -408,7 +415,7 @@ public sealed class SemanticTests
                 syntax,
                 definition,
                 binder.BindValueReference(syntax.ResultTokens.Single()),
-                binder.BindAttributeValue(body.Attributes[0].ValueSyntax, "I32Attr"),
+                binder.BindAttributeValue(body.Attributes[0].ValueSyntax, expectedAttributeDefinition),
                 binder.BindTypeReference(body.TypeSignature));
         }
 
@@ -673,11 +680,12 @@ public sealed class SemanticTests
     public void OperationAssemblyFormatCanParseAttributesUsingExpectedDefinition()
     {
         var registry = new DialectRegistry();
+        var i32AttributeDefinition = new AttributeDefinition("i32", new I32AttributeAssemblyFormat());
         registry.RegisterDialect(
             new Dialect(
                 "builtin",
                 [],
-                [new AttributeDefinition("i32", new I32AttributeAssemblyFormat(), ["I32Attr"])],
+                [i32AttributeDefinition],
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
         registry.RegisterDialect(
             Dialect.Create(
@@ -689,7 +697,7 @@ public sealed class SemanticTests
                         operation => operation
                             .RequiredAttribute("value")
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat()));
+                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(i32AttributeDefinition)));
                 }));
 
         var module = Binder.BindModule(

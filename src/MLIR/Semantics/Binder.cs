@@ -310,7 +310,7 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax)
     {
-        return BindAttributeValue(syntax, null);
+        return BindAttributeValue(syntax, (AttributeDefinition?)null);
     }
 
     /// <summary>
@@ -321,9 +321,26 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, string? expectedDefinitionName)
     {
+        AttributeDefinition? expectedDefinition = null;
+        if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
+        {
+            dialectRegistry.TryResolveAttributeForParsing(expectedDefinitionName!, out expectedDefinition);
+        }
+
+        return BindAttributeValue(syntax, expectedDefinition);
+    }
+
+    /// <summary>
+    /// Binds an attribute value syntax tree to a semantic attribute value, preferring the supplied expected attribute definition when known.
+    /// </summary>
+    /// <param name="syntax">The concrete syntax tree to bind.</param>
+    /// <param name="expectedDefinition">The expected attribute definition, if one is known.</param>
+    /// <returns>The semantic attribute value.</returns>
+    public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, AttributeDefinition? expectedDefinition)
+    {
         if (syntax.TryGetRawText(out var rawAttributeValueSyntax))
         {
-            return BindAttributeValueCore(syntax, rawAttributeValueSyntax!, expectedDefinitionName);
+            return BindAttributeValueCore(syntax, rawAttributeValueSyntax!, expectedDefinition);
         }
         else
         {
@@ -342,13 +359,13 @@ public sealed class Binder
         return BindAttributeValueCore(new RawAttributeValueSyntax(syntax), syntax, null);
     }
 
-    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax, string? expectedDefinitionName)
+    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax, AttributeDefinition? expectedDefinition)
     {
         var canonicalName = TryGetAttributeDefinitionName(rawSyntax.Text);
         AttributeDefinition? definition = null;
-        if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
+        if (expectedDefinition != null)
         {
-            dialectRegistry.TryResolveAttributeForParsing(expectedDefinitionName!, out definition);
+            definition = expectedDefinition;
         }
 
         if (definition == null && canonicalName != null && dialectRegistry != null)

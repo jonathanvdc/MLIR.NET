@@ -24,11 +24,13 @@ public sealed class DialectGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(tableGenFiles, static (productionContext, results) =>
         {
-            foreach (var dialect in GetMergedDialects(results, productionContext))
+            var dialects = GetMergedDialects(results, productionContext).ToArray();
+            var resolver = DialectSymbolResolver.Create(dialects);
+            foreach (var dialect in dialects)
             {
                 productionContext.AddSource(
                     DialectGeneratorNaming.GetHintName(dialect),
-                    SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect), Encoding.UTF8));
+                    SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect, resolver), Encoding.UTF8));
             }
         });
     }

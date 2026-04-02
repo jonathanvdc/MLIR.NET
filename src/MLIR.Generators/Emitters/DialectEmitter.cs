@@ -7,8 +7,14 @@ using MLIR.ODS.Model;
 
 internal sealed class DialectEmitter
 {
+    private readonly DialectSymbolResolver resolver;
     private readonly StringBuilder builder = new();
     private readonly Dictionary<string, OperationBodySyntaxMetadata> bodySyntaxMetadataByOperation = new(StringComparer.Ordinal);
+
+    public DialectEmitter(DialectSymbolResolver resolver)
+    {
+        this.resolver = resolver;
+    }
 
     public string Generate(DialectModel dialect)
     {
@@ -39,7 +45,7 @@ internal sealed class DialectEmitter
                 bodySyntaxMetadataByOperation[DialectGeneratorNaming.GetOperationClassName(operation)] = metadata;
                 builder.AppendLine();
 
-                AssemblyFormatEmitter.Emit(builder, operation, metadata);
+                AssemblyFormatEmitter.Emit(builder, operation, metadata, resolver);
                 builder.AppendLine();
             }
         }
@@ -71,19 +77,12 @@ internal sealed class DialectEmitter
 
         foreach (var attribute in dialect.Attributes)
         {
-            var attributeClassName = DialectGeneratorNaming.GetAttributeClassName(attribute);
-            var parserAliases = string.Equals(attribute.Name, attribute.ClassName, System.StringComparison.Ordinal)
-                ? "null"
-                : "new[] { " + EmitterHelpers.ToCSharpStringLiteral(attribute.ClassName!) + " }";
-            builder.AppendLine(
-                "            dialect.AddAttribute(new AttributeDefinition(\"" + attribute.Name + "\", parserAliases: " + parserAliases + ", factory: static context => new " + attributeClassName + "(context)));");
+            builder.AppendLine("            dialect.AddAttribute(" + DialectGeneratorNaming.GetAttributeClassName(attribute) + ".Definition);");
         }
 
         foreach (var type in dialect.Types)
         {
-            var typeClassName = DialectGeneratorNaming.GetTypeClassName(type);
-            builder.AppendLine(
-                "            dialect.AddType(new TypeDefinition(\"" + type.Name + "\", factory: static context => new " + typeClassName + "(context)));");
+            builder.AppendLine("            dialect.AddType(" + DialectGeneratorNaming.GetTypeClassName(type) + ".Definition);");
         }
 
         builder.AppendLine("        });");
@@ -95,38 +94,6 @@ internal sealed class DialectEmitter
 
     private void AppendOperationRegistration(OperationModel operation)
     {
-        var operationClassName = DialectGeneratorNaming.GetOperationClassName(operation);
-        builder.AppendLine("            dialect.AddOperation(\"" + operation.Name + "\", operation =>");
-        builder.AppendLine("            {");
-        foreach (var operand in operation.Operands)
-        {
-            builder.AppendLine("                operation.Operand(\"" + operand + "\");");
-        }
-
-        foreach (var result in operation.Results)
-        {
-            builder.AppendLine("                operation.Result(\"" + result + "\");");
-        }
-
-        var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
-        foreach (var attribute in operation.Attributes)
-        {
-            if (requiredVariables.Contains(attribute))
-            {
-                builder.AppendLine("                operation.RequiredAttribute(\"" + attribute + "\");");
-            }
-            else
-            {
-                builder.AppendLine("                operation.OptionalAttribute(\"" + attribute + "\");");
-            }
-        }
-
-        builder.AppendLine("                operation.WithFactory(static context => new " + operationClassName + "(context));");
-        if (operation.HasCustomAssemblyFormat)
-        {
-            builder.AppendLine("                operation.WithAssemblyFormat(new " + operationClassName + "AssemblyFormat());");
-        }
-
-        builder.AppendLine("            });");
+        builder.AppendLine("            dialect.AddOperation(" + DialectGeneratorNaming.GetOperationClassName(operation) + ".Definition);");
     }
 }

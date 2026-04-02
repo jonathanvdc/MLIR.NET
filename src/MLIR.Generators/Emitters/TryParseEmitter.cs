@@ -24,12 +24,14 @@ internal sealed class TryParseEmitter
     private readonly OperationModel operation;
     private readonly OperationBodySyntaxMetadata metadata;
     private readonly string className;
+    private readonly DialectSymbolResolver resolver;
     private int fieldIndex;
 
-    private TryParseEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata)
+    private TryParseEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
     {
         this.operation = operation;
         this.metadata = metadata;
+        this.resolver = resolver;
         className = DialectGeneratorNaming.GetOperationClassName(operation);
         fieldIndex = 0;
     }
@@ -38,9 +40,9 @@ internal sealed class TryParseEmitter
     /// Emits the full <c>TryParse</c> method, including signature and closing brace, into
     /// <paramref name="builder"/>.
     /// </summary>
-    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata metadata)
+    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
     {
-        var emitter = new TryParseEmitter(operation, metadata);
+        var emitter = new TryParseEmitter(operation, metadata, resolver);
         emitter.EmitMethod(builder);
     }
 
@@ -495,15 +497,18 @@ internal sealed class TryParseEmitter
         }
     }
 
-    private static string BuildAttributeParseExpr(string? expectedConstraint, IReadOnlyList<TokenKind> delimiters)
+    private string BuildAttributeParseExpr(string? expectedConstraintRecordName, IReadOnlyList<TokenKind> delimiters)
     {
-        var hasExpectedConstraint = !string.IsNullOrEmpty(expectedConstraint);
+        var expectedDefinitionExpr = !string.IsNullOrEmpty(expectedConstraintRecordName)
+            ? resolver.TryResolveAttributeDefinitionExpression(expectedConstraintRecordName!)
+            : null;
+        var hasExpectedConstraint = !string.IsNullOrEmpty(expectedDefinitionExpr);
         var hasDelimiters = delimiters.Count > 0;
 
         if (hasExpectedConstraint && hasDelimiters)
         {
             return "context.ParseAttributeValueSyntax(" +
-                EmitterHelpers.ToCSharpStringLiteral(expectedConstraint!) +
+                expectedDefinitionExpr +
                 ", " +
                 BuildDelimiterList(delimiters) +
                 ")";
@@ -511,7 +516,7 @@ internal sealed class TryParseEmitter
 
         if (hasExpectedConstraint)
         {
-            return "context.ParseAttributeValueSyntax(" + EmitterHelpers.ToCSharpStringLiteral(expectedConstraint!) + ")";
+            return "context.ParseAttributeValueSyntax(" + expectedDefinitionExpr + ")";
         }
 
         if (hasDelimiters)

@@ -4,8 +4,8 @@ using MLIR.ODS.Model;
 
 internal static class DialectSourceEmitter
 {
-    public static string GenerateDialectSource(DialectModel dialect)
+    public static string GenerateDialectSource(DialectModel dialect, DialectSymbolResolver resolver)
     {
-        return new Emitters.DialectEmitter().Generate(dialect);
+        return new Emitters.DialectEmitter(resolver).Generate(dialect);
     }
 }

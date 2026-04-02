@@ -332,13 +332,29 @@ public sealed class Parser
         }
 
         var equalsToken = ExpectToken(TokenKind.Equal, "Expected '=' after attribute name.");
-        var value = ParseAttributeValueSyntax(false, null, TokenKind.Comma, TokenKind.RBrace);
+        var value = ParseAttributeValueSyntax(false, (AttributeDefinition?)null, TokenKind.Comma, TokenKind.RBrace);
         return new NamedAttributeSyntax(nameToken, equalsToken, value);
     }
 
     private AttributeValueSyntax ParseAttributeValueSyntax(bool stopAtOperationBoundary, string? expectedDefinitionName, params TokenKind[] stopBefore)
     {
-        if (TryParseCustomAttributeSyntax(expectedDefinitionName, out var syntax))
+        AttributeDefinition? expectedDefinition = null;
+        if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
+        {
+            dialectRegistry.TryResolveAttributeForParsing(expectedDefinitionName!, out expectedDefinition);
+        }
+
+        return ParseAttributeValueSyntax(stopAtOperationBoundary, expectedDefinition, stopBefore);
+    }
+
+    private AttributeValueSyntax ParseAttributeValueSyntax(bool stopAtOperationBoundary, AttributeDefinition? expectedDefinition, params TokenKind[] stopBefore)
+    {
+        if (expectedDefinition != null && TryParseCustomAttributeSyntax(expectedDefinition, out var syntax))
+        {
+            return syntax;
+        }
+
+        if (TryParseSelfIdentifyingAttributeSyntax(out syntax))
         {
             return syntax;
         }
@@ -377,24 +393,27 @@ public sealed class Parser
             return false;
         }
 
-        AttributeDefinition? expectedDefinition = null;
-        if (!string.IsNullOrEmpty(expectedDefinitionName))
-        {
-            dialectRegistry.TryResolveAttributeForParsing(expectedDefinitionName!, out expectedDefinition);
-        }
-
-        if (TryParseCustomAttributeSyntax(expectedDefinition, out syntax))
-        {
-            return true;
-        }
-
         var canonicalName = TryPeekAttributeDefinitionName();
-        if (canonicalName == null || (expectedDefinition != null && string.Equals(expectedDefinition.Name, canonicalName, System.StringComparison.Ordinal)))
+        if (canonicalName == null)
         {
             return false;
         }
 
         return dialectRegistry.TryGetAttribute(canonicalName, out var definition)
+            && TryParseCustomAttributeSyntax(definition, out syntax);
+    }
+
+    private bool TryParseSelfIdentifyingAttributeSyntax(out AttributeValueSyntax syntax)
+    {
+        syntax = null!;
+        if (dialectRegistry == null)
+        {
+            return false;
+        }
+
+        var canonicalName = TryPeekAttributeDefinitionName();
+        return canonicalName != null
+            && dialectRegistry.TryGetAttribute(canonicalName, out var definition)
             && TryParseCustomAttributeSyntax(definition, out syntax);
     }
 
@@ -709,7 +728,7 @@ public sealed class Parser
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(false, null, delimiters);
+        return ParseAttributeValueSyntax(false, (AttributeDefinition?)null, delimiters);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
@@ -717,14 +736,24 @@ public sealed class Parser
         return ParseAttributeValueSyntax(false, expectedDefinitionName, delimiters);
     }
 
+    internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(AttributeDefinition expectedDefinition, params TokenKind[] delimiters)
+    {
+        return ParseAttributeValueSyntax(false, expectedDefinition, delimiters);
+    }
+
     internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(true, null, delimiters);
+        return ParseAttributeValueSyntax(true, (AttributeDefinition?)null, delimiters);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
         return ParseAttributeValueSyntax(true, expectedDefinitionName, delimiters);
+    }
+
+    internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(AttributeDefinition expectedDefinition, params TokenKind[] delimiters)
+    {
+        return ParseAttributeValueSyntax(true, expectedDefinition, delimiters);
     }
 
     internal TypeSyntax ParseTypeSyntaxInternal(params TokenKind[] delimiters)

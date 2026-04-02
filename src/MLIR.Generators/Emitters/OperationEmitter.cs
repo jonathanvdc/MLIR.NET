@@ -85,6 +85,49 @@ internal static class OperationEmitter
         }
     }
 
+    private static void EmitDefinition(StringBuilder builder, string className, OperationModel operation)
+    {
+        var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
+
+        builder.AppendLine("    public static new OperationDefinition Definition { get; } = CreateDefinition();");
+        builder.AppendLine();
+        builder.AppendLine("    private static OperationDefinition CreateDefinition()");
+        builder.AppendLine("    {");
+        builder.AppendLine("        var operation = new OperationDefinitionBuilder(" + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + ");");
+
+        foreach (var operand in operation.Operands)
+        {
+            builder.AppendLine("        operation.Operand(" + EmitterHelpers.ToCSharpStringLiteral(operand) + ");");
+        }
+
+        foreach (var result in operation.Results)
+        {
+            builder.AppendLine("        operation.Result(" + EmitterHelpers.ToCSharpStringLiteral(result) + ");");
+        }
+
+        foreach (var attribute in operation.Attributes)
+        {
+            if (requiredVariables.Contains(attribute))
+            {
+                builder.AppendLine("        operation.RequiredAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attribute) + ");");
+            }
+            else
+            {
+                builder.AppendLine("        operation.OptionalAttribute(" + EmitterHelpers.ToCSharpStringLiteral(attribute) + ");");
+            }
+        }
+
+        builder.AppendLine("        operation.WithFactory(static context => new " + className + "(context));");
+        if (operation.HasCustomAssemblyFormat)
+        {
+            builder.AppendLine("        operation.WithAssemblyFormat(new " + className + "AssemblyFormat());");
+        }
+
+        builder.AppendLine("        return operation.Build();");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+    }
+
     private static void AppendDerivedAttributeAccessorProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> attributeMembers)
     {
         for (var i = 0; i < attributeMembers.Count; i++)
@@ -411,6 +454,7 @@ internal static class OperationEmitter
         builder.AppendLine("{");
         builder.AppendLine("    private readonly TypeReference? typeSignatureReference;");
         builder.AppendLine();
+        EmitDefinition(builder, className, operation);
 
         EmitPropertyDeclarations(builder, operandMembers, resultMembers, attributeMembers, operation, resultReferenceName);
         EmitContextConstructor(builder, className, operandMembers, resultMembers, attributeMembers);

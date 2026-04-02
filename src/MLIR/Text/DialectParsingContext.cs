@@ -1,5 +1,6 @@
 namespace MLIR.Text;
 
+using MLIR.Dialects;
 using MLIR.Syntax;
 
 /// <summary>
@@ -76,5 +77,14 @@ public abstract class DialectParsingContext
     public AttributeValueSyntax ParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
     {
         return Parser.ParseAttributeValueSyntaxInternal(expectedDefinitionName, stopBefore);
+    }
+
+    /// <summary>
+    /// Parses a nested attribute value syntax node, preferring the supplied expected attribute definition
+    /// when one is known, and stopping before any of the supplied delimiters.
+    /// </summary>
+    public AttributeValueSyntax ParseAttributeValueSyntax(AttributeDefinition expectedDefinition, params TokenKind[] stopBefore)
+    {
+        return Parser.ParseAttributeValueSyntaxInternal(expectedDefinition, stopBefore);
     }
 }

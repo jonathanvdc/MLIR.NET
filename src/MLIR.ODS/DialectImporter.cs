@@ -80,7 +80,7 @@ public static class DialectImporter
                 && TryGetStringField(record, "attrName", out var attributeName))
             {
                 var dialect = GetOrCreateDialect(dialectsByName, attrDialectName);
-                dialect.Attributes.Add(new AttributeModel(attributeName, GetOptionalStringField(record, "cppClassName") ?? record.Name));
+                dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, GetOptionalStringField(record, "cppClassName") ?? record.Name));
                 continue;
             }
 
@@ -89,7 +89,7 @@ public static class DialectImporter
                 && TryGetStringField(record, "typeName", out var typeName))
             {
                 var dialect = GetOrCreateDialect(dialectsByName, typeDialectName);
-                dialect.Types.Add(new TypeModel(typeName, GetOptionalStringField(record, "cppClassName") ?? record.Name));
+                dialect.Types.Add(new TypeModel(typeName, record.Name, GetOptionalStringField(record, "cppClassName") ?? record.Name));
             }
         }
 

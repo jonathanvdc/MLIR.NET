@@ -10,6 +10,9 @@ internal static class TypeEmitter
         var className = DialectGeneratorNaming.GetTypeClassName(type);
         builder.AppendLine("public sealed class " + className + " : TypeReference");
         builder.AppendLine("{");
+        builder.AppendLine("    public static new TypeDefinition Definition { get; } =");
+        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
+        builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
         builder.AppendLine("        : base(context.Syntax, context.Name, context.Definition, context.Location)");
         builder.AppendLine("    {");
