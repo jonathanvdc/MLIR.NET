@@ -1,0 +1,82 @@
+namespace MLIR.ODS.Model;
+
+/// <summary>
+/// Describes the kind of member represented in an ODS operation definition.
+/// </summary>
+public enum OperationMemberKind
+{
+    Operand,
+    Result,
+    Attribute,
+}
+
+/// <summary>
+/// Represents a logical operation member imported from ODS.
+/// </summary>
+public abstract class OperationMemberModel
+{
+    protected OperationMemberModel(
+        string name,
+        string? constraintRecordName = null,
+        bool isOptional = false,
+        OperationMemberKind kind = OperationMemberKind.Operand)
+    {
+        Name = name;
+        ConstraintRecordName = constraintRecordName;
+        IsOptional = isOptional;
+        Kind = kind;
+    }
+
+    /// <summary>
+    /// Gets the logical member name.
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
+    /// Gets the originating ODS constraint record name, if one was present.
+    /// </summary>
+    public string? ConstraintRecordName { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the member is optional.
+    /// </summary>
+    public bool IsOptional { get; }
+
+    /// <summary>
+    /// Gets the member kind.
+    /// </summary>
+    public OperationMemberKind Kind { get; }
+}
+
+/// <summary>
+/// Represents an operand imported from ODS.
+/// </summary>
+public sealed class OperandModel : OperationMemberModel
+{
+    public OperandModel(string name, string? constraintRecordName = null, bool isOptional = false)
+        : base(name, constraintRecordName, isOptional, OperationMemberKind.Operand)
+    {
+    }
+}
+
+/// <summary>
+/// Represents a result imported from ODS.
+/// </summary>
+public sealed class ResultModel : OperationMemberModel
+{
+    public ResultModel(string name, string? constraintRecordName = null, bool isOptional = false)
+        : base(name, constraintRecordName, isOptional, OperationMemberKind.Result)
+    {
+    }
+}
+
+/// <summary>
+/// Represents an attribute use imported from ODS.
+/// </summary>
+public sealed class AttributeUseModel : OperationMemberModel
+{
+    public AttributeUseModel(string name, string? constraintRecordName = null, bool isOptional = false)
+        : base(name, constraintRecordName, isOptional, OperationMemberKind.Attribute)
+    {
+    }
+}

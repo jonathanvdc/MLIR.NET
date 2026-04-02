@@ -98,19 +98,40 @@ internal static class EmitterHelpers
         return false;
     }
 
+    public static bool ContainsName<T>(IReadOnlyList<T> items, string name, Func<T, string> selector)
+    {
+        foreach (var item in items)
+        {
+            if (string.Equals(selector(item), name, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static string? TryGetAttributeConstraint(OperationModel operation, string attributeName)
     {
-        return operation.AttributeConstraints.TryGetValue(attributeName, out var constraint) ? constraint : null;
+        foreach (var attribute in operation.Attributes)
+        {
+            if (string.Equals(attribute.Name, attributeName, StringComparison.Ordinal))
+            {
+                return attribute.ConstraintRecordName;
+            }
+        }
+
+        return null;
     }
 
     public static BodyComponentKind GetComponentKindForVariable(OperationModel operation, string variableName)
     {
-        if (ContainsName(operation.Results, variableName))
+        if (ContainsName(operation.Results, variableName, static result => result.Name))
         {
             return BodyComponentKind.Result;
         }
 
-        if (ContainsName(operation.Operands, variableName))
+        if (ContainsName(operation.Operands, variableName, static operand => operand.Name))
         {
             return BodyComponentKind.Operand;
         }
@@ -345,7 +366,7 @@ internal static class EmitterHelpers
     private static void AppendVariableField(HashSet<string> usedNames, string variableName, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
     {
         var name = MakeUnique(DialectGeneratorNaming.ToPascalCase(variableName), usedNames);
-        if (ContainsName(operation.Attributes, variableName))
+        if (ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
         {
             var (csType, writeStmt) = nullable
                 ? ("AttributeValueSyntax?", name + "?.WriteTo(writer, \" \");")

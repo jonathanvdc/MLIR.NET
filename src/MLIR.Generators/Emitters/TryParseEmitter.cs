@@ -200,7 +200,7 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
 
-        if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
+        if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
         {
             var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
             var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
@@ -389,7 +389,7 @@ internal sealed class TryParseEmitter
                 }
             }
         }
-        else if (first is VariableChunk variable && !EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
+        else if (first is VariableChunk variable && !EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
         {
             // Guard on SSA name presence (operand or result variable).
             return ("context.Is(TokenKind.SsaName)", null);
@@ -466,7 +466,7 @@ internal sealed class TryParseEmitter
             {
                 var f = metadata.Fields[fieldIndex++];
                 var varName = EmitterHelpers.LowerFirst(f.Name);
-                if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
+                if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
                 {
                     var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
                     builder.AppendLine(indent + varName + " = " + BuildAttributeParseExpr(expectedConstraint, Array.Empty<TokenKind>()) + ";");

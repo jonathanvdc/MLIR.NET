@@ -1,11 +1,17 @@
-namespace MLIR.Generators;
+namespace MLIR.ODS;
 
 using System.Collections.Generic;
 using System.Linq;
 using MLIR.ODS.Model;
 
-internal static class DialectGeneratorModel
+/// <summary>
+/// Merges grouped dialect models produced by the generator.
+/// </summary>
+public static class DialectModelMerger
 {
+    /// <summary>
+    /// Merges a set of dialect fragments with the same logical dialect name.
+    /// </summary>
     public static DialectModel MergeDialectGroup(IGrouping<string, DialectModel> group)
     {
         var operations = new List<OperationModel>();

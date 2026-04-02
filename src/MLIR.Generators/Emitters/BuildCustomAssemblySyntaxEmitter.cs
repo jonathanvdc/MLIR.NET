@@ -407,7 +407,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private string BuildVariableExpression(string variableName, bool nullable)
     {
         var propName = DialectGeneratorNaming.ToPascalCase(variableName);
-        if (EmitterHelpers.ContainsName(operation.Attributes, variableName))
+        if (EmitterHelpers.ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
         {
             // Required attribute: access via Attributes collection to get the AttributeValue,
             // independent of the narrowed property type.
@@ -427,7 +427,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private string BuildNullableVariableExpression(string variableName)
     {
         var propName = DialectGeneratorNaming.ToPascalCase(variableName);
-        if (EmitterHelpers.ContainsName(operation.Attributes, variableName))
+        if (EmitterHelpers.ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
         {
             // Nullable attribute: inside the trigger check, we know it's non-null.
             // Access via Attributes collection to get the AttributeValue,
@@ -465,7 +465,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private string BuildAnchorCondition(string anchorName)
     {
         var propName = DialectGeneratorNaming.ToPascalCase(anchorName);
-        if (EmitterHelpers.ContainsName(operation.Attributes, anchorName))
+        if (EmitterHelpers.ContainsName(operation.Attributes, anchorName, static attribute => attribute.Name))
         {
             return "op." + propName + " != null";
         }
@@ -488,7 +488,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             if (elem is OilistVariableElement variable)
             {
                 var propName = DialectGeneratorNaming.ToPascalCase(variable.Name);
-                if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
+                if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
                 {
                     return "op." + propName + " != null";
                 }
@@ -566,7 +566,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     {
         foreach (var element in elements)
         {
-            if (element is VariableChunk var && EmitterHelpers.ContainsName(operation.Attributes, var.Name))
+            if (element is VariableChunk var && EmitterHelpers.ContainsName(operation.Attributes, var.Name, static attribute => attribute.Name))
             {
                 result.Add(var.Name);
             }
@@ -584,7 +584,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 {
                     foreach (var elem in clause.Elements)
                     {
-                        if (elem is OilistVariableElement ov && EmitterHelpers.ContainsName(operation.Attributes, ov.Name))
+                        if (elem is OilistVariableElement ov && EmitterHelpers.ContainsName(operation.Attributes, ov.Name, static attribute => attribute.Name))
                         {
                             result.Add(ov.Name);
                         }

@@ -167,7 +167,7 @@ internal static class AssemblyFormatEmitter
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {
-            builder.AppendLine("            " + GetOperandBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Operands[i], i) + ",");
+            builder.AppendLine("            " + GetOperandBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Operands[i].Name, i) + ",");
         }
 
         for (var i = 0; i < operation.Results.Count; i++)
@@ -185,7 +185,7 @@ internal static class AssemblyFormatEmitter
             var hasOptionalAttributes = false;
             for (var i = 0; i < operation.Attributes.Count; i++)
             {
-                if (syntaxDescriptor.AttributeFields.TryGetValue(operation.Attributes[i], out var fieldNameCheck) &&
+                if (syntaxDescriptor.AttributeFields.TryGetValue(operation.Attributes[i].Name, out var fieldNameCheck) &&
                     IsNullableField(bodySyntaxMetadata, fieldNameCheck))
                 {
                     hasOptionalAttributes = true;
@@ -205,7 +205,7 @@ internal static class AssemblyFormatEmitter
                         builder.Append(", ");
                     }
 
-                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i], resolver));
+                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i].Name, resolver));
                 }
 
                 builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
@@ -220,7 +220,7 @@ internal static class AssemblyFormatEmitter
                         builder.Append(", ");
                     }
 
-                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i], resolver));
+                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i].Name, resolver));
                 }
 
                 builder.AppendLine("),");

@@ -13,11 +13,9 @@ public sealed class OperationModel
     public OperationModel(
         string name,
         string? className = null,
-        IReadOnlyList<string>? operands = null,
-        IReadOnlyList<string>? results = null,
-        IReadOnlyList<string>? attributes = null,
-        IReadOnlyDictionary<string, string>? attributeConstraints = null,
-        bool hasCustomAssemblyFormat = false,
+        IReadOnlyList<OperandModel>? operands = null,
+        IReadOnlyList<ResultModel>? results = null,
+        IReadOnlyList<AttributeUseModel>? attributes = null,
         string? summary = null,
         string? description = null,
         AssemblyFormatModel? assemblyFormat = null,
@@ -25,15 +23,13 @@ public sealed class OperationModel
     {
         Name = name;
         ClassName = className;
-        Operands = operands ?? EmptyItems;
-        Results = results ?? EmptyItems;
-        Attributes = attributes ?? EmptyItems;
-        AttributeConstraints = attributeConstraints ?? EmptyAttributeConstraints;
-        HasCustomAssemblyFormat = hasCustomAssemblyFormat;
+        Operands = operands ?? EmptyOperands;
+        Results = results ?? EmptyResults;
+        Attributes = attributes ?? EmptyAttributes;
         Summary = summary;
         Description = description;
         AssemblyFormat = assemblyFormat;
-        Traits = traits ?? EmptyItems;
+        Traits = traits ?? EmptyTraits;
     }
 
     /// <summary>
@@ -47,29 +43,19 @@ public sealed class OperationModel
     public string? ClassName { get; }
 
     /// <summary>
-    /// Gets the declared operand segment names.
+    /// Gets the declared operands.
     /// </summary>
-    public IReadOnlyList<string> Operands { get; }
+    public IReadOnlyList<OperandModel> Operands { get; }
 
     /// <summary>
-    /// Gets the declared result segment names.
+    /// Gets the declared results.
     /// </summary>
-    public IReadOnlyList<string> Results { get; }
+    public IReadOnlyList<ResultModel> Results { get; }
 
     /// <summary>
-    /// Gets the declared attribute names.
+    /// Gets the declared attribute uses.
     /// </summary>
-    public IReadOnlyList<string> Attributes { get; }
-
-    /// <summary>
-    /// Gets the declared attribute constraint names keyed by logical attribute name.
-    /// </summary>
-    public IReadOnlyDictionary<string, string> AttributeConstraints { get; }
-
-    /// <summary>
-    /// Gets a value indicating whether the operation declares a custom assembly format.
-    /// </summary>
-    public bool HasCustomAssemblyFormat { get; }
+    public IReadOnlyList<AttributeUseModel> Attributes { get; }
 
     /// <summary>
     /// Gets the operation summary, if known.
@@ -91,6 +77,8 @@ public sealed class OperationModel
     /// </summary>
     public IReadOnlyList<string> Traits { get; }
 
-    private static readonly IReadOnlyList<string> EmptyItems = new string[0];
-    private static readonly IReadOnlyDictionary<string, string> EmptyAttributeConstraints = new Dictionary<string, string>();
+    private static readonly IReadOnlyList<string> EmptyTraits = new string[0];
+    private static readonly IReadOnlyList<OperandModel> EmptyOperands = new OperandModel[0];
+    private static readonly IReadOnlyList<ResultModel> EmptyResults = new ResultModel[0];
+    private static readonly IReadOnlyList<AttributeUseModel> EmptyAttributes = new AttributeUseModel[0];
 }

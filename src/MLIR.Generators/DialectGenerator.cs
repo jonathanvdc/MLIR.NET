@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using MLIR.ODS;
 using MLIR.ODS.Model;
 using TableGen;
 
@@ -74,7 +75,7 @@ public sealed class DialectGenerator : IIncrementalGenerator
 
         return dialects
             .GroupBy(static dialect => dialect.Name, StringComparer.Ordinal)
-            .Select(DialectGeneratorModel.MergeDialectGroup)
+            .Select(DialectModelMerger.MergeDialectGroup)
             .OrderBy(static dialect => dialect.Name, StringComparer.Ordinal);
     }
 }
