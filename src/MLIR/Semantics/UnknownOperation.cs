@@ -65,4 +65,39 @@ public sealed class UnknownOperation : Operation
     /// <inheritdoc/>
     public override IReadOnlyList<BlockReference> SuccessorReferences => successorReferences;
 
+    /// <inheritdoc/>
+    public override Operation RewriteChildren(SemanticRewriter rewriter)
+    {
+        List<Region>? newRegionList = null;
+        for (int i = 0; i < regions.Count; i++)
+        {
+            var original = regions[i];
+            var rewritten = rewriter.VisitRegion(original);
+            if (newRegionList != null)
+            {
+                newRegionList.Add(rewritten);
+            }
+            else if (!ReferenceEquals(original, rewritten))
+            {
+                newRegionList = new List<Region>(regions.Count);
+                for (int j = 0; j < i; j++)
+                    newRegionList.Add(regions[j]);
+                newRegionList.Add(rewritten);
+            }
+        }
+
+        IReadOnlyList<Region> finalRegions = (IReadOnlyList<Region>?)newRegionList ?? regions;
+        var finalAttributes = rewriter.VisitNamedAttributeCollection(attributes);
+        var finalTypeRef = typeSignatureReference != null ? rewriter.VisitTypeReference(typeSignatureReference) : null;
+
+        if (ReferenceEquals(finalRegions, regions) &&
+            ReferenceEquals(finalAttributes, attributes) &&
+            ReferenceEquals(finalTypeRef, typeSignatureReference))
+        {
+            return this;
+        }
+
+        return new UnknownOperation(Syntax!, name, definition, finalRegions, finalAttributes, finalTypeRef, resultValues, operandValues, successorReferences);
+    }
+
 }

@@ -105,6 +105,19 @@ public abstract class Operation
     public SourceLocation Location => Syntax != null ? SourceLocation.FromToken(Syntax.NameToken) : SourceLocation.Unknown;
 
     /// <summary>
+    /// Rewrites this operation's children using the given rewriter and returns a new operation
+    /// if any children changed, or this operation if nothing changed.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation returns this operation unchanged. Override this method
+    /// in concrete operation subclasses that contain nested regions, attributes, or type references
+    /// to participate in traversal performed by <see cref="SemanticRewriter.VisitOperation"/>.
+    /// </remarks>
+    /// <param name="rewriter">The rewriter to use when visiting children.</param>
+    /// <returns>A rewritten operation, or this operation if nothing changed.</returns>
+    public virtual Operation RewriteChildren(SemanticRewriter rewriter) => this;
+
+    /// <summary>
     /// Determines whether the operation has an attribute with the supplied name.
     /// </summary>
     public bool HasAttribute(string name) => Attributes.Contains(name);
