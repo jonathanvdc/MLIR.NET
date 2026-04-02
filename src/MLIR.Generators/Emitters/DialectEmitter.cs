@@ -1,7 +1,5 @@
 namespace MLIR.Generators.Emitters;
 
-using System;
-using System.Collections.Generic;
 using System.Text;
 using MLIR.ODS.Model;
 
@@ -9,7 +7,6 @@ internal sealed class DialectEmitter
 {
     private readonly DialectSymbolResolver resolver;
     private readonly StringBuilder builder = new();
-    private readonly Dictionary<string, OperationBodySyntaxMetadata> bodySyntaxMetadataByOperation = new(StringComparer.Ordinal);
 
     public DialectEmitter(DialectSymbolResolver resolver)
     {
@@ -52,7 +49,6 @@ internal sealed class DialectEmitter
             if (operation.AssemblyFormat != null)
             {
                 var metadata = OperationBodySyntaxEmitter.Emit(builder, operation);
-                bodySyntaxMetadataByOperation[DialectGeneratorNaming.GetOperationClassName(operation)] = metadata;
                 builder.AppendLine();
 
                 AssemblyFormatEmitter.Emit(builder, operation, metadata, resolver);
