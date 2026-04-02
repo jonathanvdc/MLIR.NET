@@ -105,11 +105,11 @@ public sealed partial class SemanticTests
 
     private sealed class GeneratedConstantOperation : Operation
     {
+        private readonly OperationDefinition definition;
+
         public GeneratedConstantOperation(OperationSyntax syntax, OperationDefinition definition, OperationResult resultValue, AttributeValue value, TypeReference typeSignatureReference)
             : base(
                 syntax,
-                definition.Name,
-                definition,
                 [],
                 NamedAttributeCollection.Create(new NamedAttribute("value", value)),
                 typeSignatureReference,
@@ -117,13 +117,12 @@ public sealed partial class SemanticTests
                 [],
                 [])
         {
+            this.definition = definition;
         }
 
         public GeneratedConstantOperation(OperationConstructionContext context)
             : base(
                 context.Syntax,
-                context.Definition.Name,
-                context.Definition,
                 context.Regions,
                 context.Attributes,
                 context.TypeSignatureReference,
@@ -131,7 +130,12 @@ public sealed partial class SemanticTests
                 context.OperandValues,
                 context.SuccessorReferences)
         {
+            definition = context.Definition;
         }
+
+        public override string Name => Definition.Name;
+
+        public override OperationDefinition? Definition => definition;
 
         public NamedAttribute ValueAttribute => GetAttribute("value");
 
@@ -140,11 +144,11 @@ public sealed partial class SemanticTests
 
     private sealed class GeneratedAddIOperation : Operation
     {
+        private readonly OperationDefinition definition;
+
         public GeneratedAddIOperation(OperationConstructionContext context)
             : base(
                 context.Syntax,
-                context.Definition.Name,
-                context.Definition,
                 context.Regions,
                 context.Attributes,
                 context.TypeSignatureReference,
@@ -152,7 +156,12 @@ public sealed partial class SemanticTests
                 context.OperandValues,
                 context.SuccessorReferences)
         {
+            definition = context.Definition;
         }
+
+        public override string Name => Definition.Name;
+
+        public override OperationDefinition? Definition => definition;
 
         public Value LeftOperand => Operands[0].Value!;
 
@@ -163,10 +172,17 @@ public sealed partial class SemanticTests
 
     private sealed class SyntheticOperation : Operation
     {
+        private readonly string name;
+
         public SyntheticOperation(string name)
-            : base(null, name, null)
+            : base(null)
         {
+            this.name = name;
         }
+
+        public override string Name => name;
+
+        public override OperationDefinition? Definition => null;
     }
 
     private sealed class SyntheticAttributeValue : AttributeValue
