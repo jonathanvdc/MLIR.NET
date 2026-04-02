@@ -109,13 +109,13 @@ public abstract class Operation
     /// if any children changed, or this operation if nothing changed.
     /// </summary>
     /// <remarks>
-    /// The default implementation returns this operation unchanged. Override this method
-    /// in concrete operation subclasses that contain nested regions, attributes, or type references
-    /// to participate in traversal performed by <see cref="SemanticRewriter.VisitOperation"/>.
+    /// Implement this method in concrete operation subclasses to participate in traversal
+    /// performed by <see cref="SemanticRewriter.VisitOperation"/>. Operations with no traversable
+    /// children should return <c>this</c> unchanged.
     /// </remarks>
     /// <param name="rewriter">The rewriter to use when visiting children.</param>
     /// <returns>A rewritten operation, or this operation if nothing changed.</returns>
-    public virtual Operation RewriteChildren(SemanticRewriter rewriter) => this;
+    public abstract Operation RewriteChildren(SemanticRewriter rewriter);
 
     /// <summary>
     /// Determines whether the operation has an attribute with the supplied name.

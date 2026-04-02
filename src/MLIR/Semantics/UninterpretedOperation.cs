@@ -34,4 +34,7 @@ public sealed class UninterpretedOperation(OperationSyntax syntax, string name) 
 
     /// <inheritdoc/>
     public override IReadOnlyList<BlockReference> SuccessorReferences => [];
+
+    /// <inheritdoc/>
+    public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
 }
