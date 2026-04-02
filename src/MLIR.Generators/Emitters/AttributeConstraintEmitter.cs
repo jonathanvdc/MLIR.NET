@@ -35,11 +35,8 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
-        if (primitiveBaseConstructor == null)
-        {
-            builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
-            builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
-        }
+        builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
+        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
         builder.AppendLine("}");
     }
 

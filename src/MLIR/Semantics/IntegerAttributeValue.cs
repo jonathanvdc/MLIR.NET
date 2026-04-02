@@ -7,7 +7,7 @@ using MLIR.Semantics;
 /// <summary>
 /// Represents a semantic integer attribute value backed by an arbitrary-precision integer.
 /// </summary>
-public class IntegerAttributeValue : AttributeValue
+public abstract class IntegerAttributeValue : AttributeValue
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="IntegerAttributeValue"/> class.
@@ -17,16 +17,8 @@ public class IntegerAttributeValue : AttributeValue
     public IntegerAttributeValue(AttributeValueConstructionContext context, BigInteger value)
         : base(context.Syntax, context.Location)
     {
-        Name = context.Name;
-        Definition = context.Definition;
         Value = value;
     }
-
-    /// <inheritdoc/>
-    public override string? Name { get; }
-
-    /// <inheritdoc/>
-    public override AttributeConstraintDefinition? Definition { get; }
 
     /// <summary>
     /// Gets the parsed integer value.
