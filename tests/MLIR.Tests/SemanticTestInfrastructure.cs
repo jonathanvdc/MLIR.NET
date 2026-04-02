@@ -1,6 +1,7 @@
 namespace MLIR.Tests;
 
 using System.Collections.Generic;
+using System.Linq;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
@@ -95,11 +96,11 @@ public sealed partial class SemanticTests
             this.operation = operation;
         }
 
-        public IReadOnlyList<string> Results => operation.Results;
+        public IReadOnlyList<string> Results => operation.Results.Select(static result => result.Name).ToArray();
 
         public NamedAttribute ValueAttribute => operation.GetAttribute("value");
 
-        public OperationResult ResultValue => operation.ResultValues[0];
+        public OperationResult ResultValue => operation.Results[0];
     }
 
     private sealed class GeneratedConstantOperation : Operation
@@ -134,7 +135,7 @@ public sealed partial class SemanticTests
 
         public NamedAttribute ValueAttribute => GetAttribute("value");
 
-        public OperationResult ResultValue => ResultValues.Single();
+        public OperationResult ResultValue => Results.Single();
     }
 
     private sealed class GeneratedAddIOperation : Operation
@@ -153,11 +154,11 @@ public sealed partial class SemanticTests
         {
         }
 
-        public Value LeftOperand => OperandUses[0].Value!;
+        public Value LeftOperand => Operands[0].Value!;
 
-        public Value RightOperand => OperandUses[1].Value!;
+        public Value RightOperand => Operands[1].Value!;
 
-        public OperationResult ResultValue => ResultValues[0];
+        public OperationResult ResultValue => Results[0];
     }
 
     private sealed class SyntheticOperation : Operation

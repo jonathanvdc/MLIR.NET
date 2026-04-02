@@ -129,13 +129,13 @@ internal static class OperationEmitter
         {
             var member = operandMembers[i];
             var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
-            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName + " => OperandUses[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
+            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName + " => Operands[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
         }
 
         for (var i = 0; i < resultMembers.Count; i++)
         {
             var member = resultMembers[i];
-            builder.AppendLine("    public OperationResult " + member.PropertyName + " => ResultValues[" + i.ToString(CultureInfo.InvariantCulture) + "];");
+            builder.AppendLine("    public OperationResult " + member.PropertyName + " => Results[" + i.ToString(CultureInfo.InvariantCulture) + "];");
         }
 
         if (operation.Results.Count == 1 && operation.Results[0] != "result")
