@@ -10,6 +10,7 @@ public sealed class Block
 {
     private readonly List<BlockArgument> arguments;
     private readonly List<Operation> operations;
+    private readonly Dictionary<string, Value> valuesByName = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Block"/> class from a concrete syntax node.
@@ -84,6 +85,7 @@ public sealed class Block
 
     private void AttachArgument(BlockArgument argument, bool invalidateSyntax)
     {
+        AssignValueName(argument, argument.Name, uniquify: true);
         arguments.Add(argument);
         argument.Bind(this, arguments.Count - 1);
         if (invalidateSyntax)
@@ -102,6 +104,19 @@ public sealed class Block
 
     private void AttachOperation(Operation operation, bool invalidateSyntax)
     {
+        var renamedResult = false;
+        foreach (var result in operation.ResultValues)
+        {
+            var originalName = result.Name;
+            var finalName = AssignValueName(result, result.Name, uniquify: true);
+            renamedResult |= originalName != finalName;
+        }
+
+        if (renamedResult)
+        {
+            operation.InvalidateSyntax();
+        }
+
         operations.Add(operation);
         operation.Bind(this);
         if (invalidateSyntax)
@@ -119,8 +134,62 @@ public sealed class Block
         ParentRegion?.InvalidateSyntax();
     }
 
+    /// <summary>
+    /// Determines whether the given SSA value name is available within this block.
+    /// </summary>
+    public bool IsValueNameAvailable(string name)
+    {
+        return !valuesByName.ContainsKey(name);
+    }
+
+    /// <summary>
+    /// Gets a unique SSA value name for this block based on the supplied preferred name.
+    /// </summary>
+    public string GetUniqueValueName(string preferredName)
+    {
+        if (IsValueNameAvailable(preferredName))
+        {
+            return preferredName;
+        }
+
+        var suffix = 1;
+        while (true)
+        {
+            var candidate = preferredName + "_" + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (IsValueNameAvailable(candidate))
+            {
+                return candidate;
+            }
+
+            suffix++;
+        }
+    }
+
     internal void Bind(Region parentRegion)
     {
         ParentRegion = parentRegion;
+    }
+
+    internal string AssignValueName(Value value, string preferredName, bool uniquify)
+    {
+        if (valuesByName.TryGetValue(value.Name, out var existing) && ReferenceEquals(existing, value))
+        {
+            valuesByName.Remove(value.Name);
+        }
+
+        var finalName = preferredName;
+        if (valuesByName.TryGetValue(preferredName, out var conflicting) && !ReferenceEquals(conflicting, value))
+        {
+            if (!uniquify)
+            {
+                throw new InvalidOperationException($"The block already defines an SSA value named '{preferredName}'.");
+            }
+
+            finalName = GetUniqueValueName(preferredName);
+        }
+
+        value.SetNameWithoutValidation(finalName);
+        valuesByName[finalName] = value;
+        return finalName;
     }
 }

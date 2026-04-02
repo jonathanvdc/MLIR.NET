@@ -205,4 +205,99 @@ public sealed partial class SemanticTests
             "} : () -> ()",
             module.ToText());
     }
+
+    [Fact]
+    public void AddOperationUniquifiesConflictingResultNames()
+    {
+        var block = new Block(new BlockReference("^entry"), [], []);
+        block.AddOperation(new UnknownOperation(
+            new OperationSyntax([], "\"test.first\"", [], [], [], [], null),
+            "test.first",
+            null,
+            [],
+            NamedAttributeCollection.Empty,
+            null,
+            [new OperationResult("%value")],
+            [],
+            []));
+        var duplicate = new UnknownOperation(
+            new OperationSyntax([], "\"test.second\"", [], [], [], [], null),
+            "test.second",
+            null,
+            [],
+            NamedAttributeCollection.Empty,
+            null,
+            [new OperationResult("%value")],
+            [],
+            []);
+
+        block.AddOperation(duplicate);
+
+        Assert.Equal("%value", block.Operations[0].ResultValues[0].Name);
+        Assert.Equal("%value_1", duplicate.ResultValues[0].Name);
+    }
+
+    [Fact]
+    public void RenameUniquifiesConflictingNamesWithinABlock()
+    {
+        var block = new Block(new BlockReference("^entry"), [], []);
+        var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+        var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+
+        block.AddArgument(first);
+        block.AddArgument(second);
+
+        var renamed = second.Rename("%arg0");
+
+        Assert.Equal("%arg0_1", renamed);
+        Assert.Equal("%arg0", first.Name);
+        Assert.Equal("%arg0_1", second.Name);
+    }
+
+    [Fact]
+    public void RenameCanRejectConflictingNamesWhenUniquifyIsDisabled()
+    {
+        var block = new Block(new BlockReference("^entry"), [], []);
+        var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+        var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+
+        block.AddArgument(first);
+        block.AddArgument(second);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => second.Rename("%arg0", uniquify: false));
+
+        Assert.Contains("%arg0", exception.Message);
+        Assert.Equal("%arg1", second.Name);
+    }
+
+    [Fact]
+    public void ToTextUsesUniquifiedNamesForConflictingInsertedDefinitions()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule(
+                "\"scf.if\"(%cond) {\n" +
+                "  ^bb0:\n" +
+                "    %value = \"test.left\"() : () -> i32\n" +
+                "  } : (i1) -> ()"));
+
+        var block = module.Operations[0].Regions[0].Blocks[0];
+        block.AddOperation(new UnknownOperation(
+            new OperationSyntax([], "\"test.right\"", [], [], [], [], null),
+            "test.right",
+            null,
+            [],
+            NamedAttributeCollection.Empty,
+            null,
+            [new OperationResult("%value")],
+            [],
+            []));
+
+        Assert.Equal(
+            "\"scf.if\"(%cond) {\n" +
+            "  ^bb0:\n" +
+            "    %value = \"test.left\"() : () -> i32\n" +
+            "    %value_1 = \"test.right\"()\n" +
+            "} : (i1) -> ()",
+            module.ToText());
+    }
 }

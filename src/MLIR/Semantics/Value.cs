@@ -43,7 +43,7 @@ public abstract class Value
     /// <summary>
     /// Gets the SSA value name.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; private set; }
 
     /// <summary>
     /// Gets the source location of the SSA value, if known.
@@ -72,6 +72,27 @@ public abstract class Value
         }
     }
 
+    /// <summary>
+    /// Renames this SSA value, ensuring uniqueness within its owning block when possible.
+    /// </summary>
+    /// <param name="preferredName">The preferred new SSA name.</param>
+    /// <param name="uniquify">Whether to uniquify the name automatically when a conflict exists.</param>
+    /// <returns>The final SSA name after any uniquification.</returns>
+    public string Rename(string preferredName, bool uniquify = true)
+    {
+        var ownerBlock = GetOwningBlock();
+        if (ownerBlock == null)
+        {
+            Name = preferredName;
+            OnNameChanged();
+            return Name;
+        }
+
+        var finalName = ownerBlock.AssignValueName(this, preferredName, uniquify);
+        OnNameChanged();
+        return finalName;
+    }
+
     internal void AddUse(OpOperand operand)
     {
         uses.Add(operand);
@@ -80,5 +101,25 @@ public abstract class Value
     internal void RemoveUse(OpOperand operand)
     {
         uses.Remove(operand);
+    }
+
+    internal void SetNameWithoutValidation(string name)
+    {
+        Name = name;
+    }
+
+    /// <summary>
+    /// Called after this value's SSA name changes.
+    /// </summary>
+    protected virtual void OnNameChanged()
+    {
+    }
+
+    /// <summary>
+    /// Gets the block that owns this value when one exists.
+    /// </summary>
+    protected virtual Block? GetOwningBlock()
+    {
+        return null;
     }
 }

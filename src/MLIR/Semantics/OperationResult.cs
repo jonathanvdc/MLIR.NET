@@ -38,4 +38,16 @@ public sealed class OperationResult : Value
         DefiningOperation = definingOperation;
         ResultIndex = resultIndex;
     }
+
+    /// <inheritdoc/>
+    protected override Block? GetOwningBlock()
+    {
+        return DefiningOperation?.ParentBlock;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnNameChanged()
+    {
+        DefiningOperation?.InvalidateSyntax();
+    }
 }

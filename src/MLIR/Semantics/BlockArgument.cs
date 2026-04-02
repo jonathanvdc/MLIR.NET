@@ -56,4 +56,16 @@ public sealed class BlockArgument : Value
         Owner = owner;
         Index = index;
     }
+
+    /// <inheritdoc/>
+    protected override Block? GetOwningBlock()
+    {
+        return Owner;
+    }
+
+    /// <inheritdoc/>
+    protected override void OnNameChanged()
+    {
+        Owner?.InvalidateSyntax();
+    }
 }
