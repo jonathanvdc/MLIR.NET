@@ -133,7 +133,7 @@ public sealed partial class SemanticTests
             definition = context.Definition;
         }
 
-        public override string Name => Definition.Name;
+        public override string Name => definition.Name;
 
         public override OperationDefinition? Definition => definition;
 
@@ -159,7 +159,7 @@ public sealed partial class SemanticTests
             definition = context.Definition;
         }
 
-        public override string Name => Definition.Name;
+        public override string Name => definition.Name;
 
         public override OperationDefinition? Definition => definition;
 
