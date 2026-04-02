@@ -70,15 +70,14 @@ internal static class OperationBodySyntaxEmitter
         var fields = metadata.Fields;
 
         // Build a mapping from field name to component kind.
-        var componentKindByField = new System.Collections.Generic.Dictionary<string, BodyComponentKind>(
-            System.StringComparer.Ordinal);
+        var componentKindByField = new Dictionary<string, BodyComponentKind>(StringComparer.Ordinal);
         foreach (var comp in metadata.ComponentFields)
         {
             componentKindByField[comp.FieldName] = comp.Kind;
         }
 
         // Collect fields that can be rewritten (i.e., hold non-token children).
-        var rewritableFields = new System.Collections.Generic.List<BodySyntaxField>();
+        var rewritableFields = new List<BodySyntaxField>();
         foreach (var field in fields)
         {
             if (componentKindByField.TryGetValue(field.Name, out var kind) && IsRewritableKind(kind))
@@ -123,8 +122,7 @@ internal static class OperationBodySyntaxEmitter
         builder.AppendLine("            return this;");
 
         // Emit constructor call passing rewritten values for rewritable fields and original for others.
-        var rewritableSet = new System.Collections.Generic.HashSet<string>(
-            System.StringComparer.Ordinal);
+        var rewritableSet = new HashSet<string>(StringComparer.Ordinal);
         foreach (var f in rewritableFields)
         {
             rewritableSet.Add(f.Name);
