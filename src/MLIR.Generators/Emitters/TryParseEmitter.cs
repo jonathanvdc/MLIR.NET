@@ -24,12 +24,14 @@ internal sealed class TryParseEmitter
     private readonly OperationModel operation;
     private readonly OperationBodySyntaxMetadata metadata;
     private readonly string className;
+    private readonly DialectSymbolResolver resolver;
     private int fieldIndex;
 
-    private TryParseEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata)
+    private TryParseEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
     {
         this.operation = operation;
         this.metadata = metadata;
+        this.resolver = resolver;
         className = DialectGeneratorNaming.GetOperationClassName(operation);
         fieldIndex = 0;
     }
@@ -38,9 +40,9 @@ internal sealed class TryParseEmitter
     /// Emits the full <c>TryParse</c> method, including signature and closing brace, into
     /// <paramref name="builder"/>.
     /// </summary>
-    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata metadata)
+    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
     {
-        var emitter = new TryParseEmitter(operation, metadata);
+        var emitter = new TryParseEmitter(operation, metadata, resolver);
         emitter.EmitMethod(builder);
     }
 
@@ -201,9 +203,8 @@ internal sealed class TryParseEmitter
         if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
         {
             var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
-            var expr = delimiters.Count > 0
-                ? "context.ParseAttributeValueSyntax(" + BuildDelimiterList(delimiters) + ")"
-                : "context.ParseAttributeValueSyntax()";
+            var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
+            var expr = BuildAttributeParseExpr(expectedConstraint, delimiters);
             builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
         }
         else
@@ -467,7 +468,8 @@ internal sealed class TryParseEmitter
                 var varName = EmitterHelpers.LowerFirst(f.Name);
                 if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name))
                 {
-                    builder.AppendLine(indent + varName + " = context.ParseAttributeValueSyntax();");
+                    var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
+                    builder.AppendLine(indent + varName + " = " + BuildAttributeParseExpr(expectedConstraint, Array.Empty<TokenKind>()) + ";");
                 }
                 else
                 {
@@ -493,6 +495,36 @@ internal sealed class TryParseEmitter
                 break;
             }
         }
+    }
+
+    private string BuildAttributeParseExpr(string? expectedConstraintRecordName, IReadOnlyList<TokenKind> delimiters)
+    {
+        var expectedDefinitionExpr = !string.IsNullOrEmpty(expectedConstraintRecordName)
+            ? resolver.TryResolveAttributeDefinitionExpression(expectedConstraintRecordName!)
+            : null;
+        var hasExpectedConstraint = !string.IsNullOrEmpty(expectedDefinitionExpr);
+        var hasDelimiters = delimiters.Count > 0;
+
+        if (hasExpectedConstraint && hasDelimiters)
+        {
+            return "context.ParseAttributeValueSyntax(" +
+                expectedDefinitionExpr +
+                ", " +
+                BuildDelimiterList(delimiters) +
+                ")";
+        }
+
+        if (hasExpectedConstraint)
+        {
+            return "context.ParseAttributeValueSyntax(" + expectedDefinitionExpr + ")";
+        }
+
+        if (hasDelimiters)
+        {
+            return "context.ParseAttributeValueSyntax(" + BuildDelimiterList(delimiters) + ")";
+        }
+
+        return "context.ParseAttributeValueSyntax()";
     }
 
     // -----------------------------------------------------------------------
@@ -715,4 +747,3 @@ internal sealed class TryParseEmitter
         return text.Replace("\\", "\\\\").Replace("\"", "\\\"");
     }
 }
-

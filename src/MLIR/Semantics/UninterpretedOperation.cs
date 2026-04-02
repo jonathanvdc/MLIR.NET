@@ -1,3 +1,4 @@
+using MLIR.Dialects;
 using MLIR.Syntax;
 
 namespace MLIR.Semantics;
@@ -8,8 +9,14 @@ namespace MLIR.Semantics;
 /// <remarks>
 /// Initializes a new instance of the <see cref="UninterpretedOperation"/> class.
 /// </remarks>
-public sealed class UninterpretedOperation(OperationSyntax syntax, string name) : Operation(syntax, name, null)
+public sealed class UninterpretedOperation(OperationSyntax syntax, string name) : Operation(syntax)
 {
+    /// <inheritdoc/>
+    public override string Name { get; } = name;
+
+    /// <inheritdoc/>
+    public override OperationDefinition? Definition => null;
+
     /// <inheritdoc/>
     public override IReadOnlyList<Region> Regions => [];
 

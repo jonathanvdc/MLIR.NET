@@ -95,13 +95,28 @@ internal static class AssemblyFormatEmitter
         throw new InvalidOperationException("No body field was generated for operand '" + operandName + "'.");
     }
 
-    private static string GetAttributeBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata, string attributeName)
+    private static string GetAttributeBindExpression(
+        OperationModel operation,
+        OperationBodySyntaxConstructionPlan plan,
+        OperationBodySyntaxMetadata metadata,
+        string attributeName,
+        DialectSymbolResolver resolver)
     {
         if (plan.AttributeFields.TryGetValue(attributeName, out var fieldName))
         {
             var quotedName = EmitterHelpers.ToCSharpStringLiteral(attributeName);
             var access = "body." + fieldName;
-            var bindCall = "new NamedAttribute(" + quotedName + ", binder.BindAttributeValue(" + access + "))";
+            var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
+            var expectedDefinitionExpr = !string.IsNullOrEmpty(expectedConstraint)
+                ? resolver.TryResolveAttributeDefinitionExpression(expectedConstraint!)
+                : null;
+            var bindCall = "new NamedAttribute(" + quotedName + ", binder.BindAttributeValue(" + access;
+            if (!string.IsNullOrEmpty(expectedDefinitionExpr))
+            {
+                bindCall += ", " + expectedDefinitionExpr;
+            }
+
+            bindCall += "))";
 
             // When the body field is nullable (e.g. AttributeValueSyntax? for an oilist clause),
             // emit a conditional expression that produces null when the attribute is absent.
@@ -126,14 +141,14 @@ internal static class AssemblyFormatEmitter
         return "binder.BindTypeReference(" + SafeFieldAccess(metadata, plan.TypeField) + ")";
     }
 
-    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata bodySyntaxMetadata)
+    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata bodySyntaxMetadata, DialectSymbolResolver resolver)
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var syntaxDescriptor = OperationBodySyntaxDescriptor.Describe(bodySyntaxMetadata);
 
         builder.AppendLine("public sealed class " + className + "AssemblyFormat : IOperationAssemblyFormat");
         builder.AppendLine("{");
-        TryParseEmitter.Emit(builder, operation, bodySyntaxMetadata);
+        TryParseEmitter.Emit(builder, operation, bodySyntaxMetadata, resolver);
         builder.AppendLine();
         builder.AppendLine("    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)");
         builder.AppendLine("    {");
@@ -149,8 +164,6 @@ internal static class AssemblyFormatEmitter
         builder.AppendLine("        }");
         builder.AppendLine("        return new " + className + "(");
         builder.AppendLine("            syntax,");
-        builder.AppendLine("            definition.Name,");
-        builder.AppendLine("            definition,");
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {
@@ -192,7 +205,7 @@ internal static class AssemblyFormatEmitter
                         builder.Append(", ");
                     }
 
-                    builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
+                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i], resolver));
                 }
 
                 builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
@@ -207,7 +220,7 @@ internal static class AssemblyFormatEmitter
                         builder.Append(", ");
                     }
 
-                    builder.Append(GetAttributeBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i]));
+                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i], resolver));
                 }
 
                 builder.AppendLine("),");

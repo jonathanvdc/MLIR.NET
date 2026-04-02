@@ -8,6 +8,8 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class UnknownOperation : Operation
 {
+    private readonly string name;
+    private readonly Dialects.OperationDefinition? definition;
     private readonly IReadOnlyList<Region> regions;
     private readonly NamedAttributeCollection attributes;
     private readonly TypeReference? typeSignatureReference;
@@ -27,11 +29,10 @@ public sealed class UnknownOperation : Operation
         IReadOnlyList<ValueReference> resultValues,
         IReadOnlyList<ValueReference> operandValues,
         IReadOnlyList<BlockReference> successorReferences)
-        : base(
-            syntax,
-            name,
-            definition)
+        : base(syntax)
     {
+        this.name = name;
+        this.definition = definition;
         this.regions = regions;
         this.attributes = attributes;
         this.typeSignatureReference = typeSignatureReference;
@@ -39,6 +40,12 @@ public sealed class UnknownOperation : Operation
         this.operandValues = operandValues;
         this.successorReferences = successorReferences;
     }
+
+    /// <inheritdoc/>
+    public override string Name => name;
+
+    /// <inheritdoc/>
+    public override Dialects.OperationDefinition? Definition => definition;
 
     /// <inheritdoc/>
     public override IReadOnlyList<Region> Regions => regions;

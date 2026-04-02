@@ -12,14 +12,9 @@ public abstract class Operation
     /// <summary>
     /// Initializes a new instance of the <see cref="Operation"/> class.
     /// </summary>
-    protected Operation(
-        OperationSyntax? syntax,
-        string name,
-        OperationDefinition? definition)
+    protected Operation(OperationSyntax? syntax)
     {
         Syntax = syntax;
-        Name = name;
-        Definition = definition;
     }
 
     /// <summary>
@@ -30,12 +25,12 @@ public abstract class Operation
     /// <summary>
     /// Gets the canonical operation name without MLIR string-literal quoting.
     /// </summary>
-    public string Name { get; }
+    public abstract string Name { get; }
 
     /// <summary>
     /// Gets the registered operation definition, if one exists.
     /// </summary>
-    public OperationDefinition? Definition { get; }
+    public abstract OperationDefinition? Definition { get; }
 
     /// <summary>
     /// Gets the semantic regions nested under the operation.

@@ -31,11 +31,13 @@ public sealed class DialectGenerator : IIncrementalGenerator
                 static (file, state) => DialectGeneratorInput.ParseFile(file, state.Resolver, state.Token),
                 (Resolver: resolver, Token: productionContext.CancellationToken));
 
-            foreach (var dialect in GetMergedDialects(results, productionContext))
+            var dialects = GetMergedDialects(results, productionContext).ToArray();
+            var resolver = DialectSymbolResolver.Create(dialects);
+            foreach (var dialect in dialects)
             {
                 productionContext.AddSource(
                     DialectGeneratorNaming.GetHintName(dialect),
-                    SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect), Encoding.UTF8));
+                    SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect, resolver), Encoding.UTF8));
             }
         });
     }

@@ -73,6 +73,15 @@ public sealed class ConcreteSyntaxBuilderContext
     }
 
     /// <summary>
+    /// Builds a <see cref="TypeSyntax"/> for the supplied semantic type reference,
+    /// reusing its original syntax when available.
+    /// </summary>
+    public TypeSyntax BuildTypeSyntax(TypeReference type)
+    {
+        return builder.BuildTypeReference(type);
+    }
+
+    /// <summary>
     /// Builds a delimited attribute-dictionary syntax list from the supplied collection.
     /// An empty collection produces a list with no open token (absent attribute dictionary).
     /// </summary>

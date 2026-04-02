@@ -172,13 +172,20 @@ public static class ConcreteSyntaxBuilder
                 regions.Add(BuildRegion(region));
             }
 
+            var attributes = options.ExistingSyntaxHandling == ExistingSyntaxHandling.PreserveExistingSyntax
+                ? genericBody.Attributes
+                : BuildAttrDict(operation.Attributes);
+            var typeSignatureSyntax = operation.TypeSignatureReference != null
+                ? BuildTypeReference(operation.TypeSignatureReference)
+                : null;
+
             return new GenericOperationBodySyntax(
                 genericBody.OperandList,
                 genericBody.SuccessorList,
                 regions,
-                genericBody.Attributes,
+                attributes,
                 genericBody.TypeSignatureColonToken,
-                genericBody.TypeSignatureSyntax);
+                typeSignatureSyntax);
         }
 
         private GenericOperationBodySyntax GetGenericBody(Operation operation)
@@ -214,6 +221,12 @@ public static class ConcreteSyntaxBuilder
 
         public AttributeValueSyntax BuildAttributeValue(AttributeValue attributeValue)
         {
+            if (attributeValue.Definition?.AssemblyFormat != null &&
+                (options.ExistingSyntaxHandling == ExistingSyntaxHandling.ReplaceExistingSyntax || attributeValue.Syntax == null))
+            {
+                return attributeValue.Definition.AssemblyFormat.BuildCustomAssemblySyntax(attributeValue, new ConcreteSyntaxBuilderContext(this));
+            }
+
             if (attributeValue.Syntax != null)
             {
                 return attributeValue.Syntax;
@@ -225,6 +238,17 @@ public static class ConcreteSyntaxBuilder
             }
 
             throw new InvalidOperationException($"Cannot build syntax for unrecognized attribute value of type {attributeValue.GetType().FullName}.");
+        }
+
+        public TypeSyntax BuildTypeReference(TypeReference typeReference)
+        {
+            if (typeReference.Definition?.AssemblyFormat != null &&
+                (options.ExistingSyntaxHandling == ExistingSyntaxHandling.ReplaceExistingSyntax || typeReference.Syntax == null))
+            {
+                return typeReference.Definition.AssemblyFormat.BuildCustomAssemblySyntax(typeReference, new ConcreteSyntaxBuilderContext(this));
+            }
+
+            return typeReference.Syntax;
         }
 
         /// <summary>
@@ -278,9 +302,28 @@ public static class ConcreteSyntaxBuilder
 
             if (block.Syntax != null)
             {
+                if (options.ExistingSyntaxHandling == ExistingSyntaxHandling.PreserveExistingSyntax)
+                {
+                    return new BlockSyntax(
+                        block.Syntax.LabelToken,
+                        block.Syntax.Arguments,
+                        block.Syntax.ColonToken,
+                        operations);
+                }
+
+                var arguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
+                foreach (var argument in block.Arguments)
+                {
+                    arguments.Add(new BlockArgumentSyntax(argument.Syntax.NameToken, argument.Syntax.ColonToken, BuildTypeReference(argument.TypeReference)));
+                }
+
                 return new BlockSyntax(
                     block.Syntax.LabelToken,
-                    block.Syntax.Arguments,
+                    new DelimitedSyntaxList<BlockArgumentSyntax>(
+                        block.Syntax.Arguments.OpenToken,
+                        arguments,
+                        block.Syntax.Arguments.SeparatorTokens,
+                        block.Syntax.Arguments.CloseToken),
                     block.Syntax.ColonToken,
                     operations);
             }
