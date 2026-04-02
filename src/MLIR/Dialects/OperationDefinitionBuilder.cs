@@ -18,7 +18,7 @@ public sealed class OperationDefinitionBuilder
     private readonly List<string> requiredAttributes = new List<string>();
     private IOperationVerifier? verifier;
     private IOperationAssemblyFormat? assemblyFormat;
-    private Func<OperationConstructionContext, Operation> factory = static context => new UnknownOperation(
+    private Func<OperationConstructionContext, Operation> factory = static context => new GenericOperation(
         context.Syntax,
         context.Name,
         context.Definition,

@@ -21,7 +21,7 @@ public sealed partial class SemanticTests
 
         var operation = module.Operations[0];
         Assert.True(operation.IsKnown);
-        Assert.IsType<UnknownOperation>(operation);
+        Assert.IsType<GenericOperation>(operation);
         Assert.Equal("arith.addi", operation.Name);
         Assert.Equal("\"arith.addi\"", operation.Syntax?.Name);
         Assert.Equal("arith", operation.DialectName);
@@ -37,7 +37,7 @@ public sealed partial class SemanticTests
 
         var operation = module.Operations[0];
         Assert.False(operation.IsKnown);
-        Assert.IsType<UnknownOperation>(operation);
+        Assert.IsType<GenericOperation>(operation);
         Assert.Null(operation.Definition);
         Assert.Equal("test.unknown", operation.Name);
     }

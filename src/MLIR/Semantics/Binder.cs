@@ -57,7 +57,7 @@ public sealed class Binder
     /// <summary>
     /// Binds an operation syntax tree to a semantic operation, recursively binding any nested regions and blocks.
     /// If the operation's name matches a known operation in the dialect registry,
-    /// the corresponding definition will be used to construct a typed operation; otherwise, an <see cref="UnknownOperation"/> will be created.
+    /// the corresponding definition will be used to construct a typed operation; otherwise, an <see cref="GenericOperation"/> will be created.
     /// </summary>
     /// <param name="syntax">The concrete syntax tree to bind.</param>
     /// <returns>The semantic operation.</returns>
@@ -138,7 +138,7 @@ public sealed class Binder
         }
         else
         {
-            operation = new UnknownOperation(
+            operation = new GenericOperation(
                 syntax,
                 name,
                 definition,

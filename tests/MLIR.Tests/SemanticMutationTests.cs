@@ -109,7 +109,7 @@ public sealed partial class SemanticTests
         var argument = new BlockArgument(
             new BlockArgumentSyntax(new SyntaxToken("%arg0"), new SyntaxToken(":"), typeSyntax),
             new UnknownTypeReference(typeSyntax, "i32", null, SourceLocation.Unknown));
-        var operation = new UnknownOperation(
+        var operation = new GenericOperation(
             new OperationSyntax([], "\"test.op\"", [], [], [], [], null),
             "test.op",
             null,
@@ -183,7 +183,7 @@ public sealed partial class SemanticTests
 
         var newRegion = new Region(null, []);
         var newBlock = new Block("^entry", [], []);
-        var newOperation = new UnknownOperation(
+        var newOperation = new GenericOperation(
             new OperationSyntax([], "\"inserted.op\"", [], [], [], [], null),
             "inserted.op",
             null,
@@ -209,7 +209,7 @@ public sealed partial class SemanticTests
     public void AddOperationUniquifiesConflictingResultNames()
     {
         var block = new Block("^entry", [], []);
-        block.AddOperation(new UnknownOperation(
+        block.AddOperation(new GenericOperation(
             new OperationSyntax([], "\"test.first\"", [], [], [], [], null),
             "test.first",
             null,
@@ -219,7 +219,7 @@ public sealed partial class SemanticTests
             [new OperationResult("%value")],
             [],
             []));
-        var duplicate = new UnknownOperation(
+        var duplicate = new GenericOperation(
             new OperationSyntax([], "\"test.second\"", [], [], [], [], null),
             "test.second",
             null,
@@ -296,7 +296,7 @@ public sealed partial class SemanticTests
                 "  } : (i1) -> ()"));
 
         var block = module.Operations[0].Regions[0].Blocks[0];
-        block.AddOperation(new UnknownOperation(
+        block.AddOperation(new GenericOperation(
             new OperationSyntax([], "\"test.right\"", [], [], [], [], null),
             "test.right",
             null,

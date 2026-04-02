@@ -5,14 +5,14 @@ using MLIR.Syntax;
 /// <summary>
 /// Represents a bound operation whose dialect-specific semantic type is unknown.
 /// </summary>
-public sealed class UnknownOperation : Operation
+public sealed class GenericOperation : Operation
 {
     private readonly string name;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="UnknownOperation"/> class.
+    /// Initializes a new instance of the <see cref="GenericOperation"/> class.
     /// </summary>
-    public UnknownOperation(
+    public GenericOperation(
         OperationSyntax syntax,
         string name,
         Dialects.OperationDefinition? definition,

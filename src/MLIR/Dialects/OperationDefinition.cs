@@ -161,7 +161,7 @@ public sealed class OperationDefinition(
 
     private static System.Func<OperationConstructionContext, Operation> CreateDefaultFactory()
     {
-        return static context => new UnknownOperation(
+        return static context => new GenericOperation(
             context.Syntax,
             context.Name,
             context.Definition,
