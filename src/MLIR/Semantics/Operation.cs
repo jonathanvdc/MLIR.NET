@@ -13,7 +13,7 @@ public abstract class Operation
     private readonly List<Region> regions;
     private readonly List<OperationResult> results;
     private readonly List<OpOperand> operands;
-    private readonly List<BlockReference> successorReferences;
+    private readonly List<OpSuccessor> successors;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Operation"/> class.
@@ -33,7 +33,7 @@ public abstract class Operation
         this.regions = new List<Region>(regions?.Count ?? 0);
         this.results = new List<OperationResult>(resultValues?.Count ?? 0);
         operands = new List<OpOperand>(operandValues?.Count ?? 0);
-        this.successorReferences = successorReferences != null ? new List<BlockReference>(successorReferences) : [];
+        this.successors = new List<OpSuccessor>(successorReferences?.Count ?? 0);
 
         if (regions != null)
         {
@@ -58,6 +58,14 @@ public abstract class Operation
             for (var i = 0; i < operandValues.Count; i++)
             {
                 operands.Add(new OpOperand(this, i, operandValues[i]));
+            }
+        }
+
+        if (successorReferences != null)
+        {
+            for (var i = 0; i < successorReferences.Count; i++)
+            {
+                successors.Add(new OpSuccessor(this, i, successorReferences[i]));
             }
         }
     }
@@ -113,9 +121,9 @@ public abstract class Operation
     public IReadOnlyList<Value> OperandValues => operands.Where(static operand => operand.Value is not null).Select(static operand => operand.Value!).ToArray();
 
     /// <summary>
-    /// Gets the typed block successor references used by the operation.
+    /// Gets the successor slots owned by the operation.
     /// </summary>
-    public IReadOnlyList<BlockReference> Successors => successorReferences;
+    public IReadOnlyList<OpSuccessor> Successors => successors;
 
     /// <summary>
     /// Gets a value indicating whether the operation was recognized by a registered dialect.
@@ -163,6 +171,14 @@ public abstract class Operation
     public void SetOperand(int index, Value? value)
     {
         operands[index].Value = value;
+    }
+
+    /// <summary>
+    /// Sets the block of a successor slot.
+    /// </summary>
+    public void SetSuccessor(int index, Block? block)
+    {
+        successors[index].Block = block;
     }
 
     /// <summary>
