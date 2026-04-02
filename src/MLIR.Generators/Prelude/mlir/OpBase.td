@@ -8,6 +8,19 @@ include "mlir/IR/DialectBase.td"
 include "mlir/IR/CommonTypeConstraints.td"
 include "mlir/IR/CommonAttrConstraints.td"
 
+// Common operation traits.
+class Trait;
+
+def Pure : Trait;
+def Commutative : Trait;
+def NoMemoryEffect : Trait;
+def Idempotent : Trait;
+def Involution : Trait;
+def SameOperandsAndResultType : Trait;
+def SameOperandsAndResultShape : Trait;
+def SameTypeOperands : Trait;
+def ElementwiseMappable : Trait;
+
 class Op<Dialect dialect, string mnemonic, list<Trait> traits = []> {
   Dialect dialect = dialect;
   string mnemonic = mnemonic;
