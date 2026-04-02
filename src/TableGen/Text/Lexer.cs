@@ -244,8 +244,10 @@ internal static class Lexer
             {
                 "class" => TokenKind.ClassKeyword,
                 "def" => TokenKind.DefKeyword,
+                "defvar" => TokenKind.DefVarKeyword,
                 "let" => TokenKind.LetKeyword,
                 "in" => TokenKind.InKeyword,
+                "include" => TokenKind.IncludeKeyword,
                 _ => TokenKind.Identifier,
             };
         }
@@ -269,6 +271,7 @@ internal static class Lexer
                 '$' => TokenKind.Dollar,
                 '#' => TokenKind.Hash,
                 '.' => TokenKind.Dot,
+                '?' => TokenKind.QuestionMark,
                 _ => throw Error($"Unexpected character '{c}'."),
             };
         }

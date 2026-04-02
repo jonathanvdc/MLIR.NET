@@ -22,11 +22,14 @@ public static class Interpreter
 
     private sealed class Evaluator
     {
+        private readonly DocumentSyntax document;
         private readonly Dictionary<string, ClassSyntax> classes;
         private readonly Dictionary<string, DefSyntax> definitionsByName;
+        private readonly Dictionary<string, Value> defvarValues = new();
 
         public Evaluator(DocumentSyntax document)
         {
+            this.document = document;
             classes = document.Declarations
                 .OfType<ClassSyntax>()
                 .ToDictionary(static c => c.Name, static c => c);
@@ -46,6 +49,12 @@ public static class Interpreter
 
         public InterpretedDocument Evaluate()
         {
+            var emptyScope = new Dictionary<string, Value>();
+            foreach (var defvar in document.Declarations.OfType<DefVarSyntax>())
+            {
+                defvarValues[defvar.Name] = EvaluateExpression(defvar.Value, emptyScope);
+            }
+
             var records = new List<Record>(Definitions.Count);
             foreach (var definition in Definitions)
             {
@@ -181,12 +190,16 @@ public static class Interpreter
             {
                 IntegerSyntax integer => new IntegerValue(integer.Value),
                 StringSyntax str => new StringValue(str.Value),
+                UnsetSyntax => new UnsetValue(),
                 IdentifierSyntax identifier => ResolveIdentifier(identifier.Name, scope),
                 ListSyntax list => new ListValue(list.Items.Select(item => EvaluateExpression(item, scope)).ToList()),
                 DagSyntax dag => new DagValue(dag.OperatorName, dag.Arguments.Select(argument => new DagArgumentValue(EvaluateExpression(argument.Value, scope), argument.Name)).ToList()),
                 ConcatSyntax concat => EvaluateConcatenation(concat, scope),
                 BangCallSyntax bangCall => EvaluateBangCall(bangCall, scope),
                 FoldlSyntax foldl => EvaluateFoldl(foldl, scope),
+                ForeachSyntax forEach => EvaluateForeach(forEach, scope),
+                AnonymousClassInstantiationSyntax anonInst => EvaluateAnonymousClassInstantiation(anonInst, scope),
+                FieldAccessSyntax fieldAccess => EvaluateFieldAccess(fieldAccess, scope),
                 ClassInstantiationSyntax instantiation => EvaluateClassInstantiation(instantiation, scope),
                 _ => throw new InvalidOperationException("Unknown TableGen expression."),
             };
@@ -371,6 +384,31 @@ public static class Interpreter
                     return new StringValue(result);
                 }
 
+                case "cast":
+                {
+                    var val = EvaluateExpression(bangCall.Arguments[0], scope);
+                    return new StringValue(ValueToString(val));
+                }
+
+                case "interleave":
+                {
+                    var listVal = (ListValue)EvaluateExpression(bangCall.Arguments[0], scope);
+                    var sep = ToString(EvaluateExpression(bangCall.Arguments[1], scope), "!interleave");
+                    return new StringValue(string.Join(sep, listVal.Items.Select(item => ValueToString(item))));
+                }
+
+                case "empty":
+                {
+                    var val = EvaluateExpression(bangCall.Arguments[0], scope);
+                    return val switch
+                    {
+                        StringValue str => new IntegerValue(string.IsNullOrEmpty(str.Value) ? 1 : 0),
+                        ListValue list => new IntegerValue(list.Items.Count == 0 ? 1 : 0),
+                        UnsetValue => new IntegerValue(1),
+                        _ => new IntegerValue(0),
+                    };
+                }
+
                 default:
                     throw new InvalidOperationException($"Unknown bang operator '!{bangCall.OperatorName}'.");
             }
@@ -407,6 +445,52 @@ public static class Interpreter
             return fieldValue;
         }
 
+        private Value EvaluateAnonymousClassInstantiation(AnonymousClassInstantiationSyntax inst, IReadOnlyDictionary<string, Value> scope)
+        {
+            if (!classes.TryGetValue(inst.ClassName, out var classSyntax))
+            {
+                throw new KeyNotFoundException($"Unknown TableGen class '{inst.ClassName}'.");
+            }
+
+            var fields = InstantiateClass(classSyntax, inst.Arguments, scope);
+            return new AnonymousRecordValue(inst.ClassName, fields);
+        }
+
+        private Value EvaluateFieldAccess(FieldAccessSyntax fieldAccess, IReadOnlyDictionary<string, Value> scope)
+        {
+            var obj = EvaluateExpression(fieldAccess.Object, scope);
+
+            if (obj is AnonymousRecordValue rec)
+            {
+                return rec.Fields.TryGetValue(fieldAccess.FieldName, out var fv) ? fv : new UnsetValue();
+            }
+
+            if (obj is RecordReferenceValue recRef && definitionsByName.TryGetValue(recRef.RecordName, out var defSyntax))
+            {
+                var fields = new Dictionary<string, Value>();
+                var recScope = new Dictionary<string, Value>();
+                ApplyBases(defSyntax.Bases, recScope, fields);
+                ApplyBody(defSyntax.BodyItems, recScope, fields);
+                return fields.TryGetValue(fieldAccess.FieldName, out var fieldVal) ? fieldVal : new UnsetValue();
+            }
+
+            return new UnsetValue();
+        }
+
+        private Value EvaluateForeach(ForeachSyntax forEach, IReadOnlyDictionary<string, Value> scope)
+        {
+            var listValue = (ListValue)EvaluateExpression(forEach.List, scope);
+            var results = new List<Value>(listValue.Items.Count);
+            foreach (var item in listValue.Items)
+            {
+                var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
+                innerScope[forEach.VarName] = item;
+                results.Add(EvaluateExpression(forEach.Body, innerScope));
+            }
+
+            return new ListValue(results);
+        }
+
         private static bool IsTruthy(Value value) => value switch
         {
             IntegerValue integer => integer.Value != 0,
@@ -431,6 +515,8 @@ public static class Interpreter
             StringValue str => str.Value,
             IntegerValue integer => integer.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
             BitValue bit => bit.Value ? "1" : "0",
+            UnsetValue => string.Empty,
+            AnonymousRecordValue rec => rec.ClassName,
             _ => throw new InvalidOperationException($"Cannot convert {value.GetType().Name} to string for concatenation."),
         };
 
@@ -445,6 +531,11 @@ public static class Interpreter
         private Value ResolveIdentifier(string name, IReadOnlyDictionary<string, Value> scope)
         {
             if (scope.TryGetValue(name, out var value))
+            {
+                return value;
+            }
+
+            if (defvarValues.TryGetValue(name, out value))
             {
                 return value;
             }
@@ -469,10 +560,16 @@ public static class Interpreter
 
         private Value CoerceValue(string typeName, Value value)
         {
+            if (value is UnsetValue)
+            {
+                return value;
+            }
+
             return typeName switch
             {
                 "int" when value is not IntegerValue => throw new InvalidOperationException($"Expected an integer value for '{typeName}'."),
                 "string" when value is not StringValue => throw new InvalidOperationException($"Expected a string value for '{typeName}'."),
+                "code" => value,
                 "bit" when value is IntegerValue integer => new BitValue(integer.Value != 0),
                 "bit" when value is BitValue => value,
                 "bit" => throw new InvalidOperationException($"Expected a bit value for '{typeName}'."),

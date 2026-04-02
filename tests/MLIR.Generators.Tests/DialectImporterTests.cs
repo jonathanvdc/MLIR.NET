@@ -82,4 +82,35 @@ public sealed class DialectImporterTests
             e => Assert.Equal("result", Assert.IsType<VariableOperand>(Assert.IsType<TypeDirectiveChunk>(e).Operand).Name));
         Assert.True(addiOp.HasCustomAssemblyFormat);
     }
+
+    [Fact]
+    public void TreatsEmptyStringFieldsAsAbsent()
+    {
+        // When a base class supplies empty-string defaults (e.g. from an ODS prelude),
+        // GetOptionalStringField must return null so callers fall back correctly.
+        const string source =
+            "class MyDialect_Op<string mnemonic> : Op<MyDialect_Dialect, mnemonic, []> {\n" +
+            "  string cppClassName = \"\";\n" +   // explicit empty default
+            "  string summary = \"\";\n" +
+            "  string assemblyFormat = \"\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_FooOp : MyDialect_Op<\"foo\">;\n";
+
+        var dialects = DialectImporter.Import(Document.Parse(source).Evaluate());
+
+        var dialect = Assert.Single(dialects);
+        var op = Assert.Single(dialect.Operations);
+
+        // cppClassName="" must fall back to the record name, not produce an empty class name.
+        Assert.Equal("MyDialect_FooOp", op.ClassName);
+        // summary="" must be treated as absent (null).
+        Assert.Null(op.Summary);
+        // assemblyFormat="" must be treated as absent (no custom assembly format).
+        Assert.Null(op.AssemblyFormat);
+    }
 }

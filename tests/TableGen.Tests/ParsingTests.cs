@@ -112,7 +112,7 @@ public sealed class ParsingTests
     {
         var exception = Assert.Throws<ParseException>(() => Document.Parse("int Width = 1;"));
 
-        Assert.Contains("Expected 'class' or 'def'.", exception.Message);
+        Assert.Contains("Expected 'class', 'def', or 'defvar'.", exception.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
         Assert.Equal(1, exception.Diagnostic.Column);
     }
@@ -121,6 +121,22 @@ public sealed class ParsingTests
     public void ParsesConcatenationExpression()
     {
         const string source = "def Example { string Value = \"hello\" # \" \" # \"world\"; };";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var outer = Assert.IsType<ConcatSyntax>(field.Initializer);
+        var inner = Assert.IsType<ConcatSyntax>(outer.Left);
+
+        Assert.IsType<StringSyntax>(inner.Left);
+        Assert.IsType<StringSyntax>(inner.Right);
+        Assert.IsType<StringSyntax>(outer.Right);
+    }
+
+    [Fact]
+    public void ParsesAdjacentStringLiteralConcatenation()
+    {
+        const string source = "def Example { string Value = \"hello\" \" \" \"world\"; };";
 
         var document = Document.Parse(source);
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
@@ -204,11 +220,12 @@ public sealed class ParsingTests
         var document = Document.Parse(source);
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[1]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
-        var inst = Assert.IsType<ClassInstantiationSyntax>(field.Initializer);
+        var access = Assert.IsType<FieldAccessSyntax>(field.Initializer);
+        var inst = Assert.IsType<AnonymousClassInstantiationSyntax>(access.Object);
 
         Assert.Equal("StrUpper", inst.ClassName);
         Assert.Single(inst.Arguments);
-        Assert.Equal("result", inst.FieldName);
+        Assert.Equal("result", access.FieldName);
     }
 
     [Fact]

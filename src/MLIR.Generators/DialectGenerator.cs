@@ -2,11 +2,13 @@ namespace MLIR.Generators;
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using MLIR.ODS.Model;
+using TableGen;
 
 /// <summary>
 /// Incremental generator for convention-based MLIR dialect generation from TableGen/ODS inputs.
@@ -19,11 +21,16 @@ public sealed class DialectGenerator : IIncrementalGenerator
     {
         var tableGenFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".td", StringComparison.OrdinalIgnoreCase))
-            .Select(static (file, cancellationToken) => DialectGeneratorInput.ParseFile(file, cancellationToken))
             .Collect();
 
-        context.RegisterSourceOutput(tableGenFiles, static (productionContext, results) =>
+        context.RegisterSourceOutput(tableGenFiles, static (productionContext, files) =>
         {
+            var includeResolver = BuildIncludeResolver(files, productionContext.CancellationToken);
+            var results = ImmutableArray.CreateRange(
+                files,
+                static (file, state) => DialectGeneratorInput.ParseFile(file, state.Resolver, state.Token),
+                (Resolver: includeResolver, Token: productionContext.CancellationToken));
+
             var dialects = GetMergedDialects(results, productionContext).ToArray();
             var resolver = DialectSymbolResolver.Create(dialects);
             foreach (var dialect in dialects)
@@ -33,6 +40,15 @@ public sealed class DialectGenerator : IIncrementalGenerator
                     SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect, resolver), Encoding.UTF8));
             }
         });
+    }
+
+    private static TableGenIncludeResolver BuildIncludeResolver(
+        ImmutableArray<AdditionalText> additionalTexts,
+        System.Threading.CancellationToken cancellationToken)
+    {
+        return new TableGenCompositeIncludeResolver(
+            new ConsumerFileResolver(additionalTexts, cancellationToken),
+            new EmbeddedPreludeResolver());
     }
 
     private static IEnumerable<DialectModel> GetMergedDialects(

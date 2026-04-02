@@ -11,6 +11,7 @@ internal enum TokenKind
     DefKeyword,
     LetKeyword,
     InKeyword,
+    IncludeKeyword,
     Colon,
     Semicolon,
     Comma,
@@ -26,5 +27,7 @@ internal enum TokenKind
     Dollar,
     Hash,
     Dot,
+    QuestionMark,
     BangKeyword,
+    DefVarKeyword,
 }
