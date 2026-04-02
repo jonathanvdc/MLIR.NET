@@ -8,7 +8,7 @@ using MLIR.Syntax;
 public sealed class OpSuccessor
 {
     private Block? block;
-    private string label;
+    private readonly string label;
 
     internal OpSuccessor(Operation owner, int index, BlockReference reference)
     {

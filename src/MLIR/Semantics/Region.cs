@@ -9,6 +9,7 @@ using MLIR.Syntax;
 public sealed class Region
 {
     private readonly List<Block> blocks;
+    private readonly Dictionary<string, Block> blocksByLabel = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="Region"/> class.
@@ -48,6 +49,12 @@ public sealed class Region
 
     private void AttachBlock(Block block, bool invalidateSyntax)
     {
+        if (blocksByLabel.ContainsKey(block.Label))
+        {
+            throw new InvalidOperationException($"The region already contains a block labeled '{block.Label}'.");
+        }
+
+        blocksByLabel[block.Label] = block;
         blocks.Add(block);
         block.Bind(this);
         if (invalidateSyntax)
