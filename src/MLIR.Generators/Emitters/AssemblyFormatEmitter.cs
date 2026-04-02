@@ -164,8 +164,6 @@ internal static class AssemblyFormatEmitter
         builder.AppendLine("        }");
         builder.AppendLine("        return new " + className + "(");
         builder.AppendLine("            syntax,");
-        builder.AppendLine("            definition.Name,");
-        builder.AppendLine("            definition,");
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {

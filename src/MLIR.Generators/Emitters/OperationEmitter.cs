@@ -89,9 +89,9 @@ internal static class OperationEmitter
     {
         var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
 
-        builder.AppendLine("    public static new OperationDefinition Definition { get; } = CreateDefinition();");
+        builder.AppendLine("    public static OperationDefinition OperationDefinition { get; } = CreateOperationDefinition();");
         builder.AppendLine();
-        builder.AppendLine("    private static OperationDefinition CreateDefinition()");
+        builder.AppendLine("    private static OperationDefinition CreateOperationDefinition()");
         builder.AppendLine("    {");
         builder.AppendLine("        var operation = new OperationDefinitionBuilder(" + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + ");");
 
@@ -125,6 +125,10 @@ internal static class OperationEmitter
 
         builder.AppendLine("        return operation.Build();");
         builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public override string Name => OperationDefinition.Name;");
+        builder.AppendLine();
+        builder.AppendLine("    public override OperationDefinition? Definition => OperationDefinition;");
         builder.AppendLine();
     }
 
@@ -251,8 +255,6 @@ internal static class OperationEmitter
         builder.AppendLine("    public " + className + "(OperationConstructionContext context)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: context.Syntax,");
-        builder.AppendLine("            name: context.Name,");
-        builder.AppendLine("            definition: context.Definition,");
 
         for (var i = 0; i < operandMembers.Count; i++)
         {
@@ -282,13 +284,11 @@ internal static class OperationEmitter
     {
         builder.AppendLine("    public " + className + "(");
         builder.AppendLine("        OperationSyntax? syntax,");
-        builder.AppendLine("        string name,");
-        builder.AppendLine("        OperationDefinition definition,");
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
-        builder.AppendLine("        : base(syntax, name, definition)");
+        builder.AppendLine("        : base(syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("        this.typeSignatureReference = typeSignatureReference;");
         AppendAssignments(builder, operandMembers);
@@ -306,16 +306,12 @@ internal static class OperationEmitter
         IReadOnlyList<GeneratedMember> attributeMembers)
     {
         builder.AppendLine("    public " + className + "(");
-        builder.AppendLine("        string name,");
-        builder.AppendLine("        OperationDefinition definition,");
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: null,");
-        builder.AppendLine("            name: name,");
-        builder.AppendLine("            definition: definition,");
         AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
         AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
         builder.AppendLine("            attributes: attributes,");
@@ -338,16 +334,12 @@ internal static class OperationEmitter
         }
 
         builder.AppendLine("    public " + className + "(");
-        builder.AppendLine("        string name,");
-        builder.AppendLine("        OperationDefinition definition,");
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         AppendConstructorParameters(builder, attributeMembers);
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: null,");
-        builder.AppendLine("            name: name,");
-        builder.AppendLine("            definition: definition,");
         AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
         AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
 

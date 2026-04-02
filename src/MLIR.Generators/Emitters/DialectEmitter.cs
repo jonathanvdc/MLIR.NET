@@ -77,12 +77,12 @@ internal sealed class DialectEmitter
 
         foreach (var attribute in dialect.Attributes)
         {
-            builder.AppendLine("            dialect.AddAttribute(" + DialectGeneratorNaming.GetAttributeClassName(attribute) + ".Definition);");
+            builder.AppendLine("            dialect.AddAttribute(" + DialectGeneratorNaming.GetAttributeClassName(attribute) + ".AttributeDefinition);");
         }
 
         foreach (var type in dialect.Types)
         {
-            builder.AppendLine("            dialect.AddType(" + DialectGeneratorNaming.GetTypeClassName(type) + ".Definition);");
+            builder.AppendLine("            dialect.AddType(" + DialectGeneratorNaming.GetTypeClassName(type) + ".TypeDefinition);");
         }
 
         builder.AppendLine("        });");
@@ -94,6 +94,6 @@ internal sealed class DialectEmitter
 
     private void AppendOperationRegistration(OperationModel operation)
     {
-        builder.AppendLine("            dialect.AddOperation(" + DialectGeneratorNaming.GetOperationClassName(operation) + ".Definition);");
+        builder.AppendLine("            dialect.AddOperation(" + DialectGeneratorNaming.GetOperationClassName(operation) + ".OperationDefinition);");
     }
 }

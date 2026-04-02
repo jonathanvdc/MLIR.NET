@@ -90,31 +90,30 @@ public sealed class SemanticTests
 
     private sealed class GeneratedConstantOperation : Operation
     {
+        private readonly OperationDefinition definition;
         public readonly NamedAttribute ValueAttribute;
         public readonly ValueReference ResultValue;
 
         public GeneratedConstantOperation(OperationSyntax syntax, OperationDefinition definition, ValueReference resultValue, AttributeValue value, TypeReference typeSignatureReference)
-            : base(
-                syntax,
-                definition.Name,
-                definition)
+            : base(syntax)
         {
+            this.definition = definition;
             ValueAttribute = new NamedAttribute("value", value);
             ResultValue = resultValue;
             TypeSignatureReference = typeSignatureReference;
         }
 
         public GeneratedConstantOperation(OperationConstructionContext context)
-            : base(
-                context.Syntax,
-                context.Name,
-                context.Definition)
+            : base(context.Syntax)
         {
+            definition = context.Definition;
             ValueAttribute = context.GetAttribute("value");
             ResultValue = context.ResultValues.Single();
             TypeSignatureReference = context.TypeSignatureReference;
         }
 
+        public override string Name => definition.Name;
+        public override OperationDefinition? Definition => definition;
         public override IReadOnlyList<Region> Regions => [];
         public override NamedAttributeCollection Attributes => NamedAttributeCollection.Create(ValueAttribute);
         public override TypeReference? TypeSignatureReference { get; }
@@ -278,18 +277,19 @@ public sealed class SemanticTests
         private static readonly IReadOnlyList<Region> EmptyRegions = [];
         private static readonly NamedAttributeCollection EmptyAttributes = NamedAttributeCollection.Empty;
         private static readonly IReadOnlyList<BlockReference> EmptySuccessors = [];
+        private readonly OperationDefinition definition;
 
         public GeneratedAddIOperation(OperationConstructionContext context)
-            : base(
-                context.Syntax,
-                context.Name,
-                context.Definition)
+            : base(context.Syntax)
         {
+            definition = context.Definition;
             LeftOperand = context.OperandValues[0];
             RightOperand = context.OperandValues[1];
             ResultValue = context.ResultValues[0];
         }
 
+        public override string Name => definition.Name;
+        public override OperationDefinition? Definition => definition;
         public override IReadOnlyList<Region> Regions => EmptyRegions;
         public override NamedAttributeCollection Attributes => EmptyAttributes;
         public override TypeReference? TypeSignatureReference => null;
@@ -305,10 +305,13 @@ public sealed class SemanticTests
     private sealed class SyntheticOperation : Operation
     {
         public SyntheticOperation(string name)
-            : base(null, name, null)
+            : base(null)
         {
+            Name = name;
         }
 
+        public override string Name { get; }
+        public override OperationDefinition? Definition => null;
         public override IReadOnlyList<Region> Regions => [];
         public override NamedAttributeCollection Attributes => NamedAttributeCollection.Empty;
         public override TypeReference? TypeSignatureReference => null;

@@ -42,14 +42,14 @@ internal sealed class DialectSymbolResolver
     public string? TryResolveAttributeDefinitionExpression(string recordName)
     {
         return attributeTypesByRecordName.TryGetValue(recordName, out var typeName)
-            ? typeName + ".Definition"
+            ? typeName + ".AttributeDefinition"
             : null;
     }
 
     public string? TryResolveTypeDefinitionExpression(string recordName)
     {
         return typeTypesByRecordName.TryGetValue(recordName, out var typeName)
-            ? typeName + ".Definition"
+            ? typeName + ".TypeDefinition"
             : null;
     }
 }
