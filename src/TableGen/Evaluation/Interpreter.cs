@@ -611,6 +611,7 @@ public static class Interpreter
             StringValue str => str.Value,
             IntegerValue integer => integer.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
             BitValue bit => bit.Value ? "1" : "0",
+            ListValue list => string.Concat(list.Items.Select(ValueToString)),
             SymbolReferenceValue symbol => symbol.SymbolName,
             RecordReferenceValue record => record.RecordName,
             UnsetValue => string.Empty,
@@ -644,11 +645,13 @@ public static class Interpreter
                 return false;
             }
 
+            var nonNullTypeName = typeName!;
+
             return value switch
             {
-                AnonymousRecordValue record => ClassIsA(record.ClassName, typeName),
+                AnonymousRecordValue record => ClassIsA(record.ClassName, nonNullTypeName),
                 RecordReferenceValue recordReference => definitionsByName.TryGetValue(recordReference.RecordName, out var definition)
-                    && definition.Bases.Any(@base => ClassIsA(@base.Name, typeName)),
+                    && definition.Bases.Any(@base => ClassIsA(@base.Name, nonNullTypeName)),
                 _ => false,
             };
         }
