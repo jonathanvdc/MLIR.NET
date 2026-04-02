@@ -1,21 +1,18 @@
 namespace MLIR.Syntax.Attributes.Primitives;
 
-using System.Numerics;
 using MLIR.Syntax;
 
 /// <summary>
-/// Represents a primitive integer attribute literal.
+/// Represents a primitive boolean attribute literal.
 /// </summary>
-public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
+public sealed class BooleanAttributeValueSyntax : AttributeValueSyntax
 {
     private readonly RawSyntaxText rawText;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="IntegerAttributeValueSyntax"/> class.
+    /// Initializes a new instance of the <see cref="BooleanAttributeValueSyntax"/> class.
     /// </summary>
-    /// <param name="literalToken">The source token for the integer literal.</param>
-    /// <param name="value">The parsed integer value.</param>
-    public IntegerAttributeValueSyntax(SyntaxToken literalToken, BigInteger value)
+    public BooleanAttributeValueSyntax(SyntaxToken literalToken, bool value)
     {
         LiteralToken = literalToken;
         Value = value;
@@ -28,9 +25,9 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     public SyntaxToken LiteralToken { get; }
 
     /// <summary>
-    /// Gets the parsed integer value.
+    /// Gets the parsed boolean value.
     /// </summary>
-    public BigInteger Value { get; }
+    public bool Value { get; }
 
     /// <inheritdoc/>
     public override bool TryGetRawText(out RawSyntaxText? rawText)

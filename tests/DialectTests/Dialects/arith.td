@@ -39,3 +39,30 @@ def MiniArith_AddImmediateOp : MiniArith_Op<"add_immediate", [Pure]> {
 
   let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
 };
+
+def MiniArith_AddBoolImmediateOp : MiniArith_Op<"add_bool_immediate", [Pure]> {
+  let summary = "integer addition with a boolean immediate";
+
+  let arguments = (ins BoolAttr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};
+
+def MiniArith_AddFloatImmediateOp : MiniArith_Op<"add_float_immediate", [Pure]> {
+  let summary = "integer addition with a float immediate";
+
+  let arguments = (ins F32Attr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};
+
+def MiniArith_AddStringImmediateOp : MiniArith_Op<"add_string_immediate", [Pure]> {
+  let summary = "integer addition with a string immediate";
+
+  let arguments = (ins StrAttr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};

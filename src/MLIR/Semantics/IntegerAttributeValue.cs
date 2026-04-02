@@ -1,7 +1,8 @@
-namespace MLIR.Semantics;
+namespace MLIR.Semantics.Attributes.Primitives;
 
 using System.Numerics;
 using MLIR.Dialects;
+using MLIR.Semantics;
 
 /// <summary>
 /// Represents a semantic integer attribute value backed by an arbitrary-precision integer.

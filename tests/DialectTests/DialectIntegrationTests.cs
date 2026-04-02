@@ -5,7 +5,9 @@ using MLIR.Dialects;
 using MLIR.Miniarith;
 using MLIR.Minitest;
 using MLIR.Semantics;
+using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;
@@ -129,6 +131,54 @@ public sealed class DialectIntegrationTests
         Assert.IsAssignableFrom<IntegerAttributeValue>(operation.Value.Value);
         Assert.IsType<IntegerAttributeValueSyntax>(operation.Value.Value.Syntax);
         Assert.Equal("1", operation.Value.Value.Syntax!.GetRawText().Text);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesBooleanAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_bool_immediate true, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddBoolImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<BooleanAttributeValue>(operation.Value.Value);
+        Assert.True(value.Value);
+        Assert.IsType<BooleanAttributeValueSyntax>(value.Syntax);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesFloatingPointAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_float_immediate 1.5, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddFloatImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<FloatingPointAttributeValue>(operation.Value.Value);
+        Assert.Equal("1.5", value.LiteralText);
+        Assert.IsType<FloatingPointAttributeValueSyntax>(value.Syntax);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesStringAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_string_immediate \"hi\", %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddStringImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<StringAttributeValue>(operation.Value.Value);
+        Assert.Equal("hi", value.Value);
+        Assert.IsType<StringAttributeValueSyntax>(value.Syntax);
     }
 
     [Fact]

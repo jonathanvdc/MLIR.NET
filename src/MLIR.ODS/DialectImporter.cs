@@ -326,7 +326,15 @@ public static class DialectImporter
 
     private static bool TryGetAttributeConstraintKind(Record record, out AttributeConstraintKind kind)
     {
+        if (record.Name == "BoolAttr")
+        {
+            kind = AttributeConstraintKind.BooleanLiteral;
+            return true;
+        }
+
         if (record.HasBaseClass("AnyIntegerAttrBase")
+            || record.Name == "APIntAttr"
+            || record.Name == "IndexAttr"
             || record.HasBaseClass("SignlessIntegerAttrBase")
             || record.HasBaseClass("TypedSignlessIntegerAttrBase")
             || record.HasBaseClass("SignedIntegerAttrBase")
@@ -335,6 +343,18 @@ public static class DialectImporter
             || record.HasBaseClass("TypedUnsignedIntegerAttrBase"))
         {
             kind = AttributeConstraintKind.IntegerLiteral;
+            return true;
+        }
+
+        if (record.HasBaseClass("FloatAttrBase") || record.Name == "BF16Attr")
+        {
+            kind = AttributeConstraintKind.FloatingPointLiteral;
+            return true;
+        }
+
+        if (record.HasBaseClass("StringBasedAttr"))
+        {
+            kind = AttributeConstraintKind.StringLiteral;
             return true;
         }
 
