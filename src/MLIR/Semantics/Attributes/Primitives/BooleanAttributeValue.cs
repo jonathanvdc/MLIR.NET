@@ -18,6 +18,16 @@ public abstract class BooleanAttributeValue : AttributeValue
     }
 
     /// <summary>
+    /// Initializes a new synthetic instance of the <see cref="BooleanAttributeValue"/> class with no associated source syntax.
+    /// </summary>
+    /// <param name="value">The boolean value.</param>
+    protected BooleanAttributeValue(bool value)
+        : base(null, SourceLocation.Unknown)
+    {
+        Value = value;
+    }
+
+    /// <summary>
     /// Gets the parsed boolean value.
     /// </summary>
     public bool Value { get; }

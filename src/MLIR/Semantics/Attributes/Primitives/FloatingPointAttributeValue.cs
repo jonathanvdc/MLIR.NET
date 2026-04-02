@@ -18,6 +18,16 @@ public abstract class FloatingPointAttributeValue : AttributeValue
     }
 
     /// <summary>
+    /// Initializes a new synthetic instance of the <see cref="FloatingPointAttributeValue"/> class with no associated source syntax.
+    /// </summary>
+    /// <param name="literalText">The normalized literal text.</param>
+    protected FloatingPointAttributeValue(string literalText)
+        : base(null, SourceLocation.Unknown)
+    {
+        LiteralText = literalText;
+    }
+
+    /// <summary>
     /// Gets the normalized literal text.
     /// </summary>
     public string LiteralText { get; }

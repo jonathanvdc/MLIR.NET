@@ -264,19 +264,19 @@ public sealed class DialectGeneratorTests
         // Attribute access flows through the mutable base operation state.
         Assert.DoesNotContain("public override NamedAttributeCollection Attributes { get; }", registrationSource);
 
-        // Individual named attribute is a derived accessor, not a data-holding property.
+        // Individual named attribute is a derived accessor using the narrowed BigInteger type.
         // MiniArith_ConstantOp has no assembly format, so 'value' cannot be determined to
         // be required – it is generated as a nullable optional accessor.
-        Assert.Contains("public NamedAttribute? Value", registrationSource);
+        Assert.Contains("public BigInteger? Value", registrationSource);
         Assert.Contains("get => Attributes.TryGet(\"value\",", registrationSource);
-        Assert.Contains("set => SetAttribute(\"value\", value);", registrationSource);
+        Assert.Contains("set => SetAttribute(\"value\", value.HasValue", registrationSource);
         Assert.DoesNotContain("public NamedAttribute Value { get; }", registrationSource);
 
         // Constructors use NamedAttributeCollection attributes parameter instead of individual NamedAttribute params.
         Assert.Contains("NamedAttributeCollection attributes,", registrationSource);
 
-        // Per-attribute convenience constructor also exists (using individual NamedAttribute? param for optional).
-        Assert.Contains("NamedAttribute? value,", registrationSource);
+        // Per-attribute convenience constructor also exists (using individual BigInteger? param for optional).
+        Assert.Contains("BigInteger? value,", registrationSource);
 
         // Context constructor passes context.Attributes directly.
         Assert.Contains("attributes: context.Attributes,", registrationSource);
@@ -551,16 +551,16 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
 
         // $value appears directly at the top level of the format → required.
-        // The accessor property is non-nullable.
-        Assert.Contains("public NamedAttribute Value", registrationSource);
-        Assert.Contains("get => Attributes[\"value\"];", registrationSource);
-        Assert.Contains("set => SetAttribute(\"value\", value);", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute? Value", registrationSource);
+        // The accessor property is non-nullable with the narrowed BigInteger type.
+        Assert.Contains("public BigInteger Value", registrationSource);
+        Assert.Contains("((IntegerAttributeValue)Attributes[\"value\"].Value).Value;", registrationSource);
+        Assert.Contains("new NamedAttribute(\"value\", new", registrationSource);
+        Assert.DoesNotContain("public BigInteger? Value", registrationSource);
 
-        // Per-attribute convenience constructor uses non-nullable NamedAttribute.
-        Assert.Contains("NamedAttribute value,", registrationSource);
-        Assert.DoesNotContain("NamedAttribute? value,", registrationSource);
-        Assert.Contains("NamedAttributeCollection.Create(value),", registrationSource);
+        // Per-attribute convenience constructor uses non-nullable BigInteger.
+        Assert.Contains("BigInteger value,", registrationSource);
+        Assert.DoesNotContain("BigInteger? value,", registrationSource);
+        Assert.Contains("new NamedAttribute(\"value\", new", registrationSource);
 
         // OperationDefinition registration uses RequiredAttribute, not OptionalAttribute.
         Assert.Contains("operation.RequiredAttribute(\"value\",", registrationSource);
@@ -591,11 +591,11 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
         // $optAttr is inside an optional group → optional.
-        // The accessor property is nullable.
-        Assert.Contains("public NamedAttribute? OptAttr", registrationSource);
+        // The accessor property is nullable BigInteger? with the narrowed type.
+        Assert.Contains("public BigInteger? OptAttr", registrationSource);
         Assert.Contains("Attributes.TryGet(\"optAttr\",", registrationSource);
-        Assert.Contains("set => SetAttribute(\"optAttr\", value);", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute OptAttr", registrationSource);
+        Assert.Contains("set => SetAttribute(\"optAttr\", value.HasValue", registrationSource);
+        Assert.DoesNotContain("public BigInteger OptAttr", registrationSource);
 
         // OperationDefinition registration uses OptionalAttribute.
         Assert.Contains("operation.OptionalAttribute(\"optAttr\",", registrationSource);
@@ -700,8 +700,61 @@ public sealed class DialectGeneratorTests
         Assert.DoesNotContain("operation.RequiredAttribute(\"stride\")", registrationSource);
         Assert.DoesNotContain("operation.RequiredAttribute(\"padding\")", registrationSource);
 
-        // Nullable accessor properties for the optional attributes.
-        Assert.Contains("public NamedAttribute? Stride", registrationSource);
-        Assert.Contains("public NamedAttribute? Padding", registrationSource);
+        // Nullable BigInteger? accessor properties for the optional attributes.
+        Assert.Contains("public BigInteger? Stride", registrationSource);
+        Assert.Contains("public BigInteger? Padding", registrationSource);
+    }
+
+    [Fact]
+    public void AttributePropertyTypeIsNarrowedForKnownConstraintKinds()
+    {
+        // Verify that when an operation uses a well-known ODS attribute constraint,
+        // the generated property exposes the underlying value type rather than NamedAttribute.
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_AddImmOp : MiniArith_Op<\"add_imm\", []> {\n" +
+            "  let arguments = (ins I32Attr:$intVal, BoolAttr:$boolVal, StrAttr:$strVal, F32Attr:$floatVal);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$intVal `,` $boolVal `,` $strVal `,` $floatVal attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        // I32Attr → required BigInteger (all four are required since they appear at the top level)
+        Assert.Contains("public BigInteger IntVal", registrationSource);
+        Assert.Contains("((IntegerAttributeValue)Attributes[\"intVal\"].Value).Value;", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute IntVal", registrationSource);
+
+        // BoolAttr → required bool
+        Assert.Contains("public bool BoolVal", registrationSource);
+        Assert.Contains("((BooleanAttributeValue)Attributes[\"boolVal\"].Value).Value;", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute BoolVal", registrationSource);
+
+        // StrAttr → required string
+        Assert.Contains("public string StrVal", registrationSource);
+        Assert.Contains("((StringAttributeValue)Attributes[\"strVal\"].Value).Value;", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute StrVal", registrationSource);
+
+        // F32Attr → required string (LiteralText)
+        Assert.Contains("public string FloatVal", registrationSource);
+        Assert.Contains("((FloatingPointAttributeValue)Attributes[\"floatVal\"].Value).LiteralText;", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute FloatVal", registrationSource);
+
+        // Per-attribute convenience constructor uses narrowed value types, not NamedAttribute.
+        Assert.Contains("BigInteger intVal,", registrationSource);
+        Assert.Contains("bool boolVal,", registrationSource);
+        Assert.Contains("string strVal,", registrationSource);
+        Assert.Contains("string floatVal,", registrationSource);
+        Assert.DoesNotContain("NamedAttribute intVal,", registrationSource);
     }
 }

@@ -409,8 +409,9 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         var propName = DialectGeneratorNaming.ToPascalCase(variableName);
         if (EmitterHelpers.ContainsName(operation.Attributes, variableName))
         {
-            // Required attribute: op.Value is NamedAttribute (non-nullable)
-            return "context.BuildAttributeValueSyntax(op." + propName + ".Value)";
+            // Required attribute: access via Attributes collection to get the AttributeValue,
+            // independent of the narrowed property type.
+            return "context.BuildAttributeValueSyntax(op.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(variableName) + "].Value)";
         }
         else
         {
@@ -428,9 +429,10 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         var propName = DialectGeneratorNaming.ToPascalCase(variableName);
         if (EmitterHelpers.ContainsName(operation.Attributes, variableName))
         {
-            // Nullable attribute: op.Stride is NamedAttribute?
-            // Inside the trigger check, we know it's non-null.
-            return "context.BuildAttributeValueSyntax(op." + propName + "!.Value)";
+            // Nullable attribute: inside the trigger check, we know it's non-null.
+            // Access via Attributes collection to get the AttributeValue,
+            // independent of the narrowed property type.
+            return "context.BuildAttributeValueSyntax(op.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(variableName) + "].Value)";
         }
         else
         {
