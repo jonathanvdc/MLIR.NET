@@ -267,7 +267,9 @@ public sealed class DialectGeneratorTests
         // Individual named attribute is a derived accessor, not a data-holding property.
         // MiniArith_ConstantOp has no assembly format, so 'value' cannot be determined to
         // be required – it is generated as a nullable optional accessor.
-        Assert.Contains("public NamedAttribute? Value => Attributes.TryGet(\"value\",", registrationSource);
+        Assert.Contains("public NamedAttribute? Value", registrationSource);
+        Assert.Contains("get => Attributes.TryGet(\"value\",", registrationSource);
+        Assert.Contains("set => SetAttribute(\"value\", value);", registrationSource);
         Assert.DoesNotContain("public NamedAttribute Value { get; }", registrationSource);
 
         // Constructors use NamedAttributeCollection attributes parameter instead of individual NamedAttribute params.
@@ -550,7 +552,9 @@ public sealed class DialectGeneratorTests
 
         // $value appears directly at the top level of the format → required.
         // The accessor property is non-nullable.
-        Assert.Contains("public NamedAttribute Value => Attributes[\"value\"];", registrationSource);
+        Assert.Contains("public NamedAttribute Value", registrationSource);
+        Assert.Contains("get => Attributes[\"value\"];", registrationSource);
+        Assert.Contains("set => SetAttribute(\"value\", value);", registrationSource);
         Assert.DoesNotContain("public NamedAttribute? Value", registrationSource);
 
         // Per-attribute convenience constructor uses non-nullable NamedAttribute.
@@ -590,6 +594,7 @@ public sealed class DialectGeneratorTests
         // The accessor property is nullable.
         Assert.Contains("public NamedAttribute? OptAttr", registrationSource);
         Assert.Contains("Attributes.TryGet(\"optAttr\",", registrationSource);
+        Assert.Contains("set => SetAttribute(\"optAttr\", value);", registrationSource);
         Assert.DoesNotContain("public NamedAttribute OptAttr", registrationSource);
 
         // OperationDefinition registration uses OptionalAttribute.
@@ -621,8 +626,12 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
 
         // Both operands appear at the top level → required, non-nullable.
-        Assert.Contains("public Value Lhs => Operands[0].Value!;", registrationSource);
-        Assert.Contains("public Value Rhs => Operands[1].Value!;", registrationSource);
+        Assert.Contains("public Value Lhs", registrationSource);
+        Assert.Contains("get => Operands[0].Value!;", registrationSource);
+        Assert.Contains("set => SetOperand(0, value);", registrationSource);
+        Assert.Contains("public Value Rhs", registrationSource);
+        Assert.Contains("get => Operands[1].Value!;", registrationSource);
+        Assert.Contains("set => SetOperand(1, value);", registrationSource);
         Assert.DoesNotContain("public Value? Lhs", registrationSource);
         Assert.DoesNotContain("public Value? Rhs", registrationSource);
     }
@@ -651,11 +660,15 @@ public sealed class DialectGeneratorTests
         var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
         // $lhs at the top level → required, non-nullable.
-        Assert.Contains("public Value Lhs => Operands[0].Value!;", registrationSource);
+        Assert.Contains("public Value Lhs", registrationSource);
+        Assert.Contains("get => Operands[0].Value!;", registrationSource);
+        Assert.Contains("set => SetOperand(0, value);", registrationSource);
         Assert.DoesNotContain("public Value? Lhs", registrationSource);
 
         // $rhs inside optional group → optional, nullable.
-        Assert.Contains("public Value? Rhs => Operands[1].Value;", registrationSource);
+        Assert.Contains("public Value? Rhs", registrationSource);
+        Assert.Contains("get => Operands[1].Value;", registrationSource);
+        Assert.Contains("set => SetOperand(1, value);", registrationSource);
         Assert.DoesNotContain("public Value Rhs { get; }", registrationSource);
     }
 

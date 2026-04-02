@@ -131,7 +131,11 @@ internal static class OperationEmitter
         {
             var member = operandMembers[i];
             var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
-            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName + " => Operands[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
+            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
+            builder.AppendLine("    {");
+            builder.AppendLine("        get => Operands[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
+            builder.AppendLine("        set => SetOperand(" + i.ToString(CultureInfo.InvariantCulture) + ", value);");
+            builder.AppendLine("    }");
         }
 
         for (var i = 0; i < resultMembers.Count; i++)
@@ -157,15 +161,25 @@ internal static class OperationEmitter
             {
                 var localName = EmitterHelpers.LowerFirst(member.PropertyName);
                 builder.AppendLine(
-                    "    public NamedAttribute? " + member.PropertyName +
-                    " => Attributes.TryGet(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) +
+                    "    public NamedAttribute? " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine(
+                    "        get => Attributes.TryGet(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) +
                     ", out var " + localName + ") ? " + localName + " : null;");
+                builder.AppendLine(
+                    "        set => SetAttribute(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ", value);");
+                builder.AppendLine("    }");
             }
             else
             {
                 builder.AppendLine(
-                    "    public NamedAttribute " + member.PropertyName +
-                    " => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
+                    "    public NamedAttribute " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine(
+                    "        get => Attributes[" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + "];");
+                builder.AppendLine(
+                    "        set => SetAttribute(" + EmitterHelpers.ToCSharpStringLiteral(member.SourceName) + ", value);");
+                builder.AppendLine("    }");
             }
         }
 

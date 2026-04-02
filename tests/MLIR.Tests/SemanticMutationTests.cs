@@ -1,5 +1,6 @@
 namespace MLIR.Tests;
 
+using System;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Text;
@@ -98,6 +99,47 @@ public sealed partial class SemanticTests
         Assert.Null(region.Syntax);
         Assert.Null(outerOperation.Syntax);
         Assert.Same(block.Arguments[1], terminator.Operands[0].Value);
+    }
+
+    [Fact]
+    public void SetAttributeInvalidatesSyntaxAndUpdatesCollection()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
+        var operation = module.Operations[0];
+        var replacement = new NamedAttribute("value", new SyntheticAttributeValue("replacement"));
+
+        Assert.NotNull(operation.Syntax);
+        Assert.Equal("value", operation.GetAttribute("value").Name);
+
+        operation.SetAttribute("value", replacement);
+
+        Assert.Null(operation.Syntax);
+        Assert.Same(replacement, operation.GetAttribute("value"));
+    }
+
+    [Fact]
+    public void SetAttributeCanRemoveOptionalAttribute()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
+        var operation = module.Operations[0];
+
+        operation.SetAttribute("value", null);
+
+        Assert.False(operation.HasAttribute("value"));
+    }
+
+    [Fact]
+    public void SetAttributeRejectsMismatchedAttributeName()
+    {
+        var operation = new SyntheticOperation("test.synthetic");
+        var attribute = new NamedAttribute("other", new SyntheticAttributeValue("test"));
+
+        var exception = Assert.Throws<ArgumentException>(() => operation.SetAttribute("value", attribute));
+
+        Assert.Contains("value", exception.Message);
+        Assert.Contains("other", exception.Message);
     }
 
     [Fact]
@@ -391,4 +433,3 @@ public sealed partial class SemanticTests
         Assert.Equal("^bb0_1", second.Label);
     }
 }
-

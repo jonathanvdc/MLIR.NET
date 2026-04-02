@@ -423,6 +423,32 @@ public sealed class DialectIntegrationTests
     }
 
     [Fact]
+    public void GeneratedOperandSetterUpdatesOptionalOperandAndCustomPrinting()
+    {
+        const string source =
+            "%lhs = \"test.left\"() : () -> i32\n" +
+            "%rhs = \"test.right\"() : () -> i32\n" +
+            "%result = minitest.binary %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var rhsValue = module.Operations[1].Results[0];
+        var operation = Assert.IsType<MiniTest_BinaryOp>(module.Operations[2]);
+        string printed;
+
+        operation.Rhs = rhsValue;
+        printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.Same(rhsValue, operation.Rhs);
+        var rebound = Document.Parse(printed, registry).Bind(registry);
+        var reboundOperation = Assert.IsType<MiniTest_BinaryOp>(rebound.Operations[2]);
+        Assert.NotNull(reboundOperation.Rhs);
+        Assert.Equal("%rhs", reboundOperation.Rhs!.Name);
+    }
+
+    [Fact]
     public void ConfigOpBindsWithOnlyStridePresent()
     {
         // The padding oilist clause is absent; Padding should be null after binding.
@@ -459,6 +485,35 @@ public sealed class DialectIntegrationTests
         Assert.Equal("minitest.config", operation.Name);
         Assert.Null(operation.Stride);
         Assert.Null(operation.Padding);
+    }
+
+    [Fact]
+    public void GeneratedAttributeSetterAddsAndRemovesOptionalAttribute()
+    {
+        const string source = "minitest.config {}";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinitestDialectRegistration.Create());
+
+        var module = Document.Parse(source, registry).Bind(registry);
+        var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
+        var stride = new NamedAttribute(
+            "stride",
+            new UnknownAttributeValue(
+                new RawAttributeValueSyntax(new RawSyntaxText("4")),
+                name: null,
+                definition: null,
+                SourceLocation.Unknown));
+
+        operation.Stride = stride;
+
+        Assert.Same(stride, operation.Stride);
+        Assert.Contains("stride 4", module.ToText(CustomAssemblyOptions));
+
+        operation.Stride = null;
+
+        Assert.Null(operation.Stride);
+        Assert.DoesNotContain("stride", module.ToText(CustomAssemblyOptions));
     }
 
     // -----------------------------------------------------------------------

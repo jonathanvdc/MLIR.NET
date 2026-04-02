@@ -1,5 +1,6 @@
 namespace MLIR.Semantics;
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MLIR.Dialects;
@@ -171,6 +172,43 @@ public abstract class Operation
     public void SetOperand(int index, Value? value)
     {
         operands[index].Value = value;
+    }
+
+    /// <summary>
+    /// Sets or removes an attribute on this operation by name.
+    /// </summary>
+    /// <param name="name">The declared attribute name.</param>
+    /// <param name="attribute">
+    /// The replacement attribute. Pass null to remove the attribute.
+    /// </param>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown if <paramref name="name"/> is <see langword="null"/>.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown if <paramref name="attribute"/> is non-null and its
+    /// <see cref="NamedAttribute.Name"/> does not match <paramref name="name"/>.
+    /// </exception>
+    public void SetAttribute(string name, NamedAttribute? attribute)
+    {
+        if (name is null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        if (attribute is null)
+        {
+            SetAttributes(Attributes.Remove(name));
+            return;
+        }
+
+        if (!string.Equals(attribute.Name, name, System.StringComparison.Ordinal))
+        {
+            throw new ArgumentException(
+                $"Expected an attribute named '{name}' but got '{attribute.Name}'.",
+                nameof(attribute));
+        }
+
+        SetAttributes(Attributes.SetOrAdd(attribute));
     }
 
     /// <summary>
