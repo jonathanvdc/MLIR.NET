@@ -5,8 +5,10 @@ using MLIR.Dialects;
 using MLIR.Miniarith;
 using MLIR.Minitest;
 using MLIR.Semantics;
+using MLIR.Semantics.Attributes;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -179,6 +181,38 @@ public sealed class DialectIntegrationTests
         var value = Assert.IsAssignableFrom<StringAttributeValue>(operation.Value.Value);
         Assert.Equal("hi", value.Value);
         Assert.IsType<StringAttributeValueSyntax>(value.Syntax);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesTypeAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_type_immediate i32, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddTypeImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<TypeAttributeValue>(operation.Value.Value);
+        Assert.Equal("i32", value.TypeSyntax.GetRawText().Text);
+        Assert.IsType<TypeAttributeValueSyntax>(value.Syntax);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesUnitAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_unit_immediate unit, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddUnitImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<UnitAttributeValue>(operation.Value.Value);
+        Assert.IsType<UnitAttributeValueSyntax>(value.Syntax);
+        Assert.Equal("unit", value.Syntax!.GetRawText().Text);
     }
 
     [Fact]

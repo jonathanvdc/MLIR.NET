@@ -332,6 +332,19 @@ public static class DialectImporter
             return true;
         }
 
+        if (record.Name == "LocationAttr"
+            || record.Name == "AnyAttr"
+            || record.HasBaseClass("DenseArrayAttrBase")
+            || record.Name == "ElementsAttr"
+            || record.Name == "AnyIntElementsAttr"
+            || record.Name == "AnyI32ElementsAttr"
+            || record.Name == "AnyI64ElementsAttr"
+            || record.Name == "DictionaryAttr")
+        {
+            kind = AttributeConstraintKind.OpaqueAttribute;
+            return true;
+        }
+
         if (record.HasBaseClass("AnyIntegerAttrBase")
             || record.Name == "APIntAttr"
             || record.Name == "IndexAttr"
@@ -355,6 +368,18 @@ public static class DialectImporter
         if (record.HasBaseClass("StringBasedAttr"))
         {
             kind = AttributeConstraintKind.StringLiteral;
+            return true;
+        }
+
+        if (record.Name == "TypeAttr")
+        {
+            kind = AttributeConstraintKind.TypeAttribute;
+            return true;
+        }
+
+        if (record.Name == "UnitAttr")
+        {
+            kind = AttributeConstraintKind.UnitAttribute;
             return true;
         }
 

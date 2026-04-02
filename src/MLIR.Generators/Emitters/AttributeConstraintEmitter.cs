@@ -48,6 +48,9 @@ internal static class AttributeConstraintEmitter
             AttributeConstraintKind.IntegerLiteral => "IntegerAttributeValue",
             AttributeConstraintKind.FloatingPointLiteral => "FloatingPointAttributeValue",
             AttributeConstraintKind.StringLiteral => "StringAttributeValue",
+            AttributeConstraintKind.OpaqueAttribute => "OpaqueAttributeValue",
+            AttributeConstraintKind.TypeAttribute => "TypeAttributeValue",
+            AttributeConstraintKind.UnitAttribute => "UnitAttributeValue",
             _ => "AttributeValue",
         };
     }
@@ -60,6 +63,8 @@ internal static class AttributeConstraintEmitter
             AttributeConstraintKind.IntegerLiteral => "IntegerLiteralAttributeAssemblyFormat",
             AttributeConstraintKind.FloatingPointLiteral => "FloatingPointLiteralAttributeAssemblyFormat",
             AttributeConstraintKind.StringLiteral => "StringLiteralAttributeAssemblyFormat",
+            AttributeConstraintKind.TypeAttribute => "TypeAttributeAssemblyFormat",
+            AttributeConstraintKind.UnitAttribute => "UnitAttributeAssemblyFormat",
             _ => null,
         };
     }
@@ -72,6 +77,9 @@ internal static class AttributeConstraintEmitter
             AttributeConstraintKind.IntegerLiteral => "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
             AttributeConstraintKind.FloatingPointLiteral => "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText",
             AttributeConstraintKind.StringLiteral => "context, ((StringAttributeValueSyntax)context.Syntax).Value",
+            AttributeConstraintKind.OpaqueAttribute => "context",
+            AttributeConstraintKind.TypeAttribute => "context, ((TypeAttributeValueSyntax)context.Syntax).TypeSyntax",
+            AttributeConstraintKind.UnitAttribute => "context",
             _ => null,
         };
     }

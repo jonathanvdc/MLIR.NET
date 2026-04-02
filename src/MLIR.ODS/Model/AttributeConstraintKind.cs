@@ -29,4 +29,19 @@ public enum AttributeConstraintKind
     /// The constraint parses a primitive string literal.
     /// </summary>
     StringLiteral = 4,
+
+    /// <summary>
+    /// The constraint is recognized but preserved as opaque attribute syntax.
+    /// </summary>
+    OpaqueAttribute = 5,
+
+    /// <summary>
+    /// The constraint parses a type attribute whose payload is a nested type.
+    /// </summary>
+    TypeAttribute = 6,
+
+    /// <summary>
+    /// The constraint parses a unit attribute literal.
+    /// </summary>
+    UnitAttribute = 7,
 }

@@ -66,3 +66,21 @@ def MiniArith_AddStringImmediateOp : MiniArith_Op<"add_string_immediate", [Pure]
 
   let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
 };
+
+def MiniArith_AddTypeImmediateOp : MiniArith_Op<"add_type_immediate", [Pure]> {
+  let summary = "integer addition with a type immediate";
+
+  let arguments = (ins TypeAttr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};
+
+def MiniArith_AddUnitImmediateOp : MiniArith_Op<"add_unit_immediate", [Pure]> {
+  let summary = "integer addition with a unit immediate";
+
+  let arguments = (ins UnitAttr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};

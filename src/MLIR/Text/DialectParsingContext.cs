@@ -55,11 +55,27 @@ public abstract class DialectParsingContext
     }
 
     /// <summary>
+    /// Parses raw syntax until an operation boundary is reached.
+    /// </summary>
+    public RawSyntaxText ParseRawUntilOperationBoundary()
+    {
+        return Parser.ParseRawUntilOperationBoundaryInternal();
+    }
+
+    /// <summary>
     /// Parses a nested type syntax node, stopping before any of the supplied delimiters.
     /// </summary>
     public TypeSyntax ParseTypeSyntax(params TokenKind[] stopBefore)
     {
         return Parser.ParseTypeSyntaxInternal(stopBefore);
+    }
+
+    /// <summary>
+    /// Parses a type syntax node, consuming tokens until an operation boundary is reached.
+    /// </summary>
+    public TypeSyntax ParseTypeSyntaxUntilOperationBoundary()
+    {
+        return Parser.ParseTypeSyntaxUntilOperationBoundaryInternal();
     }
 
     /// <summary>

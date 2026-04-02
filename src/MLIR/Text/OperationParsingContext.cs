@@ -49,7 +49,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses raw syntax until the end of the current operation.
     /// </summary>
-    public RawSyntaxText ParseRawUntilOperationBoundary()
+    public new RawSyntaxText ParseRawUntilOperationBoundary()
     {
         return Parser.ParseRawUntilOperationBoundaryInternal();
     }
