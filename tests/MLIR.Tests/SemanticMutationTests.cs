@@ -315,4 +315,45 @@ public sealed partial class SemanticTests
             "} : (i1) -> ()",
             module.ToText());
     }
+
+    [Fact]
+    public void AddBlockUniquifyRenamesConflictingLabel()
+    {
+        var region = new Region(null, []);
+        var first = new Block("^bb0", [], []);
+        var second = new Block("^bb0", [], []);
+
+        region.AddBlock(first);
+        region.AddBlock(second, uniquify: true);
+
+        Assert.Equal(2, region.Blocks.Count);
+        Assert.Equal("^bb0", region.Blocks[0].Label);
+        Assert.Equal("^bb0_1", region.Blocks[1].Label);
+    }
+
+    [Fact]
+    public void AddBlockUniquifyDoesNotRenameWhenNoConflict()
+    {
+        var region = new Region(null, []);
+        var block = new Block("^bb0", [], []);
+
+        region.AddBlock(block, uniquify: true);
+
+        Assert.Single(region.Blocks);
+        Assert.Equal("^bb0", region.Blocks[0].Label);
+    }
+
+    [Fact]
+    public void AddBlockUniquifyIncrementsUntilUnique()
+    {
+        var region = new Region(null, []);
+        region.AddBlock(new Block("^bb0", [], []));
+        region.AddBlock(new Block("^bb0_1", [], []));
+
+        var block = new Block("^bb0", [], []);
+        region.AddBlock(block, uniquify: true);
+
+        Assert.Equal("^bb0_2", block.Label);
+    }
 }
+

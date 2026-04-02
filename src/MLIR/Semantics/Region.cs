@@ -42,16 +42,52 @@ public sealed class Region
     /// <summary>
     /// Adds a block to the region.
     /// </summary>
-    public void AddBlock(Block block)
+    /// <param name="block">The block to add.</param>
+    /// <param name="uniquify">
+    /// When <see langword="true"/>, automatically renames the block label to avoid a conflict with
+    /// an existing block in the region (analogous to <c>uniquify: true</c> for SSA value names).
+    /// When <see langword="false"/> (the default), an <see cref="InvalidOperationException"/> is
+    /// thrown if a block with the same label already exists.
+    /// </param>
+    public void AddBlock(Block block, bool uniquify = false)
     {
-        AttachBlock(block, invalidateSyntax: true);
+        AttachBlock(block, invalidateSyntax: true, uniquify: uniquify);
     }
 
-    private void AttachBlock(Block block, bool invalidateSyntax)
+    /// <summary>
+    /// Returns a block label that does not conflict with any block already in this region,
+    /// based on the supplied preferred label.
+    /// </summary>
+    public string GetUniqueLabelName(string preferredLabel)
+    {
+        if (!blocksByLabel.ContainsKey(preferredLabel))
+        {
+            return preferredLabel;
+        }
+
+        var suffix = 1;
+        while (true)
+        {
+            var candidate = preferredLabel + "_" + suffix.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            if (!blocksByLabel.ContainsKey(candidate))
+            {
+                return candidate;
+            }
+
+            suffix++;
+        }
+    }
+
+    private void AttachBlock(Block block, bool invalidateSyntax, bool uniquify = false)
     {
         if (blocksByLabel.ContainsKey(block.Label))
         {
-            throw new InvalidOperationException($"The region already contains a block labeled '{block.Label}'.");
+            if (!uniquify)
+            {
+                throw new InvalidOperationException($"The region already contains a block labeled '{block.Label}'.");
+            }
+
+            block.SetLabelWithoutValidation(GetUniqueLabelName(block.Label));
         }
 
         blocksByLabel[block.Label] = block;
