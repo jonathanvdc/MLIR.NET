@@ -4,7 +4,7 @@ using MLIR.Dialects;
 using MLIR.Syntax;
 
 /// <summary>
-/// Represents a semantic type reference bound from raw syntax text.
+/// Represents a semantic type reference bound from concrete syntax.
 /// </summary>
 public abstract class TypeReference
 {

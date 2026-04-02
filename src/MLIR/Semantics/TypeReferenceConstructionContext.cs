@@ -8,7 +8,14 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class TypeReferenceConstructionContext
 {
-    internal TypeReferenceConstructionContext(TypeSyntax syntax, string? name, TypeDefinition definition, SourceLocation location)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TypeReferenceConstructionContext"/> class.
+    /// </summary>
+    /// <param name="syntax">The type syntax.</param>
+    /// <param name="name">The canonical type name, if one was recognized.</param>
+    /// <param name="definition">The registered type definition.</param>
+    /// <param name="location">The source location of the type syntax.</param>
+    public TypeReferenceConstructionContext(TypeSyntax syntax, string? name, TypeDefinition definition, SourceLocation location)
     {
         Syntax = syntax;
         Name = name;

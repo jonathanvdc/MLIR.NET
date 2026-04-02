@@ -94,9 +94,9 @@ public sealed class Binder
         var attributes = new NamedAttributeCollection(attributeList);
 
         TypeReference? typeSignatureReference = null;
-        if (body.RawTypeSignature != null)
+        if (body.TypeSignatureSyntax != null)
         {
-            typeSignatureReference = BindTypeReference(body.RawTypeSignature);
+            typeSignatureReference = BindTypeReference(body.TypeSignatureSyntax);
         }
 
         var resultValues = BindValueReferences(syntax.ResultTokens);
@@ -227,7 +227,7 @@ public sealed class Binder
         var arguments = new List<BlockArgument>();
         foreach (var argument in syntax.Arguments)
         {
-            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.RawType)));
+            arguments.Add(new BlockArgument(argument, BindTypeReference(argument.TypeSyntax)));
         }
 
         var operations = new List<Operation>();
@@ -310,9 +310,9 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax)
     {
-        if (syntax is RawAttributeValueSyntax rawAttributeValueSyntax)
+        if (syntax.TryGetRawText(out var rawAttributeValueSyntax))
         {
-            return BindAttributeValue(rawAttributeValueSyntax.RawText);
+            return BindAttributeValueCore(syntax, rawAttributeValueSyntax!);
         }
         else
         {
@@ -328,7 +328,12 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(RawSyntaxText syntax)
     {
-        var canonicalName = TryGetAttributeDefinitionName(syntax.Text);
+        return BindAttributeValueCore(new RawAttributeValueSyntax(syntax), syntax);
+    }
+
+    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax)
+    {
+        var canonicalName = TryGetAttributeDefinitionName(rawSyntax.Text);
         AttributeDefinition? definition = null;
         if (canonicalName != null && dialectRegistry != null)
         {
@@ -336,15 +341,16 @@ public sealed class Binder
         }
 
         AttributeValue attribute;
-        var location = syntax.Location;
+        var location = syntaxNode.Location;
         if (definition != null)
         {
-            attribute = definition.Factory(new AttributeValueConstructionContext(new RawAttributeValueSyntax(syntax), canonicalName, definition, location));
-            definition.AssemblyFormat?.Bind(attribute, new AttributeAssemblyBindingContext(attribute, diagnostics));
+            attribute = definition.AssemblyFormat != null
+                ? definition.AssemblyFormat.Bind(syntaxNode, definition, this)
+                : definition.Factory(new AttributeValueConstructionContext(syntaxNode, canonicalName, definition, location));
         }
         else
         {
-            attribute = new UnknownAttributeValue(new RawAttributeValueSyntax(syntax), canonicalName, definition, location);
+            attribute = new UnknownAttributeValue(syntaxNode, canonicalName, definition, location);
         }
 
         return attribute;
@@ -368,9 +374,9 @@ public sealed class Binder
     /// <returns>The semantic type reference.</returns>
     public TypeReference BindTypeReference(TypeSyntax syntax)
     {
-        if (syntax is RawTypeSyntax rawTypeSyntax)
+        if (syntax.TryGetRawText(out var rawTypeSyntax))
         {
-            return BindTypeReference(rawTypeSyntax.RawText);
+            return BindTypeReferenceCore(syntax, rawTypeSyntax!);
         }
         else
         {
@@ -387,8 +393,12 @@ public sealed class Binder
     public TypeReference BindTypeReference(RawSyntaxText syntax)
     {
         // TODO: make this internal in the future and only expose the TypeSyntax overload publicly once we have more robust support for different type syntax forms.
+        return BindTypeReferenceCore(new RawTypeSyntax(syntax), syntax);
+    }
 
-        var canonicalName = TryGetTypeDefinitionName(syntax.Text);
+    private TypeReference BindTypeReferenceCore(TypeSyntax syntaxNode, RawSyntaxText rawSyntax)
+    {
+        var canonicalName = TryGetTypeDefinitionName(rawSyntax.Text);
         TypeDefinition? definition = null;
         if (canonicalName != null && dialectRegistry != null)
         {
@@ -398,12 +408,13 @@ public sealed class Binder
         TypeReference type;
         if (definition != null)
         {
-            type = definition.Factory(new TypeReferenceConstructionContext(new RawTypeSyntax(syntax), canonicalName, definition, syntax.Location));
-            definition.AssemblyFormat?.Bind(type, new TypeAssemblyBindingContext(type, diagnostics));
+            type = definition.AssemblyFormat != null
+                ? definition.AssemblyFormat.Bind(syntaxNode, definition, this)
+                : definition.Factory(new TypeReferenceConstructionContext(syntaxNode, canonicalName, definition, syntaxNode.Location));
         }
         else
         {
-            type = new UnknownTypeReference(new RawTypeSyntax(syntax), canonicalName, definition, syntax.Location);
+            type = new UnknownTypeReference(syntaxNode, canonicalName, definition, syntaxNode.Location);
         }
 
         return type;

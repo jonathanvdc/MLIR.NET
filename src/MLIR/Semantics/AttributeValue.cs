@@ -4,7 +4,7 @@ using MLIR.Dialects;
 using MLIR.Syntax;
 
 /// <summary>
-/// Represents a semantic attribute value bound from raw syntax text.
+/// Represents a semantic attribute value bound from concrete syntax.
 /// </summary>
 public abstract class AttributeValue
 {

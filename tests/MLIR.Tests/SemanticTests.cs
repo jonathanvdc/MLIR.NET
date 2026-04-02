@@ -137,6 +137,63 @@ public sealed class SemanticTests
         }
     }
 
+    private sealed class DenseAttributeValueSyntax : AttributeValueSyntax
+    {
+        public DenseAttributeValueSyntax(
+            SyntaxToken hashToken,
+            SyntaxToken nameToken,
+            SyntaxToken lessThanToken,
+            RawSyntaxText payload,
+            SyntaxToken greaterThanToken,
+            SyntaxToken? colonToken = null,
+            TypeSyntax? typeSyntax = null)
+        {
+            HashToken = hashToken;
+            NameToken = nameToken;
+            LessThanToken = lessThanToken;
+            Payload = payload;
+            GreaterThanToken = greaterThanToken;
+            ColonToken = colonToken;
+            TypeSyntax = typeSyntax;
+
+            var tokens = new List<SyntaxToken> { hashToken, nameToken, lessThanToken };
+            tokens.AddRange(payload.Tokens);
+            tokens.Add(greaterThanToken);
+            if (colonToken.HasValue)
+            {
+                tokens.Add(colonToken.Value);
+            }
+
+            if (typeSyntax != null && typeSyntax.TryGetRawText(out var rawType))
+            {
+                tokens.AddRange(rawType!.Tokens);
+            }
+
+            rawText = new RawSyntaxText(tokens);
+        }
+
+        private readonly RawSyntaxText rawText;
+
+        public SyntaxToken HashToken { get; }
+        public SyntaxToken NameToken { get; }
+        public SyntaxToken LessThanToken { get; }
+        public RawSyntaxText Payload { get; }
+        public SyntaxToken GreaterThanToken { get; }
+        public SyntaxToken? ColonToken { get; }
+        public TypeSyntax? TypeSyntax { get; }
+
+        public override bool TryGetRawText(out RawSyntaxText? rawText)
+        {
+            rawText = this.rawText;
+            return true;
+        }
+
+        public override void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+        {
+            writer.WriteRaw(rawText, defaultLeadingTrivia);
+        }
+    }
+
     private sealed class BuiltinIntegerTypeReference : TypeReference
     {
         public BuiltinIntegerTypeReference(TypeReferenceConstructionContext context)
@@ -149,6 +206,30 @@ public sealed class SemanticTests
         public void BindWidth(int width)
         {
             Width = width;
+        }
+    }
+
+    private sealed class BuiltinIntegerTypeSyntax : TypeSyntax
+    {
+        public BuiltinIntegerTypeSyntax(SyntaxToken nameToken)
+        {
+            NameToken = nameToken;
+            rawText = new RawSyntaxText([nameToken]);
+        }
+
+        private readonly RawSyntaxText rawText;
+
+        public SyntaxToken NameToken { get; }
+
+        public override bool TryGetRawText(out RawSyntaxText? rawText)
+        {
+            rawText = this.rawText;
+            return true;
+        }
+
+        public override void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+        {
+            writer.WriteToken(NameToken, defaultLeadingTrivia);
         }
     }
 
@@ -257,28 +338,86 @@ public sealed class SemanticTests
 
     private sealed class DenseAttributeAssemblyFormat : IAttributeAssemblyFormat
     {
-        public void Bind(AttributeValue attribute, AttributeAssemblyBindingContext context)
+        public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
         {
-            if (attribute is DenseAttributeValue denseAttribute)
+            syntax = null;
+            if (!context.TryMatch(TokenKind.Hash, out var hashToken))
             {
-                denseAttribute.BindDense();
+                return false;
             }
 
-            if (!attribute.Syntax!.GetRawText().Text.Contains("tensor<"))
+            if (!(context.Is(TokenKind.Identifier) && context.TryMatch(TokenKind.Identifier, out var nameToken) && nameToken.Text == "dense"))
             {
-                context.Report("dense attribute literals should mention a tensor type.");
+                return false;
             }
+
+            var lessThanToken = context.Expect(TokenKind.LessThan, "Expected '<' after '#dense'.");
+            var payload = context.ParseRawUntilDelimiter(TokenKind.GreaterThan);
+            var greaterThanToken = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the dense attribute.");
+            SyntaxToken? colonToken = null;
+            TypeSyntax? typeSyntax = null;
+            if (context.Is(TokenKind.Colon))
+            {
+                colonToken = context.Expect(TokenKind.Colon, "Expected ':' before the dense attribute type.");
+                typeSyntax = new RawTypeSyntax(context.ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RBrace));
+            }
+
+            syntax = new DenseAttributeValueSyntax(hashToken, nameToken, lessThanToken, payload, greaterThanToken, colonToken, typeSyntax);
+            return true;
+        }
+
+        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeDefinition definition, Binder binder)
+        {
+            var denseAttribute = new DenseAttributeValue(new AttributeValueConstructionContext(syntax, "dense", definition, syntax.Location));
+            denseAttribute.BindDense();
+            if (!syntax.GetRawText().Text.Contains("tensor<"))
+            {
+                binder.Report(new AssemblyDiagnostic(syntax.Location, "dense attribute literals should mention a tensor type."));
+            }
+
+            return denseAttribute;
+        }
+
+        public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
+        {
+            return attribute.Syntax ?? throw new InvalidOperationException("Dense attributes require syntax to rebuild their assembly form.");
         }
     }
 
     private sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
     {
-        public void Bind(TypeReference type, TypeAssemblyBindingContext context)
+        public bool TryParse(TypeParsingContext context, out TypeSyntax? syntax)
         {
-            if (type is BuiltinIntegerTypeReference integerType)
+            syntax = null;
+            if (!context.TryMatch(TokenKind.Identifier, out var nameToken) || !nameToken.Text.StartsWith("i"))
             {
-                integerType.BindWidth(int.Parse(type.Name![1..]));
+                return false;
             }
+
+            if (!int.TryParse(nameToken.Text[1..], out _))
+            {
+                return false;
+            }
+
+            syntax = new BuiltinIntegerTypeSyntax(nameToken);
+            return true;
+        }
+
+        public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
+        {
+            var integerType = new BuiltinIntegerTypeReference(new TypeReferenceConstructionContext(syntax, syntax.GetRawText().Text, definition, syntax.Location));
+            integerType.BindWidth(int.Parse(integerType.Name![1..]));
+            return integerType;
+        }
+
+        public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)
+        {
+            if (type is BuiltinIntegerTypeReference integerType && integerType.Width.HasValue)
+            {
+                return new BuiltinIntegerTypeSyntax(new SyntaxToken("i" + integerType.Width.Value));
+            }
+
+            return type.Syntax;
         }
     }
 
@@ -391,7 +530,7 @@ public sealed class SemanticTests
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
 
         var module = Binder.BindModule(
-            Parser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32"),
+            Parser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32", registry),
             registry);
 
         var operation = module.Operations[0];
@@ -399,10 +538,12 @@ public sealed class SemanticTests
         Assert.True(operation.Attributes[0].Value.IsKnown);
         Assert.Equal("dense", operation.Attributes[0].Value.Name);
         Assert.Equal("dense", Assert.IsType<DenseAttributeValue>(operation.Attributes[0].Value).Kind);
+        Assert.IsType<DenseAttributeValueSyntax>(operation.Attributes[0].Value.Syntax);
         Assert.NotNull(operation.TypeSignatureReference);
         Assert.True(operation.TypeSignatureReference!.IsKnown);
         Assert.Equal("i32", operation.TypeSignatureReference.Name);
         Assert.Equal(32, Assert.IsType<BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
+        Assert.IsType<BuiltinIntegerTypeSyntax>(operation.TypeSignatureReference.Syntax);
     }
 
     [Fact]

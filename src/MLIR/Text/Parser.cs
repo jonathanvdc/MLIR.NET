@@ -161,7 +161,7 @@ public sealed class Parser
         if (Is(TokenKind.Colon))
         {
             typeSignatureColonToken = ExpectToken(TokenKind.Colon, "Expected ':' before the type signature.");
-            typeSignatureSyntax = new RawTypeSyntax(ParseRawUntilOperationBoundary());
+            typeSignatureSyntax = ParseTypeSyntaxUntilOperationBoundary();
         }
 
         return new OperationSyntax(
@@ -315,8 +315,8 @@ public sealed class Parser
     {
         var nameToken = ParseSsaToken();
         var colonToken = ExpectToken(TokenKind.Colon, "Expected ':' after block argument name.");
-        var type = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RParen);
-        return new BlockArgumentSyntax(nameToken, colonToken, new RawTypeSyntax(type));
+        var type = ParseTypeSyntax(TokenKind.Comma, TokenKind.RParen);
+        return new BlockArgumentSyntax(nameToken, colonToken, type);
     }
 
     private NamedAttributeSyntax ParseAttribute()
@@ -332,8 +332,91 @@ public sealed class Parser
         }
 
         var equalsToken = ExpectToken(TokenKind.Equal, "Expected '=' after attribute name.");
-        var value = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RBrace);
-        return new NamedAttributeSyntax(nameToken, equalsToken, new RawAttributeValueSyntax(value));
+        var value = ParseAttributeValueSyntax(false, TokenKind.Comma, TokenKind.RBrace);
+        return new NamedAttributeSyntax(nameToken, equalsToken, value);
+    }
+
+    private AttributeValueSyntax ParseAttributeValueSyntax(bool stopAtOperationBoundary, params TokenKind[] stopBefore)
+    {
+        if (TryParseCustomAttributeSyntax(out var syntax))
+        {
+            return syntax;
+        }
+
+        return new RawAttributeValueSyntax(
+            stopAtOperationBoundary
+                ? ParseRawUntilDelimiterOrBoundaryInternal(stopBefore)
+                : ParseRawUntilDelimiter(stopBefore));
+    }
+
+    private TypeSyntax ParseTypeSyntax(params TokenKind[] stopBefore)
+    {
+        if (TryParseCustomTypeSyntax(out var syntax))
+        {
+            return syntax;
+        }
+
+        return new RawTypeSyntax(ParseRawUntilDelimiter(stopBefore));
+    }
+
+    private TypeSyntax ParseTypeSyntaxUntilOperationBoundary()
+    {
+        if (TryParseCustomTypeSyntax(out var syntax))
+        {
+            return syntax;
+        }
+
+        return new RawTypeSyntax(ParseRawUntilOperationBoundary());
+    }
+
+    private bool TryParseCustomAttributeSyntax(out AttributeValueSyntax syntax)
+    {
+        syntax = null!;
+        if (dialectRegistry == null)
+        {
+            return false;
+        }
+
+        var canonicalName = TryPeekAttributeDefinitionName();
+        if (canonicalName == null || !dialectRegistry.TryGetAttribute(canonicalName, out var definition) || definition.AssemblyFormat == null)
+        {
+            return false;
+        }
+
+        var checkpoint = position;
+        if (definition.AssemblyFormat.TryParse(new AttributeParsingContext(this), out var customSyntax))
+        {
+            syntax = customSyntax!;
+            return true;
+        }
+
+        position = checkpoint;
+        return false;
+    }
+
+    private bool TryParseCustomTypeSyntax(out TypeSyntax syntax)
+    {
+        syntax = null!;
+        if (dialectRegistry == null)
+        {
+            return false;
+        }
+
+        var canonicalName = TryPeekTypeDefinitionName();
+        if (canonicalName == null || !dialectRegistry.TryGetType(canonicalName, out var definition) || definition.AssemblyFormat == null)
+        {
+            return false;
+        }
+
+        var checkpoint = position;
+        if (definition.AssemblyFormat.TryParse(new TypeParsingContext(this), out var customSyntax))
+        {
+            syntax = customSyntax!;
+            return true;
+        }
+
+        position = checkpoint;
+        return false;
     }
 
     private SyntaxToken ParseOperationNameToken()
@@ -601,6 +684,26 @@ public sealed class Parser
         return ParseAttribute();
     }
 
+    internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(params TokenKind[] delimiters)
+    {
+        return ParseAttributeValueSyntax(false, delimiters);
+    }
+
+    internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(params TokenKind[] delimiters)
+    {
+        return ParseAttributeValueSyntax(true, delimiters);
+    }
+
+    internal TypeSyntax ParseTypeSyntaxInternal(params TokenKind[] delimiters)
+    {
+        return ParseTypeSyntax(delimiters);
+    }
+
+    internal TypeSyntax ParseTypeSyntaxUntilOperationBoundaryInternal()
+    {
+        return ParseTypeSyntaxUntilOperationBoundary();
+    }
+
     internal RawSyntaxText ParseRawUntilDelimiterInternal(params TokenKind[] delimiters)
     {
         return ParseRawUntilDelimiter(delimiters);
@@ -758,6 +861,24 @@ public sealed class Parser
     internal bool IsKeywordInternal(string spelling)
     {
         return Is(TokenKind.Identifier) && string.Equals(Current.Text, spelling, System.StringComparison.Ordinal);
+    }
+
+    private string? TryPeekAttributeDefinitionName()
+    {
+        if (!Is(TokenKind.Hash))
+        {
+            return null;
+        }
+
+        var lookahead = position + 1;
+        return lookahead < tokens.Count && tokens[lookahead].Kind == TokenKind.Identifier
+            ? tokens[lookahead].Text
+            : null;
+    }
+
+    private string? TryPeekTypeDefinitionName()
+    {
+        return Is(TokenKind.Identifier) ? Current.Text : null;
     }
 
     private static string NormalizeOperationName(string name)

@@ -8,7 +8,14 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class AttributeValueConstructionContext
 {
-    internal AttributeValueConstructionContext(AttributeValueSyntax syntax, string? name, AttributeDefinition definition, SourceLocation location)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AttributeValueConstructionContext"/> class.
+    /// </summary>
+    /// <param name="syntax">The attribute-value syntax.</param>
+    /// <param name="name">The canonical attribute name, if one was recognized.</param>
+    /// <param name="definition">The registered attribute definition.</param>
+    /// <param name="location">The source location of the attribute value.</param>
+    public AttributeValueConstructionContext(AttributeValueSyntax syntax, string? name, AttributeDefinition definition, SourceLocation location)
     {
         Syntax = syntax;
         Name = name;

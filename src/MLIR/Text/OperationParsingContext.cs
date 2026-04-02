@@ -6,44 +6,11 @@ using MLIR.Syntax;
 /// <summary>
 /// Provides dialect-specific parsers controlled access to the MLIR parser.
 /// </summary>
-public sealed class OperationParsingContext
+public sealed class OperationParsingContext : DialectParsingContext
 {
-    private readonly Parser parser;
-
     internal OperationParsingContext(Parser parser)
+        : base(parser)
     {
-        this.parser = parser;
-    }
-
-    /// <summary>
-    /// Determines whether the current token has the supplied kind.
-    /// </summary>
-    public bool Is(TokenKind kind)
-    {
-        return parser.IsToken(kind);
-    }
-
-    /// <summary>
-    /// Attempts to match the current token.
-    /// </summary>
-    public bool TryMatch(TokenKind kind, out SyntaxToken token)
-    {
-        if (parser.TryMatchToken(kind, out var rawToken))
-        {
-            token = Parser.ToSyntaxToken(rawToken);
-            return true;
-        }
-
-        token = default;
-        return false;
-    }
-
-    /// <summary>
-    /// Expects a token of the supplied kind.
-    /// </summary>
-    public SyntaxToken Expect(TokenKind kind, string message)
-    {
-        return parser.ExpectTokenInternal(kind, message);
     }
 
     /// <summary>
@@ -51,7 +18,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public SyntaxToken ParseSsaToken()
     {
-        return parser.ParseSsaTokenInternal();
+        return Parser.ParseSsaTokenInternal();
     }
 
     /// <summary>
@@ -59,7 +26,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public SyntaxToken ParseBlockLabelToken()
     {
-        return parser.ParseBlockLabelTokenInternal();
+        return Parser.ParseBlockLabelTokenInternal();
     }
 
     /// <summary>
@@ -67,7 +34,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public RegionSyntax ParseRegion()
     {
-        return parser.ParseRegionInternal();
+        return Parser.ParseRegionInternal();
     }
 
     /// <summary>
@@ -75,15 +42,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public NamedAttributeSyntax ParseAttribute()
     {
-        return parser.ParseAttributeInternal();
-    }
-
-    /// <summary>
-    /// Parses raw syntax until one of the supplied delimiters is reached at the outermost nesting level.
-    /// </summary>
-    public RawSyntaxText ParseRawUntilDelimiter(params TokenKind[] delimiters)
-    {
-        return parser.ParseRawUntilDelimiterInternal(delimiters);
+        return Parser.ParseAttributeInternal();
     }
 
     /// <summary>
@@ -91,7 +50,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public RawSyntaxText ParseRawUntilOperationBoundary()
     {
-        return parser.ParseRawUntilOperationBoundaryInternal();
+        return Parser.ParseRawUntilOperationBoundaryInternal();
     }
 
     /// <summary>
@@ -142,7 +101,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public bool IsKeyword(string spelling)
     {
-        return parser.IsKeywordInternal(spelling);
+        return Parser.IsKeywordInternal(spelling);
     }
 
     /// <summary>
@@ -150,16 +109,16 @@ public sealed class OperationParsingContext
     /// </summary>
     public TypeSyntax ParseTypeSyntax()
     {
-        return new RawTypeSyntax(parser.ParseRawUntilOperationBoundaryInternal());
+        return Parser.ParseTypeSyntaxUntilOperationBoundaryInternal();
     }
 
     /// <summary>
     /// Parses an attribute value, stopping before any of the supplied delimiter tokens or
     /// an operation boundary, whichever comes first.
     /// </summary>
-    public AttributeValueSyntax ParseAttributeValueSyntax(params TokenKind[] stopBefore)
+    public new AttributeValueSyntax ParseAttributeValueSyntax(params TokenKind[] stopBefore)
     {
-        return new RawAttributeValueSyntax(parser.ParseRawUntilDelimiterOrBoundaryInternal(stopBefore));
+        return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(stopBefore);
     }
 
     /// <summary>
@@ -168,7 +127,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDict()
     {
-        return parser.ParseAttrDictInternal();
+        return Parser.ParseAttrDictInternal();
     }
 
     /// <summary>
@@ -178,7 +137,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictWithKeyword()
     {
-        return parser.ParseAttrDictWithKeywordInternal();
+        return Parser.ParseAttrDictWithKeywordInternal();
     }
 
     /// <summary>
@@ -186,7 +145,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public SyntaxToken ExpectKeyword(string spelling, string message)
     {
-        return parser.ExpectKeywordInternal(spelling, message);
+        return Parser.ExpectKeywordInternal(spelling, message);
     }
 
     /// <summary>
@@ -194,7 +153,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public IReadOnlyList<RegionSyntax> ParseRegions()
     {
-        return parser.ParseRegionsInternal();
+        return Parser.ParseRegionsInternal();
     }
 
     /// <summary>
@@ -203,7 +162,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public DelimitedSyntaxList<SyntaxToken> ParseSuccessors()
     {
-        return parser.ParseSuccessorsInternal();
+        return Parser.ParseSuccessorsInternal();
     }
 
     /// <summary>
@@ -211,7 +170,7 @@ public sealed class OperationParsingContext
     /// </summary>
     public DelimitedSyntaxList<SyntaxToken> ParseOperands()
     {
-        return parser.ParseOperandsInternal();
+        return Parser.ParseOperandsInternal();
     }
 
 }
