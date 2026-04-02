@@ -55,6 +55,24 @@ public sealed class Region
     }
 
     /// <summary>
+    /// Creates an empty block with the given label, adds it to the region, and returns it.
+    /// </summary>
+    /// <param name="label">The preferred block label, including the leading <c>^</c>.</param>
+    /// <param name="uniquify">
+    /// When <see langword="true"/>, automatically renames the block label to avoid a conflict with
+    /// an existing block in the region (analogous to <c>uniquify: true</c> for SSA value names).
+    /// When <see langword="false"/> (the default), an <see cref="InvalidOperationException"/> is
+    /// thrown if a block with the same label already exists.
+    /// </param>
+    /// <returns>The newly created <see cref="Block"/>.</returns>
+    public Block AddBlock(string label, bool uniquify = false)
+    {
+        var block = new Block(label, [], []);
+        AttachBlock(block, invalidateSyntax: true, uniquify: uniquify);
+        return block;
+    }
+
+    /// <summary>
     /// Returns a block label that does not conflict with any block already in this region,
     /// based on the supplied preferred label.
     /// </summary>

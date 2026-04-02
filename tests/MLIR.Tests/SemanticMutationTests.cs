@@ -355,5 +355,40 @@ public sealed partial class SemanticTests
 
         Assert.Equal("^bb0_2", block.Label);
     }
+
+    [Fact]
+    public void AddBlockStringOverloadCreatesEmptyBlock()
+    {
+        var region = new Region(null, []);
+        var block = region.AddBlock("^bb0");
+
+        Assert.Single(region.Blocks);
+        Assert.Same(block, region.Blocks[0]);
+        Assert.Equal("^bb0", block.Label);
+        Assert.Empty(block.Arguments);
+        Assert.Empty(block.Operations);
+    }
+
+    [Fact]
+    public void AddBlockStringOverloadThrowsOnConflict()
+    {
+        var region = new Region(null, []);
+        region.AddBlock("^bb0");
+
+        var exception = Assert.Throws<InvalidOperationException>(() => region.AddBlock("^bb0"));
+        Assert.Contains("^bb0", exception.Message);
+        Assert.Single(region.Blocks);
+    }
+
+    [Fact]
+    public void AddBlockStringOverloadUniquifyRenamesConflictingLabel()
+    {
+        var region = new Region(null, []);
+        region.AddBlock("^bb0");
+        var second = region.AddBlock("^bb0", uniquify: true);
+
+        Assert.Equal(2, region.Blocks.Count);
+        Assert.Equal("^bb0_1", second.Label);
+    }
 }
 
