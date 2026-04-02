@@ -36,12 +36,27 @@ public enum AttributeConstraintKind
     OpaqueAttribute = 5,
 
     /// <summary>
+    /// The constraint parses a dense array attribute.
+    /// </summary>
+    DenseArrayAttribute = 6,
+
+    /// <summary>
+    /// The constraint parses an elements attribute.
+    /// </summary>
+    ElementsAttribute = 7,
+
+    /// <summary>
+    /// The constraint parses a dictionary attribute.
+    /// </summary>
+    DictionaryAttribute = 8,
+
+    /// <summary>
     /// The constraint parses a type attribute whose payload is a nested type.
     /// </summary>
-    TypeAttribute = 6,
+    TypeAttribute = 9,
 
     /// <summary>
     /// The constraint parses a unit attribute literal.
     /// </summary>
-    UnitAttribute = 7,
+    UnitAttribute = 10,
 }

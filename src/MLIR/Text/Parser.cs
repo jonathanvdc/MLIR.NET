@@ -4,6 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using MLIR.Dialects;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Collections;
+using MLIR.Dialects.Attributes.Collections;
+using MLIR.Dialects.Attributes.Primitives;
 
 /// <summary>
 /// Parses generic MLIR syntax into a concrete syntax tree.
@@ -14,6 +17,12 @@ public sealed class Parser
     private readonly IReadOnlyList<Token> tokens;
     private readonly DialectRegistry? dialectRegistry;
     private int position;
+    private static readonly BooleanLiteralAttributeAssemblyFormat BooleanLiteralAttributeAssemblyFormat = new();
+    private static readonly IntegerLiteralAttributeAssemblyFormat IntegerLiteralAttributeAssemblyFormat = new();
+    private static readonly FloatingPointLiteralAttributeAssemblyFormat FloatingPointLiteralAttributeAssemblyFormat = new();
+    private static readonly StringLiteralAttributeAssemblyFormat StringLiteralAttributeAssemblyFormat = new();
+    private static readonly DenseArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
+    private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
 
     private Parser(string source, DialectRegistry? dialectRegistry = null)
     {
@@ -41,6 +50,23 @@ public sealed class Parser
     public static ModuleSyntax ParseModule(string source, DialectRegistry? dialectRegistry)
     {
         return new Parser(source, dialectRegistry).ParseModuleCore();
+    }
+
+    /// <summary>
+    /// Parses a standalone attribute value from the supplied MLIR source text.
+    /// </summary>
+    public static AttributeValueSyntax ParseAttributeValue(string source, DialectRegistry? dialectRegistry = null, AttributeConstraintDefinition? expectedDefinition = null)
+    {
+        var parser = new Parser(source, dialectRegistry);
+        var syntax = expectedDefinition != null
+            ? parser.ParseAttributeValueSyntax(false, expectedDefinition)
+            : parser.ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null);
+        if (!parser.Is(TokenKind.EndOfFile))
+        {
+            throw parser.Error("Expected the attribute value to consume the entire input.");
+        }
+
+        return syntax;
     }
 
     private ModuleSyntax ParseModuleCore()
@@ -359,6 +385,11 @@ public sealed class Parser
             return syntax;
         }
 
+        if (TryParseBuiltinStructuredAttributeSyntax(out syntax))
+        {
+            return syntax;
+        }
+
         return new RawAttributeValueSyntax(
             stopAtOperationBoundary
                 ? ParseRawUntilDelimiterOrBoundaryInternal(stopBefore)
@@ -415,6 +446,74 @@ public sealed class Parser
         return canonicalName != null
             && dialectRegistry.TryGetAttribute(canonicalName, out var definition)
             && TryParseCustomAttributeSyntax(definition, out syntax);
+    }
+
+    private bool TryParseBuiltinStructuredAttributeSyntax(out AttributeValueSyntax syntax)
+    {
+        if (Is(TokenKind.LBracket))
+        {
+            syntax = ParseArrayAttributeValueSyntax();
+            return true;
+        }
+
+        if (Is(TokenKind.LBrace))
+        {
+            syntax = new DictionaryAttributeValueSyntax(ParseAttrDictInternal());
+            return true;
+        }
+
+        if (TryParseWith(BuiltinAttributeConstraintDefinition("DenseArrayAttr"), DenseArrayAttributeAssemblyFormat, out syntax))
+        {
+            return true;
+        }
+
+        if (TryParseWith(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat, out syntax))
+        {
+            return true;
+        }
+
+        syntax = null!;
+        return false;
+    }
+
+    private bool TryParseWith(AttributeConstraintDefinition? definition, IAttributeAssemblyFormat assemblyFormat, out AttributeValueSyntax syntax)
+    {
+        syntax = null!;
+        var checkpoint = position;
+        if (assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var customSyntax))
+        {
+            syntax = customSyntax!;
+            return true;
+        }
+
+        position = checkpoint;
+        return false;
+    }
+
+    private ArrayAttributeValueSyntax ParseArrayAttributeValueSyntax()
+    {
+        var openBracket = ExpectToken(TokenKind.LBracket, "Expected '[' to start the array attribute.");
+        var items = new List<AttributeValueSyntax>();
+        var commas = new List<SyntaxToken>();
+
+        if (!TryMatch(TokenKind.RBracket, out var closeBracket))
+        {
+            items.Add(ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket));
+            while (TryMatch(TokenKind.Comma, out var comma))
+            {
+                commas.Add(ToSyntaxToken(comma));
+                items.Add(ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket));
+            }
+
+            closeBracket = ExpectRawToken(TokenKind.RBracket, "Expected ']' to close the array attribute.");
+        }
+
+        return new ArrayAttributeValueSyntax(openBracket, items, commas, ToSyntaxToken(closeBracket));
+    }
+
+    private static AttributeConstraintDefinition BuiltinAttributeConstraintDefinition(string name)
+    {
+        return new AttributeConstraintDefinition(name);
     }
 
     private bool TryParseCustomAttributeSyntax(AttributeConstraintDefinition? definition, out AttributeValueSyntax syntax)

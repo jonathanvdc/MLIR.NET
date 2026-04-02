@@ -73,6 +73,14 @@ public sealed class ConcreteSyntaxBuilderContext
     }
 
     /// <summary>
+    /// Builds a <see cref="NamedAttributeSyntax"/> for the supplied semantic named attribute.
+    /// </summary>
+    public NamedAttributeSyntax BuildNamedAttributeSyntax(NamedAttribute attribute)
+    {
+        return builder.BuildNamedAttribute(attribute);
+    }
+
+    /// <summary>
     /// Builds a <see cref="TypeSyntax"/> for the supplied semantic type reference,
     /// reusing its original syntax when available.
     /// </summary>

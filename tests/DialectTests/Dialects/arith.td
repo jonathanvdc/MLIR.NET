@@ -84,3 +84,30 @@ def MiniArith_AddUnitImmediateOp : MiniArith_Op<"add_unit_immediate", [Pure]> {
 
   let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
 };
+
+def MiniArith_AddArrayImmediateOp : MiniArith_Op<"add_array_immediate", [Pure]> {
+  let summary = "integer addition with a dense array immediate";
+
+  let arguments = (ins DenseI32ArrayAttr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};
+
+def MiniArith_AddElementsImmediateOp : MiniArith_Op<"add_elements_immediate", [Pure]> {
+  let summary = "integer addition with an elements immediate";
+
+  let arguments = (ins AnyI32ElementsAttr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};
+
+def MiniArith_AddDictionaryImmediateOp : MiniArith_Op<"add_dictionary_immediate", [Pure]> {
+  let summary = "integer addition with a dictionary immediate";
+
+  let arguments = (ins DictionaryAttr:$value, I32:$lhs);
+  let results = (outs I32:$result);
+
+  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+};

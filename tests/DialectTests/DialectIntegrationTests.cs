@@ -6,9 +6,11 @@ using MLIR.Miniarith;
 using MLIR.Minitest;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
+using MLIR.Semantics.Attributes.Collections;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
+using MLIR.Syntax.Attributes.Collections;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -213,6 +215,66 @@ public sealed class DialectIntegrationTests
         var value = Assert.IsAssignableFrom<UnitAttributeValue>(operation.Value.Value);
         Assert.IsType<UnitAttributeValueSyntax>(value.Syntax);
         Assert.Equal("unit", value.Syntax!.GetRawText().Text);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesDenseArrayAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_array_immediate array<i32: 1, 2>, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddArrayImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<ArrayAttributeValue>(operation.Value.Value);
+        Assert.IsType<DenseArrayAttributeValueSyntax>(value.Syntax);
+        var first = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Items[0]);
+        var second = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Items[1]);
+        Assert.Equal(new System.Numerics.BigInteger(1), first.Value);
+        Assert.Equal(new System.Numerics.BigInteger(2), second.Value);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesElementsAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_elements_immediate dense<[1, 2]> : tensor<2xi32>, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddElementsImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<ElementsAttributeValue>(operation.Value.Value);
+        Assert.IsType<ElementsAttributeValueSyntax>(value.Syntax);
+        var payload = Assert.IsAssignableFrom<ArrayAttributeValue>(value.Payload);
+        var first = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[0]);
+        var second = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[1]);
+        Assert.Equal(new System.Numerics.BigInteger(1), first.Value);
+        Assert.Equal(new System.Numerics.BigInteger(2), second.Value);
+        Assert.Equal("tensor<2xi32>", value.TypeSyntax.GetRawText().Text);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesDictionaryAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_dictionary_immediate {inner = 1, nested = {flag = true}}, %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddDictionaryImmediateOp>(Assert.Single(module.Operations));
+        var value = Assert.IsAssignableFrom<DictionaryAttributeValue>(operation.Value.Value);
+        Assert.IsType<DictionaryAttributeValueSyntax>(value.Syntax);
+        var inner = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Attributes["inner"].Value);
+        Assert.Equal(new System.Numerics.BigInteger(1), inner.Value);
+        var nested = Assert.IsAssignableFrom<DictionaryAttributeValue>(value.Attributes["nested"].Value);
+        var flag = Assert.IsAssignableFrom<BooleanAttributeValue>(nested.Attributes["flag"].Value);
+        Assert.True(flag.Value);
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using MLIR.Dialects;
 using MLIR.Syntax;
+using MLIR.Semantics.Attributes.Collections;
 using MLIR.Text;
 
 /// <summary>
@@ -401,14 +402,18 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, AttributeConstraintDefinition? expectedDefinition)
     {
+        if (expectedDefinition?.AssemblyFormat != null)
+        {
+            return expectedDefinition.AssemblyFormat.Bind(syntax, expectedDefinition, this);
+        }
+
         if (syntax.TryGetRawText(out var rawAttributeValueSyntax))
         {
             return BindAttributeValueCore(syntax, rawAttributeValueSyntax!, expectedDefinition);
         }
         else
         {
-            Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported attribute value syntax '{syntax.GetType().Name}'."));
-            return new UnknownAttributeValue(syntax, null, null, syntax.Location);
+            return StructuredAttributeSemanticDecoder.DecodeValue(syntax);
         }
     }
 
@@ -516,6 +521,11 @@ public sealed class Binder
     {
         // TODO: make this internal in the future and only expose the TypeSyntax overload publicly once we have more robust support for different type syntax forms.
         return BindTypeReferenceCore(new RawTypeSyntax(syntax), syntax);
+    }
+
+    internal AttributeValueSyntax ReparseAttributeValueSyntax(RawSyntaxText rawSyntax, AttributeConstraintDefinition? expectedDefinition = null)
+    {
+        return Parser.ParseAttributeValue(rawSyntax.Text, dialectRegistry, expectedDefinition);
     }
 
     private TypeReference BindTypeReferenceCore(TypeSyntax syntaxNode, RawSyntaxText rawSyntax)

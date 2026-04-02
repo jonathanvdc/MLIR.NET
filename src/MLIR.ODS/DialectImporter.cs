@@ -332,14 +332,29 @@ public static class DialectImporter
             return true;
         }
 
-        if (record.Name == "LocationAttr"
-            || record.Name == "AnyAttr"
-            || record.HasBaseClass("DenseArrayAttrBase")
-            || record.Name == "ElementsAttr"
+        if (record.HasBaseClass("DenseArrayAttrBase"))
+        {
+            kind = AttributeConstraintKind.DenseArrayAttribute;
+            return true;
+        }
+
+        if (record.Name == "ElementsAttr"
             || record.Name == "AnyIntElementsAttr"
             || record.Name == "AnyI32ElementsAttr"
-            || record.Name == "AnyI64ElementsAttr"
-            || record.Name == "DictionaryAttr")
+            || record.Name == "AnyI64ElementsAttr")
+        {
+            kind = AttributeConstraintKind.ElementsAttribute;
+            return true;
+        }
+
+        if (record.Name == "DictionaryAttr")
+        {
+            kind = AttributeConstraintKind.DictionaryAttribute;
+            return true;
+        }
+
+        if (record.Name == "LocationAttr"
+            || record.Name == "AnyAttr")
         {
             kind = AttributeConstraintKind.OpaqueAttribute;
             return true;

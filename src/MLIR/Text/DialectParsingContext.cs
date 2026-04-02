@@ -103,4 +103,20 @@ public abstract class DialectParsingContext
     {
         return Parser.ParseAttributeValueSyntaxInternal(expectedDefinition, stopBefore);
     }
+
+    /// <summary>
+    /// Parses a named attribute entry.
+    /// </summary>
+    public NamedAttributeSyntax ParseNamedAttributeSyntax()
+    {
+        return Parser.ParseAttributeInternal();
+    }
+
+    /// <summary>
+    /// Parses an attribute dictionary.
+    /// </summary>
+    public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttributeDictionarySyntax()
+    {
+        return Parser.ParseAttrDictInternal();
+    }
 }
