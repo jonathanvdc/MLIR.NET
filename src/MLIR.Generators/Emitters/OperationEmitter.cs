@@ -400,6 +400,36 @@ internal static class OperationEmitter
         builder.AppendLine();
     }
 
+    private static void EmitRewriteChildren(
+        StringBuilder builder,
+        string className,
+        IReadOnlyList<GeneratedMember> operandMembers,
+        IReadOnlyList<GeneratedMember> resultMembers)
+    {
+        builder.AppendLine("    public override Operation RewriteChildren(SemanticRewriter rewriter)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        var finalAttributes = rewriter.VisitNamedAttributeCollection(Attributes);");
+        builder.AppendLine("        var finalTypeRef = typeSignatureReference != null ? rewriter.VisitTypeReference(typeSignatureReference) : null;");
+        builder.AppendLine("        if (ReferenceEquals(finalAttributes, Attributes) && ReferenceEquals(finalTypeRef, typeSignatureReference))");
+        builder.AppendLine("            return this;");
+        builder.AppendLine("        return new " + className + "(");
+        builder.AppendLine("            syntax: Syntax,");
+        foreach (var member in operandMembers)
+        {
+            builder.AppendLine("            " + member.ParameterName + ": " + member.PropertyName + ",");
+        }
+
+        foreach (var member in resultMembers)
+        {
+            builder.AppendLine("            " + member.ParameterName + ": " + member.PropertyName + ",");
+        }
+
+        builder.AppendLine("            attributes: finalAttributes,");
+        builder.AppendLine("            typeSignatureReference: finalTypeRef);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+    }
+
     private static void EmitOverrideProperties(
         StringBuilder builder,
         IReadOnlyList<GeneratedMember> operandMembers,
@@ -454,6 +484,7 @@ internal static class OperationEmitter
         EmitConvenienceConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
         EmitPerAttributeConvenienceConstructor(builder, className, operandMembers, resultMembers, attributeMembers);
         EmitOverrideProperties(builder, operandMembers, resultMembers, attributeMembers);
+        EmitRewriteChildren(builder, className, operandMembers, resultMembers);
 
         builder.AppendLine("}");
         return new EmittedOperationMembers(operandMembers, resultMembers, attributeMembers);

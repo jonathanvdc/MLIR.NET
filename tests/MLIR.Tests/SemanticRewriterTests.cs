@@ -46,6 +46,7 @@ public sealed class SemanticRewriterTests
         public override IReadOnlyList<ValueReference> ResultValues => [];
         public override IReadOnlyList<ValueReference> OperandValues => [];
         public override IReadOnlyList<BlockReference> SuccessorReferences => [];
+        public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
     }
 
     // ─── identity rewriter ──────────────────────────────────────────────────────

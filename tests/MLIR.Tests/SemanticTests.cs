@@ -120,6 +120,7 @@ public sealed class SemanticTests
         public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
         public override IReadOnlyList<ValueReference> OperandValues => [];
         public override IReadOnlyList<BlockReference> SuccessorReferences => [];
+        public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
     }
 
     private sealed class DenseAttributeValue : AttributeValue
@@ -314,6 +315,7 @@ public sealed class SemanticTests
         public override IReadOnlyList<ValueReference> ResultValues => [ResultValue];
         public override IReadOnlyList<ValueReference> OperandValues => [LeftOperand, RightOperand];
         public override IReadOnlyList<BlockReference> SuccessorReferences => EmptySuccessors;
+        public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
 
         public ValueReference LeftOperand { get; }
         public ValueReference RightOperand { get; }
@@ -336,6 +338,7 @@ public sealed class SemanticTests
         public override IReadOnlyList<ValueReference> ResultValues => [];
         public override IReadOnlyList<ValueReference> OperandValues => [];
         public override IReadOnlyList<BlockReference> SuccessorReferences => [];
+        public override Operation RewriteChildren(SemanticRewriter rewriter) => this;
     }
 
     private sealed class SyntheticAttributeValue : AttributeValue

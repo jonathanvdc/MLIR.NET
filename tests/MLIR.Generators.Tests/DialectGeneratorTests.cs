@@ -57,6 +57,12 @@ public sealed class DialectGeneratorTests
         Assert.Contains("dialect.AddOperation(MiniArith_AddIOp.OperationDefinition);", registrationSource);
         Assert.Contains(".WithFactory(static context => new MiniArith_AddIOp(context))", registrationSource);
         Assert.Contains(".WithAssemblyFormat(new MiniArith_AddIOpAssemblyFormat())", registrationSource);
+        Assert.Contains("public override Operation RewriteChildren(SemanticRewriter rewriter)", registrationSource);
+        Assert.Contains("var finalAttributes = rewriter.VisitNamedAttributeCollection(Attributes);", registrationSource);
+        Assert.Contains("var finalTypeRef = typeSignatureReference != null ? rewriter.VisitTypeReference(typeSignatureReference) : null;", registrationSource);
+        Assert.Contains("if (ReferenceEquals(finalAttributes, Attributes) && ReferenceEquals(finalTypeRef, typeSignatureReference))", registrationSource);
+        Assert.Contains("return new MiniArith_ConstantOp(", registrationSource);
+        Assert.Contains("return new MiniArith_AddIOp(", registrationSource);
     }
 
     [Fact]
