@@ -192,17 +192,6 @@ public sealed partial class Parser
         return TryParseType(source, null, out syntax, out diagnostic);
     }
 
-    private ModuleSyntax ParseModuleCore()
-    {
-        var result = TryParseModuleCoreResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
     private ParseResult<ModuleSyntax> TryParseModuleCoreResult()
     {
         var operations = new List<OperationSyntax>();
@@ -223,17 +212,6 @@ public sealed partial class Parser
         }
 
         return ParseResult<ModuleSyntax>.Success(new ModuleSyntax(operations, ToSyntaxToken(ConsumeToken())));
-    }
-
-    private OperationSyntax ParseOperation()
-    {
-        var result = TryParseOperationResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private ParseResult<OperationSyntax> TryParseOperationResult()
@@ -391,7 +369,7 @@ public sealed partial class Parser
         var operandCommaTokens = new List<SyntaxToken>();
         if (Is(TokenKind.SsaName))
         {
-            ParseCommaSeparatedItems(operandTokens, operandCommaTokens, ParseSsaToken);
+            ParseCommaSeparatedItems(operandTokens, operandCommaTokens, () => ThrowIfFailure(TryParseSsaTokenResult()));
         }
 
         var attributeDict = ParseAttrDictInternal();
@@ -450,17 +428,6 @@ public sealed partial class Parser
 
         Reset(checkpoint);
         return false;
-    }
-
-    private RegionSyntax ParseRegion()
-    {
-        var result = TryParseRegionResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private ParseResult<RegionSyntax> TryParseRegionResult()
@@ -535,17 +502,6 @@ public sealed partial class Parser
         return ParseResult<RegionSyntax>.Success(new RegionSyntax(openBraceToken, blocks, closeBraceResult.Value));
     }
 
-    private BlockSyntax ParseBlock()
-    {
-        var result = TryParseBlockResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
     private ParseResult<BlockSyntax> TryParseBlockResult()
     {
         var labelResult = TryParseBlockLabelTokenResult();
@@ -594,17 +550,6 @@ public sealed partial class Parser
             operations));
     }
 
-    private BlockArgumentSyntax ParseBlockArgument()
-    {
-        var result = TryParseBlockArgumentResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
     private ParseResult<BlockArgumentSyntax> TryParseBlockArgumentResult()
     {
         var nameResult = TryParseSsaTokenResult();
@@ -626,17 +571,6 @@ public sealed partial class Parser
         }
 
         return ParseResult<BlockArgumentSyntax>.Success(new BlockArgumentSyntax(nameResult.Value, colonResult.Value, typeResult.Value));
-    }
-
-    private NamedAttributeSyntax ParseAttribute()
-    {
-        var result = TryParseAttributeResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private ParseResult<NamedAttributeSyntax> TryParseAttributeResult()
@@ -686,17 +620,6 @@ public sealed partial class Parser
         };
     }
 
-    private SyntaxToken ParseOperationNameToken()
-    {
-        var result = TryParseOperationNameTokenResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
     private ParseResult<SyntaxToken> TryParseOperationNameTokenResult()
     {
         if (!Is(TokenKind.Identifier) && !Is(TokenKind.StringLiteral))
@@ -707,31 +630,9 @@ public sealed partial class Parser
         return ParseResult<SyntaxToken>.Success(ToSyntaxToken(ConsumeToken()));
     }
 
-    private SyntaxToken ParseSsaToken()
-    {
-        var result = TryParseSsaTokenResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
     private ParseResult<SyntaxToken> TryParseSsaTokenResult()
     {
         return ExpectTokenResult(TokenKind.SsaName, "Expected an SSA value name.");
-    }
-
-    private SyntaxToken ParseBlockLabelToken()
-    {
-        var result = TryParseBlockLabelTokenResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private ParseResult<SyntaxToken> TryParseBlockLabelTokenResult()
@@ -828,15 +729,6 @@ public sealed partial class Parser
             && secondLookahead.Kind != TokenKind.Comma;
     }
 
-    private void EnsureOperationBoundary(bool allowBlockStart)
-    {
-        var result = EnsureOperationBoundaryResult(allowBlockStart);
-        if (!result.IsSuccess)
-        {
-            throw new ParseException(result.Diagnostic!);
-        }
-    }
-
     private ParseResult<bool> EnsureOperationBoundaryResult(bool allowBlockStart)
     {
         return IsOperationBoundary(Current, allowBlockStart)
@@ -913,34 +805,12 @@ public sealed partial class Parser
         return true;
     }
 
-    private SyntaxToken ExpectToken(TokenKind kind, string message)
-    {
-        var result = ExpectTokenResult(kind, message);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
     private ParseResult<SyntaxToken> ExpectTokenResult(TokenKind kind, string message)
     {
         var rawTokenResult = ExpectRawTokenResult(kind, message);
         return rawTokenResult.IsSuccess
             ? ParseResult<SyntaxToken>.Success(ToSyntaxToken(rawTokenResult.Value))
             : ParseResult<SyntaxToken>.Failure(rawTokenResult.Diagnostic!);
-    }
-
-    private Token ExpectRawToken(TokenKind kind, string message)
-    {
-        var result = ExpectRawTokenResult(kind, message);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private ParseResult<Token> ExpectRawTokenResult(TokenKind kind, string message)
@@ -988,7 +858,13 @@ public sealed partial class Parser
         string openMessage,
         string closeMessage)
     {
-        var openToken = ExpectToken(openKind, openMessage);
+        var openTokenResult = ExpectTokenResult(openKind, openMessage);
+        if (!openTokenResult.IsSuccess)
+        {
+            throw new ParseException(openTokenResult.Diagnostic!);
+        }
+
+        var openToken = openTokenResult.Value;
         return ParseCommaSeparatedDelimitedListCore(openToken, closeKind, parseElement, closeMessage);
     }
 
@@ -1075,7 +951,13 @@ public sealed partial class Parser
         if (!TryMatch(closeKind, out var closeToken))
         {
             ParseCommaSeparatedItems(items, separators, parseElement);
-            closeToken = ExpectRawToken(closeKind, closeMessage);
+            var closeTokenResult = ExpectRawTokenResult(closeKind, closeMessage);
+            if (!closeTokenResult.IsSuccess)
+            {
+                throw new ParseException(closeTokenResult.Diagnostic!);
+            }
+
+            closeToken = closeTokenResult.Value;
         }
 
         return new DelimitedSyntaxList<T>(openToken, items, separators, ToSyntaxToken(closeToken));
@@ -1814,27 +1696,57 @@ public sealed partial class Parser
 
     internal SyntaxToken ExpectTokenInternal(TokenKind kind, string message)
     {
-        return ExpectToken(kind, message);
+        var result = ExpectTokenResult(kind, message);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal SyntaxToken ParseSsaTokenInternal()
     {
-        return ParseSsaToken();
+        var result = TryParseSsaTokenResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal SyntaxToken ParseBlockLabelTokenInternal()
     {
-        return ParseBlockLabelToken();
+        var result = TryParseBlockLabelTokenResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal RegionSyntax ParseRegionInternal()
     {
-        return ParseRegion();
+        var result = TryParseRegionResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal NamedAttributeSyntax ParseAttributeInternal()
     {
-        return ParseAttribute();
+        var result = TryParseAttributeResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(params TokenKind[] delimiters)
@@ -1972,7 +1884,7 @@ public sealed partial class Parser
         return ParseRequiredCommaSeparatedDelimitedList(
             TokenKind.LBrace,
             TokenKind.RBrace,
-            ParseAttribute,
+            () => ThrowIfFailure(TryParseAttributeResult()),
             "Expected '{' to start the attribute dictionary.",
             "Expected '}' to close the attribute dictionary.");
     }
@@ -2014,7 +1926,13 @@ public sealed partial class Parser
         var regions = new List<RegionSyntax>();
         while (Is(TokenKind.LBrace))
         {
-            regions.Add(ParseRegion());
+            var result = TryParseRegionResult();
+            if (!result.IsSuccess)
+            {
+                throw new ParseException(result.Diagnostic!);
+            }
+
+            regions.Add(result.Value);
         }
 
         return regions;
@@ -2027,27 +1945,49 @@ public sealed partial class Parser
             return EmptyDelimitedSyntaxList<SyntaxToken>();
         }
 
-        return ParseRequiredCommaSeparatedDelimitedList(
-            TokenKind.LBracket,
-            TokenKind.RBracket,
-            ParseBlockLabelToken,
-            "Expected '[' for the successor list.",
-            "Expected ']' to close the successor list.");
+        var result = TryParseSuccessorsResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal DelimitedSyntaxList<SyntaxToken> ParseOperandsInternal()
     {
-        return ParseRequiredCommaSeparatedDelimitedList(
-            TokenKind.LParen,
-            TokenKind.RParen,
-            ParseSsaToken,
-            "Expected '(' for the operand list.",
-            "Expected ')' to close the operand list.");
+        var result = TryParseOperandsResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal bool IsKeywordInternal(string spelling)
     {
         return Is(TokenKind.Identifier) && string.Equals(Current.Text, spelling, System.StringComparison.Ordinal);
+    }
+
+    private SyntaxToken ThrowIfFailure(ParseResult<SyntaxToken> result)
+    {
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private T ThrowIfFailure<T>(ParseResult<T> result)
+    {
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     private string? TryPeekAttributeDefinitionName()
