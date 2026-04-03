@@ -12,14 +12,14 @@ using TableGen.Syntax;
 internal sealed class ExpressionEvaluator
 {
     private readonly EvaluationContext context;
-    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass;
+    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass;
     private readonly Func<DefSyntax, EvaluationResult<Record>> buildDefinition;
 
     internal delegate EvaluationResult<Value> TryResolveValue(string name);
 
     public ExpressionEvaluator(
         EvaluationContext context,
-        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass,
+        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass,
         Func<DefSyntax, EvaluationResult<Record>> buildDefinition)
     {
         this.context = context;
@@ -29,7 +29,7 @@ internal sealed class ExpressionEvaluator
 
     public EvaluationResult<Value> TryEvaluate(
         ExpressionSyntax expression,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue = null)
     {
         switch (expression)
@@ -69,7 +69,7 @@ internal sealed class ExpressionEvaluator
 
     public Value Evaluate(
         ExpressionSyntax expression,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue = null)
     {
         var result = TryEvaluate(expression, scope, tryResolveValue);
@@ -219,7 +219,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateList(
         ListSyntax list,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var items = new List<Value>(list.Items.Count);
@@ -239,7 +239,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateDag(
         DagSyntax dag,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var arguments = new List<DagArgumentValue>(dag.Arguments.Count);
@@ -259,7 +259,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateConcatenation(
         ConcatSyntax concat,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var left = TryEvaluate(concat.Left, scope, tryResolveValue);
@@ -291,7 +291,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateBangCall(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         switch (bangCall.OperatorName)
@@ -408,7 +408,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateFoldl(
         FoldlSyntax foldl,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var accValue = TryEvaluate(foldl.Init, scope, tryResolveValue);
@@ -431,9 +431,7 @@ internal sealed class ExpressionEvaluator
         var current = accValue.Value;
         foreach (var item in list.Items)
         {
-            var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
-            innerScope[foldl.AccVar] = current;
-            innerScope[foldl.CurVar] = item;
+            var innerScope = scope.With(foldl.AccVar, current).With(foldl.CurVar, item);
             var body = TryEvaluate(foldl.Body, innerScope, tryResolveValue);
             if (!body.IsSuccess)
             {
@@ -448,7 +446,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateClassInstantiation(
         ClassInstantiationSyntax instantiation,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(instantiation.ClassName, out var classSyntax))
@@ -469,7 +467,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateAnonymousClassInstantiation(
         AnonymousClassInstantiationSyntax inst,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(inst.ClassName, out var classSyntax))
@@ -485,7 +483,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateFieldAccess(
         FieldAccessSyntax fieldAccess,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var obj = TryEvaluate(fieldAccess.Object, scope, tryResolveValue);
@@ -515,7 +513,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateSubscript(
         SubscriptSyntax subscript,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var target = TryEvaluate(subscript.Target, scope, tryResolveValue);
@@ -553,7 +551,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> EvaluateForeach(
         ForeachSyntax forEach,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var listValue = TryEvaluate(forEach.List, scope, tryResolveValue);
@@ -570,8 +568,7 @@ internal sealed class ExpressionEvaluator
         var results = new List<Value>(list.Items.Count);
         foreach (var item in list.Items)
         {
-            var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
-            innerScope[forEach.VarName] = item;
+            var innerScope = scope.With(forEach.VarName, item);
             var body = TryEvaluate(forEach.Body, innerScope, tryResolveValue);
             if (!body.IsSuccess)
             {
@@ -586,7 +583,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateIntegerComparison(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue,
         Func<int, int, bool> predicate)
     {
@@ -604,7 +601,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateEquality(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue,
         bool expectedEqual)
     {
@@ -626,7 +623,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateIntegerBinary(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue,
         string contextName,
         Func<int, int, int> operation)
@@ -645,7 +642,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateUnaryString(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue,
         string contextName,
         Func<string, string> operation)
@@ -658,7 +655,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateSubstr(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var str = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!substr");
@@ -691,7 +688,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateFind(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var str = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!find");
@@ -719,7 +716,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateRange(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var start = TryEvaluateInteger(bangCall.Arguments[0], scope, tryResolveValue, "!range");
@@ -745,7 +742,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateListConcat(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var a = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
@@ -773,7 +770,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateStrConcat(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var parts = new List<string>(bangCall.Arguments.Count);
@@ -799,7 +796,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateCond(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         for (var i = 0; i + 1 < bangCall.Arguments.Count; i += 2)
@@ -827,7 +824,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateInterleave(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var listVal = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
@@ -864,7 +861,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateSubst(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var from = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!subst");
@@ -887,7 +884,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateHead(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var list = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
@@ -908,7 +905,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateTail(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var list = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
@@ -929,7 +926,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateEmpty(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
@@ -949,7 +946,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> TryEvaluateFilter(
         BangCallSyntax bangCall,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         var variable = ((IdentifierSyntax)bangCall.Arguments[0]).Name;
@@ -967,8 +964,7 @@ internal sealed class ExpressionEvaluator
         var results = new List<Value>();
         foreach (var item in list.Items)
         {
-            var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
-            innerScope[variable] = item;
+            var innerScope = scope.With(variable, item);
             var condition = TryEvaluate(bangCall.Arguments[2], innerScope, tryResolveValue);
             if (!condition.IsSuccess)
             {
@@ -992,7 +988,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<int> TryEvaluateInteger(
         ExpressionSyntax expression,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue,
         string contextName)
     {
@@ -1004,7 +1000,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<string> TryEvaluateString(
         ExpressionSyntax expression,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue,
         string contextName)
     {
@@ -1044,7 +1040,7 @@ internal sealed class ExpressionEvaluator
 
     private EvaluationResult<Value> ResolveIdentifier(
         string name,
-        IReadOnlyDictionary<string, Value> scope,
+        Scope scope,
         TryResolveValue? tryResolveValue)
     {
         if (scope.TryGetValue(name, out var value))

@@ -22,7 +22,7 @@ internal sealed class PendingRecordState
         }
     }
 
-    public void DefineField(FieldSyntax field, IReadOnlyDictionary<string, Value> lexicalScope)
+    public void DefineField(FieldSyntax field, Scope lexicalScope)
     {
         if (fields.TryGetValue(field.Name, out var existingField))
         {
@@ -38,7 +38,7 @@ internal sealed class PendingRecordState
         fields[field.Name] = new PendingFieldState(field.TypeName, field.Initializer, lexicalScope);
     }
 
-    public void ApplyLet(LetSyntax let, IReadOnlyDictionary<string, Value> lexicalScope)
+    public void ApplyLet(LetSyntax let, Scope lexicalScope)
     {
         if (fields.TryGetValue(let.Name, out var existingField))
         {
@@ -52,7 +52,7 @@ internal sealed class PendingRecordState
 
 internal sealed class PendingFieldState
 {
-    public PendingFieldState(string? typeName, ExpressionSyntax? expression, IReadOnlyDictionary<string, Value> lexicalScope)
+    public PendingFieldState(string? typeName, ExpressionSyntax? expression, Scope lexicalScope)
     {
         DeclaredTypeName = typeName;
         Expression = expression;
@@ -63,7 +63,7 @@ internal sealed class PendingFieldState
 
     public ExpressionSyntax? Expression { get; private set; }
 
-    public IReadOnlyDictionary<string, Value> LexicalScope { get; private set; }
+    public Scope LexicalScope { get; private set; }
 
     public Value? ResolvedValue { get; set; }
 
@@ -73,7 +73,7 @@ internal sealed class PendingFieldState
 
     public bool HasExpression => Expression != null;
 
-    public void SetExpression(ExpressionSyntax expression, IReadOnlyDictionary<string, Value> lexicalScope)
+    public void SetExpression(ExpressionSyntax expression, Scope lexicalScope)
     {
         Expression = expression;
         LexicalScope = lexicalScope;

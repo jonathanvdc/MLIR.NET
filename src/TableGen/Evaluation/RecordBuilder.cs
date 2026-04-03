@@ -24,7 +24,7 @@ internal sealed class RecordBuilder
 
     public EvaluationResult<InterpretedDocument> BuildDocument()
     {
-        var emptyScope = new Dictionary<string, Value>();
+        var emptyScope = Scope.Empty;
         foreach (var defvar in context.Document.Declarations.OfType<DefVarSyntax>())
         {
             var defvarValue = expressionEvaluator.TryEvaluate(defvar.Value, emptyScope);
@@ -58,7 +58,7 @@ internal sealed class RecordBuilder
             return EvaluationResult<Record>.Success(existingRecord);
         }
 
-        var scope = new Dictionary<string, Value>();
+        var scope = Scope.Empty;
         var baseClasses = new List<string>();
         var seenBaseClasses = new HashSet<string>();
         CollectBaseClasses(definition.Bases, seenBaseClasses, baseClasses);
@@ -90,10 +90,10 @@ internal sealed class RecordBuilder
     public EvaluationResult<Dictionary<string, Value>> InstantiateClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
-        IReadOnlyDictionary<string, Value> outerScope,
+        Scope outerScope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue = null)
     {
-        var scope = new Dictionary<string, Value>();
+        var scope = Scope.Empty;
 
         for (var i = 0; i < classSyntax.TemplateParameters.Count; i++)
         {
@@ -125,7 +125,7 @@ internal sealed class RecordBuilder
                     new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
             }
 
-            scope[parameter.Name] = value;
+            scope = scope.With(parameter.Name, value);
         }
 
         var state = new PendingRecordState();
@@ -165,7 +165,7 @@ internal sealed class RecordBuilder
 
     private EvaluationResult<bool> ApplyPendingBases(
         IReadOnlyList<BaseSyntax> bases,
-        Dictionary<string, Value> scope,
+        Scope scope,
         PendingRecordState state)
     {
         foreach (var @base in bases)
@@ -190,9 +190,9 @@ internal sealed class RecordBuilder
     private EvaluationResult<PendingRecordState> InstantiatePendingClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
-        IReadOnlyDictionary<string, Value> outerScope)
+        Scope outerScope)
     {
-        var scope = new Dictionary<string, Value>();
+        var scope = Scope.Empty;
 
         for (var i = 0; i < classSyntax.TemplateParameters.Count; i++)
         {
@@ -224,7 +224,7 @@ internal sealed class RecordBuilder
                     new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
             }
 
-            scope[parameter.Name] = value;
+            scope = scope.With(parameter.Name, value);
         }
 
         var state = new PendingRecordState();
@@ -245,33 +245,34 @@ internal sealed class RecordBuilder
 
     private EvaluationResult<bool> ApplyPendingBody(
         IReadOnlyList<BodyItemSyntax> bodyItems,
-        Dictionary<string, Value> scope,
+        Scope scope,
         PendingRecordState state)
     {
+        var currentScope = scope;
         foreach (var item in bodyItems)
         {
             switch (item)
             {
                 case FieldSyntax field:
-                    state.DefineField(field, scope);
+                    state.DefineField(field, currentScope);
                     break;
                 case LetSyntax let:
-                    state.ApplyLet(let, scope);
+                    state.ApplyLet(let, currentScope);
                     break;
                 case LocalDefVarSyntax defVar:
                 {
-                    var value = expressionEvaluator.TryEvaluate(defVar.Value, scope, TryResolveField(state));
+                    var value = expressionEvaluator.TryEvaluate(defVar.Value, currentScope, TryResolveField(state));
                     if (!value.IsSuccess)
                     {
                         return EvaluationResult<bool>.Failure(value.Error!);
                     }
 
-                    scope[defVar.Name] = value.Value;
+                    currentScope = currentScope.With(defVar.Name, value.Value);
                     break;
                 }
                 case AssertSyntax assert:
                 {
-                    var condition = expressionEvaluator.TryEvaluate(assert.Condition, scope, TryResolveField(state));
+                    var condition = expressionEvaluator.TryEvaluate(assert.Condition, currentScope, TryResolveField(state));
                     if (!condition.IsSuccess)
                     {
                         return EvaluationResult<bool>.Failure(condition.Error!);
@@ -288,7 +289,7 @@ internal sealed class RecordBuilder
                         Exception? messageError = null;
                         var message = assert.Message == null
                             ? "TableGen assertion failed."
-                            : GetAssertionMessage(assert.Message, scope, state, out messageError);
+                            : GetAssertionMessage(assert.Message, currentScope, state, out messageError);
                         if (messageError != null)
                         {
                             return EvaluationResult<bool>.Failure(messageError);
@@ -305,11 +306,11 @@ internal sealed class RecordBuilder
         return EvaluationResult<bool>.Success(true);
     }
 
-    private string GetAssertionMessage(
-        ExpressionSyntax messageExpression,
-        IReadOnlyDictionary<string, Value> scope,
-        PendingRecordState state,
-        out Exception? error)
+        private string GetAssertionMessage(
+            ExpressionSyntax messageExpression,
+            Scope scope,
+            PendingRecordState state,
+            out Exception? error)
     {
         var message = expressionEvaluator.TryEvaluate(messageExpression, scope, TryResolveField(state));
         if (!message.IsSuccess)
