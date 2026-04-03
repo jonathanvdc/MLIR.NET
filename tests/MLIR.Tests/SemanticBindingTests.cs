@@ -100,6 +100,21 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
+    public void TypesFactoryCreatesBuiltinSemanticTypesErgonomically()
+    {
+        var function = TypeFactory.Function(
+            [TypeFactory.Tensor([2, null], TypeFactory.F32), TypeFactory.Index],
+            [TypeFactory.Tuple(TypeFactory.Vector([4], TypeFactory.F32), TypeFactory.UnrankedMemRef(TypeFactory.F32, "#map"))]);
+
+        var rebound = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32, #map>>"))
+            .Operations[0]
+            .TypeSignatureReference!;
+
+        Assert.Equal(rebound, function);
+    }
+
+    [Fact]
     public void LeavesUnknownOperationsUnbound()
     {
         var module = Binder.BindModule(Parser.ParseModule("\"test.unknown\"() : () -> ()"));

@@ -38,7 +38,7 @@ public sealed class MiniEnumDialectTests : DialectIntegrationTestBase
             input: new UnresolvedValue(new SyntaxToken("%input")),
             resultValue: new OperationResult(new SyntaxToken("%result")),
             flags: Flags.X | Flags.Y,
-            typeSignatureReference: new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+            typeSignatureReference: TypeFactory.I32);
 
         var registry = CreateMiniEnumRegistry();
         var printed = new Module(new ModuleSyntax([]), [operation], []).ToText(CustomAssemblyOptions);
