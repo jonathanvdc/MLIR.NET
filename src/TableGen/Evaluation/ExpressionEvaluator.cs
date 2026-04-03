@@ -12,465 +12,1006 @@ using TableGen.Syntax;
 internal sealed class ExpressionEvaluator
 {
     private readonly EvaluationContext context;
-    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, Dictionary<string, Value>> instantiateClass;
-    private readonly Func<DefSyntax, Record> buildDefinition;
+    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass;
+    private readonly Func<DefSyntax, EvaluationResult<Record>> buildDefinition;
 
-    internal delegate bool TryResolveValue(string name, out Value value);
+    internal delegate EvaluationResult<Value> TryResolveValue(string name);
 
     public ExpressionEvaluator(
         EvaluationContext context,
-        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, Dictionary<string, Value>> instantiateClass,
-        Func<DefSyntax, Record> buildDefinition)
+        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass,
+        Func<DefSyntax, EvaluationResult<Record>> buildDefinition)
     {
         this.context = context;
         this.instantiateClass = instantiateClass;
         this.buildDefinition = buildDefinition;
     }
 
-    public Value Evaluate(ExpressionSyntax expression, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue = null)
+    public EvaluationResult<Value> TryEvaluate(
+        ExpressionSyntax expression,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue = null)
     {
-        return expression switch
+        switch (expression)
         {
-            IntegerSyntax integer => new IntegerValue(integer.Value),
-            StringSyntax str => new StringValue(str.Value),
-            UnsetSyntax => new UnsetValue(),
-            IdentifierSyntax identifier => ResolveIdentifier(identifier.Name, scope, tryResolveValue),
-            ListSyntax list => new ListValue(list.Items.Select(item => Evaluate(item, scope, tryResolveValue)).ToList()),
-            DagSyntax dag => new DagValue(dag.OperatorName, dag.Arguments.Select(argument => new DagArgumentValue(Evaluate(argument.Value, scope, tryResolveValue), argument.Name)).ToList()),
-            ConcatSyntax concat => EvaluateConcatenation(concat, scope, tryResolveValue),
-            BangCallSyntax bangCall => EvaluateBangCall(bangCall, scope, tryResolveValue),
-            FoldlSyntax foldl => EvaluateFoldl(foldl, scope, tryResolveValue),
-            ForeachSyntax forEach => EvaluateForeach(forEach, scope, tryResolveValue),
-            AnonymousClassInstantiationSyntax anonInst => EvaluateAnonymousClassInstantiation(anonInst, scope, tryResolveValue),
-            FieldAccessSyntax fieldAccess => EvaluateFieldAccess(fieldAccess, scope, tryResolveValue),
-            SubscriptSyntax subscript => EvaluateSubscript(subscript, scope, tryResolveValue),
-            ClassInstantiationSyntax instantiation => EvaluateClassInstantiation(instantiation, scope, tryResolveValue),
-            _ => throw new InvalidOperationException("Unknown TableGen expression."),
+            case IntegerSyntax integer:
+                return Success(new IntegerValue(integer.Value));
+            case StringSyntax str:
+                return Success(new StringValue(str.Value));
+            case UnsetSyntax:
+                return Success(new UnsetValue());
+            case IdentifierSyntax identifier:
+                return ResolveIdentifier(identifier.Name, scope, tryResolveValue);
+            case ListSyntax list:
+                return TryEvaluateList(list, scope, tryResolveValue);
+            case DagSyntax dag:
+                return TryEvaluateDag(dag, scope, tryResolveValue);
+            case ConcatSyntax concat:
+                return EvaluateConcatenation(concat, scope, tryResolveValue);
+            case BangCallSyntax bangCall:
+                return EvaluateBangCall(bangCall, scope, tryResolveValue);
+            case FoldlSyntax foldl:
+                return EvaluateFoldl(foldl, scope, tryResolveValue);
+            case ForeachSyntax forEach:
+                return EvaluateForeach(forEach, scope, tryResolveValue);
+            case AnonymousClassInstantiationSyntax anonInst:
+                return EvaluateAnonymousClassInstantiation(anonInst, scope, tryResolveValue);
+            case FieldAccessSyntax fieldAccess:
+                return EvaluateFieldAccess(fieldAccess, scope, tryResolveValue);
+            case SubscriptSyntax subscript:
+                return EvaluateSubscript(subscript, scope, tryResolveValue);
+            case ClassInstantiationSyntax instantiation:
+                return EvaluateClassInstantiation(instantiation, scope, tryResolveValue);
+            default:
+                return Failure(new InvalidOperationException("Unknown TableGen expression."));
+        }
+    }
+
+    public Value Evaluate(
+        ExpressionSyntax expression,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue = null)
+    {
+        var result = TryEvaluate(expression, scope, tryResolveValue);
+        if (!result.IsSuccess)
+        {
+            throw result.Error!;
+        }
+
+        return result.Value;
+    }
+
+    public static EvaluationResult<bool> TryIsTruthy(Value value)
+    {
+        return value switch
+        {
+            IntegerValue integer => EvaluationResult<bool>.Success(integer.Value != 0),
+            BitValue bit => EvaluationResult<bool>.Success(bit.Value),
+            _ => EvaluationResult<bool>.Failure(new InvalidOperationException($"Expected a boolean-like condition, got {value.GetType().Name}.")),
         };
     }
 
-    public static bool IsTruthy(Value value) => value switch
+    public static bool IsTruthy(Value value)
     {
-        IntegerValue integer => integer.Value != 0,
-        BitValue bit => bit.Value,
-        _ => throw new InvalidOperationException($"Expected a boolean-like condition, got {value.GetType().Name}."),
-    };
+        var result = TryIsTruthy(value);
+        if (!result.IsSuccess)
+        {
+            throw result.Error!;
+        }
 
-    public static string ValueToString(Value value) => value switch
+        return result.Value;
+    }
+
+    public static EvaluationResult<string> TryValueToString(Value value)
     {
-        StringValue str => str.Value,
-        IntegerValue integer => integer.Value.ToString(CultureInfo.InvariantCulture),
-        BitValue bit => bit.Value ? "1" : "0",
-        ListValue list => string.Concat(list.Items.Select(ValueToString)),
-        SymbolReferenceValue symbol => symbol.SymbolName,
-        RecordReferenceValue record => record.RecordName,
-        UnsetValue => string.Empty,
-        AnonymousRecordValue rec => rec.ClassName,
-        _ => throw new InvalidOperationException($"Cannot convert {value.GetType().Name} to string for concatenation."),
-    };
+        switch (value)
+        {
+            case StringValue str:
+                return EvaluationResult<string>.Success(str.Value);
+            case IntegerValue integer:
+                return EvaluationResult<string>.Success(integer.Value.ToString(CultureInfo.InvariantCulture));
+            case BitValue bit:
+                return EvaluationResult<string>.Success(bit.Value ? "1" : "0");
+            case ListValue list:
+            {
+                var pieces = new List<string>(list.Items.Count);
+                foreach (var item in list.Items)
+                {
+                    var itemString = TryValueToString(item);
+                    if (!itemString.IsSuccess)
+                    {
+                        return EvaluationResult<string>.Failure(itemString.Error!);
+                    }
 
-    public static Value CoerceValue(string typeName, Value value)
+                    pieces.Add(itemString.Value);
+                }
+
+                return EvaluationResult<string>.Success(string.Concat(pieces));
+            }
+            case SymbolReferenceValue symbol:
+                return EvaluationResult<string>.Success(symbol.SymbolName);
+            case RecordReferenceValue record:
+                return EvaluationResult<string>.Success(record.RecordName);
+            case UnsetValue:
+                return EvaluationResult<string>.Success(string.Empty);
+            case AnonymousRecordValue rec:
+                return EvaluationResult<string>.Success(rec.ClassName);
+            default:
+                return EvaluationResult<string>.Failure(new InvalidOperationException($"Cannot convert {value.GetType().Name} to string for concatenation."));
+        }
+    }
+
+    public static string ValueToString(Value value)
+    {
+        var result = TryValueToString(value);
+        if (!result.IsSuccess)
+        {
+            throw result.Error!;
+        }
+
+        return result.Value;
+    }
+
+    public static EvaluationResult<Value> TryCoerceValue(string typeName, Value value)
     {
         if (value is UnsetValue)
         {
-            return value;
+            return Success(value);
         }
 
-        return typeName switch
+        switch (typeName)
         {
-            "int" when value is not IntegerValue => throw new InvalidOperationException($"Expected an integer value for '{typeName}'."),
-            "string" when value is not StringValue => new StringValue(ValueToString(value)),
-            "code" => value,
-            "bit" when value is IntegerValue integer => new BitValue(integer.Value != 0),
-            "bit" when value is BitValue => value,
-            "bit" => throw new InvalidOperationException($"Expected a bit value for '{typeName}'."),
-            "dag" when value is not DagValue => throw new InvalidOperationException($"Expected a dag value for '{typeName}'."),
-            _ => value,
+            case "int" when value is not IntegerValue:
+                return Failure(new InvalidOperationException($"Expected an integer value for '{typeName}'."));
+            case "string" when value is not StringValue:
+            {
+                var stringResult = TryValueToString(value);
+                return stringResult.IsSuccess
+                    ? Success(new StringValue(stringResult.Value))
+                    : Failure(stringResult.Error!);
+            }
+            case "code":
+                return Success(value);
+            case "bit" when value is IntegerValue integer:
+                return Success(new BitValue(integer.Value != 0));
+            case "bit" when value is BitValue:
+                return Success(value);
+            case "bit":
+                return Failure(new InvalidOperationException($"Expected a bit value for '{typeName}'."));
+            case "dag" when value is not DagValue:
+                return Failure(new InvalidOperationException($"Expected a dag value for '{typeName}'."));
+            default:
+                return Success(value);
+        }
+    }
+
+    public static Value CoerceValue(string typeName, Value value)
+    {
+        var result = TryCoerceValue(typeName, value);
+        if (!result.IsSuccess)
+        {
+            throw result.Error!;
+        }
+
+        return result.Value;
+    }
+
+    public static EvaluationResult<Value> TryCoerceExistingValue(Value existingValue, Value replacementValue)
+    {
+        return existingValue switch
+        {
+            BitValue when replacementValue is IntegerValue integer => Success(new BitValue(integer.Value != 0)),
+            BitValue when replacementValue is BitValue => Success(replacementValue),
+            _ => Success(replacementValue),
         };
     }
 
     public static Value CoerceExistingValue(Value existingValue, Value replacementValue)
     {
-        return existingValue switch
+        var result = TryCoerceExistingValue(existingValue, replacementValue);
+        if (!result.IsSuccess)
         {
-            BitValue when replacementValue is IntegerValue integer => new BitValue(integer.Value != 0),
-            BitValue when replacementValue is BitValue => replacementValue,
-            _ => replacementValue,
-        };
+            throw result.Error!;
+        }
+
+        return result.Value;
     }
 
-    private Value EvaluateConcatenation(ConcatSyntax concat, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
+    private EvaluationResult<Value> TryEvaluateList(
+        ListSyntax list,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
-        var left = Evaluate(concat.Left, scope, tryResolveValue);
-        var right = Evaluate(concat.Right, scope, tryResolveValue);
-        return new StringValue(ValueToString(left) + ValueToString(right));
+        var items = new List<Value>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            var itemResult = TryEvaluate(item, scope, tryResolveValue);
+            if (!itemResult.IsSuccess)
+            {
+                return Failure(itemResult.Error!);
+            }
+
+            items.Add(itemResult.Value);
+        }
+
+        return Success(new ListValue(items));
     }
 
-    private Value EvaluateBangCall(BangCallSyntax bangCall, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
+    private EvaluationResult<Value> TryEvaluateDag(
+        DagSyntax dag,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var arguments = new List<DagArgumentValue>(dag.Arguments.Count);
+        foreach (var argument in dag.Arguments)
+        {
+            var valueResult = TryEvaluate(argument.Value, scope, tryResolveValue);
+            if (!valueResult.IsSuccess)
+            {
+                return Failure(valueResult.Error!);
+            }
+
+            arguments.Add(new DagArgumentValue(valueResult.Value, argument.Name));
+        }
+
+        return Success(new DagValue(dag.OperatorName, arguments));
+    }
+
+    private EvaluationResult<Value> EvaluateConcatenation(
+        ConcatSyntax concat,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var left = TryEvaluate(concat.Left, scope, tryResolveValue);
+        if (!left.IsSuccess)
+        {
+            return Failure(left.Error!);
+        }
+
+        var right = TryEvaluate(concat.Right, scope, tryResolveValue);
+        if (!right.IsSuccess)
+        {
+            return Failure(right.Error!);
+        }
+
+        var leftString = TryValueToString(left.Value);
+        if (!leftString.IsSuccess)
+        {
+            return Failure(leftString.Error!);
+        }
+
+        var rightString = TryValueToString(right.Value);
+        if (!rightString.IsSuccess)
+        {
+            return Failure(rightString.Error!);
+        }
+
+        return Success(new StringValue(leftString.Value + rightString.Value));
+    }
+
+    private EvaluationResult<Value> EvaluateBangCall(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
         switch (bangCall.OperatorName)
         {
             case "if":
             {
-                var cond = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                return IsTruthy(cond)
-                    ? Evaluate(bangCall.Arguments[1], scope, tryResolveValue)
-                    : Evaluate(bangCall.Arguments[2], scope, tryResolveValue);
-            }
+                var cond = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                if (!cond.IsSuccess)
+                {
+                    return Failure(cond.Error!);
+                }
 
+                var truthy = TryIsTruthy(cond.Value);
+                if (!truthy.IsSuccess)
+                {
+                    return Failure(truthy.Error!);
+                }
+
+                return TryEvaluate(truthy.Value ? bangCall.Arguments[1] : bangCall.Arguments[2], scope, tryResolveValue);
+            }
             case "gt":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!gt");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!gt");
-                return new IntegerValue(a > b ? 1 : 0);
-            }
-
+                return TryEvaluateIntegerComparison(bangCall, scope, tryResolveValue, static (a, b) => a > b);
             case "ge":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!ge");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!ge");
-                return new IntegerValue(a >= b ? 1 : 0);
-            }
-
+                return TryEvaluateIntegerComparison(bangCall, scope, tryResolveValue, static (a, b) => a >= b);
             case "lt":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!lt");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!lt");
-                return new IntegerValue(a < b ? 1 : 0);
-            }
-
+                return TryEvaluateIntegerComparison(bangCall, scope, tryResolveValue, static (a, b) => a < b);
             case "le":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!le");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!le");
-                return new IntegerValue(a <= b ? 1 : 0);
-            }
-
+                return TryEvaluateIntegerComparison(bangCall, scope, tryResolveValue, static (a, b) => a <= b);
             case "eq":
-            {
-                var a = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                var b = Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
-                return new IntegerValue(ValuesEqual(a, b) ? 1 : 0);
-            }
-
+                return TryEvaluateEquality(bangCall, scope, tryResolveValue, expectedEqual: true);
             case "ne":
-            {
-                var a = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                var b = Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
-                return new IntegerValue(ValuesEqual(a, b) ? 0 : 1);
-            }
-
+                return TryEvaluateEquality(bangCall, scope, tryResolveValue, expectedEqual: false);
             case "add":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!add");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!add");
-                return new IntegerValue(a + b);
-            }
-
+                return TryEvaluateIntegerBinary(bangCall, scope, tryResolveValue, "!add", static (a, b) => a + b);
             case "sub":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!sub");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!sub");
-                return new IntegerValue(a - b);
-            }
-
+                return TryEvaluateIntegerBinary(bangCall, scope, tryResolveValue, "!sub", static (a, b) => a - b);
             case "mul":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!mul");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!mul");
-                return new IntegerValue(a * b);
-            }
-
+                return TryEvaluateIntegerBinary(bangCall, scope, tryResolveValue, "!mul", static (a, b) => a * b);
             case "and":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!and");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!and");
-                return new IntegerValue(a & b);
-            }
-
+                return TryEvaluateIntegerBinary(bangCall, scope, tryResolveValue, "!and", static (a, b) => a & b);
             case "or":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!or");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!or");
-                return new IntegerValue(a | b);
-            }
-
+                return TryEvaluateIntegerBinary(bangCall, scope, tryResolveValue, "!or", static (a, b) => a | b);
             case "not":
             {
-                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                return new IntegerValue(IsTruthy(val) ? 0 : 1);
-            }
+                var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                if (!val.IsSuccess)
+                {
+                    return Failure(val.Error!);
+                }
 
+                var truthy = TryIsTruthy(val.Value);
+                return truthy.IsSuccess
+                    ? Success(new IntegerValue(truthy.Value ? 0 : 1))
+                    : Failure(truthy.Error!);
+            }
             case "size":
             {
-                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                return val switch
+                var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                if (!val.IsSuccess)
                 {
-                    StringValue str => new IntegerValue(str.Value.Length),
-                    ListValue list => new IntegerValue(list.Items.Count),
-                    _ => throw new InvalidOperationException($"!size requires a string or list argument, got {val.GetType().Name}."),
+                    return Failure(val.Error!);
+                }
+
+                return val.Value switch
+                {
+                    StringValue str => Success(new IntegerValue(str.Value.Length)),
+                    ListValue list => Success(new IntegerValue(list.Items.Count)),
+                    _ => Failure(new InvalidOperationException($"!size requires a string or list argument, got {val.Value.GetType().Name}.")),
                 };
             }
-
             case "toupper":
-            {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!toupper");
-                return new StringValue(str.ToUpperInvariant());
-            }
-
+                return TryEvaluateUnaryString(bangCall, scope, tryResolveValue, "!toupper", static str => str.ToUpperInvariant());
             case "tolower":
-            {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!tolower");
-                return new StringValue(str.ToLowerInvariant());
-            }
-
+                return TryEvaluateUnaryString(bangCall, scope, tryResolveValue, "!tolower", static str => str.ToLowerInvariant());
             case "substr":
-            {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!substr");
-                var start = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!substr");
-                var clampedStart = Math.Max(0, Math.Min(start, str.Length));
-                if (bangCall.Arguments.Count >= 3)
-                {
-                    var len = ToInteger(Evaluate(bangCall.Arguments[2], scope, tryResolveValue), "!substr");
-                    var clampedLen = Math.Max(0, Math.Min(len, str.Length - clampedStart));
-                    return new StringValue(str.Substring(clampedStart, clampedLen));
-                }
-
-                return new StringValue(str.Substring(clampedStart));
-            }
-
+                return TryEvaluateSubstr(bangCall, scope, tryResolveValue);
             case "find":
-            {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!find");
-                var sub = ToString(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!find");
-                var startIndex = bangCall.Arguments.Count >= 3
-                    ? ToInteger(Evaluate(bangCall.Arguments[2], scope, tryResolveValue), "!find")
-                    : 0;
-                return new IntegerValue(str.IndexOf(sub, startIndex, StringComparison.Ordinal));
-            }
-
+                return TryEvaluateFind(bangCall, scope, tryResolveValue);
             case "range":
-            {
-                var start = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!range");
-                var end = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!range");
-                var items = new List<Value>(Math.Max(0, end - start));
-                for (var i = start; i < end; i++)
-                {
-                    items.Add(new IntegerValue(i));
-                }
-
-                return new ListValue(items);
-            }
-
+                return TryEvaluateRange(bangCall, scope, tryResolveValue);
             case "listconcat":
-            {
-                var a = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                var b = (ListValue)Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
-                var items = new List<Value>(a.Items.Count + b.Items.Count);
-                items.AddRange(a.Items);
-                items.AddRange(b.Items);
-                return new ListValue(items);
-            }
-
+                return TryEvaluateListConcat(bangCall, scope, tryResolveValue);
             case "strconcat":
-            {
-                var result = string.Concat(bangCall.Arguments.Select(arg => ToString(Evaluate(arg, scope, tryResolveValue), "!strconcat")));
-                return new StringValue(result);
-            }
-
+                return TryEvaluateStrConcat(bangCall, scope, tryResolveValue);
             case "shl":
-            {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!shl");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!shl");
-                return new IntegerValue(a << b);
-            }
-
+                return TryEvaluateIntegerBinary(bangCall, scope, tryResolveValue, "!shl", static (a, b) => a << b);
             case "cast":
-            {
-                return Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-            }
-
+                return TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
             case "isa":
             {
-                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                return new IntegerValue(IsValueOfType(val, bangCall.TypeArgument) ? 1 : 0);
+                var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                return val.IsSuccess
+                    ? Success(new IntegerValue(IsValueOfType(val.Value, bangCall.TypeArgument) ? 1 : 0))
+                    : Failure(val.Error!);
             }
-
             case "cond":
-            {
-                for (var i = 0; i + 1 < bangCall.Arguments.Count; i += 2)
-                {
-                    if (IsTruthy(Evaluate(bangCall.Arguments[i], scope, tryResolveValue)))
-                    {
-                        return Evaluate(bangCall.Arguments[i + 1], scope, tryResolveValue);
-                    }
-                }
-
-                throw new InvalidOperationException("!cond requires at least one true condition.");
-            }
-
+                return TryEvaluateCond(bangCall, scope, tryResolveValue);
             case "interleave":
-            {
-                var listVal = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                var sep = ToString(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!interleave");
-                return new StringValue(string.Join(sep, listVal.Items.Select(item => ValueToString(item))));
-            }
-
+                return TryEvaluateInterleave(bangCall, scope, tryResolveValue);
             case "subst":
-            {
-                var from = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!subst");
-                var to = ToString(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!subst");
-                var text = ToString(Evaluate(bangCall.Arguments[2], scope, tryResolveValue), "!subst");
-                return new StringValue(text.Replace(from, to));
-            }
-
+                return TryEvaluateSubst(bangCall, scope, tryResolveValue);
             case "head":
-            {
-                var list = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                if (list.Items.Count == 0)
-                {
-                    throw new InvalidOperationException("!head requires a non-empty list.");
-                }
-
-                return list.Items[0];
-            }
-
+                return TryEvaluateHead(bangCall, scope, tryResolveValue);
             case "tail":
-            {
-                var list = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                if (list.Items.Count == 0)
-                {
-                    throw new InvalidOperationException("!tail requires a non-empty list.");
-                }
-
-                return new ListValue(list.Items.Skip(1).ToList());
-            }
-
+                return TryEvaluateTail(bangCall, scope, tryResolveValue);
             case "empty":
-            {
-                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
-                return val switch
-                {
-                    StringValue str => new IntegerValue(string.IsNullOrEmpty(str.Value) ? 1 : 0),
-                    ListValue list => new IntegerValue(list.Items.Count == 0 ? 1 : 0),
-                    UnsetValue => new IntegerValue(1),
-                    _ => new IntegerValue(0),
-                };
-            }
-
+                return TryEvaluateEmpty(bangCall, scope, tryResolveValue);
             case "filter":
-            {
-                var variable = ((IdentifierSyntax)bangCall.Arguments[0]).Name;
-                var listValue = (ListValue)Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
-                var results = new List<Value>();
-                foreach (var item in listValue.Items)
-                {
-                    var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
-                    innerScope[variable] = item;
-                    if (IsTruthy(Evaluate(bangCall.Arguments[2], innerScope, tryResolveValue)))
-                    {
-                        results.Add(item);
-                    }
-                }
-
-                return new ListValue(results);
-            }
-
+                return TryEvaluateFilter(bangCall, scope, tryResolveValue);
             default:
-                throw new InvalidOperationException($"Unknown bang operator '!{bangCall.OperatorName}'.");
+                return Failure(new InvalidOperationException($"Unknown bang operator '!{bangCall.OperatorName}'."));
         }
     }
 
-    private Value EvaluateFoldl(FoldlSyntax foldl, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
+    private EvaluationResult<Value> EvaluateFoldl(
+        FoldlSyntax foldl,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
-        var accValue = Evaluate(foldl.Init, scope, tryResolveValue);
-        var listValue = (ListValue)Evaluate(foldl.List, scope, tryResolveValue);
-        foreach (var item in listValue.Items)
+        var accValue = TryEvaluate(foldl.Init, scope, tryResolveValue);
+        if (!accValue.IsSuccess)
+        {
+            return Failure(accValue.Error!);
+        }
+
+        var listValue = TryEvaluate(foldl.List, scope, tryResolveValue);
+        if (!listValue.IsSuccess)
+        {
+            return Failure(listValue.Error!);
+        }
+
+        if (listValue.Value is not ListValue list)
+        {
+            return Failure(new InvalidCastException());
+        }
+
+        var current = accValue.Value;
+        foreach (var item in list.Items)
         {
             var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
-            innerScope[foldl.AccVar] = accValue;
+            innerScope[foldl.AccVar] = current;
             innerScope[foldl.CurVar] = item;
-            accValue = Evaluate(foldl.Body, innerScope, tryResolveValue);
+            var body = TryEvaluate(foldl.Body, innerScope, tryResolveValue);
+            if (!body.IsSuccess)
+            {
+                return Failure(body.Error!);
+            }
+
+            current = body.Value;
         }
 
-        return accValue;
+        return Success(current);
     }
 
-    private Value EvaluateClassInstantiation(
+    private EvaluationResult<Value> EvaluateClassInstantiation(
         ClassInstantiationSyntax instantiation,
         IReadOnlyDictionary<string, Value> scope,
         TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(instantiation.ClassName, out var classSyntax))
         {
-            throw new KeyNotFoundException($"Unknown TableGen class '{instantiation.ClassName}'.");
+            return Failure(new KeyNotFoundException($"Unknown TableGen class '{instantiation.ClassName}'."));
         }
 
         var fields = instantiateClass(classSyntax, instantiation.Arguments, scope, tryResolveValue);
-        if (!fields.TryGetValue(instantiation.FieldName, out var fieldValue))
+        if (!fields.IsSuccess)
         {
-            throw new KeyNotFoundException($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'.");
+            return Failure(fields.Error!);
         }
 
-        return fieldValue;
+        return fields.Value.TryGetValue(instantiation.FieldName, out var fieldValue)
+            ? Success(fieldValue)
+            : Failure(new KeyNotFoundException($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'."));
     }
 
-    private Value EvaluateAnonymousClassInstantiation(
+    private EvaluationResult<Value> EvaluateAnonymousClassInstantiation(
         AnonymousClassInstantiationSyntax inst,
         IReadOnlyDictionary<string, Value> scope,
         TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(inst.ClassName, out var classSyntax))
         {
-            throw new KeyNotFoundException($"Unknown TableGen class '{inst.ClassName}'.");
+            return Failure(new KeyNotFoundException($"Unknown TableGen class '{inst.ClassName}'."));
         }
 
         var fields = instantiateClass(classSyntax, inst.Arguments, scope, tryResolveValue);
-        return new AnonymousRecordValue(inst.ClassName, fields);
+        return fields.IsSuccess
+            ? Success(new AnonymousRecordValue(inst.ClassName, fields.Value))
+            : Failure(fields.Error!);
     }
 
-    private Value EvaluateFieldAccess(FieldAccessSyntax fieldAccess, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
+    private EvaluationResult<Value> EvaluateFieldAccess(
+        FieldAccessSyntax fieldAccess,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
-        var obj = Evaluate(fieldAccess.Object, scope, tryResolveValue);
-
-        if (obj is AnonymousRecordValue rec)
+        var obj = TryEvaluate(fieldAccess.Object, scope, tryResolveValue);
+        if (!obj.IsSuccess)
         {
-            return rec.Fields.TryGetValue(fieldAccess.FieldName, out var fv) ? fv : new UnsetValue();
+            return Failure(obj.Error!);
         }
 
-        if (obj is RecordReferenceValue recRef && context.DefinitionsByName.TryGetValue(recRef.RecordName, out var defSyntax))
+        if (obj.Value is AnonymousRecordValue rec)
+        {
+            return Success(rec.Fields.TryGetValue(fieldAccess.FieldName, out var fv) ? fv : new UnsetValue());
+        }
+
+        if (obj.Value is RecordReferenceValue recRef && context.DefinitionsByName.TryGetValue(recRef.RecordName, out var defSyntax))
         {
             var record = buildDefinition(defSyntax);
-            return record.Fields.TryGetValue(fieldAccess.FieldName, out var fieldVal) ? fieldVal : new UnsetValue();
+            if (!record.IsSuccess)
+            {
+                return Failure(record.Error!);
+            }
+
+            return Success(record.Value.Fields.TryGetValue(fieldAccess.FieldName, out var fieldVal) ? fieldVal : new UnsetValue());
         }
 
-        return new UnsetValue();
+        return Success(new UnsetValue());
     }
 
-    private Value EvaluateSubscript(SubscriptSyntax subscript, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
+    private EvaluationResult<Value> EvaluateSubscript(
+        SubscriptSyntax subscript,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
-        var target = Evaluate(subscript.Target, scope, tryResolveValue);
-        var index = ToInteger(Evaluate(subscript.Index, scope, tryResolveValue), "subscript");
-        return target switch
+        var target = TryEvaluate(subscript.Target, scope, tryResolveValue);
+        if (!target.IsSuccess)
         {
-            ListValue list => list.Items[NormalizeIndex(index, list.Items.Count, "list subscript")],
-            StringValue str => new StringValue(str.Value[NormalizeIndex(index, str.Value.Length, "string subscript")].ToString()),
-            _ => throw new InvalidOperationException($"Cannot subscript {target.GetType().Name}."),
-        };
+            return Failure(target.Error!);
+        }
+
+        var index = TryEvaluateInteger(subscript.Index, scope, tryResolveValue, "subscript");
+        if (!index.IsSuccess)
+        {
+            return Failure(index.Error!);
+        }
+
+        switch (target.Value)
+        {
+            case ListValue list:
+            {
+                var normalized = TryNormalizeIndex(index.Value, list.Items.Count, "list subscript");
+                return normalized.IsSuccess
+                    ? Success(list.Items[normalized.Value])
+                    : Failure(normalized.Error!);
+            }
+            case StringValue str:
+            {
+                var normalized = TryNormalizeIndex(index.Value, str.Value.Length, "string subscript");
+                return normalized.IsSuccess
+                    ? Success(new StringValue(str.Value[normalized.Value].ToString()))
+                    : Failure(normalized.Error!);
+            }
+            default:
+                return Failure(new InvalidOperationException($"Cannot subscript {target.Value.GetType().Name}."));
+        }
     }
 
-    private Value EvaluateForeach(ForeachSyntax forEach, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
+    private EvaluationResult<Value> EvaluateForeach(
+        ForeachSyntax forEach,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
-        var listValue = (ListValue)Evaluate(forEach.List, scope, tryResolveValue);
-        var results = new List<Value>(listValue.Items.Count);
-        foreach (var item in listValue.Items)
+        var listValue = TryEvaluate(forEach.List, scope, tryResolveValue);
+        if (!listValue.IsSuccess)
+        {
+            return Failure(listValue.Error!);
+        }
+
+        if (listValue.Value is not ListValue list)
+        {
+            return Failure(new InvalidCastException());
+        }
+
+        var results = new List<Value>(list.Items.Count);
+        foreach (var item in list.Items)
         {
             var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
             innerScope[forEach.VarName] = item;
-            results.Add(Evaluate(forEach.Body, innerScope, tryResolveValue));
+            var body = TryEvaluate(forEach.Body, innerScope, tryResolveValue);
+            if (!body.IsSuccess)
+            {
+                return Failure(body.Error!);
+            }
+
+            results.Add(body.Value);
         }
 
-        return new ListValue(results);
+        return Success(new ListValue(results));
+    }
+
+    private EvaluationResult<Value> TryEvaluateIntegerComparison(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue,
+        Func<int, int, bool> predicate)
+    {
+        var a = TryEvaluateInteger(bangCall.Arguments[0], scope, tryResolveValue, $"!{bangCall.OperatorName}");
+        if (!a.IsSuccess)
+        {
+            return Failure(a.Error!);
+        }
+
+        var b = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, $"!{bangCall.OperatorName}");
+        return b.IsSuccess
+            ? Success(new IntegerValue(predicate(a.Value, b.Value) ? 1 : 0))
+            : Failure(b.Error!);
+    }
+
+    private EvaluationResult<Value> TryEvaluateEquality(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue,
+        bool expectedEqual)
+    {
+        var a = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+        if (!a.IsSuccess)
+        {
+            return Failure(a.Error!);
+        }
+
+        var b = TryEvaluate(bangCall.Arguments[1], scope, tryResolveValue);
+        if (!b.IsSuccess)
+        {
+            return Failure(b.Error!);
+        }
+
+        var isEqual = ValuesEqual(a.Value, b.Value);
+        return Success(new IntegerValue(isEqual == expectedEqual ? 1 : 0));
+    }
+
+    private EvaluationResult<Value> TryEvaluateIntegerBinary(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue,
+        string contextName,
+        Func<int, int, int> operation)
+    {
+        var a = TryEvaluateInteger(bangCall.Arguments[0], scope, tryResolveValue, contextName);
+        if (!a.IsSuccess)
+        {
+            return Failure(a.Error!);
+        }
+
+        var b = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, contextName);
+        return b.IsSuccess
+            ? Success(new IntegerValue(operation(a.Value, b.Value)))
+            : Failure(b.Error!);
+    }
+
+    private EvaluationResult<Value> TryEvaluateUnaryString(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue,
+        string contextName,
+        Func<string, string> operation)
+    {
+        var text = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, contextName);
+        return text.IsSuccess
+            ? Success(new StringValue(operation(text.Value)))
+            : Failure(text.Error!);
+    }
+
+    private EvaluationResult<Value> TryEvaluateSubstr(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var str = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!substr");
+        if (!str.IsSuccess)
+        {
+            return Failure(str.Error!);
+        }
+
+        var start = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, "!substr");
+        if (!start.IsSuccess)
+        {
+            return Failure(start.Error!);
+        }
+
+        var clampedStart = Math.Max(0, Math.Min(start.Value, str.Value.Length));
+        if (bangCall.Arguments.Count >= 3)
+        {
+            var len = TryEvaluateInteger(bangCall.Arguments[2], scope, tryResolveValue, "!substr");
+            if (!len.IsSuccess)
+            {
+                return Failure(len.Error!);
+            }
+
+            var clampedLen = Math.Max(0, Math.Min(len.Value, str.Value.Length - clampedStart));
+            return Success(new StringValue(str.Value.Substring(clampedStart, clampedLen)));
+        }
+
+        return Success(new StringValue(str.Value.Substring(clampedStart)));
+    }
+
+    private EvaluationResult<Value> TryEvaluateFind(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var str = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!find");
+        if (!str.IsSuccess)
+        {
+            return Failure(str.Error!);
+        }
+
+        var sub = TryEvaluateString(bangCall.Arguments[1], scope, tryResolveValue, "!find");
+        if (!sub.IsSuccess)
+        {
+            return Failure(sub.Error!);
+        }
+
+        var startIndex = bangCall.Arguments.Count >= 3
+            ? TryEvaluateInteger(bangCall.Arguments[2], scope, tryResolveValue, "!find")
+            : EvaluationResult<int>.Success(0);
+        if (!startIndex.IsSuccess)
+        {
+            return Failure(startIndex.Error!);
+        }
+
+        return Success(new IntegerValue(str.Value.IndexOf(sub.Value, startIndex.Value, StringComparison.Ordinal)));
+    }
+
+    private EvaluationResult<Value> TryEvaluateRange(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var start = TryEvaluateInteger(bangCall.Arguments[0], scope, tryResolveValue, "!range");
+        if (!start.IsSuccess)
+        {
+            return Failure(start.Error!);
+        }
+
+        var end = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, "!range");
+        if (!end.IsSuccess)
+        {
+            return Failure(end.Error!);
+        }
+
+        var items = new List<Value>(Math.Max(0, end.Value - start.Value));
+        for (var i = start.Value; i < end.Value; i++)
+        {
+            items.Add(new IntegerValue(i));
+        }
+
+        return Success(new ListValue(items));
+    }
+
+    private EvaluationResult<Value> TryEvaluateListConcat(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var a = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+        if (!a.IsSuccess)
+        {
+            return Failure(a.Error!);
+        }
+
+        var b = TryEvaluate(bangCall.Arguments[1], scope, tryResolveValue);
+        if (!b.IsSuccess)
+        {
+            return Failure(b.Error!);
+        }
+
+        if (a.Value is not ListValue left || b.Value is not ListValue right)
+        {
+            return Failure(new InvalidCastException());
+        }
+
+        var items = new List<Value>(left.Items.Count + right.Items.Count);
+        items.AddRange(left.Items);
+        items.AddRange(right.Items);
+        return Success(new ListValue(items));
+    }
+
+    private EvaluationResult<Value> TryEvaluateStrConcat(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var parts = new List<string>(bangCall.Arguments.Count);
+        foreach (var arg in bangCall.Arguments)
+        {
+            var value = TryEvaluate(arg, scope, tryResolveValue);
+            if (!value.IsSuccess)
+            {
+                return Failure(value.Error!);
+            }
+
+            var text = TryToString(value.Value, "!strconcat");
+            if (!text.IsSuccess)
+            {
+                return Failure(text.Error!);
+            }
+
+            parts.Add(text.Value);
+        }
+
+        return Success(new StringValue(string.Concat(parts)));
+    }
+
+    private EvaluationResult<Value> TryEvaluateCond(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        for (var i = 0; i + 1 < bangCall.Arguments.Count; i += 2)
+        {
+            var condition = TryEvaluate(bangCall.Arguments[i], scope, tryResolveValue);
+            if (!condition.IsSuccess)
+            {
+                return Failure(condition.Error!);
+            }
+
+            var truthy = TryIsTruthy(condition.Value);
+            if (!truthy.IsSuccess)
+            {
+                return Failure(truthy.Error!);
+            }
+
+            if (truthy.Value)
+            {
+                return TryEvaluate(bangCall.Arguments[i + 1], scope, tryResolveValue);
+            }
+        }
+
+        return Failure(new InvalidOperationException("!cond requires at least one true condition."));
+    }
+
+    private EvaluationResult<Value> TryEvaluateInterleave(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var listVal = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+        if (!listVal.IsSuccess)
+        {
+            return Failure(listVal.Error!);
+        }
+
+        var sep = TryEvaluateString(bangCall.Arguments[1], scope, tryResolveValue, "!interleave");
+        if (!sep.IsSuccess)
+        {
+            return Failure(sep.Error!);
+        }
+
+        if (listVal.Value is not ListValue list)
+        {
+            return Failure(new InvalidCastException());
+        }
+
+        var items = new List<string>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            var itemString = TryValueToString(item);
+            if (!itemString.IsSuccess)
+            {
+                return Failure(itemString.Error!);
+            }
+
+            items.Add(itemString.Value);
+        }
+
+        return Success(new StringValue(string.Join(sep.Value, items)));
+    }
+
+    private EvaluationResult<Value> TryEvaluateSubst(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var from = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!subst");
+        if (!from.IsSuccess)
+        {
+            return Failure(from.Error!);
+        }
+
+        var to = TryEvaluateString(bangCall.Arguments[1], scope, tryResolveValue, "!subst");
+        if (!to.IsSuccess)
+        {
+            return Failure(to.Error!);
+        }
+
+        var text = TryEvaluateString(bangCall.Arguments[2], scope, tryResolveValue, "!subst");
+        return text.IsSuccess
+            ? Success(new StringValue(text.Value.Replace(from.Value, to.Value)))
+            : Failure(text.Error!);
+    }
+
+    private EvaluationResult<Value> TryEvaluateHead(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var list = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+        if (!list.IsSuccess)
+        {
+            return Failure(list.Error!);
+        }
+
+        if (list.Value is not ListValue values)
+        {
+            return Failure(new InvalidCastException());
+        }
+
+        return values.Items.Count == 0
+            ? Failure(new InvalidOperationException("!head requires a non-empty list."))
+            : Success(values.Items[0]);
+    }
+
+    private EvaluationResult<Value> TryEvaluateTail(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var list = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+        if (!list.IsSuccess)
+        {
+            return Failure(list.Error!);
+        }
+
+        if (list.Value is not ListValue values)
+        {
+            return Failure(new InvalidCastException());
+        }
+
+        return values.Items.Count == 0
+            ? Failure(new InvalidOperationException("!tail requires a non-empty list."))
+            : Success(new ListValue(values.Items.Skip(1).ToList()));
+    }
+
+    private EvaluationResult<Value> TryEvaluateEmpty(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
+        if (!val.IsSuccess)
+        {
+            return Failure(val.Error!);
+        }
+
+        return val.Value switch
+        {
+            StringValue str => Success(new IntegerValue(string.IsNullOrEmpty(str.Value) ? 1 : 0)),
+            ListValue list => Success(new IntegerValue(list.Items.Count == 0 ? 1 : 0)),
+            UnsetValue => Success(new IntegerValue(1)),
+            _ => Success(new IntegerValue(0)),
+        };
+    }
+
+    private EvaluationResult<Value> TryEvaluateFilter(
+        BangCallSyntax bangCall,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
+    {
+        var variable = ((IdentifierSyntax)bangCall.Arguments[0]).Name;
+        var listValue = TryEvaluate(bangCall.Arguments[1], scope, tryResolveValue);
+        if (!listValue.IsSuccess)
+        {
+            return Failure(listValue.Error!);
+        }
+
+        if (listValue.Value is not ListValue list)
+        {
+            return Failure(new InvalidCastException());
+        }
+
+        var results = new List<Value>();
+        foreach (var item in list.Items)
+        {
+            var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
+            innerScope[variable] = item;
+            var condition = TryEvaluate(bangCall.Arguments[2], innerScope, tryResolveValue);
+            if (!condition.IsSuccess)
+            {
+                return Failure(condition.Error!);
+            }
+
+            var truthy = TryIsTruthy(condition.Value);
+            if (!truthy.IsSuccess)
+            {
+                return Failure(truthy.Error!);
+            }
+
+            if (truthy.Value)
+            {
+                results.Add(item);
+            }
+        }
+
+        return Success(new ListValue(results));
+    }
+
+    private EvaluationResult<int> TryEvaluateInteger(
+        ExpressionSyntax expression,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue,
+        string contextName)
+    {
+        var value = TryEvaluate(expression, scope, tryResolveValue);
+        return !value.IsSuccess
+            ? EvaluationResult<int>.Failure(value.Error!)
+            : TryToInteger(value.Value, contextName);
+    }
+
+    private EvaluationResult<string> TryEvaluateString(
+        ExpressionSyntax expression,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue,
+        string contextName)
+    {
+        var value = TryEvaluate(expression, scope, tryResolveValue);
+        return !value.IsSuccess
+            ? EvaluationResult<string>.Failure(value.Error!)
+            : TryToString(value.Value, contextName);
     }
 
     private bool IsValueOfType(Value value, string? typeName)
@@ -481,7 +1022,6 @@ internal sealed class ExpressionEvaluator
         }
 
         var nonNullTypeName = typeName!;
-
         return value switch
         {
             AnonymousRecordValue record => ClassIsA(record.ClassName, nonNullTypeName),
@@ -498,77 +1038,92 @@ internal sealed class ExpressionEvaluator
             return true;
         }
 
-        if (!context.Classes.TryGetValue(className, out var classSyntax))
-        {
-            return false;
-        }
-
-        return classSyntax.Bases.Any(@base => ClassIsA(@base.Name, typeName));
+        return context.Classes.TryGetValue(className, out var classSyntax)
+            && classSyntax.Bases.Any(@base => ClassIsA(@base.Name, typeName));
     }
 
-    private Value ResolveIdentifier(string name, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
+    private EvaluationResult<Value> ResolveIdentifier(
+        string name,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
         if (scope.TryGetValue(name, out var value))
         {
-            return value;
+            return Success(value);
         }
 
-        if (tryResolveValue != null && tryResolveValue(name, out value))
+        if (tryResolveValue != null)
         {
-            return value;
+            var resolved = tryResolveValue(name);
+            if (resolved.IsSuccess)
+            {
+                return resolved;
+            }
         }
 
         if (context.DefvarValues.TryGetValue(name, out value))
         {
-            return value;
+            return Success(value);
         }
 
         if (name == "true")
         {
-            return new BitValue(true);
+            return Success(new BitValue(true));
         }
 
         if (name == "false")
         {
-            return new BitValue(false);
+            return Success(new BitValue(false));
         }
 
         if (context.DefinitionsByName.ContainsKey(name))
         {
-            return new RecordReferenceValue(name);
+            return Success(new RecordReferenceValue(name));
         }
 
-        return new SymbolReferenceValue(name);
+        return Success(new SymbolReferenceValue(name));
     }
 
-    private static int ToInteger(Value value, string context) => value switch
+    private static EvaluationResult<int> TryToInteger(Value value, string contextName)
     {
-        IntegerValue integer => integer.Value,
-        _ => throw new InvalidOperationException($"{context} requires an integer argument, got {value.GetType().Name}."),
-    };
+        return value is IntegerValue integer
+            ? EvaluationResult<int>.Success(integer.Value)
+            : EvaluationResult<int>.Failure(new InvalidOperationException($"{contextName} requires an integer argument, got {value.GetType().Name}."));
+    }
 
-    private static string ToString(Value value, string context) => value switch
+    private static EvaluationResult<string> TryToString(Value value, string contextName)
     {
-        StringValue str => str.Value,
-        _ => throw new InvalidOperationException($"{context} requires a string argument, got {value.GetType().Name}."),
-    };
+        return value is StringValue str
+            ? EvaluationResult<string>.Success(str.Value)
+            : EvaluationResult<string>.Failure(new InvalidOperationException($"{contextName} requires a string argument, got {value.GetType().Name}."));
+    }
 
-    private static int NormalizeIndex(int index, int length, string context)
+    private static EvaluationResult<int> TryNormalizeIndex(int index, int length, string contextName)
     {
         var normalized = index < 0 ? length + index : index;
-        if (normalized < 0 || normalized >= length)
-        {
-            throw new InvalidOperationException($"{context} index {index} is out of range.");
-        }
-
-        return normalized;
+        return normalized < 0 || normalized >= length
+            ? EvaluationResult<int>.Failure(new InvalidOperationException($"{contextName} index {index} is out of range."))
+            : EvaluationResult<int>.Success(normalized);
     }
 
-    private static bool ValuesEqual(Value a, Value b) => (a, b) switch
+    private static bool ValuesEqual(Value a, Value b)
     {
-        (IntegerValue ia, IntegerValue ib) => ia.Value == ib.Value,
-        (StringValue sa, StringValue sb) => sa.Value == sb.Value,
-        (BitValue ba, BitValue bb) => ba.Value == bb.Value,
-        _ => false,
-    };
+        return (a, b) switch
+        {
+            (IntegerValue ia, IntegerValue ib) => ia.Value == ib.Value,
+            (StringValue sa, StringValue sb) => sa.Value == sb.Value,
+            (BitValue ba, BitValue bb) => ba.Value == bb.Value,
+            _ => false,
+        };
+    }
+
+    private static EvaluationResult<Value> Success(Value value)
+    {
+        return EvaluationResult<Value>.Success(value);
+    }
+
+    private static EvaluationResult<Value> Failure(Exception error)
+    {
+        return EvaluationResult<Value>.Failure(error);
+    }
 }

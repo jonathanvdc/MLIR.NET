@@ -17,7 +17,13 @@ public static class Interpreter
     public static InterpretedDocument Evaluate(DocumentSyntax document)
     {
         var evaluator = new Evaluator(document);
-        return evaluator.Evaluate();
+        var result = evaluator.Evaluate();
+        if (!result.IsSuccess)
+        {
+            throw result.Error!;
+        }
+
+        return result.Value;
     }
 
     private sealed class Evaluator
@@ -38,28 +44,40 @@ public static class Interpreter
 
         private IReadOnlyList<DefSyntax> Definitions { get; }
 
-        public InterpretedDocument Evaluate()
+        public EvaluationResult<InterpretedDocument> Evaluate()
         {
             var emptyScope = new Dictionary<string, Value>();
             foreach (var defvar in context.Document.Declarations.OfType<DefVarSyntax>())
             {
-                context.DefvarValues[defvar.Name] = expressionEvaluator.Evaluate(defvar.Value, emptyScope);
+                var defvarValue = expressionEvaluator.TryEvaluate(defvar.Value, emptyScope);
+                if (!defvarValue.IsSuccess)
+                {
+                    return EvaluationResult<InterpretedDocument>.Failure(defvarValue.Error!);
+                }
+
+                context.DefvarValues[defvar.Name] = defvarValue.Value;
             }
 
             var records = new List<Record>(Definitions.Count);
             foreach (var definition in Definitions)
             {
-                records.Add(EvaluateDefinition(definition));
+                var record = EvaluateDefinition(definition);
+                if (!record.IsSuccess)
+                {
+                    return EvaluationResult<InterpretedDocument>.Failure(record.Error!);
+                }
+
+                records.Add(record.Value);
             }
 
-            return new InterpretedDocument(records);
+            return EvaluationResult<InterpretedDocument>.Success(new InterpretedDocument(records));
         }
 
-        private Record EvaluateDefinition(DefSyntax definition)
+        private EvaluationResult<Record> EvaluateDefinition(DefSyntax definition)
         {
             if (evaluatedDefinitions.TryGetValue(definition.Name, out var existingRecord))
             {
-                return existingRecord;
+                return EvaluationResult<Record>.Success(existingRecord);
             }
 
             var scope = new Dictionary<string, Value>();
@@ -68,13 +86,27 @@ public static class Interpreter
             CollectBaseClasses(definition.Bases, seenBaseClasses, baseClasses);
 
             var state = new PendingRecordState();
-            ApplyPendingBases(definition.Bases, scope, state);
-            ApplyPendingBody(definition.BodyItems, scope, state);
+            var bases = ApplyPendingBases(definition.Bases, scope, state);
+            if (!bases.IsSuccess)
+            {
+                return EvaluationResult<Record>.Failure(bases.Error!);
+            }
+
+            var body = ApplyPendingBody(definition.BodyItems, scope, state);
+            if (!body.IsSuccess)
+            {
+                return EvaluationResult<Record>.Failure(body.Error!);
+            }
 
             var fields = ResolveFields(state);
-            var record = new Record(definition.Name, baseClasses, fields);
+            if (!fields.IsSuccess)
+            {
+                return EvaluationResult<Record>.Failure(fields.Error!);
+            }
+
+            var record = new Record(definition.Name, baseClasses, fields.Value);
             evaluatedDefinitions[definition.Name] = record;
-            return record;
+            return EvaluationResult<Record>.Success(record);
         }
 
         private void CollectBaseClasses(
@@ -96,7 +128,7 @@ public static class Interpreter
             }
         }
 
-        private Dictionary<string, Value> InstantiateClass(
+        private EvaluationResult<Dictionary<string, Value>> InstantiateClass(
             ClassSyntax classSyntax,
             IReadOnlyList<ExpressionSyntax> arguments,
             IReadOnlyDictionary<string, Value> outerScope)
@@ -104,7 +136,7 @@ public static class Interpreter
             return InstantiateClass(classSyntax, arguments, outerScope, tryResolveValue: null);
         }
 
-        private Dictionary<string, Value> InstantiateClass(
+        private EvaluationResult<Dictionary<string, Value>> InstantiateClass(
             ClassSyntax classSyntax,
             IReadOnlyList<ExpressionSyntax> arguments,
             IReadOnlyDictionary<string, Value> outerScope,
@@ -118,27 +150,50 @@ public static class Interpreter
                 Value value;
                 if (i < arguments.Count)
                 {
-                    value = expressionEvaluator.Evaluate(arguments[i], outerScope, tryResolveValue);
+                    var argumentValue = expressionEvaluator.TryEvaluate(arguments[i], outerScope, tryResolveValue);
+                    if (!argumentValue.IsSuccess)
+                    {
+                        return EvaluationResult<Dictionary<string, Value>>.Failure(argumentValue.Error!);
+                    }
+
+                    value = argumentValue.Value;
                 }
                 else if (parameter.DefaultValue != null)
                 {
-                    value = expressionEvaluator.Evaluate(parameter.DefaultValue, scope, tryResolveValue);
+                    var defaultValue = expressionEvaluator.TryEvaluate(parameter.DefaultValue, scope, tryResolveValue);
+                    if (!defaultValue.IsSuccess)
+                    {
+                        return EvaluationResult<Dictionary<string, Value>>.Failure(defaultValue.Error!);
+                    }
+
+                    value = defaultValue.Value;
                 }
                 else
                 {
-                    throw new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'.");
+                    return EvaluationResult<Dictionary<string, Value>>.Failure(
+                        new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
                 }
 
                 scope[parameter.Name] = value;
             }
 
             var state = new PendingRecordState();
-            ApplyPendingBases(classSyntax.Bases, scope, state);
-            ApplyPendingBody(classSyntax.BodyItems, scope, state);
+            var bases = ApplyPendingBases(classSyntax.Bases, scope, state);
+            if (!bases.IsSuccess)
+            {
+                return EvaluationResult<Dictionary<string, Value>>.Failure(bases.Error!);
+            }
+
+            var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
+            if (!body.IsSuccess)
+            {
+                return EvaluationResult<Dictionary<string, Value>>.Failure(body.Error!);
+            }
+
             return ResolveFields(state);
         }
 
-        private void ApplyPendingBases(
+        private EvaluationResult<bool> ApplyPendingBases(
             IReadOnlyList<BaseSyntax> bases,
             Dictionary<string, Value> scope,
             PendingRecordState state)
@@ -147,15 +202,22 @@ public static class Interpreter
             {
                 if (!context.Classes.TryGetValue(@base.Name, out var classSyntax))
                 {
-                    throw new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'.");
+                    return EvaluationResult<bool>.Failure(new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'."));
                 }
 
                 var classState = InstantiatePendingClass(classSyntax, @base.Arguments, scope);
-                state.Import(classState);
+                if (!classState.IsSuccess)
+                {
+                    return EvaluationResult<bool>.Failure(classState.Error!);
+                }
+
+                state.Import(classState.Value);
             }
+
+            return EvaluationResult<bool>.Success(true);
         }
 
-        private PendingRecordState InstantiatePendingClass(
+        private EvaluationResult<PendingRecordState> InstantiatePendingClass(
             ClassSyntax classSyntax,
             IReadOnlyList<ExpressionSyntax> arguments,
             IReadOnlyDictionary<string, Value> outerScope)
@@ -168,27 +230,50 @@ public static class Interpreter
                 Value value;
                 if (i < arguments.Count)
                 {
-                    value = expressionEvaluator.Evaluate(arguments[i], outerScope);
+                    var argumentValue = expressionEvaluator.TryEvaluate(arguments[i], outerScope);
+                    if (!argumentValue.IsSuccess)
+                    {
+                        return EvaluationResult<PendingRecordState>.Failure(argumentValue.Error!);
+                    }
+
+                    value = argumentValue.Value;
                 }
                 else if (parameter.DefaultValue != null)
                 {
-                    value = expressionEvaluator.Evaluate(parameter.DefaultValue, scope);
+                    var defaultValue = expressionEvaluator.TryEvaluate(parameter.DefaultValue, scope);
+                    if (!defaultValue.IsSuccess)
+                    {
+                        return EvaluationResult<PendingRecordState>.Failure(defaultValue.Error!);
+                    }
+
+                    value = defaultValue.Value;
                 }
                 else
                 {
-                    throw new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'.");
+                    return EvaluationResult<PendingRecordState>.Failure(
+                        new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
                 }
 
                 scope[parameter.Name] = value;
             }
 
             var state = new PendingRecordState();
-            ApplyPendingBases(classSyntax.Bases, scope, state);
-            ApplyPendingBody(classSyntax.BodyItems, scope, state);
-            return state;
+            var bases = ApplyPendingBases(classSyntax.Bases, scope, state);
+            if (!bases.IsSuccess)
+            {
+                return EvaluationResult<PendingRecordState>.Failure(bases.Error!);
+            }
+
+            var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
+            if (!body.IsSuccess)
+            {
+                return EvaluationResult<PendingRecordState>.Failure(body.Error!);
+            }
+
+            return EvaluationResult<PendingRecordState>.Success(state);
         }
 
-        private void ApplyPendingBody(
+        private EvaluationResult<bool> ApplyPendingBody(
             IReadOnlyList<BodyItemSyntax> bodyItems,
             Dictionary<string, Value> scope,
             PendingRecordState state)
@@ -209,77 +294,137 @@ public static class Interpreter
                     }
                     case LocalDefVarSyntax defVar:
                     {
-                        scope[defVar.Name] = expressionEvaluator.Evaluate(defVar.Value, scope, TryResolveField(state));
+                        var value = expressionEvaluator.TryEvaluate(defVar.Value, scope, TryResolveField(state));
+                        if (!value.IsSuccess)
+                        {
+                            return EvaluationResult<bool>.Failure(value.Error!);
+                        }
+
+                        scope[defVar.Name] = value.Value;
                         break;
                     }
                     case AssertSyntax assert:
                     {
-                        var condition = expressionEvaluator.Evaluate(assert.Condition, scope, TryResolveField(state));
-                        if (!ExpressionEvaluator.IsTruthy(condition))
+                        var condition = expressionEvaluator.TryEvaluate(assert.Condition, scope, TryResolveField(state));
+                        if (!condition.IsSuccess)
                         {
+                            return EvaluationResult<bool>.Failure(condition.Error!);
+                        }
+
+                        var truthy = ExpressionEvaluator.TryIsTruthy(condition.Value);
+                        if (!truthy.IsSuccess)
+                        {
+                            return EvaluationResult<bool>.Failure(truthy.Error!);
+                        }
+
+                        if (!truthy.Value)
+                        {
+                            Exception? messageError = null;
                             var message = assert.Message == null
                                 ? "TableGen assertion failed."
-                                : ExpressionEvaluator.ValueToString(expressionEvaluator.Evaluate(assert.Message, scope, TryResolveField(state)));
-                            throw new InvalidOperationException(message);
+                                : GetAssertionMessage(assert.Message, scope, state, out messageError);
+                            if (messageError != null)
+                            {
+                                return EvaluationResult<bool>.Failure(messageError);
+                            }
+
+                            return EvaluationResult<bool>.Failure(new InvalidOperationException(message));
                         }
 
                         break;
                     }
                 }
             }
+
+            return EvaluationResult<bool>.Success(true);
         }
 
-        private Dictionary<string, Value> ResolveFields(PendingRecordState state)
+        private string GetAssertionMessage(
+            ExpressionSyntax messageExpression,
+            IReadOnlyDictionary<string, Value> scope,
+            PendingRecordState state,
+            out Exception? error)
+        {
+            var message = expressionEvaluator.TryEvaluate(messageExpression, scope, TryResolveField(state));
+            if (!message.IsSuccess)
+            {
+                error = message.Error;
+                return string.Empty;
+            }
+
+            var text = ExpressionEvaluator.TryValueToString(message.Value);
+            error = text.Error;
+            return text.IsSuccess ? text.Value : string.Empty;
+        }
+
+        private EvaluationResult<Dictionary<string, Value>> ResolveFields(PendingRecordState state)
         {
             var fields = new Dictionary<string, Value>();
             foreach (var pair in state.Fields)
             {
-                if (pair.Value.HasExpression && TryResolveFieldValue(state, pair.Key, out var value))
+                if (!pair.Value.HasExpression)
                 {
-                    fields[pair.Key] = value;
+                    continue;
                 }
+
+                var value = TryResolveFieldValue(state, pair.Key);
+                if (!value.IsSuccess)
+                {
+                    return EvaluationResult<Dictionary<string, Value>>.Failure(value.Error!);
+                }
+
+                fields[pair.Key] = value.Value;
             }
 
-            return fields;
+            return EvaluationResult<Dictionary<string, Value>>.Success(fields);
         }
 
         private ExpressionEvaluator.TryResolveValue TryResolveField(PendingRecordState state)
         {
-            return (string name, out Value value) => TryResolveFieldValue(state, name, out value);
+            return name => TryResolveFieldValue(state, name);
         }
 
-        private bool TryResolveFieldValue(PendingRecordState state, string name, out Value value)
+        private EvaluationResult<Value> TryResolveFieldValue(PendingRecordState state, string name)
         {
             if (!state.TryGetField(name, out var field) || !field.HasExpression)
             {
-                value = null!;
-                return false;
+                return EvaluationResult<Value>.Failure(new KeyNotFoundException($"Unknown field '{name}'."));
             }
 
             if (field.HasResolvedValue)
             {
-                value = field.ResolvedValue!;
-                return true;
+                return EvaluationResult<Value>.Success(field.ResolvedValue!);
             }
 
             if (field.IsResolving)
             {
-                throw new InvalidOperationException($"Detected a cycle while resolving field '{name}'.");
+                return EvaluationResult<Value>.Failure(new InvalidOperationException($"Detected a cycle while resolving field '{name}'."));
             }
 
             field.IsResolving = true;
             try
             {
-                var resolved = expressionEvaluator.Evaluate(field.Expression!, field.LexicalScope, TryResolveField(state));
-                if (field.DeclaredTypeName != null)
+                var resolved = expressionEvaluator.TryEvaluate(field.Expression!, field.LexicalScope, TryResolveField(state));
+                if (!resolved.IsSuccess)
                 {
-                    resolved = ExpressionEvaluator.CoerceValue(field.DeclaredTypeName, resolved);
+                    return EvaluationResult<Value>.Failure(resolved.Error!);
                 }
 
-                field.ResolvedValue = resolved;
+                var finalValue = resolved.Value;
+                if (field.DeclaredTypeName != null)
+                {
+                    var coerced = ExpressionEvaluator.TryCoerceValue(field.DeclaredTypeName, finalValue);
+                    if (!coerced.IsSuccess)
+                    {
+                        return EvaluationResult<Value>.Failure(coerced.Error!);
+                    }
+
+                    finalValue = coerced.Value;
+                }
+
+                field.ResolvedValue = finalValue;
                 field.HasResolvedValue = true;
-                value = resolved;
-                return true;
+                return EvaluationResult<Value>.Success(finalValue);
             }
             finally
             {
