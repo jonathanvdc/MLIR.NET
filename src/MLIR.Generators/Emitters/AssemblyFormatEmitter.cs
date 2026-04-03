@@ -159,7 +159,15 @@ internal static class AssemblyFormatEmitter
             return "null";
         }
 
-        return "binder.BindTypeReference(" + SafeFieldAccess(metadata, plan.TypeField) + ")";
+        // When the type field is nullable (e.g. inside an optional group), emit a conditional
+        // expression that produces null when the type syntax is absent rather than passing
+        // null directly to binder.BindTypeReference which requires a non-null argument.
+        if (IsNullableField(metadata, plan.TypeField))
+        {
+            return "body." + plan.TypeField + " is not null ? (TypeReference?)binder.BindTypeReference(body." + plan.TypeField + "!) : null";
+        }
+
+        return "binder.BindTypeReference(body." + plan.TypeField + ")";
     }
 
     public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata bodySyntaxMetadata, DialectSymbolResolver resolver)
