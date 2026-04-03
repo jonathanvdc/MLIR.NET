@@ -145,7 +145,7 @@ public sealed partial class SemanticTests
         Assert.NotNull(operation.TypeSignatureReference);
         Assert.True(operation.TypeSignatureReference!.IsKnown);
         Assert.Equal("i32", operation.TypeSignatureReference.Name);
-        Assert.Equal(32, Assert.IsType<global::MLIR.Semantics.Types.Primitives.BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
+        Assert.Equal(32, Assert.IsType<BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
         Assert.IsType<global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax>(operation.TypeSignatureReference.Syntax);
     }
 

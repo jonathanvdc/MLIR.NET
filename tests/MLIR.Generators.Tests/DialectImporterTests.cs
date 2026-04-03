@@ -190,4 +190,45 @@ public sealed class DialectImporterTests
         Assert.NotNull(flagsConstraint.EnumModel);
         Assert.True(flagsConstraint.EnumModel!.IsBitEnum);
     }
+
+    [Fact]
+    public void ImportsSharedBuiltinTypeConstraintsWithCanonicalBuiltinNames()
+    {
+        var dialects = DialectImporter.Import(
+            GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(
+                "def MiniArith_Dialect : Dialect { let name = \"miniarith\"; let cppNamespace = \"::mlir::miniarith\"; }\n").Evaluate());
+
+        var dialect = Assert.Single(dialects);
+        var i32 = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "I32");
+        var f32 = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "F32");
+        var index = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "Index");
+        var noneType = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "NoneType");
+        var tuple = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyTuple");
+        var function = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "FunctionType");
+        var tensor = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyTensor");
+        var vector = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyVectorOfAnyRank");
+        var memRef = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyMemRef");
+        var i32Tensor = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "I32Tensor");
+
+        Assert.Equal(TypeConstraintKind.ExactInteger, i32.Kind);
+        Assert.Equal("i32", i32.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.ExactFloat, f32.Kind);
+        Assert.Equal("f32", f32.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.IndexType, index.Kind);
+        Assert.Equal("index", index.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.NoneType, noneType.Kind);
+        Assert.Equal("none", noneType.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.TupleType, tuple.Kind);
+        Assert.Equal("tuple", tuple.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.FunctionType, function.Kind);
+        Assert.Equal("function", function.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.TensorType, tensor.Kind);
+        Assert.Equal("tensor", tensor.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.VectorType, vector.Kind);
+        Assert.Equal("vector", vector.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.MemRefType, memRef.Kind);
+        Assert.Equal("memref", memRef.CanonicalTypeName);
+        Assert.Equal(TypeConstraintKind.None, i32Tensor.Kind);
+        Assert.Null(i32Tensor.CanonicalTypeName);
+    }
 }

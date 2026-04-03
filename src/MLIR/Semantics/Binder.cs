@@ -521,6 +521,12 @@ public sealed class Binder
 
     private TypeReference BindStructuredTypeReference(TypeSyntax syntax)
     {
+        var registeredType = TryBindStructuredTypeDefinition(syntax);
+        if (registeredType != null)
+        {
+            return registeredType;
+        }
+
         switch (syntax)
         {
             case BuiltinIntegerTypeSyntax integerSyntax:
@@ -529,6 +535,8 @@ public sealed class Binder
                 return new BuiltinFloatTypeReference(floatSyntax);
             case BuiltinIndexTypeSyntax indexSyntax:
                 return new BuiltinIndexTypeReference(indexSyntax);
+            case BuiltinNoneTypeSyntax noneSyntax:
+                return new BuiltinNoneTypeReference(noneSyntax);
             case TupleTypeSyntax tupleSyntax:
                 return new TupleTypeReference(tupleSyntax, tupleSyntax.Elements.Select(BindTypeReference).ToArray());
             case FunctionTypeSyntax functionSyntax:
@@ -562,6 +570,19 @@ public sealed class Binder
                 Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported type syntax '{syntax.GetType().Name}'."));
                 return new UnknownTypeReference(syntax, null, null, syntax.Location);
         }
+    }
+
+    private TypeReference? TryBindStructuredTypeDefinition(TypeSyntax syntax)
+    {
+        var canonicalName = GetStructuredTypeDefinitionName(syntax);
+        if (canonicalName == null || dialectRegistry == null || !dialectRegistry.TryGetType(canonicalName, out var definition))
+        {
+            return null;
+        }
+
+        return definition.AssemblyFormat != null
+            ? definition.AssemblyFormat.Bind(syntax, definition, this)
+            : definition.Factory(new TypeReferenceConstructionContext(syntax, canonicalName, definition, syntax.Location));
     }
 
     /// <summary>
@@ -613,6 +634,33 @@ public sealed class Binder
         return syntax.HasDelimitedResults
             ? syntax.ResultTypes.Items
             : syntax.ResultType != null ? [syntax.ResultType] : [];
+    }
+
+    private static string? GetStructuredTypeDefinitionName(TypeSyntax syntax)
+    {
+        switch (syntax)
+        {
+            case BuiltinIntegerTypeSyntax integerSyntax:
+                return integerSyntax.NameToken.Text;
+            case BuiltinFloatTypeSyntax floatSyntax:
+                return floatSyntax.Name;
+            case BuiltinIndexTypeSyntax:
+                return "index";
+            case BuiltinNoneTypeSyntax:
+                return "none";
+            case TupleTypeSyntax:
+                return "tuple";
+            case FunctionTypeSyntax:
+                return "function";
+            case TensorTypeSyntax:
+                return "tensor";
+            case VectorTypeSyntax:
+                return "vector";
+            case MemRefTypeSyntax:
+                return "memref";
+            default:
+                return null;
+        }
     }
 
     private static IReadOnlyList<long?> DecodeDimensions(IReadOnlyList<ShapedTypeDimensionSyntax> dimensions)

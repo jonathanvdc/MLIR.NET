@@ -630,6 +630,12 @@ public sealed class Parser
             return true;
         }
 
+        if (token.Text == "none")
+        {
+            syntax = new BuiltinNoneTypeSyntax(token);
+            return true;
+        }
+
         position--;
         return false;
     }

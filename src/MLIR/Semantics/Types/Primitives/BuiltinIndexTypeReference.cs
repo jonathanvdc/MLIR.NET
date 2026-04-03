@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents the builtin <c>index</c> type.
 /// </summary>
-public sealed class BuiltinIndexTypeReference : TypeReference
+public class BuiltinIndexTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
@@ -36,7 +36,11 @@ public sealed class BuiltinIndexTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private BuiltinIndexTypeReference(TypeSyntax? syntax, SourceLocation location)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BuiltinIndexTypeReference"/> class
+    /// with an optional preserved syntax node.
+    /// </summary>
+    protected BuiltinIndexTypeReference(TypeSyntax? syntax, SourceLocation location)
         : base(syntax ?? new BuiltinIndexTypeSyntax(new SyntaxToken("index")), location)
     {
     }

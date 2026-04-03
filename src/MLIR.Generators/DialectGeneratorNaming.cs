@@ -53,6 +53,11 @@ internal static class DialectGeneratorNaming
         return type.ClassName ?? ToPascalCase(type.Name.Replace('.', '_')) + "TypeReference";
     }
 
+    public static string GetTypeConstraintClassName(TypeConstraintModel typeConstraint)
+    {
+        return ToPascalCase(typeConstraint.RecordName.Replace('.', '_')) + "ConstraintTypeReference";
+    }
+
     public static string ToPascalCase(string value)
     {
         var builder = new StringBuilder(value.Length);

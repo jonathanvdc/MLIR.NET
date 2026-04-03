@@ -127,4 +127,38 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
         Assert.Contains("MiniArith_BrokenOp", diagnostic.GetMessage());
         Assert.Contains("No body field was generated for operand 'lhs'", diagnostic.GetMessage());
     }
+
+    [Fact]
+    public void GeneratesBuiltinTypeConstraintWrappersAndRegistersSelfIdentifyingOnes()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_IdOp : MiniArith_Op<\"id\", [Pure]> {",
+                "  let arguments = (ins AnyTensor:$input, AnyVectorOfAnyRank:$vector, AnyMemRef:$memory, FunctionType:$callee);",
+                "  let results = (outs AnyTuple:$result);",
+                "  let assemblyFormat = \"$input `,` $vector `,` $memory `,` $callee attr-dict `:` type($result)\";",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class I32ConstraintTypeReference : BuiltinIntegerTypeReference",
+            "public sealed class F32ConstraintTypeReference : BuiltinFloatTypeReference",
+            "public sealed class IndexConstraintTypeReference : BuiltinIndexTypeReference",
+            "public sealed class NoneTypeConstraintTypeReference : BuiltinNoneTypeReference",
+            "public sealed class AnyTupleConstraintTypeReference : TupleTypeReference",
+            "public sealed class FunctionTypeConstraintTypeReference : FunctionTypeReference",
+            "public sealed class AnyTensorConstraintTypeReference : TensorTypeReference",
+            "public sealed class AnyVectorOfAnyRankConstraintTypeReference : VectorTypeReference",
+            "public sealed class AnyMemRefConstraintTypeReference : MemRefTypeReference",
+            "dialect.AddType(I32ConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(F32ConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(IndexConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(NoneTypeConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(AnyTupleConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(FunctionTypeConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(AnyTensorConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(AnyVectorOfAnyRankConstraintTypeReference.TypeDefinition);",
+            "dialect.AddType(AnyMemRefConstraintTypeReference.TypeDefinition);");
+    }
 }

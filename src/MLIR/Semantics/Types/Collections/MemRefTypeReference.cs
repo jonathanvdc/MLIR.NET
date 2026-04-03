@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Collections;
 /// <summary>
 /// Represents a builtin memref type.
 /// </summary>
-public sealed class MemRefTypeReference : TypeReference
+public class MemRefTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.

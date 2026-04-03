@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Collections;
 /// <summary>
 /// Represents a builtin tensor type.
 /// </summary>
-public sealed class TensorTypeReference : TypeReference
+public class TensorTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.

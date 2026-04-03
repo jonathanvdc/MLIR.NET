@@ -19,6 +19,7 @@ public sealed class DialectModel
         IReadOnlyList<OperationModel>? operations = null,
         IReadOnlyList<AttributeModel>? attributes = null,
         IReadOnlyList<AttributeConstraintModel>? attributeConstraints = null,
+        IReadOnlyList<TypeConstraintModel>? typeConstraints = null,
         IReadOnlyList<TypeModel>? types = null)
     {
         Name = name;
@@ -29,6 +30,7 @@ public sealed class DialectModel
         Operations = operations ?? EmptyOperations;
         Attributes = attributes ?? EmptyAttributes;
         AttributeConstraints = attributeConstraints ?? EmptyAttributeConstraints;
+        TypeConstraints = typeConstraints ?? EmptyTypeConstraints;
         Types = types ?? EmptyTypes;
     }
 
@@ -73,6 +75,11 @@ public sealed class DialectModel
     public IReadOnlyList<AttributeConstraintModel> AttributeConstraints { get; }
 
     /// <summary>
+    /// Gets the type constraint descriptions available to the dialect's generated code.
+    /// </summary>
+    public IReadOnlyList<TypeConstraintModel> TypeConstraints { get; }
+
+    /// <summary>
     /// Gets the type descriptions defined by the dialect.
     /// </summary>
     public IReadOnlyList<TypeModel> Types { get; }
@@ -80,5 +87,6 @@ public sealed class DialectModel
     private static readonly IReadOnlyList<OperationModel> EmptyOperations = new OperationModel[0];
     private static readonly IReadOnlyList<AttributeModel> EmptyAttributes = new AttributeModel[0];
     private static readonly IReadOnlyList<AttributeConstraintModel> EmptyAttributeConstraints = new AttributeConstraintModel[0];
+    private static readonly IReadOnlyList<TypeConstraintModel> EmptyTypeConstraints = new TypeConstraintModel[0];
     private static readonly IReadOnlyList<TypeModel> EmptyTypes = new TypeModel[0];
 }

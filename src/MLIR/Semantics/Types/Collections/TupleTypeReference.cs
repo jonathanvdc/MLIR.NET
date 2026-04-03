@@ -8,7 +8,7 @@ namespace MLIR.Semantics.Types.Collections;
 /// <summary>
 /// Represents a builtin tuple type.
 /// </summary>
-public sealed class TupleTypeReference : TypeReference
+public class TupleTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.

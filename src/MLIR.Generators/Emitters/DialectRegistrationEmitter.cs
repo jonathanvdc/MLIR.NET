@@ -37,6 +37,14 @@ internal static class DialectRegistrationEmitter
             builder.AppendLine("            dialect.AddType(" + DialectGeneratorNaming.GetTypeClassName(type) + ".TypeDefinition);");
         }
 
+        foreach (var typeConstraint in dialect.TypeConstraints)
+        {
+            if (typeConstraint.CanonicalTypeName != null)
+            {
+                builder.AppendLine("            dialect.AddType(" + DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint) + ".TypeDefinition);");
+            }
+        }
+
         builder.AppendLine("        });");
         builder.AppendLine("    }");
         builder.AppendLine("}");

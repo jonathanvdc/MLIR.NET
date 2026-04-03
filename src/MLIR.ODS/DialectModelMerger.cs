@@ -17,6 +17,7 @@ public static class DialectModelMerger
         var operations = new List<OperationModel>();
         var attributes = new List<AttributeModel>();
         var attributeConstraints = new List<AttributeConstraintModel>();
+        var typeConstraints = new List<TypeConstraintModel>();
         var types = new List<TypeModel>();
         string? cppNamespace = null;
         string? summary = null;
@@ -32,6 +33,7 @@ public static class DialectModelMerger
             operations.AddRange(dialect.Operations);
             attributes.AddRange(dialect.Attributes);
             attributeConstraints.AddRange(dialect.AttributeConstraints);
+            typeConstraints.AddRange(dialect.TypeConstraints);
             types.AddRange(dialect.Types);
         }
 
@@ -44,6 +46,10 @@ public static class DialectModelMerger
             operations,
             attributes,
             attributeConstraints
+                .GroupBy(static constraint => constraint.RecordName, System.StringComparer.Ordinal)
+                .Select(static constraints => constraints.First())
+                .ToArray(),
+            typeConstraints
                 .GroupBy(static constraint => constraint.RecordName, System.StringComparer.Ordinal)
                 .Select(static constraints => constraints.First())
                 .ToArray(),

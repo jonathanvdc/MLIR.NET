@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Collections;
 /// <summary>
 /// Represents a builtin vector type.
 /// </summary>
-public sealed class VectorTypeReference : TypeReference
+public class VectorTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.

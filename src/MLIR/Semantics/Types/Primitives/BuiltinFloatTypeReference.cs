@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents a builtin floating-point type such as <c>f32</c>.
 /// </summary>
-public sealed class BuiltinFloatTypeReference : TypeReference
+public class BuiltinFloatTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
@@ -36,7 +36,11 @@ public sealed class BuiltinFloatTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private BuiltinFloatTypeReference(string name, TypeSyntax? syntax, SourceLocation location)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BuiltinFloatTypeReference"/> class
+    /// with an optional preserved syntax node.
+    /// </summary>
+    protected BuiltinFloatTypeReference(string name, TypeSyntax? syntax, SourceLocation location)
         : base(syntax ?? new BuiltinFloatTypeSyntax(new SyntaxToken(name)), location)
     {
         Name = name;

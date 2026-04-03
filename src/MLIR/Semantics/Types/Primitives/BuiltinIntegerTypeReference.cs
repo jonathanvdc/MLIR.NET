@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents a builtin integer type such as <c>i32</c> or <c>si64</c>.
 /// </summary>
-public sealed class BuiltinIntegerTypeReference : TypeReference
+public class BuiltinIntegerTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
@@ -51,7 +51,11 @@ public sealed class BuiltinIntegerTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private BuiltinIntegerTypeReference(IntegerTypeSignedness signedness, int width, TypeSyntax? syntax, SourceLocation location)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BuiltinIntegerTypeReference"/> class
+    /// with an optional preserved syntax node.
+    /// </summary>
+    protected BuiltinIntegerTypeReference(IntegerTypeSignedness signedness, int width, TypeSyntax? syntax, SourceLocation location)
         : base(syntax ?? BuildSyntax(signedness, width), location)
     {
         Signedness = signedness;

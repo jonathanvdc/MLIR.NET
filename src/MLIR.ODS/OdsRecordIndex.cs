@@ -268,6 +268,81 @@ internal sealed class OdsRecordIndex
         return false;
     }
 
+    public bool TryGetTypeConstraintKind(Record record, out TypeConstraintKind kind, out string? canonicalTypeName)
+    {
+        canonicalTypeName = null;
+
+        if (TryGetExactIntegerConstraintName(record.Name, out canonicalTypeName))
+        {
+            kind = TypeConstraintKind.ExactInteger;
+            return true;
+        }
+
+        if (TryGetExactFloatConstraintName(record.Name, out canonicalTypeName))
+        {
+            kind = TypeConstraintKind.ExactFloat;
+            return true;
+        }
+
+        if (record.Name == "Index")
+        {
+            kind = TypeConstraintKind.IndexType;
+            canonicalTypeName = "index";
+            return true;
+        }
+
+        if (record.Name == "NoneType")
+        {
+            kind = TypeConstraintKind.NoneType;
+            canonicalTypeName = "none";
+            return true;
+        }
+
+        if (record.Name == "AnyTuple")
+        {
+            kind = TypeConstraintKind.TupleType;
+            canonicalTypeName = "tuple";
+            return true;
+        }
+
+        if (record.Name == "FunctionType")
+        {
+            kind = TypeConstraintKind.FunctionType;
+            canonicalTypeName = "function";
+            return true;
+        }
+
+        if (record.Name == "AnyTensor")
+        {
+            kind = TypeConstraintKind.TensorType;
+            canonicalTypeName = "tensor";
+            return true;
+        }
+
+        if (record.Name == "AnyVectorOfAnyRank")
+        {
+            kind = TypeConstraintKind.VectorType;
+            canonicalTypeName = "vector";
+            return true;
+        }
+
+        if (record.Name == "AnyMemRef")
+        {
+            kind = TypeConstraintKind.MemRefType;
+            canonicalTypeName = "memref";
+            return true;
+        }
+
+        if (record.HasBaseClass("Type"))
+        {
+            kind = TypeConstraintKind.None;
+            return true;
+        }
+
+        kind = TypeConstraintKind.None;
+        return false;
+    }
+
     /// <summary>
     /// Attempts to build an <see cref="EnumModel"/> from a record that represents an enum definition
     /// (<c>EnumAttrInfo</c> or any of its subclasses such as <c>I64EnumAttr</c> / <c>I32BitEnumAttr</c>).
@@ -409,6 +484,76 @@ internal sealed class OdsRecordIndex
             "DenseF64ArrayAttr" => AttributeConstraintKind.DenseF64ArrayAttribute,
             _ => AttributeConstraintKind.DenseIntegerArrayAttribute,
         };
+    }
+
+    private static bool TryGetExactIntegerConstraintName(string recordName, out string? canonicalTypeName)
+    {
+        canonicalTypeName = null;
+        if (recordName.Length < 2)
+        {
+            return false;
+        }
+
+        if (recordName[0] == 'I' && HasOnlyDigits(recordName, 1))
+        {
+            canonicalTypeName = "i" + recordName.Substring(1);
+            return true;
+        }
+
+        if (recordName.Length >= 3
+            && recordName[0] == 'S'
+            && recordName[1] == 'I'
+            && HasOnlyDigits(recordName, 2))
+        {
+            canonicalTypeName = "si" + recordName.Substring(2);
+            return true;
+        }
+
+        if (recordName.Length >= 3
+            && recordName[0] == 'U'
+            && recordName[1] == 'I'
+            && HasOnlyDigits(recordName, 2))
+        {
+            canonicalTypeName = "ui" + recordName.Substring(2);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryGetExactFloatConstraintName(string recordName, out string? canonicalTypeName)
+    {
+        canonicalTypeName = recordName switch
+        {
+            "F16" => "f16",
+            "F32" => "f32",
+            "F64" => "f64",
+            "F80" => "f80",
+            "F128" => "f128",
+            "BF16" => "bf16",
+            "TF32" => "tf32",
+            _ => null,
+        };
+
+        return canonicalTypeName != null;
+    }
+
+    private static bool HasOnlyDigits(string text, int startIndex)
+    {
+        if (startIndex >= text.Length)
+        {
+            return false;
+        }
+
+        for (var i = startIndex; i < text.Length; i++)
+        {
+            if (!char.IsDigit(text[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];

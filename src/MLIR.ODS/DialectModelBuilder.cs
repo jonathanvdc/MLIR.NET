@@ -8,6 +8,7 @@ internal sealed class DialectModelBuilder
 {
     private readonly Dictionary<string, MutableDialectModel> dialectsByName = new(System.StringComparer.Ordinal);
     private readonly List<AttributeConstraintModel> sharedAttributeConstraints = new();
+    private readonly List<TypeConstraintModel> sharedTypeConstraints = new();
 
     public MutableDialectModel GetOrCreateDialect(string name)
     {
@@ -25,10 +26,15 @@ internal sealed class DialectModelBuilder
         sharedAttributeConstraints.Add(constraint);
     }
 
+    public void AddSharedTypeConstraint(TypeConstraintModel constraint)
+    {
+        sharedTypeConstraints.Add(constraint);
+    }
+
     public IReadOnlyList<DialectModel> Build()
     {
         return dialectsByName.Values
-            .Select(dialect => dialect.ToImmutable(sharedAttributeConstraints))
+            .Select(dialect => dialect.ToImmutable(sharedAttributeConstraints, sharedTypeConstraints))
             .OrderBy(static dialect => dialect.Name, System.StringComparer.Ordinal)
             .ToArray();
     }
@@ -48,10 +54,11 @@ internal sealed class DialectModelBuilder
         public List<OperationModel> Operations { get; } = new();
         public List<AttributeModel> Attributes { get; } = new();
         public List<TypeModel> Types { get; } = new();
+        public List<TypeConstraintModel> TypeConstraints { get; } = new();
 
-        public DialectModel ToImmutable(IReadOnlyList<AttributeConstraintModel> sharedAttributeConstraints)
+        public DialectModel ToImmutable(IReadOnlyList<AttributeConstraintModel> sharedAttributeConstraints, IReadOnlyList<TypeConstraintModel> sharedTypeConstraints)
         {
-            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, sharedAttributeConstraints, Types);
+            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, sharedAttributeConstraints, sharedTypeConstraints, Types);
         }
     }
 }

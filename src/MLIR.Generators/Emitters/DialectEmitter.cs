@@ -83,6 +83,21 @@ internal sealed class DialectEmitter
             }
         }
 
+        foreach (var typeConstraint in dialect.TypeConstraints)
+        {
+            try
+            {
+                TypeConstraintEmitter.Emit(builder, typeConstraint);
+                builder.AppendLine();
+            }
+            catch (System.Exception exception)
+            {
+                throw new System.InvalidOperationException(
+                    "Failed to generate type constraint '" + typeConstraint.RecordName + "' in dialect '" + dialect.Name + "'.",
+                    exception);
+            }
+        }
+
         foreach (var type in dialect.Types)
         {
             try

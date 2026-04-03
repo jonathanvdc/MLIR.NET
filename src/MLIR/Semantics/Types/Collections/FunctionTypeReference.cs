@@ -8,7 +8,7 @@ namespace MLIR.Semantics.Types.Collections;
 /// <summary>
 /// Represents a builtin function type.
 /// </summary>
-public sealed class FunctionTypeReference : TypeReference
+public class FunctionTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
