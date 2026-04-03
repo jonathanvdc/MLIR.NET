@@ -15,16 +15,14 @@ using MLIR.Transforms;
 public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        syntax = null;
         if (!context.TryMatch(TokenKind.StringLiteral, out var token))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        syntax = new StringAttributeValueSyntax(token, Unescape(token.Text));
-        return true;
+        return ParseResult<AttributeValueSyntax>.Success(new StringAttributeValueSyntax(token, Unescape(token.Text)));
     }
 
     /// <inheritdoc/>

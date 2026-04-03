@@ -9,34 +9,15 @@ using MLIR.Syntax.Types.Primitives;
 
 public sealed partial class Parser
 {
-    private bool TryParseWith(AttributeConstraintDefinition? definition, IAttributeAssemblyFormat assemblyFormat, out AttributeValueSyntax syntax)
-    {
-        syntax = null!;
-        var checkpoint = Mark();
-        if (assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var customSyntax))
-        {
-            syntax = customSyntax!;
-            return true;
-        }
-
-        Reset(checkpoint);
-        return false;
-    }
-
     private ParseResult<ArrayAttributeValueSyntax> TryParseArrayAttributeValueSyntaxResult()
     {
-        var list = TryParseRequiredCommaSeparatedDelimitedList(
+        return TryParseRequiredCommaSeparatedDelimitedList(
             TokenKind.LBracket,
             TokenKind.RBracket,
             () => TryParseAttributeValueSyntaxResult(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
             "Expected '[' to start the array attribute.",
-            "Expected ']' to close the array attribute.");
-        if (!list.IsSuccess)
-        {
-            return ParseResult<ArrayAttributeValueSyntax>.Failure(list.Diagnostic!);
-        }
-
-        return ParseResult<ArrayAttributeValueSyntax>.Success(new ArrayAttributeValueSyntax(list.Value.OpenToken!.Value, list.Value.Items, list.Value.SeparatorTokens, list.Value.CloseToken!.Value));
+            "Expected ']' to close the array attribute.")
+            .Map(list => new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value));
     }
 
     private static AttributeConstraintDefinition BuiltinAttributeConstraintDefinition(string name)
@@ -156,7 +137,7 @@ public sealed partial class Parser
         return Is(TokenKind.Identifier) && Current.Text == text;
     }
 
-        private ParseResult<TypeSyntax> TryParseCustomTypeSyntaxResult()
+    private ParseResult<TypeSyntax> TryParseCustomTypeSyntaxResult()
     {
         if (dialectRegistry == null)
         {
@@ -170,13 +151,21 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        if (definition.AssemblyFormat.TryParse(new TypeParsingContext(this), out var syntax))
+        var result = definition.AssemblyFormat.TryParse(new TypeParsingContext(this));
+        if (result.IsSuccess)
         {
-            return ParseResult<TypeSyntax>.Success(syntax!);
+            return result;
         }
 
         Reset(checkpoint);
-        return ParseResult<TypeSyntax>.NoMatch();
+        return result.IsError ? result : ParseResult<TypeSyntax>.NoMatch();
+    }
+
+    private ParseResult<TypeSyntax> TryParseNestedStandaloneTypeText(string text)
+    {
+        return TryParseType(text, dialectRegistry, out var type, out var diagnostic)
+            ? ParseResult<TypeSyntax>.Success(type!)
+            : ParseResult<TypeSyntax>.Failure(diagnostic!);
     }
 
     private ParseResult<TypeSyntax> TryParseBuiltinTypeSyntaxResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
@@ -357,9 +346,7 @@ public sealed partial class Parser
             return ParseResult<TypeSyntax>.NoMatch();
         }
 
-        var elementTypeResult = TryParseType(elementTypeText, dialectRegistry, out var elementType, out var diagnostic)
-            ? ParseResult<TypeSyntax>.Success(elementType!)
-            : ParseResult<TypeSyntax>.Failure(diagnostic!);
+        var elementTypeResult = TryParseNestedStandaloneTypeText(elementTypeText);
         if (!elementTypeResult.IsSuccess)
         {
             return elementTypeResult;
@@ -420,9 +407,7 @@ public sealed partial class Parser
             return ParseResult<TypeSyntax>.NoMatch();
         }
 
-        var elementTypeParse = TryParseType(elementTypeText, dialectRegistry, out var elementType, out var diagnostic)
-            ? ParseResult<TypeSyntax>.Success(elementType!)
-            : ParseResult<TypeSyntax>.Failure(diagnostic!);
+        var elementTypeParse = TryParseNestedStandaloneTypeText(elementTypeText);
         if (!elementTypeParse.IsSuccess)
         {
             return elementTypeParse;
@@ -467,9 +452,7 @@ public sealed partial class Parser
             return ParseResult<TypeSyntax>.NoMatch();
         }
 
-        var elementTypeParse = TryParseType(elementTypeText, dialectRegistry, out var elementType, out var diagnostic)
-            ? ParseResult<TypeSyntax>.Success(elementType!)
-            : ParseResult<TypeSyntax>.Failure(diagnostic!);
+        var elementTypeParse = TryParseNestedStandaloneTypeText(elementTypeText);
         if (!elementTypeParse.IsSuccess)
         {
             return elementTypeParse;
@@ -548,41 +531,21 @@ public sealed partial class Parser
         var rawResult = stopAtOperationBoundary
             ? TryParseRawUntilDelimiterOrBoundaryResult(stopBefore)
             : TryParseRawUntilDelimiterOrKeywordResult(stopBefore, stopBeforeKeywords);
-        return rawResult.IsSuccess
-            ? ParseResult<TypeSyntax>.Success(new RawTypeSyntax(rawResult.Value))
-            : ParseResult<TypeSyntax>.Failure(rawResult.Diagnostic!);
+        return rawResult.Map<TypeSyntax>(static raw => new RawTypeSyntax(raw));
     }
 
-    internal TypeSyntax ParseTypeSyntaxInternal(params TokenKind[] delimiters)
+    internal ParseResult<TypeSyntax> TryParseTypeSyntaxInternal(params TokenKind[] delimiters)
     {
-        var result = TryParseTypeSyntaxResult(delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseTypeSyntaxResult(delimiters);
     }
 
-    internal TypeSyntax ParseTypeSyntaxInternal(string[] stopBeforeKeywords, params TokenKind[] delimiters)
+    internal ParseResult<TypeSyntax> TryParseTypeSyntaxInternal(string[] stopBeforeKeywords, params TokenKind[] delimiters)
     {
-        var result = TryParseTypeSyntaxResult(stopBeforeKeywords, delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseTypeSyntaxResult(stopBeforeKeywords, delimiters);
     }
 
-    internal TypeSyntax ParseTypeSyntaxUntilOperationBoundaryInternal()
+    internal ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundaryInternal()
     {
-        var result = TryParseTypeSyntaxUntilOperationBoundaryResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseTypeSyntaxUntilOperationBoundaryResult();
     }
 }

@@ -14,21 +14,50 @@ using MLIR.Transforms;
 public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        syntax = null;
         if (!context.TryMatch(TokenKind.Identifier, out var keywordToken) || keywordToken.Text != "dense")
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        var lessThanToken = context.Expect(TokenKind.LessThan, "Expected '<' after 'dense'.");
-        var payload = context.ParseAttributeValueSyntax(TokenKind.GreaterThan);
-        var greaterThanToken = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the dense payload.");
-        var colonToken = context.Expect(TokenKind.Colon, "Expected ':' before the elements type.");
-        var typeSyntax = context.ParseTypeSyntax(TokenKind.Comma, TokenKind.RBrace);
-        syntax = new ElementsAttributeValueSyntax(keywordToken, lessThanToken, payload, greaterThanToken, colonToken, typeSyntax);
-        return true;
+        var lessThanTokenResult = context.Expect(TokenKind.LessThan, "Expected '<' after 'dense'.");
+        if (!lessThanTokenResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(lessThanTokenResult.Diagnostic!);
+        }
+
+        var payloadResult = context.TryParseAttributeValueSyntax(TokenKind.GreaterThan);
+        if (!payloadResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(payloadResult.Diagnostic!);
+        }
+
+        var greaterThanTokenResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the dense payload.");
+        if (!greaterThanTokenResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(greaterThanTokenResult.Diagnostic!);
+        }
+
+        var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' before the elements type.");
+        if (!colonTokenResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(colonTokenResult.Diagnostic!);
+        }
+
+        var typeSyntaxResult = context.TryParseTypeSyntax(TokenKind.Comma, TokenKind.RBrace);
+        if (!typeSyntaxResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(typeSyntaxResult.Diagnostic!);
+        }
+
+        return ParseResult<AttributeValueSyntax>.Success(new ElementsAttributeValueSyntax(
+            keywordToken,
+            lessThanTokenResult.Value,
+            payloadResult.Value,
+            greaterThanTokenResult.Value,
+            colonTokenResult.Value,
+            typeSyntaxResult.Value));
     }
 
     /// <inheritdoc/>

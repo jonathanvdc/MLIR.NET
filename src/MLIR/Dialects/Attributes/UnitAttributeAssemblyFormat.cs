@@ -14,16 +14,14 @@ using MLIR.Transforms;
 public sealed class UnitAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        syntax = null;
         if (!context.TryMatch(TokenKind.Identifier, out var token) || token.Text != "unit")
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        syntax = new UnitAttributeValueSyntax(token);
-        return true;
+        return ParseResult<AttributeValueSyntax>.Success(new UnitAttributeValueSyntax(token));
     }
 
     /// <inheritdoc/>

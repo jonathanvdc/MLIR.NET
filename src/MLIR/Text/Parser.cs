@@ -264,26 +264,37 @@ public sealed partial class Parser
         }
 
         var nameToken = nameTokenResult.Value;
-        if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal)
-            && TryParseCustomAssembly(nameToken, resultTokens, resultCommaTokens, equalsToken, out var customBody))
+        if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
         {
-            return ParseResult<OperationSyntax>.Success(new OperationSyntax(
-                resultTokens,
-                resultCommaTokens,
-                equalsToken,
-                nameToken,
-                customBody));
+            var customBodyResult = TryParseCustomAssemblyResult(nameToken, resultTokens, resultCommaTokens, equalsToken);
+            if (customBodyResult.IsSuccess)
+            {
+                return ParseResult<OperationSyntax>.Success(new OperationSyntax(
+                    resultTokens,
+                    resultCommaTokens,
+                    equalsToken,
+                    nameToken,
+                    customBodyResult.Value));
+            }
+
+            if (customBodyResult.IsError)
+            {
+                return ParseResult<OperationSyntax>.Failure(customBodyResult.Diagnostic!);
+            }
         }
 
-        if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal)
-            && TryParseProjectedCustomLikeOperationBody(out var projectedBody))
+        if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
         {
-            return ParseResult<OperationSyntax>.Success(new OperationSyntax(
-                resultTokens,
-                resultCommaTokens,
-                equalsToken,
-                nameToken,
-                projectedBody!));
+            var projectedBodyResult = TryParseProjectedCustomLikeOperationBodyResult();
+            if (projectedBodyResult.IsSuccess)
+            {
+                return ParseResult<OperationSyntax>.Success(new OperationSyntax(
+                    resultTokens,
+                    resultCommaTokens,
+                    equalsToken,
+                    nameToken,
+                    projectedBodyResult.Value));
+            }
         }
 
         var operandsResult = TryParseOperandsResult();
@@ -349,27 +360,53 @@ public sealed partial class Parser
             typeSignatureSyntax));
     }
 
-    private bool TryParseProjectedCustomLikeOperationBody(out OperationBodySyntax? body)
+    private ParseResult<OperationBodySyntax> TryParseProjectedCustomLikeOperationBodyResult()
     {
-        body = null;
         var checkpoint = Mark();
 
         var operandTokens = new List<SyntaxToken>();
         var operandCommaTokens = new List<SyntaxToken>();
         if (Is(TokenKind.SsaName))
         {
-            ParseCommaSeparatedItems(operandTokens, operandCommaTokens, () => ThrowIfFailure(TryParseSsaTokenResult()));
+            var firstOperandResult = TryParseSsaTokenResult();
+            if (!firstOperandResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(firstOperandResult.Diagnostic!);
+            }
+
+            operandTokens.Add(firstOperandResult.Value);
+            while (TryMatch(TokenKind.Comma, out var comma))
+            {
+                operandCommaTokens.Add(ToSyntaxToken(comma));
+                var operandResult = TryParseSsaTokenResult();
+                if (!operandResult.IsSuccess)
+                {
+                    return ParseResult<OperationBodySyntax>.Failure(operandResult.Diagnostic!);
+                }
+
+                operandTokens.Add(operandResult.Value);
+            }
         }
 
-        var attributeDict = ParseAttrDictInternal();
+        var attributeDictResult = TryParseAttrDictResult();
+        if (!attributeDictResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(attributeDictResult.Diagnostic!);
+        }
+
         if (!TryMatch(TokenKind.Colon, out var colonToken))
         {
             Reset(checkpoint);
-            return false;
+            return ParseResult<OperationBodySyntax>.NoMatch();
         }
 
-        var typeSignature = new RawTypeSyntax(ParseRawUntilOperationBoundaryInternal());
-        body = new GenericOperationBodySyntax(
+        var typeSignatureResult = TryParseRawUntilOperationBoundaryResult();
+        if (!typeSignatureResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(typeSignatureResult.Diagnostic!);
+        }
+
+        return ParseResult<OperationBodySyntax>.Success(new GenericOperationBodySyntax(
             new DelimitedSyntaxList<SyntaxToken>(
                 new SyntaxToken("("),
                 operandTokens,
@@ -377,46 +414,42 @@ public sealed partial class Parser
                 new SyntaxToken(")")),
             new DelimitedSyntaxList<SyntaxToken>(null, new List<SyntaxToken>(), new List<SyntaxToken>(), null),
             new List<RegionSyntax>(),
-            attributeDict,
+            attributeDictResult.Value,
             ToSyntaxToken(colonToken),
-            typeSignature);
-        return true;
+            new RawTypeSyntax(typeSignatureResult.Value)));
     }
 
-    private bool TryParseCustomAssembly(
+    private ParseResult<OperationBodySyntax> TryParseCustomAssemblyResult(
         SyntaxToken nameToken,
         IReadOnlyList<SyntaxToken> resultTokens,
         IReadOnlyList<SyntaxToken> resultCommaTokens,
-        SyntaxToken? equalsToken,
-        out OperationBodySyntax body)
+        SyntaxToken? equalsToken)
     {
-        body = null!;
         if (dialectRegistry == null)
         {
-            return false;
+            return ParseResult<OperationBodySyntax>.NoMatch();
         }
 
         var normalizedName = NormalizeOperationName(nameToken.Text);
         if (!dialectRegistry.TryGetOperation(normalizedName, out var definition) || definition.AssemblyFormat == null)
         {
-            return false;
+            return ParseResult<OperationBodySyntax>.NoMatch();
         }
 
         var checkpoint = Mark();
-        if (definition.AssemblyFormat.TryParse(
+        var result = definition.AssemblyFormat.TryParse(
             nameToken,
             resultTokens,
             resultCommaTokens,
             equalsToken,
-            new OperationParsingContext(this),
-            out var customBody))
+            new OperationParsingContext(this));
+        if (result.IsSuccess || result.IsError)
         {
-            body = customBody!;
-            return true;
+            return result;
         }
 
         Reset(checkpoint);
-        return false;
+        return ParseResult<OperationBodySyntax>.NoMatch();
     }
 
     private ParseResult<RegionSyntax> TryParseRegionResult()
@@ -592,28 +625,6 @@ public sealed partial class Parser
     private ParseResult<SyntaxToken> TryParseBlockLabelTokenResult()
     {
         return ExpectTokenResult(TokenKind.BlockLabel, "Expected a block label name.");
-    }
-
-    private RawSyntaxText ParseRawUntilDelimiter(params TokenKind[] delimiters)
-    {
-        var result = TryParseRawUntilDelimiterResult(delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
-    private RawSyntaxText ParseRawUntilDelimiterOrKeyword(TokenKind[] delimiters, string[] keywords)
-    {
-        var result = TryParseRawUntilDelimiterOrKeywordResult(delimiters, keywords);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private ParseResult<RawSyntaxText> TryParseRawUntilDelimiterResult(params TokenKind[] delimiters)

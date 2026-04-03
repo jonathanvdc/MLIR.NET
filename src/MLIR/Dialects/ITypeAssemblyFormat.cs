@@ -14,9 +14,8 @@ public interface ITypeAssemblyFormat
     /// Attempts to parse a dialect-specific custom assembly form for a type.
     /// </summary>
     /// <param name="context">The parsing context.</param>
-    /// <param name="syntax">When this method returns, contains the parsed type syntax when custom parsing succeeded.</param>
-    /// <returns><see langword="true"/> when a custom assembly form was parsed; otherwise, <see langword="false"/>.</returns>
-    bool TryParse(TypeParsingContext context, out TypeSyntax? syntax);
+    /// <returns>The parsed type syntax, a no-match result, or a diagnostic-producing failure.</returns>
+    ParseResult<TypeSyntax> TryParse(TypeParsingContext context);
 
     /// <summary>
     /// Interprets the supplied type syntax into a semantic type reference.

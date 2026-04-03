@@ -15,16 +15,15 @@ using MLIR.Transforms;
 public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
         if (!context.Is(TokenKind.LBrace))
         {
-            syntax = null;
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        syntax = new DictionaryAttributeValueSyntax(context.ParseAttributeDictionarySyntax());
-        return true;
+        return context.TryParseAttributeDictionarySyntax()
+            .Map<AttributeValueSyntax>(static dictionarySyntax => new DictionaryAttributeValueSyntax(dictionarySyntax));
     }
 
     /// <inheritdoc/>

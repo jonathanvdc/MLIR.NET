@@ -14,27 +14,24 @@ using MLIR.Transforms;
 public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        syntax = null;
         if (!context.TryMatch(TokenKind.Identifier, out var identifier))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         if (identifier.Text == "true")
         {
-            syntax = new BooleanAttributeValueSyntax(identifier, true);
-            return true;
+            return ParseResult<AttributeValueSyntax>.Success(new BooleanAttributeValueSyntax(identifier, true));
         }
 
         if (identifier.Text == "false")
         {
-            syntax = new BooleanAttributeValueSyntax(identifier, false);
-            return true;
+            return ParseResult<AttributeValueSyntax>.Success(new BooleanAttributeValueSyntax(identifier, false));
         }
 
-        return false;
+        return ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     /// <inheritdoc/>

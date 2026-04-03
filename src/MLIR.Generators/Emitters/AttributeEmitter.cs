@@ -121,9 +121,8 @@ internal static class AttributeEmitter
         var formatClassName = attributeClassName + "AssemblyFormat";
         builder.AppendLine("internal sealed class " + formatClassName + " : IAttributeAssemblyFormat");
         builder.AppendLine("{");
-        builder.AppendLine("    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)");
+        builder.AppendLine("    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)");
         builder.AppendLine("    {");
-        builder.AppendLine("        syntax = null;");
         builder.AppendLine("        if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var firstToken)");
         builder.AppendLine("            && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out firstToken)");
         if (enumModel.IsBitEnum)
@@ -135,7 +134,7 @@ internal static class AttributeEmitter
             builder.AppendLine(")");
         }
         builder.AppendLine("        {");
-        builder.AppendLine("            return false;");
+        builder.AppendLine("            return ParseResult<AttributeValueSyntax>.NoMatch();");
         builder.AppendLine("        }");
         builder.AppendLine();
         builder.AppendLine("        var rawText = firstToken.Text;");
@@ -147,24 +146,28 @@ internal static class AttributeEmitter
             builder.AppendLine("            if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
             builder.AppendLine("                && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
             builder.AppendLine("            {");
-            builder.AppendLine("                return false;");
+            builder.AppendLine("                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Line, firstToken.Column));");
             builder.AppendLine("            }");
             builder.AppendLine();
             builder.AppendLine("            rawText += nextToken.Text;");
             builder.AppendLine("            while (context.TryMatch(MLIR.Text." + sepKind + ", out _))");
             builder.AppendLine("            {");
             builder.AppendLine("                rawText += " + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator) + ";");
-            builder.AppendLine("                if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out nextToken)");
-            builder.AppendLine("                    && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
-            builder.AppendLine("                {");
-            builder.AppendLine("                    return false;");
-            builder.AppendLine("                }");
+                builder.AppendLine("                if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out nextToken)");
+                builder.AppendLine("                    && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
+                builder.AppendLine("                {");
+                builder.AppendLine("                    return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Line, firstToken.Column));");
+                builder.AppendLine("                }");
             builder.AppendLine();
             builder.AppendLine("                rawText += nextToken.Text;");
             builder.AppendLine("            }");
             builder.AppendLine();
-            builder.AppendLine("            var greaterThan = context.Expect(MLIR.Text.TokenKind.GreaterThan, \"Expected '>' to close the enum attribute.\");");
-            builder.AppendLine("            rawText += greaterThan.Text;");
+            builder.AppendLine("            var greaterThanResult = context.Expect(MLIR.Text.TokenKind.GreaterThan, \"Expected '>' to close the enum attribute.\");");
+            builder.AppendLine("            if (!greaterThanResult.IsSuccess)");
+            builder.AppendLine("            {");
+            builder.AppendLine("                return ParseResult<AttributeValueSyntax>.Failure(greaterThanResult.Diagnostic!);");
+            builder.AppendLine("            }");
+            builder.AppendLine("            rawText += greaterThanResult.Value.Text;");
             builder.AppendLine("        }");
             builder.AppendLine("        else");
             builder.AppendLine("        {");
@@ -182,8 +185,7 @@ internal static class AttributeEmitter
         }
 
         builder.AppendLine();
-        builder.AppendLine("        syntax = new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(rawText));");
-        builder.AppendLine("        return true;");
+        builder.AppendLine("        return ParseResult<AttributeValueSyntax>.Success(new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(rawText)));");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");

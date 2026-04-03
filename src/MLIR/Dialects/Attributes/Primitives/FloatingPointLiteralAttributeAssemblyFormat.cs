@@ -14,9 +14,9 @@ using MLIR.Transforms;
 public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context, out syntax);
+        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context);
     }
 
     /// <inheritdoc/>

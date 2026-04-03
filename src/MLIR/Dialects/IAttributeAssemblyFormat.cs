@@ -14,9 +14,8 @@ public interface IAttributeAssemblyFormat
     /// Attempts to parse a dialect-specific custom assembly form for an attribute value.
     /// </summary>
     /// <param name="context">The parsing context.</param>
-    /// <param name="syntax">When this method returns, contains the parsed attribute-value syntax when custom parsing succeeded.</param>
-    /// <returns><see langword="true"/> when a custom assembly form was parsed; otherwise, <see langword="false"/>.</returns>
-    bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax);
+    /// <returns>The parsed attribute-value syntax, a no-match result, or a diagnostic-producing failure.</returns>
+    ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context);
 
     /// <summary>
     /// Interprets the supplied attribute-value syntax into a semantic attribute value.

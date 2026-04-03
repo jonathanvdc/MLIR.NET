@@ -1,9 +1,11 @@
 namespace MLIR.Text;
 
+using System;
+
 /// <summary>
 /// Describes the outcome of a parsing step.
 /// </summary>
-internal enum ParseOutcome
+public enum ParseOutcome
 {
     /// <summary>
     /// The parser matched the production and produced a value.
@@ -25,7 +27,7 @@ internal enum ParseOutcome
 /// Represents the outcome of a parsing step that may either succeed, fail to match, or report a diagnostic.
 /// </summary>
 /// <typeparam name="T">The parsed value type.</typeparam>
-internal readonly struct ParseResult<T>
+public readonly struct ParseResult<T>
 {
     private ParseResult(ParseOutcome outcome, T value, Diagnostic? diagnostic)
     {
@@ -63,6 +65,49 @@ internal readonly struct ParseResult<T>
     /// Gets the diagnostic when <see cref="IsError"/> is <see langword="true"/>.
     /// </summary>
     public Diagnostic? Diagnostic { get; }
+
+    /// <summary>
+    /// Projects the successful parse value into a different shape while preserving failure and no-match outcomes.
+    /// </summary>
+    /// <typeparam name="TResult">The projected result type.</typeparam>
+    /// <param name="map">The projection to apply on success.</param>
+    /// <returns>The projected parse result.</returns>
+    public ParseResult<TResult> Map<TResult>(Func<T, TResult> map)
+    {
+        return Outcome switch
+        {
+            ParseOutcome.Success => ParseResult<TResult>.Success(map(Value)),
+            ParseOutcome.NoMatch => ParseResult<TResult>.NoMatch(),
+            _ => ParseResult<TResult>.Failure(Diagnostic!),
+        };
+    }
+
+    /// <summary>
+    /// Chains another parse step after a successful result while preserving failure and no-match outcomes.
+    /// </summary>
+    /// <typeparam name="TResult">The chained result type.</typeparam>
+    /// <param name="bind">The chained parse step.</param>
+    /// <returns>The chained parse result.</returns>
+    public ParseResult<TResult> Bind<TResult>(Func<T, ParseResult<TResult>> bind)
+    {
+        return Outcome switch
+        {
+            ParseOutcome.Success => bind(Value),
+            ParseOutcome.NoMatch => ParseResult<TResult>.NoMatch(),
+            _ => ParseResult<TResult>.Failure(Diagnostic!),
+        };
+    }
+
+    /// <summary>
+    /// Converts the parse result to the legacy boolean-style contract used by public custom assembly hooks.
+    /// </summary>
+    /// <param name="value">Receives the parsed value on success.</param>
+    /// <returns><see langword="true"/> when parsing succeeded; otherwise, <see langword="false"/>.</returns>
+    public bool TryGetValue(out T value)
+    {
+        value = IsSuccess ? Value : default!;
+        return IsSuccess;
+    }
 
     /// <summary>
     /// Creates a successful parse result.

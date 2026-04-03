@@ -61,18 +61,12 @@ public sealed partial class Parser
     {
         if (Is(TokenKind.LBracket))
         {
-            var arrayResult = TryParseArrayAttributeValueSyntaxResult();
-            return arrayResult.IsSuccess
-                ? ParseResult<AttributeValueSyntax>.Success(arrayResult.Value)
-                : ParseResult<AttributeValueSyntax>.Failure(arrayResult.Diagnostic!);
+            return TryParseArrayAttributeValueSyntaxResult().Map<AttributeValueSyntax>(static syntax => syntax);
         }
 
         if (Is(TokenKind.LBrace))
         {
-            var dictResult = TryParseAttrDictResult();
-            return dictResult.IsSuccess
-                ? ParseResult<AttributeValueSyntax>.Success(new DictionaryAttributeValueSyntax(dictResult.Value))
-                : ParseResult<AttributeValueSyntax>.Failure(dictResult.Diagnostic!);
+            return TryParseAttrDictResult().Map<AttributeValueSyntax>(static syntax => new DictionaryAttributeValueSyntax(syntax));
         }
 
         var denseArrayResult = TryParseAttributeAssemblyFormatResult(BuiltinAttributeConstraintDefinition("DenseArrayAttr"), DenseArrayAttributeAssemblyFormat);
@@ -89,79 +83,44 @@ public sealed partial class Parser
         IAttributeAssemblyFormat assemblyFormat)
     {
         var checkpoint = Mark();
-        if (assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var syntax))
+        var result = assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition));
+        if (result.IsSuccess)
         {
-            return ParseResult<AttributeValueSyntax>.Success(syntax!);
+            return result;
         }
 
         Reset(checkpoint);
-        return ParseResult<AttributeValueSyntax>.NoMatch();
+        return result.IsError ? result : ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(params TokenKind[] delimiters)
+    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxInternal(params TokenKind[] delimiters)
     {
-        var result = TryParseAttributeValueSyntaxResult(false, (AttributeDefinition?)null, delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseAttributeValueSyntaxResult(false, (AttributeDefinition?)null, delimiters);
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
+    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        var result = TryParseAttributeValueSyntaxResult(false, expectedDefinitionName, delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseAttributeValueSyntaxResult(false, expectedDefinitionName, delimiters);
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
+    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        var result = TryParseAttributeValueSyntaxResult(false, expectedDefinition, delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseAttributeValueSyntaxResult(false, expectedDefinition, delimiters);
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(params TokenKind[] delimiters)
+    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxOrBoundaryInternal(params TokenKind[] delimiters)
     {
-        var result = TryParseAttributeValueSyntaxResult(true, (AttributeDefinition?)null, delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseAttributeValueSyntaxResult(true, (AttributeDefinition?)null, delimiters);
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
+    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxOrBoundaryInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        var result = TryParseAttributeValueSyntaxResult(true, expectedDefinitionName, delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseAttributeValueSyntaxResult(true, expectedDefinitionName, delimiters);
     }
 
-    internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
+    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        var result = TryParseAttributeValueSyntaxResult(true, expectedDefinition, delimiters);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
+        return TryParseAttributeValueSyntaxResult(true, expectedDefinition, delimiters);
     }
 
     private ParseResult<NamedAttributeSyntax> TryParseAttributeResult()
@@ -190,13 +149,8 @@ public sealed partial class Parser
             return ParseResult<NamedAttributeSyntax>.Failure(CreateDiagnostic("Expected '=' or ':' after attribute name."));
         }
 
-        var valueResult = TryParseAttributeValueSyntaxResult(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace);
-        if (!valueResult.IsSuccess)
-        {
-            return ParseResult<NamedAttributeSyntax>.Failure(valueResult.Diagnostic!);
-        }
-
-        return ParseResult<NamedAttributeSyntax>.Success(new NamedAttributeSyntax(nameToken, separatorToken, valueResult.Value));
+        return TryParseAttributeValueSyntaxResult(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace)
+            .Map(valueSyntax => new NamedAttributeSyntax(nameToken, separatorToken, valueSyntax));
     }
 
     private ParseResult<AttributeValueSyntax> TryParseStandaloneAttributeValueResult(AttributeConstraintDefinition? expectedDefinition)
@@ -220,13 +174,14 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        if (definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var syntax))
+        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition));
+        if (result.IsSuccess)
         {
-            return ParseResult<AttributeValueSyntax>.Success(syntax!);
+            return result;
         }
 
         Reset(checkpoint);
-        return ParseResult<AttributeValueSyntax>.NoMatch();
+        return result.IsError ? result : ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeSyntaxResult()

@@ -89,7 +89,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             "if (op.Value)");
         AssertDoesNotContainAny(
             registrationSource,
-            "context.ParseAttributeValueSyntax(MLIR.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)",
+            "context.TryParseAttributeValueSyntax(MLIR.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)",
             "NamedAttributeCollection.Create(value ?",
             "if (op.Value != null)");
     }
@@ -109,15 +109,14 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            "public bool TryParse(",
-            "var lhs = context.ParseSsaToken();",
-            "var rhs = context.ParseSsaToken();",
+            "public ParseResult<OperationBodySyntax> TryParse(",
+            "var lhsResult = context.TryParseSsaToken();",
+            "var rhsResult = context.TryParseSsaToken();",
             "context.Expect(TokenKind.Comma, ",
             "context.Expect(TokenKind.Colon, ",
-            "var attrDict = context.ParseAttrDict();",
-            "context.ParseTypeSyntax()",
-            "body = new MiniArith_AddIOpBodySyntax(lhs, commaToken, rhs, attrDict, colonToken, resultType);",
-            "return true;");
+            "var attrDictResult = context.TryParseAttrDict();",
+            "context.TryParseTypeSyntax()",
+            "return ParseResult<OperationBodySyntax>.Success(new MiniArith_AddIOpBodySyntax(lhs, commaToken, rhs, attrDict, colonToken, resultType));");
     }
 
     [Fact]
@@ -144,10 +143,9 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            "context.ParseAttributeValueSyntax(",
-            "var attrDict = context.ParseAttrDict();",
-            "body = new MiniArith_ConstantOpBodySyntax(value, attrDict);",
-            "return true;");
+            "context.TryParseAttributeValueSyntax(",
+            "var attrDictResult = context.TryParseAttrDict();",
+            "return ParseResult<OperationBodySyntax>.Success(new MiniArith_ConstantOpBodySyntax(value, attrDict));");
     }
 
     [Fact]
@@ -180,8 +178,8 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "TypeSyntax",
-            "context.ParseTypeSyntax()",
-            "return true;");
+            "context.TryParseTypeSyntax()",
+            "return ParseResult<OperationBodySyntax>.Success(");
     }
 
     [Fact]
@@ -199,7 +197,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             registrationSource,
             "ResultsType",
             "TypeSyntax",
-            "return true;");
+            "return ParseResult<OperationBodySyntax>.Success(");
     }
 
     [Fact]
@@ -218,7 +216,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             registrationSource,
             "SyntaxToken?",
             "context.TryMatch(TokenKind.Comma,",
-            "return true;");
+            "return ParseResult<OperationBodySyntax>.Success(");
     }
 
     [Fact]
@@ -240,6 +238,6 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             "while (foundOilist);",
             "context.IsKeyword(\"stride\")",
             "context.IsKeyword(\"padding\")",
-            "return true;");
+            "return ParseResult<OperationBodySyntax>.Success(");
     }
 }

@@ -6,17 +6,6 @@ using MLIR.Dialects;
 
 public sealed partial class Parser
 {
-    private RawSyntaxText ParseRawUntilOperationBoundary()
-    {
-        var result = TryParseRawUntilOperationBoundaryResult();
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
     private ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundaryResult()
     {
         return TryScanRawFragment([], [], stopAtOperationBoundary: true, allowEmpty: false, eofMessage: null);
@@ -167,50 +156,6 @@ public sealed partial class Parser
         position = mark.Position;
     }
 
-    private void ParseCommaSeparatedItems<T>(
-        List<T> items,
-        List<SyntaxToken> separators,
-        Func<T> parseElement)
-    {
-        items.Add(parseElement());
-        while (TryMatch(TokenKind.Comma, out var comma))
-        {
-            separators.Add(ToSyntaxToken(comma));
-            items.Add(parseElement());
-        }
-    }
-
-    private DelimitedSyntaxList<T> ParseRequiredCommaSeparatedDelimitedList<T>(
-        TokenKind openKind,
-        TokenKind closeKind,
-        Func<T> parseElement,
-        string openMessage,
-        string closeMessage)
-    {
-        var openTokenResult = ExpectTokenResult(openKind, openMessage);
-        if (!openTokenResult.IsSuccess)
-        {
-            throw new ParseException(openTokenResult.Diagnostic!);
-        }
-
-        var openToken = openTokenResult.Value;
-        return ParseCommaSeparatedDelimitedListCore(openToken, closeKind, parseElement, closeMessage);
-    }
-
-    private DelimitedSyntaxList<T> ParseOptionalCommaSeparatedDelimitedList<T>(
-        TokenKind openKind,
-        TokenKind closeKind,
-        Func<T> parseElement,
-        string closeMessage)
-    {
-        if (!TryMatch(openKind, out var openToken))
-        {
-            return EmptyDelimitedSyntaxList<T>();
-        }
-
-        return ParseCommaSeparatedDelimitedListCore(ToSyntaxToken(openToken), closeKind, parseElement, closeMessage);
-    }
-
     private ParseResult<DelimitedSyntaxList<T>> TryParseOptionalCommaSeparatedDelimitedList<T>(
         TokenKind openKind,
         TokenKind closeKind,
@@ -232,13 +177,8 @@ public sealed partial class Parser
         string openMessage,
         string closeMessage)
     {
-        var openTokenResult = ExpectTokenResult(openKind, openMessage);
-        if (!openTokenResult.IsSuccess)
-        {
-            return ParseResult<DelimitedSyntaxList<T>>.Failure(openTokenResult.Diagnostic!);
-        }
-
-        return TryParseCommaSeparatedDelimitedListCore(openTokenResult.Value, closeKind, parseElement, closeMessage);
+        return ExpectTokenResult(openKind, openMessage)
+            .Bind(openToken => TryParseCommaSeparatedDelimitedListCore(openToken, closeKind, parseElement, closeMessage));
     }
 
     private ParseResult<DelimitedSyntaxList<T>> TryParseCommaSeparatedDelimitedListCore<T>(
@@ -258,38 +198,13 @@ public sealed partial class Parser
             }
 
             var closeTokenResult = ExpectRawTokenResult(closeKind, closeMessage);
-            if (!closeTokenResult.IsSuccess)
+            if (!closeTokenResult.TryGetValue(out closeToken))
             {
                 return ParseResult<DelimitedSyntaxList<T>>.Failure(closeTokenResult.Diagnostic!);
             }
-
-            closeToken = closeTokenResult.Value;
         }
 
         return ParseResult<DelimitedSyntaxList<T>>.Success(new DelimitedSyntaxList<T>(openToken, items, separators, ToSyntaxToken(closeToken)));
-    }
-
-    private DelimitedSyntaxList<T> ParseCommaSeparatedDelimitedListCore<T>(
-        SyntaxToken openToken,
-        TokenKind closeKind,
-        Func<T> parseElement,
-        string closeMessage)
-    {
-        var items = new List<T>();
-        var separators = new List<SyntaxToken>();
-        if (!TryMatch(closeKind, out var closeToken))
-        {
-            ParseCommaSeparatedItems(items, separators, parseElement);
-            var closeTokenResult = ExpectRawTokenResult(closeKind, closeMessage);
-            if (!closeTokenResult.IsSuccess)
-            {
-                throw new ParseException(closeTokenResult.Diagnostic!);
-            }
-
-            closeToken = closeTokenResult.Value;
-        }
-
-        return new DelimitedSyntaxList<T>(openToken, items, separators, ToSyntaxToken(closeToken));
     }
 
     private ParseResult<RawSyntaxText> TryScanRawFragment(
@@ -450,80 +365,70 @@ public sealed partial class Parser
         return TryMatch(kind, out token);
     }
 
-    internal SyntaxToken ExpectTokenInternal(TokenKind kind, string message)
+    internal ParseResult<SyntaxToken> ExpectTokenInternal(TokenKind kind, string message)
     {
-        return ThrowIfFailure(ExpectTokenResult(kind, message));
+        return ExpectTokenResult(kind, message);
     }
 
-    internal SyntaxToken ParseSsaTokenInternal()
+    internal ParseResult<SyntaxToken> TryParseSsaTokenInternal()
     {
-        return ThrowIfFailure(TryParseSsaTokenResult());
+        return TryParseSsaTokenResult();
     }
 
-    internal SyntaxToken ParseBlockLabelTokenInternal()
+    internal ParseResult<SyntaxToken> TryParseBlockLabelTokenInternal()
     {
-        return ThrowIfFailure(TryParseBlockLabelTokenResult());
+        return TryParseBlockLabelTokenResult();
     }
 
-    internal RegionSyntax ParseRegionInternal()
+    internal ParseResult<RegionSyntax> TryParseRegionInternal()
     {
-        return ThrowIfFailure(TryParseRegionResult());
+        return TryParseRegionResult();
     }
 
-    internal NamedAttributeSyntax ParseAttributeInternal()
+    internal ParseResult<NamedAttributeSyntax> TryParseAttributeInternal()
     {
-        return ThrowIfFailure(TryParseAttributeResult());
+        return TryParseAttributeResult();
     }
 
-    internal RawSyntaxText ParseRawUntilDelimiterInternal(params TokenKind[] delimiters)
+    internal ParseResult<RawSyntaxText> TryParseRawUntilDelimiterInternal(params TokenKind[] delimiters)
     {
-        return ParseRawUntilDelimiter(delimiters);
+        return TryParseRawUntilDelimiterResult(delimiters);
     }
 
-    internal RawSyntaxText ParseRawUntilDelimiterOrKeywordInternal(string[] keywords, params TokenKind[] delimiters)
+    internal ParseResult<RawSyntaxText> TryParseRawUntilDelimiterOrKeywordInternal(string[] keywords, params TokenKind[] delimiters)
     {
-        return ParseRawUntilDelimiterOrKeyword(delimiters, keywords);
+        return TryParseRawUntilDelimiterOrKeywordResult(delimiters, keywords);
     }
 
-    internal RawSyntaxText ParseRawUntilOperationBoundaryInternal()
+    internal ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundaryInternal()
     {
-        return ParseRawUntilOperationBoundary();
+        return TryParseRawUntilOperationBoundaryResult();
     }
 
-    internal RawSyntaxText ParseRawUntilDelimiterOrBoundaryInternal(params TokenKind[] delimiters)
+    internal ParseResult<RawSyntaxText> TryParseRawUntilDelimiterOrBoundaryInternal(params TokenKind[] delimiters)
     {
-        return ThrowIfFailure(TryParseRawUntilDelimiterOrBoundaryResult(delimiters));
+        return TryParseRawUntilDelimiterOrBoundaryResult(delimiters);
     }
 
-    internal DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictInternal()
+    internal ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictInternal()
     {
-        if (!Is(TokenKind.LBrace))
-        {
-            return EmptyDelimitedSyntaxList<NamedAttributeSyntax>();
-        }
-
-        return ParseRequiredCommaSeparatedDelimitedList(
-            TokenKind.LBrace,
-            TokenKind.RBrace,
-            () => ThrowIfFailure(TryParseAttributeResult()),
-            "Expected '{' to start the attribute dictionary.",
-            "Expected '}' to close the attribute dictionary.");
+        return TryParseAttrDictResult();
     }
 
-    internal DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictWithKeywordInternal()
+    internal ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictWithKeywordInternal()
     {
         if (!Is(TokenKind.Identifier) || !string.Equals(Current.Text, "attributes", System.StringComparison.Ordinal))
         {
-            return EmptyDelimitedSyntaxList<NamedAttributeSyntax>();
+            return ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>>.Success(EmptyDelimitedSyntaxList<NamedAttributeSyntax>());
         }
 
         ConsumeToken();
-        return ParseAttrDictInternal();
+        return TryParseAttrDictResult();
     }
 
-    internal SyntaxToken ExpectKeywordInternal(string spelling, string message)
+    internal ParseResult<SyntaxToken> ExpectKeywordInternal(string spelling, string message)
     {
-        return ThrowIfFailure(ExpectKeywordResult(spelling, message));
+        return ExpectKeywordResult(spelling, message);
     }
 
     private ParseResult<SyntaxToken> ExpectKeywordResult(string spelling, string message)
@@ -536,55 +441,30 @@ public sealed partial class Parser
         return ParseResult<SyntaxToken>.Success(ToSyntaxToken(ConsumeToken()));
     }
 
-    internal IReadOnlyList<RegionSyntax> ParseRegionsInternal()
+    internal ParseResult<IReadOnlyList<RegionSyntax>> TryParseRegionsInternal()
     {
         var regions = new List<RegionSyntax>();
         while (Is(TokenKind.LBrace))
         {
-            regions.Add(ThrowIfFailure(TryParseRegionResult()));
+            var regionResult = TryParseRegionResult();
+            if (!regionResult.IsSuccess)
+            {
+                return ParseResult<IReadOnlyList<RegionSyntax>>.Failure(regionResult.Diagnostic!);
+            }
+
+            regions.Add(regionResult.Value);
         }
 
-        return regions;
+        return ParseResult<IReadOnlyList<RegionSyntax>>.Success(regions);
     }
 
-    internal DelimitedSyntaxList<SyntaxToken> ParseSuccessorsInternal()
-    {
-        if (!Is(TokenKind.LBracket))
-        {
-            return EmptyDelimitedSyntaxList<SyntaxToken>();
-        }
+    internal ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseSuccessorsInternal() => TryParseSuccessorsResult();
 
-        return ThrowIfFailure(TryParseSuccessorsResult());
-    }
-
-    internal DelimitedSyntaxList<SyntaxToken> ParseOperandsInternal()
-    {
-        return ThrowIfFailure(TryParseOperandsResult());
-    }
+    internal ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseOperandsInternal() => TryParseOperandsResult();
 
     internal bool IsKeywordInternal(string spelling)
     {
         return Is(TokenKind.Identifier) && string.Equals(Current.Text, spelling, System.StringComparison.Ordinal);
-    }
-
-    private SyntaxToken ThrowIfFailure(ParseResult<SyntaxToken> result)
-    {
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
-    }
-
-    private T ThrowIfFailure<T>(ParseResult<T> result)
-    {
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private string? TryPeekAttributeDefinitionName()

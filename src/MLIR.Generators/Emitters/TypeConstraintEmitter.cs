@@ -223,10 +223,9 @@ internal static class TypeConstraintEmitter
         builder.AppendLine();
         builder.AppendLine("internal sealed class " + assemblyFormatType + " : ITypeAssemblyFormat");
         builder.AppendLine("{");
-        builder.AppendLine("    public bool TryParse(TypeParsingContext context, out TypeSyntax? syntax)");
+        builder.AppendLine("    public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)");
         builder.AppendLine("    {");
-        builder.AppendLine("        syntax = null;");
-        builder.AppendLine("        return false;");
+        builder.AppendLine("        return ParseResult<TypeSyntax>.NoMatch();");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)");

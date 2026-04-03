@@ -45,26 +45,38 @@ public sealed class ParsingTests
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
     {
-        public bool TryParse(
+        public ParseResult<OperationBodySyntax> TryParse(
             SyntaxToken nameToken,
             IReadOnlyList<SyntaxToken> resultTokens,
             IReadOnlyList<SyntaxToken> resultCommaTokens,
             SyntaxToken? equalsToken,
-            OperationParsingContext context,
-            out OperationBodySyntax? body)
+            OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
             {
-                body = null;
-                return false;
+                return ParseResult<OperationBodySyntax>.NoMatch();
             }
 
-            var value = context.ParseRawUntilDelimiter(TokenKind.Colon);
-            var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
-            var type = context.ParseRawUntilOperationBoundary();
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(value))]);
-            body = new PrefixConstantBodySyntax(value, colonToken, type, attributes);
-            return true;
+            var valueResult = context.TryParseRawUntilDelimiter(TokenKind.Colon);
+            if (!valueResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(valueResult.Diagnostic!);
+            }
+
+            var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
+            if (!colonTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
+            }
+
+            var typeResult = context.TryParseRawUntilOperationBoundary();
+            if (!typeResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
+            }
+
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(valueResult.Value))]);
+            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
         public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)

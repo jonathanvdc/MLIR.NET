@@ -16,16 +16,14 @@ using MLIR.Transforms;
 public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        syntax = null;
         if (!TryParseSignedIntegerLiteral(context, out var rawText, out var value))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        syntax = new IntegerAttributeValueSyntax(CreateSingleToken(rawText), value);
-        return true;
+        return ParseResult<AttributeValueSyntax>.Success(new IntegerAttributeValueSyntax(CreateSingleToken(rawText), value));
     }
 
     /// <inheritdoc/>

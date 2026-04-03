@@ -1,6 +1,5 @@
 namespace MLIR.Dialects.Attributes.Primitives;
 
-using System.Globalization;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
@@ -15,9 +14,9 @@ using MLIR.Transforms;
 public sealed class F64AttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context, out syntax);
+        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context);
     }
 
     /// <inheritdoc/>

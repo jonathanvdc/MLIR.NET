@@ -9,10 +9,8 @@ using MLIR.Text;
 
 internal static class FloatingPointAssemblyFormatHelper
 {
-    public static bool TryParseDecimalLiteral(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public static ParseResult<AttributeValueSyntax> TryParseDecimalLiteral(AttributeParsingContext context)
     {
-        syntax = null;
-
         var tokens = new List<SyntaxToken>();
         if (context.TryMatch(TokenKind.Plus, out var plusToken))
         {
@@ -23,93 +21,90 @@ internal static class FloatingPointAssemblyFormatHelper
             tokens.Add(minusToken);
         }
 
-        if (TryParseSpecialLiteral(context, tokens, out syntax))
+        var specialLiteralResult = TryParseSpecialLiteral(context, tokens);
+        if (!specialLiteralResult.IsNoMatch)
         {
-            return true;
+            return specialLiteralResult;
         }
 
-        if (TryParseHexLiteral(context, tokens, out syntax))
+        var hexLiteralResult = TryParseHexLiteral(context, tokens);
+        if (!hexLiteralResult.IsNoMatch)
         {
-            return true;
+            return hexLiteralResult;
         }
 
         if (!TryParseDecimalLiteralBody(context, tokens))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         if (!TryParseExponent(context, tokens))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         var literalText = string.Concat(tokens.Select(static token => token.Text));
         if (literalText.IndexOf('.') < 0 && literalText.IndexOf('e') < 0 && literalText.IndexOf('E') < 0)
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        syntax = new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText);
-        return true;
+        return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
     }
 
-    private static bool TryParseSpecialLiteral(AttributeParsingContext context, List<SyntaxToken> tokens, out AttributeValueSyntax? syntax)
+    private static ParseResult<AttributeValueSyntax> TryParseSpecialLiteral(AttributeParsingContext context, List<SyntaxToken> tokens)
     {
-        syntax = null;
         if (!context.Is(TokenKind.Identifier))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         if (!context.TryMatch(TokenKind.Identifier, out var identifierToken))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         if (!IsSpecialLiteral(identifierToken.Text))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         tokens.Add(identifierToken);
         var literalText = string.Concat(tokens.Select(static token => token.Text));
-        syntax = new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText);
-        return true;
+        return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
     }
 
-    private static bool TryParseHexLiteral(AttributeParsingContext context, List<SyntaxToken> tokens, out AttributeValueSyntax? syntax)
+    private static ParseResult<AttributeValueSyntax> TryParseHexLiteral(AttributeParsingContext context, List<SyntaxToken> tokens)
     {
-        syntax = null;
         if (!context.Is(TokenKind.Integer))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         if (!context.TryMatch(TokenKind.Integer, out var zeroToken))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         tokens.Add(zeroToken);
         if (!context.Is(TokenKind.Identifier))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         if (!context.TryMatch(TokenKind.Identifier, out var hexToken))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         if (!IsHexPrefixToken(hexToken.Text))
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         tokens.Add(hexToken);
         var literalText = string.Concat(tokens.Select(static token => token.Text));
-        syntax = new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText);
-        return true;
+        return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
     }
 
     private static bool TryParseDecimalLiteralBody(AttributeParsingContext context, List<SyntaxToken> tokens)

@@ -14,11 +14,10 @@ using MLIR.Transforms;
 public sealed class TypeAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        var typeSyntax = context.ParseTypeSyntax(TokenKind.Comma);
-        syntax = new TypeAttributeValueSyntax(typeSyntax);
-        return true;
+        return context.TryParseTypeSyntax(TokenKind.Comma)
+            .Map<AttributeValueSyntax>(static typeSyntax => new TypeAttributeValueSyntax(typeSyntax));
     }
 
     /// <inheritdoc/>

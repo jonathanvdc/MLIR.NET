@@ -20,43 +20,86 @@ using MLIR.Transforms;
 public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(
+    public ParseResult<OperationBodySyntax> TryParse(
         SyntaxToken nameToken,
         IReadOnlyList<SyntaxToken> resultTokens,
         IReadOnlyList<SyntaxToken> resultCommaTokens,
         SyntaxToken? equalsToken,
-        OperationParsingContext context,
-        out OperationBodySyntax? body)
+        OperationParsingContext context)
     {
-        var condition = context.ParseSsaToken();
-        var commaToken = context.Expect(TokenKind.Comma, "Expected ','.");
-        var trueValue = context.ParseSsaToken();
-        var commaToken2 = context.Expect(TokenKind.Comma, "Expected ','.");
-        var falseValue = context.ParseSsaToken();
-        var attrDict = context.ParseAttrDict();
-        var colonToken = context.Expect(TokenKind.Colon, "Expected ':'.");
-        var firstType = context.ParseTypeSyntax(TokenKind.Comma);
+        var conditionResult = context.TryParseSsaToken();
+        if (!conditionResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(conditionResult.Diagnostic!);
+        }
+
+        var commaTokenResult = context.Expect(TokenKind.Comma, "Expected ','.");
+        if (!commaTokenResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(commaTokenResult.Diagnostic!);
+        }
+
+        var trueValueResult = context.TryParseSsaToken();
+        if (!trueValueResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(trueValueResult.Diagnostic!);
+        }
+
+        var commaToken2Result = context.Expect(TokenKind.Comma, "Expected ','.");
+        if (!commaToken2Result.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(commaToken2Result.Diagnostic!);
+        }
+
+        var falseValueResult = context.TryParseSsaToken();
+        if (!falseValueResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(falseValueResult.Diagnostic!);
+        }
+
+        var attrDictResult = context.TryParseAttrDict();
+        if (!attrDictResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(attrDictResult.Diagnostic!);
+        }
+
+        var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':'.");
+        if (!colonTokenResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
+        }
+
+        var firstTypeResult = context.TryParseTypeSyntax(TokenKind.Comma);
+        if (!firstTypeResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(firstTypeResult.Diagnostic!);
+        }
 
         SyntaxToken? typeCommaToken = null;
         TypeSyntax? secondType = null;
         if (context.TryMatch(TokenKind.Comma, out var parsedTypeCommaToken))
         {
             typeCommaToken = parsedTypeCommaToken;
-            secondType = context.ParseTypeSyntax();
+            var secondTypeResult = context.TryParseTypeSyntax();
+            if (!secondTypeResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(secondTypeResult.Diagnostic!);
+            }
+
+            secondType = secondTypeResult.Value;
         }
 
-        body = new SelectLikeOperationBodySyntax(
-            condition,
-            commaToken,
-            trueValue,
-            commaToken2,
-            falseValue,
-            attrDict,
-            colonToken,
-            firstType,
+        return ParseResult<OperationBodySyntax>.Success(new SelectLikeOperationBodySyntax(
+            conditionResult.Value,
+            commaTokenResult.Value,
+            trueValueResult.Value,
+            commaToken2Result.Value,
+            falseValueResult.Value,
+            attrDictResult.Value,
+            colonTokenResult.Value,
+            firstTypeResult.Value,
             typeCommaToken,
-            secondType);
-        return true;
+            secondType));
     }
 
     /// <inheritdoc/>

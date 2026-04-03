@@ -16,39 +16,68 @@ using MLIR.Transforms;
 public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        syntax = null;
         if (!context.TryMatch(TokenKind.Identifier, out var keywordToken) || keywordToken.Text != "array")
         {
-            return false;
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        var lessThanToken = context.Expect(TokenKind.LessThan, "Expected '<' after 'array'.");
-        var elementTypeSyntax = context.ParseTypeSyntax(TokenKind.Colon);
-        var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the dense array element type.");
+        var lessThanTokenResult = context.Expect(TokenKind.LessThan, "Expected '<' after 'array'.");
+        if (!lessThanTokenResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(lessThanTokenResult.Diagnostic!);
+        }
+
+        var elementTypeSyntaxResult = context.TryParseTypeSyntax(TokenKind.Colon);
+        if (!elementTypeSyntaxResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(elementTypeSyntaxResult.Diagnostic!);
+        }
+
+        var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' after the dense array element type.");
+        if (!colonTokenResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(colonTokenResult.Diagnostic!);
+        }
 
         var items = new List<AttributeValueSyntax>();
         var separators = new List<SyntaxToken>();
         if (!context.Is(TokenKind.GreaterThan))
         {
-            items.Add(context.ParseAttributeValueSyntax(TokenKind.Comma, TokenKind.GreaterThan));
+            var firstItemResult = context.TryParseAttributeValueSyntax(TokenKind.Comma, TokenKind.GreaterThan);
+            if (!firstItemResult.IsSuccess)
+            {
+                return ParseResult<AttributeValueSyntax>.Failure(firstItemResult.Diagnostic!);
+            }
+
+            items.Add(firstItemResult.Value);
             while (context.TryMatch(TokenKind.Comma, out var commaToken))
             {
                 separators.Add(commaToken);
-                items.Add(context.ParseAttributeValueSyntax(TokenKind.Comma, TokenKind.GreaterThan));
+                var itemResult = context.TryParseAttributeValueSyntax(TokenKind.Comma, TokenKind.GreaterThan);
+                if (!itemResult.IsSuccess)
+                {
+                    return ParseResult<AttributeValueSyntax>.Failure(itemResult.Diagnostic!);
+                }
+
+                items.Add(itemResult.Value);
             }
         }
 
-        var greaterThanToken = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the dense array attribute.");
-        syntax = new DenseArrayAttributeValueSyntax(
+        var greaterThanTokenResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the dense array attribute.");
+        if (!greaterThanTokenResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(greaterThanTokenResult.Diagnostic!);
+        }
+
+        return ParseResult<AttributeValueSyntax>.Success(new DenseArrayAttributeValueSyntax(
             keywordToken,
-            lessThanToken,
-            elementTypeSyntax,
-            colonToken,
+            lessThanTokenResult.Value,
+            elementTypeSyntaxResult.Value,
+            colonTokenResult.Value,
             new DelimitedSyntaxList<AttributeValueSyntax>(null, items, separators, null),
-            greaterThanToken);
-        return true;
+            greaterThanTokenResult.Value));
     }
 
     /// <inheritdoc/>

@@ -428,27 +428,39 @@ public sealed partial class SemanticTests
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
     {
-        public bool TryParse(
+        public ParseResult<OperationBodySyntax> TryParse(
             SyntaxToken nameToken,
             IReadOnlyList<SyntaxToken> resultTokens,
             IReadOnlyList<SyntaxToken> resultCommaTokens,
             SyntaxToken? equalsToken,
-            OperationParsingContext context,
-            out OperationBodySyntax? body)
+            OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
             {
-                body = null;
-                return false;
+                return ParseResult<OperationBodySyntax>.NoMatch();
             }
 
-            var value = context.ParseRawUntilDelimiter(TokenKind.Colon);
-            var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
-            var type = new RawTypeSyntax(context.ParseRawUntilOperationBoundary());
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(value))]);
+            var valueResult = context.TryParseRawUntilDelimiter(TokenKind.Colon);
+            if (!valueResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(valueResult.Diagnostic!);
+            }
 
-            body = new PrefixConstantBodySyntax(value, colonToken, type, attributes);
-            return true;
+            var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
+            if (!colonTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
+            }
+
+            var typeResult = context.TryParseRawUntilOperationBoundary();
+            if (!typeResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
+            }
+
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(valueResult.Value))]);
+
+            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, new RawTypeSyntax(typeResult.Value), attributes));
         }
 
         public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
@@ -486,27 +498,39 @@ public sealed partial class SemanticTests
             this.expectedAttributeDefinition = expectedAttributeDefinition;
         }
 
-        public bool TryParse(
+        public ParseResult<OperationBodySyntax> TryParse(
             SyntaxToken nameToken,
             IReadOnlyList<SyntaxToken> resultTokens,
             IReadOnlyList<SyntaxToken> resultCommaTokens,
             SyntaxToken? equalsToken,
-            OperationParsingContext context,
-            out OperationBodySyntax? body)
+            OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
             {
-                body = null;
-                return false;
+                return ParseResult<OperationBodySyntax>.NoMatch();
             }
 
-            var value = context.ParseAttributeValueSyntax(expectedAttributeDefinition, TokenKind.Colon);
-            var colonToken = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
-            var type = context.ParseTypeSyntax();
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), value)]);
+            var valueResult = context.TryParseAttributeValueSyntax(expectedAttributeDefinition, TokenKind.Colon);
+            if (!valueResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(valueResult.Diagnostic!);
+            }
 
-            body = new PrefixConstantBodySyntax(value.GetRawText(), colonToken, type, attributes);
-            return true;
+            var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
+            if (!colonTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
+            }
+
+            var typeResult = context.TryParseTypeSyntax();
+            if (!typeResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
+            }
+
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), valueResult.Value)]);
+
+            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value.GetRawText(), colonTokenResult.Value, typeResult.Value, attributes));
         }
 
         public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
@@ -543,32 +567,64 @@ public sealed partial class SemanticTests
 
     private sealed class DenseAttributeAssemblyFormat : IAttributeAssemblyFormat
     {
-        public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
-            syntax = null;
             if (!context.TryMatch(TokenKind.Hash, out var hashToken))
             {
-                return false;
+                return ParseResult<AttributeValueSyntax>.NoMatch();
             }
 
             if (!(context.Is(TokenKind.Identifier) && context.TryMatch(TokenKind.Identifier, out var nameToken) && nameToken.Text == "dense"))
             {
-                return false;
+                return ParseResult<AttributeValueSyntax>.NoMatch();
             }
 
-            var lessThanToken = context.Expect(TokenKind.LessThan, "Expected '<' after '#dense'.");
-            var payload = context.ParseRawUntilDelimiter(TokenKind.GreaterThan);
-            var greaterThanToken = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the dense attribute.");
+            var lessThanTokenResult = context.Expect(TokenKind.LessThan, "Expected '<' after '#dense'.");
+            if (!lessThanTokenResult.IsSuccess)
+            {
+                return ParseResult<AttributeValueSyntax>.Failure(lessThanTokenResult.Diagnostic!);
+            }
+
+            var payloadResult = context.TryParseRawUntilDelimiter(TokenKind.GreaterThan);
+            if (!payloadResult.IsSuccess)
+            {
+                return ParseResult<AttributeValueSyntax>.Failure(payloadResult.Diagnostic!);
+            }
+
+            var greaterThanTokenResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the dense attribute.");
+            if (!greaterThanTokenResult.IsSuccess)
+            {
+                return ParseResult<AttributeValueSyntax>.Failure(greaterThanTokenResult.Diagnostic!);
+            }
+
             SyntaxToken? colonToken = null;
             TypeSyntax? typeSyntax = null;
             if (context.Is(TokenKind.Colon))
             {
-                colonToken = context.Expect(TokenKind.Colon, "Expected ':' before the dense attribute type.");
-                typeSyntax = new RawTypeSyntax(context.ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RBrace));
+                var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' before the dense attribute type.");
+                if (!colonTokenResult.IsSuccess)
+                {
+                    return ParseResult<AttributeValueSyntax>.Failure(colonTokenResult.Diagnostic!);
+                }
+
+                var typeSyntaxResult = context.TryParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RBrace);
+                if (!typeSyntaxResult.IsSuccess)
+                {
+                    return ParseResult<AttributeValueSyntax>.Failure(typeSyntaxResult.Diagnostic!);
+                }
+
+                colonToken = colonTokenResult.Value;
+                typeSyntax = new RawTypeSyntax(typeSyntaxResult.Value);
             }
 
-            syntax = new DenseAttributeValueSyntax(hashToken, nameToken, lessThanToken, payload, greaterThanToken, colonToken, typeSyntax);
-            return true;
+            return ParseResult<AttributeValueSyntax>.Success(new DenseAttributeValueSyntax(
+                hashToken,
+                nameToken,
+                lessThanTokenResult.Value,
+                payloadResult.Value,
+                greaterThanTokenResult.Value,
+                colonToken,
+                typeSyntax));
         }
 
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
@@ -591,21 +647,19 @@ public sealed partial class SemanticTests
 
     private sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
     {
-        public bool TryParse(TypeParsingContext context, out TypeSyntax? syntax)
+        public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
         {
-            syntax = null;
             if (!context.TryMatch(TokenKind.Identifier, out var nameToken) || !nameToken.Text.StartsWith("i"))
             {
-                return false;
+                return ParseResult<TypeSyntax>.NoMatch();
             }
 
             if (!int.TryParse(nameToken.Text[1..], out _))
             {
-                return false;
+                return ParseResult<TypeSyntax>.NoMatch();
             }
 
-            syntax = new BuiltinIntegerTypeSyntax(nameToken);
-            return true;
+            return ParseResult<TypeSyntax>.Success(new BuiltinIntegerTypeSyntax(nameToken));
         }
 
         public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
@@ -626,16 +680,14 @@ public sealed partial class SemanticTests
 
     private sealed class I32AttributeAssemblyFormat : IAttributeAssemblyFormat
     {
-        public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
+        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
-            syntax = null;
             if (!context.TryMatch(TokenKind.Integer, out var literalToken))
             {
-                return false;
+                return ParseResult<AttributeValueSyntax>.NoMatch();
             }
 
-            syntax = new IntegerLiteralAttributeSyntax(literalToken);
-            return true;
+            return ParseResult<AttributeValueSyntax>.Success(new IntegerLiteralAttributeSyntax(literalToken));
         }
 
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)

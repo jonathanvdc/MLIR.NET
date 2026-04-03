@@ -83,13 +83,12 @@ internal static class AttributeConstraintEmitter
         // Assembly format class for enum constraint
         builder.AppendLine("internal sealed class " + assemblyFormatType + " : IAttributeAssemblyFormat");
         builder.AppendLine("{");
-        builder.AppendLine("    public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)");
+        builder.AppendLine("    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)");
         builder.AppendLine("    {");
-        builder.AppendLine("        syntax = null;");
         builder.AppendLine("        if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var firstToken)");
         builder.AppendLine("            && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out firstToken))");
         builder.AppendLine("        {");
-        builder.AppendLine("            return false;");
+        builder.AppendLine("            return ParseResult<AttributeValueSyntax>.NoMatch();");
         builder.AppendLine("        }");
         builder.AppendLine();
         builder.AppendLine("        var rawText = firstToken.Text;");
@@ -109,8 +108,7 @@ internal static class AttributeConstraintEmitter
         }
 
         builder.AppendLine();
-        builder.AppendLine("        syntax = new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(rawText));");
-        builder.AppendLine("        return true;");
+        builder.AppendLine("        return ParseResult<AttributeValueSyntax>.Success(new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(rawText)));");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");

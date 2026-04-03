@@ -23,15 +23,13 @@ public interface IOperationAssemblyFormat
     /// <param name="resultCommaTokens">The parsed comma tokens between results.</param>
     /// <param name="equalsToken">The parsed equals token, if present.</param>
     /// <param name="context">The parsing context.</param>
-    /// <param name="body">When this method returns, contains the parsed operation body when custom parsing succeeded.</param>
-    /// <returns><see langword="true"/> when a custom assembly form was parsed; otherwise, <see langword="false"/>.</returns>
-    bool TryParse(
+    /// <returns>The parsed operation body, a no-match result, or a diagnostic-producing failure.</returns>
+    ParseResult<OperationBodySyntax> TryParse(
         SyntaxToken nameToken,
         IReadOnlyList<SyntaxToken> resultTokens,
         IReadOnlyList<SyntaxToken> resultCommaTokens,
         SyntaxToken? equalsToken,
-        OperationParsingContext context,
-        out OperationBodySyntax? body);
+        OperationParsingContext context);
 
     /// <summary>
     /// Interprets the supplied concrete syntax tree in the assembly format into semantic properties.

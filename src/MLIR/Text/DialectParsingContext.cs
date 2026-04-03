@@ -41,7 +41,7 @@ public abstract class DialectParsingContext
     /// <summary>
     /// Expects a token of the supplied kind.
     /// </summary>
-    public SyntaxToken Expect(TokenKind kind, string message)
+    public ParseResult<SyntaxToken> Expect(TokenKind kind, string message)
     {
         return Parser.ExpectTokenInternal(kind, message);
     }
@@ -49,90 +49,90 @@ public abstract class DialectParsingContext
     /// <summary>
     /// Parses raw syntax until one of the supplied delimiters is reached at the outermost nesting level.
     /// </summary>
-    public RawSyntaxText ParseRawUntilDelimiter(params TokenKind[] delimiters)
+    public ParseResult<RawSyntaxText> TryParseRawUntilDelimiter(params TokenKind[] delimiters)
     {
-        return Parser.ParseRawUntilDelimiterInternal(delimiters);
+        return Parser.TryParseRawUntilDelimiterInternal(delimiters);
     }
 
     /// <summary>
     /// Parses raw syntax until one of the supplied delimiters or keywords is reached at the outermost nesting level.
     /// </summary>
-    public RawSyntaxText ParseRawUntilDelimiterOrKeyword(string[] keywords, params TokenKind[] delimiters)
+    public ParseResult<RawSyntaxText> TryParseRawUntilDelimiterOrKeyword(string[] keywords, params TokenKind[] delimiters)
     {
-        return Parser.ParseRawUntilDelimiterOrKeywordInternal(keywords, delimiters);
+        return Parser.TryParseRawUntilDelimiterOrKeywordInternal(keywords, delimiters);
     }
 
     /// <summary>
     /// Parses raw syntax until an operation boundary is reached.
     /// </summary>
-    public RawSyntaxText ParseRawUntilOperationBoundary()
+    public ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundary()
     {
-        return Parser.ParseRawUntilOperationBoundaryInternal();
+        return Parser.TryParseRawUntilOperationBoundaryInternal();
     }
 
     /// <summary>
     /// Parses a nested type syntax node, stopping before any of the supplied delimiters.
     /// </summary>
-    public TypeSyntax ParseTypeSyntax(params TokenKind[] stopBefore)
+    public ParseResult<TypeSyntax> TryParseTypeSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.ParseTypeSyntaxInternal(stopBefore);
+        return Parser.TryParseTypeSyntaxInternal(stopBefore);
     }
 
     /// <summary>
     /// Parses a nested type syntax node, stopping before any of the supplied delimiters or keywords.
     /// </summary>
-    public TypeSyntax ParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
+    public ParseResult<TypeSyntax> TryParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
     {
-        return Parser.ParseTypeSyntaxInternal(stopBeforeKeywords, stopBefore);
+        return Parser.TryParseTypeSyntaxInternal(stopBeforeKeywords, stopBefore);
     }
 
     /// <summary>
     /// Parses a type syntax node, consuming tokens until an operation boundary is reached.
     /// </summary>
-    public TypeSyntax ParseTypeSyntaxUntilOperationBoundary()
+    public ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundary()
     {
-        return Parser.ParseTypeSyntaxUntilOperationBoundaryInternal();
+        return Parser.TryParseTypeSyntaxUntilOperationBoundaryInternal();
     }
 
     /// <summary>
     /// Parses a nested attribute value syntax node, stopping before any of the supplied delimiters.
     /// </summary>
-    public AttributeValueSyntax ParseAttributeValueSyntax(params TokenKind[] stopBefore)
+    public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.ParseAttributeValueSyntaxInternal(stopBefore);
+        return Parser.TryParseAttributeValueSyntaxInternal(stopBefore);
     }
 
     /// <summary>
     /// Parses a nested attribute value syntax node, preferring the supplied expected attribute definition
     /// when one is known, and stopping before any of the supplied delimiters.
     /// </summary>
-    public AttributeValueSyntax ParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
+    public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
     {
-        return Parser.ParseAttributeValueSyntaxInternal(expectedDefinitionName, stopBefore);
+        return Parser.TryParseAttributeValueSyntaxInternal(expectedDefinitionName, stopBefore);
     }
 
     /// <summary>
     /// Parses a nested attribute value syntax node, preferring the supplied expected attribute definition
     /// when one is known, and stopping before any of the supplied delimiters.
     /// </summary>
-    public AttributeValueSyntax ParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
+    public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
     {
-        return Parser.ParseAttributeValueSyntaxInternal(expectedDefinition, stopBefore);
+        return Parser.TryParseAttributeValueSyntaxInternal(expectedDefinition, stopBefore);
     }
 
     /// <summary>
     /// Parses a named attribute entry.
     /// </summary>
-    public NamedAttributeSyntax ParseNamedAttributeSyntax()
+    public ParseResult<NamedAttributeSyntax> TryParseNamedAttributeSyntax()
     {
-        return Parser.ParseAttributeInternal();
+        return Parser.TryParseAttributeInternal();
     }
 
     /// <summary>
     /// Parses an attribute dictionary.
     /// </summary>
-    public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttributeDictionarySyntax()
+    public ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttributeDictionarySyntax()
     {
-        return Parser.ParseAttrDictInternal();
+        return Parser.TryParseAttrDictInternal();
     }
 }

@@ -17,41 +17,41 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses an SSA value token.
     /// </summary>
-    public SyntaxToken ParseSsaToken()
+    public ParseResult<SyntaxToken> TryParseSsaToken()
     {
-        return Parser.ParseSsaTokenInternal();
+        return Parser.TryParseSsaTokenInternal();
     }
 
     /// <summary>
     /// Parses a block label token.
     /// </summary>
-    public SyntaxToken ParseBlockLabelToken()
+    public ParseResult<SyntaxToken> TryParseBlockLabelToken()
     {
-        return Parser.ParseBlockLabelTokenInternal();
+        return Parser.TryParseBlockLabelTokenInternal();
     }
 
     /// <summary>
     /// Parses a nested region.
     /// </summary>
-    public RegionSyntax ParseRegion()
+    public ParseResult<RegionSyntax> TryParseRegion()
     {
-        return Parser.ParseRegionInternal();
+        return Parser.TryParseRegionInternal();
     }
 
     /// <summary>
     /// Parses a named attribute.
     /// </summary>
-    public NamedAttributeSyntax ParseAttribute()
+    public ParseResult<NamedAttributeSyntax> TryParseAttribute()
     {
-        return Parser.ParseAttributeInternal();
+        return Parser.TryParseAttributeInternal();
     }
 
     /// <summary>
     /// Parses raw syntax until the end of the current operation.
     /// </summary>
-    public new RawSyntaxText ParseRawUntilOperationBoundary()
+    public new ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundary()
     {
-        return Parser.ParseRawUntilOperationBoundaryInternal();
+        return Parser.TryParseRawUntilOperationBoundaryInternal();
     }
 
     /// <summary>
@@ -108,18 +108,18 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses a type, consuming tokens until an operation boundary is reached.
     /// </summary>
-    public TypeSyntax ParseTypeSyntax()
+    public ParseResult<TypeSyntax> TryParseTypeSyntax()
     {
-        return Parser.ParseTypeSyntaxUntilOperationBoundaryInternal();
+        return Parser.TryParseTypeSyntaxUntilOperationBoundaryInternal();
     }
 
     /// <summary>
     /// Parses an attribute value, stopping before any of the supplied delimiter tokens or
     /// an operation boundary, whichever comes first.
     /// </summary>
-    public new AttributeValueSyntax ParseAttributeValueSyntax(params TokenKind[] stopBefore)
+    public new ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(stopBefore);
+        return Parser.TryParseAttributeValueSyntaxOrBoundaryInternal(stopBefore);
     }
 
     /// <summary>
@@ -128,27 +128,27 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// </summary>
     // This intentionally shadows the base overload: operation custom assembly parsing must also
     // stop at operation boundaries (for example a newline ending the op), not just explicit delimiters.
-    public new AttributeValueSyntax ParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
+    public new ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
     {
-        return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinitionName, stopBefore);
+        return Parser.TryParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinitionName, stopBefore);
     }
 
     /// <summary>
     /// Parses an attribute value, preferring the supplied expected attribute definition and
     /// stopping before any of the supplied delimiter tokens or an operation boundary, whichever comes first.
     /// </summary>
-    public new AttributeValueSyntax ParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
+    public new ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
     {
-        return Parser.ParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinition, stopBefore);
+        return Parser.TryParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinition, stopBefore);
     }
 
     /// <summary>
     /// Parses an optional attribute dictionary of the form <c>{ name = value, ... }</c>.
     /// Returns an empty list when no opening brace is present.
     /// </summary>
-    public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDict()
+    public ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDict()
     {
-        return Parser.ParseAttrDictInternal();
+        return Parser.TryParseAttrDictInternal();
     }
 
     /// <summary>
@@ -156,15 +156,15 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <c>attributes { name = value, ... }</c>.
     /// Returns an empty list when the <c>attributes</c> keyword is absent.
     /// </summary>
-    public DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictWithKeyword()
+    public ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictWithKeyword()
     {
-        return Parser.ParseAttrDictWithKeywordInternal();
+        return Parser.TryParseAttrDictWithKeywordInternal();
     }
 
     /// <summary>
     /// Expects an identifier token whose text matches <paramref name="spelling"/> exactly.
     /// </summary>
-    public SyntaxToken ExpectKeyword(string spelling, string message)
+    public ParseResult<SyntaxToken> ExpectKeyword(string spelling, string message)
     {
         return Parser.ExpectKeywordInternal(spelling, message);
     }
@@ -172,26 +172,26 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses zero or more consecutive regions, each delimited by <c>{ ... }</c>.
     /// </summary>
-    public IReadOnlyList<RegionSyntax> ParseRegions()
+    public ParseResult<IReadOnlyList<RegionSyntax>> TryParseRegions()
     {
-        return Parser.ParseRegionsInternal();
+        return Parser.TryParseRegionsInternal();
     }
 
     /// <summary>
     /// Parses an optional successor list of the form <c>[ ^bb1, ^bb2, ... ]</c>.
     /// Returns an empty list when no opening bracket is present.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> ParseSuccessors()
+    public ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseSuccessors()
     {
-        return Parser.ParseSuccessorsInternal();
+        return Parser.TryParseSuccessorsInternal();
     }
 
     /// <summary>
     /// Parses an operand list of the form <c>( %a, %b, ... )</c>.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> ParseOperands()
+    public ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseOperands()
     {
-        return Parser.ParseOperandsInternal();
+        return Parser.TryParseOperandsInternal();
     }
 
 }

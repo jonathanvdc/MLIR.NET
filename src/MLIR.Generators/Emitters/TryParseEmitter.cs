@@ -13,10 +13,10 @@ using MLIR.Text;
 /// Each supported assembly format element is translated into a call on
 /// <see cref="MLIR.Text.OperationParsingContext"/>.  After all elements have
 /// been parsed the generated code constructs the typed <c>OperationBodySyntax</c>
-/// subclass and returns <see langword="true"/>.
+/// subclass and returns a <see cref="ParseResult{T}"/>.
 ///
 /// Formats that contain directives that are not yet supported produce a fallback
-/// implementation that immediately returns <see langword="false"/> so that the
+/// implementation that immediately returns <see cref="ParseResult{T}.NoMatch"/> so that the
 /// parser falls back to the generic format.
 /// </remarks>
 internal sealed class TryParseEmitter
@@ -73,7 +73,7 @@ internal sealed class TryParseEmitter
 
     private void EmitMethod(StringBuilder builder)
     {
-        builder.AppendLine("    public bool TryParse(SyntaxToken nameToken, IReadOnlyList<SyntaxToken> resultTokens, IReadOnlyList<SyntaxToken> resultCommaTokens, SyntaxToken? equalsToken, OperationParsingContext context, out OperationBodySyntax? body)");
+        builder.AppendLine("    public ParseResult<OperationBodySyntax> TryParse(SyntaxToken nameToken, IReadOnlyList<SyntaxToken> resultTokens, IReadOnlyList<SyntaxToken> resultCommaTokens, SyntaxToken? equalsToken, OperationParsingContext context)");
         builder.AppendLine("    {");
 
         var format = operation.AssemblyFormat!;
@@ -81,8 +81,7 @@ internal sealed class TryParseEmitter
         if (!CanHandleFormat(format, operation))
         {
             // Unsupported directives – fall back to generic parsing.
-            builder.AppendLine("        body = null;");
-            builder.AppendLine("        return false;");
+            builder.AppendLine("        return ParseResult<OperationBodySyntax>.NoMatch();");
             builder.AppendLine("    }");
             return;
         }
@@ -96,7 +95,6 @@ internal sealed class TryParseEmitter
         }
 
         EmitBodyConstruction(builder);
-        builder.AppendLine("        return true;");
         builder.AppendLine("    }");
     }
 
@@ -175,7 +173,7 @@ internal sealed class TryParseEmitter
                     var varName = EmitterHelpers.LowerFirst(field.Name);
                     var expr = "context.Expect(TokenKind." + punc.TokenKind +
                                ", \"Expected '" + EscapeForStringLiteral(GetPunctuationDisplay(punc.TokenKind)) + "'.\")";
-                    builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+                    EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
                     break;
                 }
 
@@ -186,7 +184,7 @@ internal sealed class TryParseEmitter
                     var expr = "context.ExpectKeyword(" +
                                EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) +
                                ", \"Expected '" + EscapeForStringLiteral(kw.Spelling) + "'.\")";
-                    builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+                    EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
                     break;
                 }
 
@@ -205,11 +203,11 @@ internal sealed class TryParseEmitter
             var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
             var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
             var expr = BuildAttributeParseExpr(expectedConstraint, delimiters);
-            builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+            EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
         }
         else
         {
-            builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseSsaToken()", declare, field.CsType) + ";");
+            EmitParseResultAssignment(builder, indent, varName, "context.TryParseSsaToken()", declare, field.CsType);
         }
     }
 
@@ -217,21 +215,21 @@ internal sealed class TryParseEmitter
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseAttrDict()", declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, "context.TryParseAttrDict()", declare, field.CsType);
     }
 
     private void EmitAttrDictWithKeyword(StringBuilder builder, string indent, bool declare)
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseAttrDictWithKeyword()", declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, "context.TryParseAttrDictWithKeyword()", declare, field.CsType);
     }
 
     private void EmitPropDict(StringBuilder builder, string indent, bool declare)
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseAttrDict()", declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, "context.TryParseAttrDict()", declare, field.CsType);
     }
 
     private void EmitType(StringBuilder builder, TypeDirectiveChunk typeDir, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
@@ -239,7 +237,7 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
-        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitQualifiedType(StringBuilder builder, QualifiedDirectiveChunk qualified, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
@@ -248,7 +246,7 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
-        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitResultsType(StringBuilder builder, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
@@ -256,28 +254,28 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
-        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitRegions(StringBuilder builder, string indent, bool declare)
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseRegions()", declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, "context.TryParseRegions()", declare, field.CsType);
     }
 
     private void EmitSuccessors(StringBuilder builder, string indent, bool declare)
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseSuccessors()", declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, "context.TryParseSuccessors()", declare, field.CsType);
     }
 
     private void EmitOperands(StringBuilder builder, string indent, bool declare)
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseOperands()", declare, field.CsType) + ";");
+        EmitParseResultAssignment(builder, indent, varName, "context.TryParseOperands()", declare, field.CsType);
     }
 
     // -----------------------------------------------------------------------
@@ -475,9 +473,15 @@ internal sealed class TryParseEmitter
             var ifKw = first ? "if" : "else if";
             builder.AppendLine(indent + "    " + ifKw + " (!" + kwVarName + ".HasValue && context.IsKeyword(" + EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) + "))");
             builder.AppendLine(indent + "    {");
-            builder.AppendLine(indent + "        " + kwVarName + " = context.ExpectKeyword(" +
-                               EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) +
-                               ", \"Expected '" + EscapeForStringLiteral(clause.Keyword) + "'.\");");
+            EmitParseResultAssignment(
+                builder,
+                indent + "        ",
+                kwVarName,
+                "context.ExpectKeyword(" +
+                EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) +
+                ", \"Expected '" + EscapeForStringLiteral(clause.Keyword) + "'.\")",
+                declare: false,
+                kwField.CsType);
             fieldIndex++; // advance past keyword field
 
             // Emit parsing for each oilist element in this clause.
@@ -508,11 +512,11 @@ internal sealed class TryParseEmitter
                 if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
                 {
                     var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
-                    builder.AppendLine(indent + varName + " = " + BuildAttributeParseExpr(expectedConstraint, Array.Empty<TokenKind>()) + ";");
+                    EmitParseResultAssignment(builder, indent, varName, BuildAttributeParseExpr(expectedConstraint, Array.Empty<TokenKind>()), declare: false, f.CsType);
                 }
                 else
                 {
-                    builder.AppendLine(indent + varName + " = context.ParseSsaToken();");
+                    EmitParseResultAssignment(builder, indent, varName, "context.TryParseSsaToken()", declare: false, f.CsType);
                 }
 
                 break;
@@ -522,7 +526,7 @@ internal sealed class TryParseEmitter
             {
                 var f = metadata.Fields[fieldIndex++];
                 var varName = EmitterHelpers.LowerFirst(f.Name);
-                builder.AppendLine(indent + varName + " = context.ParseTypeSyntax();");
+                EmitParseResultAssignment(builder, indent, varName, "context.TryParseTypeSyntax()", declare: false, f.CsType);
                 break;
             }
 
@@ -530,7 +534,7 @@ internal sealed class TryParseEmitter
             {
                 var f = metadata.Fields[fieldIndex++];
                 var varName = EmitterHelpers.LowerFirst(f.Name);
-                builder.AppendLine(indent + varName + " = context.Expect(TokenKind.Identifier, \"Expected '" + EscapeForStringLiteral(literal.Value) + "'.\");");
+                EmitParseResultAssignment(builder, indent, varName, "context.Expect(TokenKind.Identifier, \"Expected '" + EscapeForStringLiteral(literal.Value) + "'.\")", declare: false, f.CsType);
                 break;
             }
         }
@@ -546,7 +550,7 @@ internal sealed class TryParseEmitter
 
         if (hasExpectedConstraint && hasDelimiters)
         {
-            return "context.ParseAttributeValueSyntax(" +
+            return "context.TryParseAttributeValueSyntax(" +
                 expectedDefinitionExpr +
                 ", " +
                 BuildDelimiterList(delimiters) +
@@ -555,15 +559,15 @@ internal sealed class TryParseEmitter
 
         if (hasExpectedConstraint)
         {
-            return "context.ParseAttributeValueSyntax(" + expectedDefinitionExpr + ")";
+            return "context.TryParseAttributeValueSyntax(" + expectedDefinitionExpr + ")";
         }
 
         if (hasDelimiters)
         {
-            return "context.ParseAttributeValueSyntax(" + BuildDelimiterList(delimiters) + ")";
+            return "context.TryParseAttributeValueSyntax(" + BuildDelimiterList(delimiters) + ")";
         }
 
-        return "context.ParseAttributeValueSyntax()";
+        return "context.TryParseAttributeValueSyntax()";
     }
 
     // -----------------------------------------------------------------------
@@ -575,11 +579,11 @@ internal sealed class TryParseEmitter
         var bodyClassName = className + "BodySyntax";
         if (metadata.Fields.Count == 0)
         {
-            builder.AppendLine("        body = new " + bodyClassName + "();");
+            builder.AppendLine("        return ParseResult<OperationBodySyntax>.Success(new " + bodyClassName + "());");
             return;
         }
 
-        builder.Append("        body = new " + bodyClassName + "(");
+        builder.Append("        return ParseResult<OperationBodySyntax>.Success(new " + bodyClassName + "(");
         for (var i = 0; i < metadata.Fields.Count; i++)
         {
             if (i > 0)
@@ -590,7 +594,7 @@ internal sealed class TryParseEmitter
             builder.Append(EmitterHelpers.LowerFirst(metadata.Fields[i].Name));
         }
 
-        builder.AppendLine(");");
+        builder.AppendLine("));");
     }
 
     // -----------------------------------------------------------------------
@@ -727,10 +731,10 @@ internal sealed class TryParseEmitter
                 ? "new[] { " + BuildKeywordList(keywords) + " }"
                 : "global::System.Array.Empty<string>()";
             var delimiterSuffix = delimiters.Count > 0 ? ", " + BuildDelimiterList(delimiters) : string.Empty;
-            return "new RawTypeSyntax(context.ParseRawUntilDelimiterOrKeyword(" + keywordArray + delimiterSuffix + "))";
+            return "context.TryParseRawUntilDelimiterOrKeyword(" + keywordArray + delimiterSuffix + ").Map<TypeSyntax>(static raw => new RawTypeSyntax(raw))";
         }
 
-        return "context.ParseTypeSyntax()";
+        return "context.TryParseTypeSyntax()";
     }
 
     private static IReadOnlyList<string> FindNextKeywordDelimitersForRawParsing(int currentIndex, IReadOnlyList<Element> elements)
@@ -789,6 +793,17 @@ internal sealed class TryParseEmitter
         }
 
         return varName + " = " + expr;
+    }
+
+    private static void EmitParseResultAssignment(StringBuilder builder, string indent, string varName, string expr, bool declare, string csType)
+    {
+        var resultName = varName + "Result";
+        builder.AppendLine(indent + "var " + resultName + " = " + expr + ";");
+        builder.AppendLine(indent + "if (!" + resultName + ".IsSuccess)");
+        builder.AppendLine(indent + "{");
+        builder.AppendLine(indent + "    return ParseResult<OperationBodySyntax>.Failure(" + resultName + ".Diagnostic!);");
+        builder.AppendLine(indent + "}");
+        builder.AppendLine(indent + DeclareOrAssign(varName, resultName + ".Value", declare, csType) + ";");
     }
 
     private static string GetPunctuationDisplay(TokenKind kind)
