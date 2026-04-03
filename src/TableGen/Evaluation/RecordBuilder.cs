@@ -31,7 +31,7 @@ internal sealed class RecordBuilder
             var defvarValue = expressionEvaluator.TryEvaluate(defvar.Value, emptyScope);
             if (!defvarValue.IsSuccess)
             {
-                return EvaluationResult<InterpretedDocument>.Failure(defvarValue.Error!);
+                return EvaluationResult<InterpretedDocument>.Failure(defvarValue.Diagnostic!);
             }
 
             context.DefvarValues[defvar.Name] = defvarValue.Value;
@@ -43,7 +43,7 @@ internal sealed class RecordBuilder
             var record = BuildDefinition(definition);
             if (!record.IsSuccess)
             {
-                return EvaluationResult<InterpretedDocument>.Failure(record.Error!);
+                return EvaluationResult<InterpretedDocument>.Failure(record.Diagnostic!);
             }
 
             records.Add(record.Value);
@@ -68,19 +68,19 @@ internal sealed class RecordBuilder
         var bases = ApplyPendingBases(definition.Bases, scope, state);
         if (!bases.IsSuccess)
         {
-            return EvaluationResult<Record>.Failure(bases.Error!);
+            return EvaluationResult<Record>.Failure(bases.Diagnostic!);
         }
 
         var body = ApplyPendingBody(definition.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
-            return EvaluationResult<Record>.Failure(body.Error!);
+            return EvaluationResult<Record>.Failure(body.Diagnostic!);
         }
 
         var fields = ResolveFields(state);
         if (!fields.IsSuccess)
         {
-            return EvaluationResult<Record>.Failure(fields.Error!);
+            return EvaluationResult<Record>.Failure(fields.Diagnostic!);
         }
 
         var record = new Record(definition.Name, baseClasses, fields.Value);
@@ -106,7 +106,7 @@ internal sealed class RecordBuilder
                 var argumentValue = expressionEvaluator.TryEvaluate(arguments[i], outerScope, tryResolveValue);
                 if (!argumentValue.IsSuccess)
                 {
-                    return EvaluationResult<Dictionary<string, Value>>.Failure(argumentValue.Error!);
+                    return EvaluationResult<Dictionary<string, Value>>.Failure(argumentValue.Diagnostic!);
                 }
 
                 value = argumentValue.Value;
@@ -116,7 +116,7 @@ internal sealed class RecordBuilder
                 var defaultValue = expressionEvaluator.TryEvaluate(parameter.DefaultValue, scope, tryResolveValue);
                 if (!defaultValue.IsSuccess)
                 {
-                    return EvaluationResult<Dictionary<string, Value>>.Failure(defaultValue.Error!);
+                    return EvaluationResult<Dictionary<string, Value>>.Failure(defaultValue.Diagnostic!);
                 }
 
                 value = defaultValue.Value;
@@ -124,7 +124,7 @@ internal sealed class RecordBuilder
             else
             {
                 return EvaluationResult<Dictionary<string, Value>>.Failure(
-                    new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
+                    InvalidOperation($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
             }
 
             scope = scope.With(parameter.Name, value);
@@ -141,13 +141,13 @@ internal sealed class RecordBuilder
         var bases = ApplyPendingBases(classSyntax.Bases, scope, state);
         if (!bases.IsSuccess)
         {
-            return EvaluationResult<Dictionary<string, Value>>.Failure(bases.Error!);
+            return EvaluationResult<Dictionary<string, Value>>.Failure(bases.Diagnostic!);
         }
 
         var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
-            return EvaluationResult<Dictionary<string, Value>>.Failure(body.Error!);
+            return EvaluationResult<Dictionary<string, Value>>.Failure(body.Diagnostic!);
         }
 
         var resolvedFields = ResolveFields(state);
@@ -188,13 +188,13 @@ internal sealed class RecordBuilder
         {
             if (!context.Classes.TryGetValue(@base.Name, out var classSyntax))
             {
-                return EvaluationResult<bool>.Failure(new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'."));
+                return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{@base.Name}'."));
             }
 
             var classState = InstantiatePendingClass(classSyntax, @base.Arguments, scope);
             if (!classState.IsSuccess)
             {
-                return EvaluationResult<bool>.Failure(classState.Error!);
+                return EvaluationResult<bool>.Failure(classState.Diagnostic!);
             }
 
             state.Import(classState.Value);
@@ -219,7 +219,7 @@ internal sealed class RecordBuilder
                 var argumentValue = expressionEvaluator.TryEvaluate(arguments[i], outerScope);
                 if (!argumentValue.IsSuccess)
                 {
-                    return EvaluationResult<PendingRecordState>.Failure(argumentValue.Error!);
+                    return EvaluationResult<PendingRecordState>.Failure(argumentValue.Diagnostic!);
                 }
 
                 value = argumentValue.Value;
@@ -229,7 +229,7 @@ internal sealed class RecordBuilder
                 var defaultValue = expressionEvaluator.TryEvaluate(parameter.DefaultValue, scope);
                 if (!defaultValue.IsSuccess)
                 {
-                    return EvaluationResult<PendingRecordState>.Failure(defaultValue.Error!);
+                    return EvaluationResult<PendingRecordState>.Failure(defaultValue.Diagnostic!);
                 }
 
                 value = defaultValue.Value;
@@ -237,7 +237,7 @@ internal sealed class RecordBuilder
             else
             {
                 return EvaluationResult<PendingRecordState>.Failure(
-                    new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
+                    InvalidOperation($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
             }
 
             scope = scope.With(parameter.Name, value);
@@ -247,13 +247,13 @@ internal sealed class RecordBuilder
         var bases = ApplyPendingBases(classSyntax.Bases, scope, state);
         if (!bases.IsSuccess)
         {
-            return EvaluationResult<PendingRecordState>.Failure(bases.Error!);
+            return EvaluationResult<PendingRecordState>.Failure(bases.Diagnostic!);
         }
 
         var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
-            return EvaluationResult<PendingRecordState>.Failure(body.Error!);
+            return EvaluationResult<PendingRecordState>.Failure(body.Diagnostic!);
         }
 
         return EvaluationResult<PendingRecordState>.Success(state);
@@ -291,7 +291,7 @@ internal sealed class RecordBuilder
                     var value = expressionEvaluator.TryEvaluate(defVar.Value, currentScope, TryResolveField(state));
                     if (!value.IsSuccess)
                     {
-                        return EvaluationResult<bool>.Failure(value.Error!);
+                        return EvaluationResult<bool>.Failure(value.Diagnostic!);
                     }
 
                     currentScope = currentScope.With(defVar.Name, value.Value);
@@ -302,18 +302,18 @@ internal sealed class RecordBuilder
                     var condition = expressionEvaluator.TryEvaluate(assert.Condition, currentScope, TryResolveField(state));
                     if (!condition.IsSuccess)
                     {
-                        return EvaluationResult<bool>.Failure(condition.Error!);
+                        return EvaluationResult<bool>.Failure(condition.Diagnostic!);
                     }
 
                     var truthy = ExpressionEvaluator.TryIsTruthy(condition.Value);
                     if (!truthy.IsSuccess)
                     {
-                        return EvaluationResult<bool>.Failure(truthy.Error!);
+                        return EvaluationResult<bool>.Failure(truthy.Diagnostic!);
                     }
 
                     if (!truthy.Value)
                     {
-                        Exception? messageError = null;
+                        EvaluationDiagnostic? messageError = null;
                         var message = assert.Message == null
                             ? "TableGen assertion failed."
                             : GetAssertionMessage(assert.Message, currentScope, state, out messageError);
@@ -322,7 +322,7 @@ internal sealed class RecordBuilder
                             return EvaluationResult<bool>.Failure(messageError);
                         }
 
-                        return EvaluationResult<bool>.Failure(new InvalidOperationException(message));
+                        return EvaluationResult<bool>.Failure(InvalidOperation(message));
                     }
 
                     break;
@@ -333,21 +333,21 @@ internal sealed class RecordBuilder
         return EvaluationResult<bool>.Success(true);
     }
 
-        private string GetAssertionMessage(
-            ExpressionSyntax messageExpression,
-            Scope scope,
-            PendingRecordState state,
-            out Exception? error)
+    private string GetAssertionMessage(
+        ExpressionSyntax messageExpression,
+        Scope scope,
+        PendingRecordState state,
+        out EvaluationDiagnostic? error)
     {
         var message = expressionEvaluator.TryEvaluate(messageExpression, scope, TryResolveField(state));
         if (!message.IsSuccess)
         {
-            error = message.Error;
+            error = message.Diagnostic;
             return string.Empty;
         }
 
         var text = ExpressionEvaluator.TryValueToString(message.Value);
-        error = text.Error;
+        error = text.Diagnostic;
         return text.IsSuccess ? text.Value : string.Empty;
     }
 
@@ -361,11 +361,11 @@ internal sealed class RecordBuilder
                 continue;
             }
 
-            var value = TryResolveFieldValue(state, pair.Key);
-            if (!value.IsSuccess)
-            {
-                return EvaluationResult<Dictionary<string, Value>>.Failure(value.Error!);
-            }
+                var value = TryResolveFieldValue(state, pair.Key);
+                if (!value.IsSuccess)
+                {
+                    return EvaluationResult<Dictionary<string, Value>>.Failure(value.Diagnostic!);
+                }
 
             fields[pair.Key] = value.Value;
         }
@@ -380,10 +380,10 @@ internal sealed class RecordBuilder
 
     private EvaluationResult<Value> TryResolveFieldValue(PendingRecordState state, string name)
     {
-        if (!state.TryGetField(name, out var field) || !field.HasExpression)
-        {
-            return EvaluationResult<Value>.Failure(new KeyNotFoundException($"Unknown field '{name}'."));
-        }
+            if (!state.TryGetField(name, out var field) || !field.HasExpression)
+            {
+            return EvaluationResult<Value>.Failure(MissingKey($"Unknown field '{name}'."));
+            }
 
         if (field.HasResolvedValue)
         {
@@ -392,7 +392,7 @@ internal sealed class RecordBuilder
 
         if (field.IsResolving)
         {
-            return EvaluationResult<Value>.Failure(new InvalidOperationException($"Detected a cycle while resolving field '{name}'."));
+            return EvaluationResult<Value>.Failure(InvalidOperation($"Detected a cycle while resolving field '{name}'."));
         }
 
         field.IsResolving = true;
@@ -401,7 +401,7 @@ internal sealed class RecordBuilder
             var resolved = expressionEvaluator.TryEvaluate(field.Expression!, field.LexicalScope, TryResolveField(state));
             if (!resolved.IsSuccess)
             {
-                return EvaluationResult<Value>.Failure(resolved.Error!);
+                return EvaluationResult<Value>.Failure(resolved.Diagnostic!);
             }
 
             var finalValue = resolved.Value;
@@ -410,7 +410,7 @@ internal sealed class RecordBuilder
                 var coerced = ExpressionEvaluator.TryCoerceValue(field.DeclaredTypeName, finalValue);
                 if (!coerced.IsSuccess)
                 {
-                    return EvaluationResult<Value>.Failure(coerced.Error!);
+                    return EvaluationResult<Value>.Failure(coerced.Diagnostic!);
                 }
 
                 finalValue = coerced.Value;
@@ -424,5 +424,15 @@ internal sealed class RecordBuilder
         {
             field.IsResolving = false;
         }
+    }
+
+    private static EvaluationDiagnostic InvalidOperation(string message)
+    {
+        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
+    }
+
+    private static EvaluationDiagnostic MissingKey(string message)
+    {
+        return new EvaluationDiagnostic(EvaluationDiagnosticKind.MissingKey, message);
     }
 }

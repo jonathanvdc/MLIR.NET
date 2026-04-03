@@ -1,36 +1,34 @@
 namespace TableGen.Evaluation;
 
-using System;
-
 internal sealed class EvaluationResult<T>
 {
     private EvaluationResult(T value)
     {
         IsSuccess = true;
         Value = value;
-        Error = null;
+        Diagnostic = null;
     }
 
-    private EvaluationResult(Exception error)
+    private EvaluationResult(EvaluationDiagnostic diagnostic)
     {
         IsSuccess = false;
         Value = default!;
-        Error = error;
+        Diagnostic = diagnostic;
     }
 
     public bool IsSuccess { get; }
 
     public T Value { get; }
 
-    public Exception? Error { get; }
+    public EvaluationDiagnostic? Diagnostic { get; }
 
     public static EvaluationResult<T> Success(T value)
     {
         return new EvaluationResult<T>(value);
     }
 
-    public static EvaluationResult<T> Failure(Exception error)
+    public static EvaluationResult<T> Failure(EvaluationDiagnostic diagnostic)
     {
-        return new EvaluationResult<T>(error);
+        return new EvaluationResult<T>(diagnostic);
     }
 }

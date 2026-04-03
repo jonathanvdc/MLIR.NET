@@ -19,7 +19,7 @@ public static class Interpreter
         var result = builder.BuildDocument();
         if (!result.IsSuccess)
         {
-            throw result.Error!;
+            throw result.Diagnostic!.ToException();
         }
 
         return result.Value;

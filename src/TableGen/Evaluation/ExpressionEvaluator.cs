@@ -63,7 +63,7 @@ internal sealed class ExpressionEvaluator
             case ClassInstantiationSyntax instantiation:
                 return EvaluateClassInstantiation(instantiation, scope, tryResolveValue);
             default:
-                return Failure(new InvalidOperationException("Unknown TableGen expression."));
+                return Failure(InvalidOperation("Unknown TableGen expression."));
         }
     }
 
@@ -75,7 +75,7 @@ internal sealed class ExpressionEvaluator
         var result = TryEvaluate(expression, scope, tryResolveValue);
         if (!result.IsSuccess)
         {
-            throw result.Error!;
+            throw result.Diagnostic!.ToException();
         }
 
         return result.Value;
@@ -87,7 +87,7 @@ internal sealed class ExpressionEvaluator
         {
             IntegerValue integer => EvaluationResult<bool>.Success(integer.Value != 0),
             BitValue bit => EvaluationResult<bool>.Success(bit.Value),
-            _ => EvaluationResult<bool>.Failure(new InvalidOperationException($"Expected a boolean-like condition, got {value.GetType().Name}.")),
+            _ => EvaluationResult<bool>.Failure(InvalidOperation($"Expected a boolean-like condition, got {value.GetType().Name}.")),
         };
     }
 
@@ -96,7 +96,7 @@ internal sealed class ExpressionEvaluator
         var result = TryIsTruthy(value);
         if (!result.IsSuccess)
         {
-            throw result.Error!;
+            throw result.Diagnostic!.ToException();
         }
 
         return result.Value;
@@ -120,7 +120,7 @@ internal sealed class ExpressionEvaluator
                     var itemString = TryValueToString(item);
                     if (!itemString.IsSuccess)
                     {
-                        return EvaluationResult<string>.Failure(itemString.Error!);
+                        return EvaluationResult<string>.Failure(itemString.Diagnostic!);
                     }
 
                     pieces.Add(itemString.Value);
@@ -137,7 +137,7 @@ internal sealed class ExpressionEvaluator
             case AnonymousRecordValue rec:
                 return EvaluationResult<string>.Success(rec.ClassName);
             default:
-                return EvaluationResult<string>.Failure(new InvalidOperationException($"Cannot convert {value.GetType().Name} to string for concatenation."));
+                return EvaluationResult<string>.Failure(InvalidOperation($"Cannot convert {value.GetType().Name} to string for concatenation."));
         }
     }
 
@@ -146,7 +146,7 @@ internal sealed class ExpressionEvaluator
         var result = TryValueToString(value);
         if (!result.IsSuccess)
         {
-            throw result.Error!;
+            throw result.Diagnostic!.ToException();
         }
 
         return result.Value;
@@ -162,13 +162,13 @@ internal sealed class ExpressionEvaluator
         switch (typeName)
         {
             case "int" when value is not IntegerValue:
-                return Failure(new InvalidOperationException($"Expected an integer value for '{typeName}'."));
+                return Failure(InvalidOperation($"Expected an integer value for '{typeName}'."));
             case "string" when value is not StringValue:
             {
                 var stringResult = TryValueToString(value);
                 return stringResult.IsSuccess
                     ? Success(new StringValue(stringResult.Value))
-                    : Failure(stringResult.Error!);
+                    : Failure(stringResult.Diagnostic!);
             }
             case "code":
                 return Success(value);
@@ -177,9 +177,9 @@ internal sealed class ExpressionEvaluator
             case "bit" when value is BitValue:
                 return Success(value);
             case "bit":
-                return Failure(new InvalidOperationException($"Expected a bit value for '{typeName}'."));
+                return Failure(InvalidOperation($"Expected a bit value for '{typeName}'."));
             case "dag" when value is not DagValue:
-                return Failure(new InvalidOperationException($"Expected a dag value for '{typeName}'."));
+                return Failure(InvalidOperation($"Expected a dag value for '{typeName}'."));
             default:
                 return Success(value);
         }
@@ -190,7 +190,7 @@ internal sealed class ExpressionEvaluator
         var result = TryCoerceValue(typeName, value);
         if (!result.IsSuccess)
         {
-            throw result.Error!;
+            throw result.Diagnostic!.ToException();
         }
 
         return result.Value;
@@ -211,7 +211,7 @@ internal sealed class ExpressionEvaluator
         var result = TryCoerceExistingValue(existingValue, replacementValue);
         if (!result.IsSuccess)
         {
-            throw result.Error!;
+            throw result.Diagnostic!.ToException();
         }
 
         return result.Value;
@@ -228,7 +228,7 @@ internal sealed class ExpressionEvaluator
             var itemResult = TryEvaluate(item, scope, tryResolveValue);
             if (!itemResult.IsSuccess)
             {
-                return Failure(itemResult.Error!);
+                return Failure(itemResult.Diagnostic!);
             }
 
             items.Add(itemResult.Value);
@@ -248,7 +248,7 @@ internal sealed class ExpressionEvaluator
             var valueResult = TryEvaluate(argument.Value, scope, tryResolveValue);
             if (!valueResult.IsSuccess)
             {
-                return Failure(valueResult.Error!);
+                return Failure(valueResult.Diagnostic!);
             }
 
             arguments.Add(new DagArgumentValue(valueResult.Value, argument.Name));
@@ -265,25 +265,25 @@ internal sealed class ExpressionEvaluator
         var left = TryEvaluate(concat.Left, scope, tryResolveValue);
         if (!left.IsSuccess)
         {
-            return Failure(left.Error!);
+            return Failure(left.Diagnostic!);
         }
 
         var right = TryEvaluate(concat.Right, scope, tryResolveValue);
         if (!right.IsSuccess)
         {
-            return Failure(right.Error!);
+            return Failure(right.Diagnostic!);
         }
 
         var leftString = TryValueToString(left.Value);
         if (!leftString.IsSuccess)
         {
-            return Failure(leftString.Error!);
+            return Failure(leftString.Diagnostic!);
         }
 
         var rightString = TryValueToString(right.Value);
         if (!rightString.IsSuccess)
         {
-            return Failure(rightString.Error!);
+            return Failure(rightString.Diagnostic!);
         }
 
         return Success(new StringValue(leftString.Value + rightString.Value));
@@ -301,13 +301,13 @@ internal sealed class ExpressionEvaluator
                 var cond = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 if (!cond.IsSuccess)
                 {
-                    return Failure(cond.Error!);
+                    return Failure(cond.Diagnostic!);
                 }
 
                 var truthy = TryIsTruthy(cond.Value);
                 if (!truthy.IsSuccess)
                 {
-                    return Failure(truthy.Error!);
+                    return Failure(truthy.Diagnostic!);
                 }
 
                 return TryEvaluate(truthy.Value ? bangCall.Arguments[1] : bangCall.Arguments[2], scope, tryResolveValue);
@@ -339,27 +339,27 @@ internal sealed class ExpressionEvaluator
                 var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 if (!val.IsSuccess)
                 {
-                    return Failure(val.Error!);
+                    return Failure(val.Diagnostic!);
                 }
 
                 var truthy = TryIsTruthy(val.Value);
                 return truthy.IsSuccess
                     ? Success(new IntegerValue(truthy.Value ? 0 : 1))
-                    : Failure(truthy.Error!);
+                    : Failure(truthy.Diagnostic!);
             }
             case "size":
             {
                 var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 if (!val.IsSuccess)
                 {
-                    return Failure(val.Error!);
+                    return Failure(val.Diagnostic!);
                 }
 
                 return val.Value switch
                 {
                     StringValue str => Success(new IntegerValue(str.Value.Length)),
                     ListValue list => Success(new IntegerValue(list.Items.Count)),
-                    _ => Failure(new InvalidOperationException($"!size requires a string or list argument, got {val.Value.GetType().Name}.")),
+                    _ => Failure(InvalidOperation($"!size requires a string or list argument, got {val.Value.GetType().Name}.")),
                 };
             }
             case "toupper":
@@ -385,7 +385,7 @@ internal sealed class ExpressionEvaluator
                 var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 return val.IsSuccess
                     ? Success(new IntegerValue(IsValueOfType(val.Value, bangCall.TypeArgument) ? 1 : 0))
-                    : Failure(val.Error!);
+                    : Failure(val.Diagnostic!);
             }
             case "cond":
                 return TryEvaluateCond(bangCall, scope, tryResolveValue);
@@ -402,7 +402,7 @@ internal sealed class ExpressionEvaluator
             case "filter":
                 return TryEvaluateFilter(bangCall, scope, tryResolveValue);
             default:
-                return Failure(new InvalidOperationException($"Unknown bang operator '!{bangCall.OperatorName}'."));
+                return Failure(InvalidOperation($"Unknown bang operator '!{bangCall.OperatorName}'."));
         }
     }
 
@@ -414,18 +414,18 @@ internal sealed class ExpressionEvaluator
         var accValue = TryEvaluate(foldl.Init, scope, tryResolveValue);
         if (!accValue.IsSuccess)
         {
-            return Failure(accValue.Error!);
+            return Failure(accValue.Diagnostic!);
         }
 
         var listValue = TryEvaluate(foldl.List, scope, tryResolveValue);
         if (!listValue.IsSuccess)
         {
-            return Failure(listValue.Error!);
+            return Failure(listValue.Diagnostic!);
         }
 
         if (listValue.Value is not ListValue list)
         {
-            return Failure(new InvalidCastException());
+            return Failure(InvalidCast("Expected a list value."));
         }
 
         var current = accValue.Value;
@@ -435,7 +435,7 @@ internal sealed class ExpressionEvaluator
             var body = TryEvaluate(foldl.Body, innerScope, tryResolveValue);
             if (!body.IsSuccess)
             {
-                return Failure(body.Error!);
+                return Failure(body.Diagnostic!);
             }
 
             current = body.Value;
@@ -451,18 +451,18 @@ internal sealed class ExpressionEvaluator
     {
         if (!context.Classes.TryGetValue(instantiation.ClassName, out var classSyntax))
         {
-            return Failure(new KeyNotFoundException($"Unknown TableGen class '{instantiation.ClassName}'."));
+            return Failure(MissingKey($"Unknown TableGen class '{instantiation.ClassName}'."));
         }
 
         var fields = instantiateClass(classSyntax, instantiation.Arguments, scope, tryResolveValue);
         if (!fields.IsSuccess)
         {
-            return Failure(fields.Error!);
+            return Failure(fields.Diagnostic!);
         }
 
         return fields.Value.TryGetValue(instantiation.FieldName, out var fieldValue)
             ? Success(fieldValue)
-            : Failure(new KeyNotFoundException($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'."));
+            : Failure(MissingKey($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'."));
     }
 
     private EvaluationResult<Value> EvaluateAnonymousClassInstantiation(
@@ -472,13 +472,13 @@ internal sealed class ExpressionEvaluator
     {
         if (!context.Classes.TryGetValue(inst.ClassName, out var classSyntax))
         {
-            return Failure(new KeyNotFoundException($"Unknown TableGen class '{inst.ClassName}'."));
+            return Failure(MissingKey($"Unknown TableGen class '{inst.ClassName}'."));
         }
 
         var fields = instantiateClass(classSyntax, inst.Arguments, scope, tryResolveValue);
         return fields.IsSuccess
             ? Success(new AnonymousRecordValue(inst.ClassName, fields.Value))
-            : Failure(fields.Error!);
+            : Failure(fields.Diagnostic!);
     }
 
     private EvaluationResult<Value> EvaluateFieldAccess(
@@ -489,7 +489,7 @@ internal sealed class ExpressionEvaluator
         var obj = TryEvaluate(fieldAccess.Object, scope, tryResolveValue);
         if (!obj.IsSuccess)
         {
-            return Failure(obj.Error!);
+            return Failure(obj.Diagnostic!);
         }
 
         if (obj.Value is AnonymousRecordValue rec)
@@ -502,7 +502,7 @@ internal sealed class ExpressionEvaluator
             var record = buildDefinition(defSyntax);
             if (!record.IsSuccess)
             {
-                return Failure(record.Error!);
+                return Failure(record.Diagnostic!);
             }
 
             return Success(record.Value.Fields.TryGetValue(fieldAccess.FieldName, out var fieldVal) ? fieldVal : new UnsetValue());
@@ -519,13 +519,13 @@ internal sealed class ExpressionEvaluator
         var target = TryEvaluate(subscript.Target, scope, tryResolveValue);
         if (!target.IsSuccess)
         {
-            return Failure(target.Error!);
+            return Failure(target.Diagnostic!);
         }
 
         var index = TryEvaluateInteger(subscript.Index, scope, tryResolveValue, "subscript");
         if (!index.IsSuccess)
         {
-            return Failure(index.Error!);
+            return Failure(index.Diagnostic!);
         }
 
         switch (target.Value)
@@ -535,17 +535,17 @@ internal sealed class ExpressionEvaluator
                 var normalized = TryNormalizeIndex(index.Value, list.Items.Count, "list subscript");
                 return normalized.IsSuccess
                     ? Success(list.Items[normalized.Value])
-                    : Failure(normalized.Error!);
+                    : Failure(normalized.Diagnostic!);
             }
             case StringValue str:
             {
                 var normalized = TryNormalizeIndex(index.Value, str.Value.Length, "string subscript");
                 return normalized.IsSuccess
                     ? Success(new StringValue(str.Value[normalized.Value].ToString()))
-                    : Failure(normalized.Error!);
+                    : Failure(normalized.Diagnostic!);
             }
             default:
-                return Failure(new InvalidOperationException($"Cannot subscript {target.Value.GetType().Name}."));
+                return Failure(InvalidOperation($"Cannot subscript {target.Value.GetType().Name}."));
         }
     }
 
@@ -557,12 +557,12 @@ internal sealed class ExpressionEvaluator
         var listValue = TryEvaluate(forEach.List, scope, tryResolveValue);
         if (!listValue.IsSuccess)
         {
-            return Failure(listValue.Error!);
+            return Failure(listValue.Diagnostic!);
         }
 
         if (listValue.Value is not ListValue list)
         {
-            return Failure(new InvalidCastException());
+            return Failure(InvalidCast("Expected a list value."));
         }
 
         var results = new List<Value>(list.Items.Count);
@@ -572,7 +572,7 @@ internal sealed class ExpressionEvaluator
             var body = TryEvaluate(forEach.Body, innerScope, tryResolveValue);
             if (!body.IsSuccess)
             {
-                return Failure(body.Error!);
+                return Failure(body.Diagnostic!);
             }
 
             results.Add(body.Value);
@@ -590,13 +590,13 @@ internal sealed class ExpressionEvaluator
         var a = TryEvaluateInteger(bangCall.Arguments[0], scope, tryResolveValue, $"!{bangCall.OperatorName}");
         if (!a.IsSuccess)
         {
-            return Failure(a.Error!);
+            return Failure(a.Diagnostic!);
         }
 
         var b = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, $"!{bangCall.OperatorName}");
         return b.IsSuccess
             ? Success(new IntegerValue(predicate(a.Value, b.Value) ? 1 : 0))
-            : Failure(b.Error!);
+            : Failure(b.Diagnostic!);
     }
 
     private EvaluationResult<Value> TryEvaluateEquality(
@@ -608,13 +608,13 @@ internal sealed class ExpressionEvaluator
         var a = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
         if (!a.IsSuccess)
         {
-            return Failure(a.Error!);
+            return Failure(a.Diagnostic!);
         }
 
         var b = TryEvaluate(bangCall.Arguments[1], scope, tryResolveValue);
         if (!b.IsSuccess)
         {
-            return Failure(b.Error!);
+            return Failure(b.Diagnostic!);
         }
 
         var isEqual = ValuesEqual(a.Value, b.Value);
@@ -631,13 +631,13 @@ internal sealed class ExpressionEvaluator
         var a = TryEvaluateInteger(bangCall.Arguments[0], scope, tryResolveValue, contextName);
         if (!a.IsSuccess)
         {
-            return Failure(a.Error!);
+            return Failure(a.Diagnostic!);
         }
 
         var b = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, contextName);
         return b.IsSuccess
             ? Success(new IntegerValue(operation(a.Value, b.Value)))
-            : Failure(b.Error!);
+            : Failure(b.Diagnostic!);
     }
 
     private EvaluationResult<Value> TryEvaluateUnaryString(
@@ -650,7 +650,7 @@ internal sealed class ExpressionEvaluator
         var text = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, contextName);
         return text.IsSuccess
             ? Success(new StringValue(operation(text.Value)))
-            : Failure(text.Error!);
+            : Failure(text.Diagnostic!);
     }
 
     private EvaluationResult<Value> TryEvaluateSubstr(
@@ -661,13 +661,13 @@ internal sealed class ExpressionEvaluator
         var str = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!substr");
         if (!str.IsSuccess)
         {
-            return Failure(str.Error!);
+            return Failure(str.Diagnostic!);
         }
 
         var start = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, "!substr");
         if (!start.IsSuccess)
         {
-            return Failure(start.Error!);
+            return Failure(start.Diagnostic!);
         }
 
         var clampedStart = Math.Max(0, Math.Min(start.Value, str.Value.Length));
@@ -676,7 +676,7 @@ internal sealed class ExpressionEvaluator
             var len = TryEvaluateInteger(bangCall.Arguments[2], scope, tryResolveValue, "!substr");
             if (!len.IsSuccess)
             {
-                return Failure(len.Error!);
+                return Failure(len.Diagnostic!);
             }
 
             var clampedLen = Math.Max(0, Math.Min(len.Value, str.Value.Length - clampedStart));
@@ -694,13 +694,13 @@ internal sealed class ExpressionEvaluator
         var str = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!find");
         if (!str.IsSuccess)
         {
-            return Failure(str.Error!);
+            return Failure(str.Diagnostic!);
         }
 
         var sub = TryEvaluateString(bangCall.Arguments[1], scope, tryResolveValue, "!find");
         if (!sub.IsSuccess)
         {
-            return Failure(sub.Error!);
+            return Failure(sub.Diagnostic!);
         }
 
         var startIndex = bangCall.Arguments.Count >= 3
@@ -708,7 +708,7 @@ internal sealed class ExpressionEvaluator
             : EvaluationResult<int>.Success(0);
         if (!startIndex.IsSuccess)
         {
-            return Failure(startIndex.Error!);
+            return Failure(startIndex.Diagnostic!);
         }
 
         return Success(new IntegerValue(str.Value.IndexOf(sub.Value, startIndex.Value, StringComparison.Ordinal)));
@@ -722,13 +722,13 @@ internal sealed class ExpressionEvaluator
         var start = TryEvaluateInteger(bangCall.Arguments[0], scope, tryResolveValue, "!range");
         if (!start.IsSuccess)
         {
-            return Failure(start.Error!);
+            return Failure(start.Diagnostic!);
         }
 
         var end = TryEvaluateInteger(bangCall.Arguments[1], scope, tryResolveValue, "!range");
         if (!end.IsSuccess)
         {
-            return Failure(end.Error!);
+            return Failure(end.Diagnostic!);
         }
 
         var items = new List<Value>(Math.Max(0, end.Value - start.Value));
@@ -748,18 +748,18 @@ internal sealed class ExpressionEvaluator
         var a = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
         if (!a.IsSuccess)
         {
-            return Failure(a.Error!);
+            return Failure(a.Diagnostic!);
         }
 
         var b = TryEvaluate(bangCall.Arguments[1], scope, tryResolveValue);
         if (!b.IsSuccess)
         {
-            return Failure(b.Error!);
+            return Failure(b.Diagnostic!);
         }
 
         if (a.Value is not ListValue left || b.Value is not ListValue right)
         {
-            return Failure(new InvalidCastException());
+            return Failure(InvalidCast("Expected list arguments."));
         }
 
         var items = new List<Value>(left.Items.Count + right.Items.Count);
@@ -779,13 +779,13 @@ internal sealed class ExpressionEvaluator
             var value = TryEvaluate(arg, scope, tryResolveValue);
             if (!value.IsSuccess)
             {
-                return Failure(value.Error!);
+                return Failure(value.Diagnostic!);
             }
 
             var text = TryToString(value.Value, "!strconcat");
             if (!text.IsSuccess)
             {
-                return Failure(text.Error!);
+                return Failure(text.Diagnostic!);
             }
 
             parts.Add(text.Value);
@@ -804,13 +804,13 @@ internal sealed class ExpressionEvaluator
             var condition = TryEvaluate(bangCall.Arguments[i], scope, tryResolveValue);
             if (!condition.IsSuccess)
             {
-                return Failure(condition.Error!);
+                return Failure(condition.Diagnostic!);
             }
 
             var truthy = TryIsTruthy(condition.Value);
             if (!truthy.IsSuccess)
             {
-                return Failure(truthy.Error!);
+                return Failure(truthy.Diagnostic!);
             }
 
             if (truthy.Value)
@@ -819,7 +819,7 @@ internal sealed class ExpressionEvaluator
             }
         }
 
-        return Failure(new InvalidOperationException("!cond requires at least one true condition."));
+        return Failure(InvalidOperation("!cond requires at least one true condition."));
     }
 
     private EvaluationResult<Value> TryEvaluateInterleave(
@@ -830,18 +830,18 @@ internal sealed class ExpressionEvaluator
         var listVal = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
         if (!listVal.IsSuccess)
         {
-            return Failure(listVal.Error!);
+            return Failure(listVal.Diagnostic!);
         }
 
         var sep = TryEvaluateString(bangCall.Arguments[1], scope, tryResolveValue, "!interleave");
         if (!sep.IsSuccess)
         {
-            return Failure(sep.Error!);
+            return Failure(sep.Diagnostic!);
         }
 
         if (listVal.Value is not ListValue list)
         {
-            return Failure(new InvalidCastException());
+            return Failure(InvalidCast("Expected a list value."));
         }
 
         var items = new List<string>(list.Items.Count);
@@ -850,7 +850,7 @@ internal sealed class ExpressionEvaluator
             var itemString = TryValueToString(item);
             if (!itemString.IsSuccess)
             {
-                return Failure(itemString.Error!);
+                return Failure(itemString.Diagnostic!);
             }
 
             items.Add(itemString.Value);
@@ -867,19 +867,19 @@ internal sealed class ExpressionEvaluator
         var from = TryEvaluateString(bangCall.Arguments[0], scope, tryResolveValue, "!subst");
         if (!from.IsSuccess)
         {
-            return Failure(from.Error!);
+            return Failure(from.Diagnostic!);
         }
 
         var to = TryEvaluateString(bangCall.Arguments[1], scope, tryResolveValue, "!subst");
         if (!to.IsSuccess)
         {
-            return Failure(to.Error!);
+            return Failure(to.Diagnostic!);
         }
 
         var text = TryEvaluateString(bangCall.Arguments[2], scope, tryResolveValue, "!subst");
         return text.IsSuccess
             ? Success(new StringValue(text.Value.Replace(from.Value, to.Value)))
-            : Failure(text.Error!);
+            : Failure(text.Diagnostic!);
     }
 
     private EvaluationResult<Value> TryEvaluateHead(
@@ -890,16 +890,16 @@ internal sealed class ExpressionEvaluator
         var list = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
         if (!list.IsSuccess)
         {
-            return Failure(list.Error!);
+            return Failure(list.Diagnostic!);
         }
 
         if (list.Value is not ListValue values)
         {
-            return Failure(new InvalidCastException());
+            return Failure(InvalidCast("Expected a list value."));
         }
 
         return values.Items.Count == 0
-            ? Failure(new InvalidOperationException("!head requires a non-empty list."))
+            ? Failure(InvalidOperation("!head requires a non-empty list."))
             : Success(values.Items[0]);
     }
 
@@ -911,16 +911,16 @@ internal sealed class ExpressionEvaluator
         var list = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
         if (!list.IsSuccess)
         {
-            return Failure(list.Error!);
+            return Failure(list.Diagnostic!);
         }
 
         if (list.Value is not ListValue values)
         {
-            return Failure(new InvalidCastException());
+            return Failure(InvalidCast("Expected a list value."));
         }
 
         return values.Items.Count == 0
-            ? Failure(new InvalidOperationException("!tail requires a non-empty list."))
+            ? Failure(InvalidOperation("!tail requires a non-empty list."))
             : Success(new ListValue(values.Items.Skip(1).ToList()));
     }
 
@@ -932,7 +932,7 @@ internal sealed class ExpressionEvaluator
         var val = TryEvaluate(bangCall.Arguments[0], scope, tryResolveValue);
         if (!val.IsSuccess)
         {
-            return Failure(val.Error!);
+            return Failure(val.Diagnostic!);
         }
 
         return val.Value switch
@@ -953,12 +953,12 @@ internal sealed class ExpressionEvaluator
         var listValue = TryEvaluate(bangCall.Arguments[1], scope, tryResolveValue);
         if (!listValue.IsSuccess)
         {
-            return Failure(listValue.Error!);
+            return Failure(listValue.Diagnostic!);
         }
 
         if (listValue.Value is not ListValue list)
         {
-            return Failure(new InvalidCastException());
+            return Failure(InvalidCast("Expected a list value."));
         }
 
         var results = new List<Value>();
@@ -968,13 +968,13 @@ internal sealed class ExpressionEvaluator
             var condition = TryEvaluate(bangCall.Arguments[2], innerScope, tryResolveValue);
             if (!condition.IsSuccess)
             {
-                return Failure(condition.Error!);
+                return Failure(condition.Diagnostic!);
             }
 
             var truthy = TryIsTruthy(condition.Value);
             if (!truthy.IsSuccess)
             {
-                return Failure(truthy.Error!);
+                return Failure(truthy.Diagnostic!);
             }
 
             if (truthy.Value)
@@ -994,7 +994,7 @@ internal sealed class ExpressionEvaluator
     {
         var value = TryEvaluate(expression, scope, tryResolveValue);
         return !value.IsSuccess
-            ? EvaluationResult<int>.Failure(value.Error!)
+            ? EvaluationResult<int>.Failure(value.Diagnostic!)
             : TryToInteger(value.Value, contextName);
     }
 
@@ -1006,7 +1006,7 @@ internal sealed class ExpressionEvaluator
     {
         var value = TryEvaluate(expression, scope, tryResolveValue);
         return !value.IsSuccess
-            ? EvaluationResult<string>.Failure(value.Error!)
+            ? EvaluationResult<string>.Failure(value.Diagnostic!)
             : TryToString(value.Value, contextName);
     }
 
@@ -1095,21 +1095,21 @@ internal sealed class ExpressionEvaluator
     {
         return value is IntegerValue integer
             ? EvaluationResult<int>.Success(integer.Value)
-            : EvaluationResult<int>.Failure(new InvalidOperationException($"{contextName} requires an integer argument, got {value.GetType().Name}."));
+            : EvaluationResult<int>.Failure(InvalidOperation($"{contextName} requires an integer argument, got {value.GetType().Name}."));
     }
 
     private static EvaluationResult<string> TryToString(Value value, string contextName)
     {
         return value is StringValue str
             ? EvaluationResult<string>.Success(str.Value)
-            : EvaluationResult<string>.Failure(new InvalidOperationException($"{contextName} requires a string argument, got {value.GetType().Name}."));
+            : EvaluationResult<string>.Failure(InvalidOperation($"{contextName} requires a string argument, got {value.GetType().Name}."));
     }
 
     private static EvaluationResult<int> TryNormalizeIndex(int index, int length, string contextName)
     {
         var normalized = index < 0 ? length + index : index;
         return normalized < 0 || normalized >= length
-            ? EvaluationResult<int>.Failure(new InvalidOperationException($"{contextName} index {index} is out of range."))
+            ? EvaluationResult<int>.Failure(InvalidOperation($"{contextName} index {index} is out of range."))
             : EvaluationResult<int>.Success(normalized);
     }
 
@@ -1129,8 +1129,23 @@ internal sealed class ExpressionEvaluator
         return EvaluationResult<Value>.Success(value);
     }
 
-    private static EvaluationResult<Value> Failure(Exception error)
+    private static EvaluationDiagnostic InvalidOperation(string message)
     {
-        return EvaluationResult<Value>.Failure(error);
+        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
+    }
+
+    private static EvaluationDiagnostic MissingKey(string message)
+    {
+        return new EvaluationDiagnostic(EvaluationDiagnosticKind.MissingKey, message);
+    }
+
+    private static EvaluationDiagnostic InvalidCast(string message)
+    {
+        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidCast, message);
+    }
+
+    private static EvaluationResult<Value> Failure(EvaluationDiagnostic diagnostic)
+    {
+        return EvaluationResult<Value>.Failure(diagnostic);
     }
 }
