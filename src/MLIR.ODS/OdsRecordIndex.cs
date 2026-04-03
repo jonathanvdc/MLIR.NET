@@ -294,8 +294,8 @@ internal sealed class OdsRecordIndex
             "DenseBoolArrayAttr" => AttributeConstraintKind.DenseBooleanArrayAttribute,
             "DenseI8ArrayAttr" or "DenseI16ArrayAttr" or "DenseI32ArrayAttr" or "DenseI64ArrayAttr"
                 => AttributeConstraintKind.DenseIntegerArrayAttribute,
-            "DenseF32ArrayAttr" or "DenseF64ArrayAttr"
-                => AttributeConstraintKind.DenseFloatingPointArrayAttribute,
+            "DenseF32ArrayAttr" => AttributeConstraintKind.DenseSinglePrecisionArrayAttribute,
+            "DenseF64ArrayAttr" => AttributeConstraintKind.DenseDoublePrecisionArrayAttribute,
             _ => AttributeConstraintKind.DenseIntegerArrayAttribute,
         };
     }
