@@ -628,7 +628,7 @@ public sealed partial class SemanticTests
                 return new BuiltinIntegerTypeSyntax(new SyntaxToken("i" + integerType.Width.Value));
             }
 
-            return type.Syntax;
+            return type.Syntax ?? throw new InvalidOperationException("Integer test types require syntax to rebuild their assembly form.");
         }
     }
 
