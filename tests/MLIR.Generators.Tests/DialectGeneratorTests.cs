@@ -859,4 +859,96 @@ public sealed class DialectGeneratorTests
         Assert.Contains("string floatVal,", registrationSource);
         Assert.DoesNotContain("NamedAttribute intVal,", registrationSource);
     }
+
+    [Fact]
+    public void GeneratesDenseIntegerArrayAttributePropertyWithTypedItemsList()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
+            "  let arguments = (ins DenseI32ArrayAttr:$indices, I32:$lhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$indices `,` $lhs attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        // Constraint base type is DenseIntegerArrayAttributeValue.
+        Assert.Contains("DenseIntegerArrayAttributeValue", registrationSource);
+
+        // Property type exposes IReadOnlyList<BigInteger> items directly.
+        Assert.Contains("public IReadOnlyList<BigInteger> Indices", registrationSource);
+        Assert.Contains("DenseIntegerArrayAttributeAssemblyFormat", registrationSource);
+
+        // Constructor parameter uses the typed list.
+        Assert.Contains("IReadOnlyList<BigInteger> indices,", registrationSource);
+    }
+
+    [Fact]
+    public void GeneratesDenseBooleanArrayAttributePropertyWithTypedItemsList()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
+            "  let arguments = (ins DenseBoolArrayAttr:$flags, I32:$lhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$flags `,` $lhs attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        Assert.Contains("DenseBooleanArrayAttributeValue", registrationSource);
+        Assert.Contains("public IReadOnlyList<bool> Flags", registrationSource);
+        Assert.Contains("DenseBooleanArrayAttributeAssemblyFormat", registrationSource);
+        Assert.Contains("IReadOnlyList<bool> flags,", registrationSource);
+    }
+
+    [Fact]
+    public void GeneratesDenseFloatingPointArrayAttributePropertyWithTypedItemsList()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
+            "  let arguments = (ins DenseF32ArrayAttr:$coeffs, I32:$lhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$coeffs `,` $lhs attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        Assert.Contains("DenseFloatingPointArrayAttributeValue", registrationSource);
+        Assert.Contains("public IReadOnlyList<double> Coeffs", registrationSource);
+        Assert.Contains("DenseFloatingPointArrayAttributeAssemblyFormat", registrationSource);
+        Assert.Contains("IReadOnlyList<double> coeffs,", registrationSource);
+    }
 }

@@ -192,7 +192,7 @@ internal sealed class OdsRecordIndex
 
         if (record.HasBaseClass("DenseArrayAttrBase"))
         {
-            kind = AttributeConstraintKind.DenseArrayAttribute;
+            kind = GetDenseArrayElementKind(record.Name);
             return true;
         }
 
@@ -284,6 +284,19 @@ internal sealed class OdsRecordIndex
             RecordReferenceValue record => record.RecordName,
             StringValue str => str.Value,
             _ => null,
+        };
+    }
+
+    private static AttributeConstraintKind GetDenseArrayElementKind(string recordName)
+    {
+        return recordName switch
+        {
+            "DenseBoolArrayAttr" => AttributeConstraintKind.DenseBooleanArrayAttribute,
+            "DenseI8ArrayAttr" or "DenseI16ArrayAttr" or "DenseI32ArrayAttr" or "DenseI64ArrayAttr"
+                => AttributeConstraintKind.DenseIntegerArrayAttribute,
+            "DenseF32ArrayAttr" or "DenseF64ArrayAttr"
+                => AttributeConstraintKind.DenseFloatingPointArrayAttribute,
+            _ => AttributeConstraintKind.DenseIntegerArrayAttribute,
         };
     }
 
