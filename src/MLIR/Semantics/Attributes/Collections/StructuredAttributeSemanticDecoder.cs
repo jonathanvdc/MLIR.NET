@@ -117,7 +117,7 @@ public static class StructuredAttributeSemanticDecoder
             "i1" => new DecodedDenseBooleanArrayAttributeValue(syntax),
             "i8" or "i16" or "i32" or "i64" => new DecodedDenseIntegerArrayAttributeValue(syntax),
             "f32" or "f64" or "bf16" => new DecodedDenseFloatingPointArrayAttributeValue(syntax),
-            _ => new DecodedDenseIntegerArrayAttributeValue(syntax),
+            _ => throw new System.NotSupportedException($"Unsupported dense array element type '{typeText}'."),
         };
     }
 

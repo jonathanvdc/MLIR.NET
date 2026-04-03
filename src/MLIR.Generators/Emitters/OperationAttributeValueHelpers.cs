@@ -50,13 +50,13 @@ internal static class OperationAttributeValueHelpers
 
         if (IsDenseCollectionConstraintKind(member.ConstraintKind))
         {
-            var castExpr = "((" + member.ConstraintClassName + ")";
+            var denseCollectionCastExpr = "((" + member.ConstraintClassName + ")";
             if (isOptional)
             {
-                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + castExpr + localName + ".Value).Items : null";
+                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + denseCollectionCastExpr + localName + ".Value).Items : null";
             }
 
-            return castExpr + "Attributes[" + sourceNameLiteral + "].Value).Items";
+            return denseCollectionCastExpr + "Attributes[" + sourceNameLiteral + "].Value).Items";
         }
 
         var baseTypeName = isOptional ? member.TypeName.Substring(0, member.TypeName.Length - 1) : member.TypeName;
