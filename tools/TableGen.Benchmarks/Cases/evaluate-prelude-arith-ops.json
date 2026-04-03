@@ -1,0 +1,7 @@
+{
+  "name": "Evaluate.PreludeArithOps",
+  "description": "Evaluates the embedded Arith dialect ODS file and its transitive includes without parse overhead.",
+  "mode": "evaluate",
+  "source": "Inputs/prelude-arith-ops.td",
+  "includeResolver": "mlir-prelude"
+}

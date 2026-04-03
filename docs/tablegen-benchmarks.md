@@ -58,6 +58,14 @@ dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Rel
   MLIR-style dialect/op evaluation against the embedded MLIR prelude without parse overhead.
 - `ParseAndEvaluate.PreludeMiniDialect`
   End-to-end parse plus evaluation for a small MLIR-style dialect/op with includes.
+- `Evaluate.PreludeArithOps`
+  Evaluates the embedded Arith dialect ODS file and its transitive includes without parse overhead.
+- `ParseAndEvaluate.PreludeArithOps`
+  Parses and evaluates the embedded Arith dialect ODS file and its transitive includes end-to-end.
+- `Evaluate.PathologicalListPipeline`
+  Stresses `!range`, `!filter`, `!foreach`, and `!foldl` over a medium-sized list workload.
+- `Evaluate.PathologicalDeepClassChain`
+  Stresses repeated class instantiation and inherited-field resolution in a deep class chain.
 
 ## CI Behavior
 

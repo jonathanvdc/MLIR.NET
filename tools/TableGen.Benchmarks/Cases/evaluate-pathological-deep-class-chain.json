@@ -1,0 +1,7 @@
+{
+  "name": "Evaluate.PathologicalDeepClassChain",
+  "description": "Stresses repeated class instantiation, inherited field resolution, and let-sensitive computed fields.",
+  "mode": "evaluate",
+  "source": "Inputs/pathological-deep-class-chain.td",
+  "includeResolver": "none"
+}

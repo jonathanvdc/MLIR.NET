@@ -1,0 +1,7 @@
+{
+  "name": "Evaluate.PathologicalListPipeline",
+  "description": "Stresses range, filter, foreach, and foldl over medium-sized lists without parse overhead.",
+  "mode": "evaluate",
+  "source": "Inputs/pathological-list-pipeline.td",
+  "includeResolver": "none"
+}
