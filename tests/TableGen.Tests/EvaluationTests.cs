@@ -237,7 +237,7 @@ public sealed class EvaluationTests
         Assert.Equal("real.suffix", Assert.IsType<StringValue>(record.GetField("attrName")).Value);
     }
 
-    [Fact(Skip = "Pending record-builder refactor to align inherited field resolution with upstream TableGen.")]
+    [Fact]
     public void LocalLetsAffectInheritedComputedFieldsBeforeInterFieldResolution()
     {
         const string source =

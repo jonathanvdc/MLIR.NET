@@ -24,6 +24,7 @@ public static class Interpreter
     {
         private readonly EvaluationContext context;
         private readonly ExpressionEvaluator expressionEvaluator;
+        private readonly Dictionary<string, Record> evaluatedDefinitions = new();
 
         public Evaluator(DocumentSyntax document)
         {
@@ -31,9 +32,8 @@ public static class Interpreter
             Definitions = context.Definitions;
             expressionEvaluator = new ExpressionEvaluator(
                 context,
-                (classSyntax, arguments, outerScope) => InstantiateClass(classSyntax, arguments, outerScope),
-                (bases, scope, fields) => ApplyBases(bases, scope, fields),
-                (bodyItems, scope, fields) => ApplyBody(bodyItems, scope, fields));
+                (classSyntax, arguments, outerScope, tryResolveValue) => InstantiateClass(classSyntax, arguments, outerScope, tryResolveValue),
+                definition => EvaluateDefinition(definition));
         }
 
         private IReadOnlyList<DefSyntax> Definitions { get; }
@@ -57,14 +57,24 @@ public static class Interpreter
 
         private Record EvaluateDefinition(DefSyntax definition)
         {
+            if (evaluatedDefinitions.TryGetValue(definition.Name, out var existingRecord))
+            {
+                return existingRecord;
+            }
+
             var scope = new Dictionary<string, Value>();
-            var fields = new Dictionary<string, Value>();
             var baseClasses = new List<string>();
             var seenBaseClasses = new HashSet<string>();
             CollectBaseClasses(definition.Bases, seenBaseClasses, baseClasses);
-            ApplyBases(definition.Bases, scope, fields);
-            ApplyBody(definition.BodyItems, scope, fields);
-            return new Record(definition.Name, baseClasses, fields);
+
+            var state = new PendingRecordState();
+            ApplyPendingBases(definition.Bases, scope, state);
+            ApplyPendingBody(definition.BodyItems, scope, state);
+
+            var fields = ResolveFields(state);
+            var record = new Record(definition.Name, baseClasses, fields);
+            evaluatedDefinitions[definition.Name] = record;
+            return record;
         }
 
         private void CollectBaseClasses(
@@ -91,36 +101,66 @@ public static class Interpreter
             IReadOnlyList<ExpressionSyntax> arguments,
             IReadOnlyDictionary<string, Value> outerScope)
         {
-            return InstantiateClass(classSyntax, arguments, outerScope, preOverrides: null);
+            return InstantiateClass(classSyntax, arguments, outerScope, tryResolveValue: null);
         }
 
-        /// <summary>
-        /// Instantiates a class, optionally pre-seeding fields with <paramref name="preOverrides"/> that come
-        /// from <c>let</c> statements in a derived class.  Pre-seeded values are written into the local
-        /// scope before any base-class or body processing so that computed fields such as
-        /// <c>attrName = dialect.name # "." # mnemonic</c> in <c>AttrDef</c> see the already-resolved value
-        /// of <c>mnemonic</c> that was supplied by the derived class body.
-        /// Field declarations whose initializer would overwrite a pre-seeded entry are skipped.
-        /// </summary>
         private Dictionary<string, Value> InstantiateClass(
             ClassSyntax classSyntax,
             IReadOnlyList<ExpressionSyntax> arguments,
             IReadOnlyDictionary<string, Value> outerScope,
-            IReadOnlyDictionary<string, Value>? preOverrides)
+            ExpressionEvaluator.TryResolveValue? tryResolveValue)
         {
             var scope = new Dictionary<string, Value>();
-            var fields = new Dictionary<string, Value>();
 
-            // Pre-seed scope and fields with derived-class let overrides so that field initializers
-            // in this class (and its base classes) can see them before they are declared.
-            if (preOverrides != null)
+            for (var i = 0; i < classSyntax.TemplateParameters.Count; i++)
             {
-                foreach (var pair in preOverrides)
+                var parameter = classSyntax.TemplateParameters[i];
+                Value value;
+                if (i < arguments.Count)
                 {
-                    scope[pair.Key] = pair.Value;
-                    fields[pair.Key] = pair.Value;
+                    value = expressionEvaluator.Evaluate(arguments[i], outerScope, tryResolveValue);
                 }
+                else if (parameter.DefaultValue != null)
+                {
+                    value = expressionEvaluator.Evaluate(parameter.DefaultValue, scope, tryResolveValue);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'.");
+                }
+
+                scope[parameter.Name] = value;
             }
+
+            var state = new PendingRecordState();
+            ApplyPendingBases(classSyntax.Bases, scope, state);
+            ApplyPendingBody(classSyntax.BodyItems, scope, state);
+            return ResolveFields(state);
+        }
+
+        private void ApplyPendingBases(
+            IReadOnlyList<BaseSyntax> bases,
+            Dictionary<string, Value> scope,
+            PendingRecordState state)
+        {
+            foreach (var @base in bases)
+            {
+                if (!context.Classes.TryGetValue(@base.Name, out var classSyntax))
+                {
+                    throw new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'.");
+                }
+
+                var classState = InstantiatePendingClass(classSyntax, @base.Arguments, scope);
+                state.Import(classState);
+            }
+        }
+
+        private PendingRecordState InstantiatePendingClass(
+            ClassSyntax classSyntax,
+            IReadOnlyList<ExpressionSyntax> arguments,
+            IReadOnlyDictionary<string, Value> outerScope)
+        {
+            var scope = new Dictionary<string, Value>();
 
             for (var i = 0; i < classSyntax.TemplateParameters.Count; i++)
             {
@@ -132,8 +172,6 @@ public static class Interpreter
                 }
                 else if (parameter.DefaultValue != null)
                 {
-                    // Evaluate default values against the partially-built scope so that
-                    // earlier template parameters (e.g. `string str = sym`) resolve correctly.
                     value = expressionEvaluator.Evaluate(parameter.DefaultValue, scope);
                 }
                 else
@@ -144,53 +182,16 @@ public static class Interpreter
                 scope[parameter.Name] = value;
             }
 
-            var bodyPreOverrides = CollectPreOverrides(classSyntax.BodyItems, scope);
-            var mergedPreOverrides = MergePreOverrides(bodyPreOverrides, preOverrides);
-
-            ApplyBases(classSyntax.Bases, scope, fields, mergedPreOverrides);
-
-            // Apply body.  Field declarations (FieldSyntax) whose name is in preOverrides are skipped
-            // because the derived class has already supplied the authoritative value.
-            ApplyBody(classSyntax.BodyItems, scope, fields, mergedPreOverrides);
-
-            return fields;
+            var state = new PendingRecordState();
+            ApplyPendingBases(classSyntax.Bases, scope, state);
+            ApplyPendingBody(classSyntax.BodyItems, scope, state);
+            return state;
         }
 
-        private void ApplyBases(
-            IReadOnlyList<BaseSyntax> bases,
-            Dictionary<string, Value> scope,
-            Dictionary<string, Value> fields)
-        {
-            ApplyBases(bases, scope, fields, preOverrides: null);
-        }
-
-        private void ApplyBases(
-            IReadOnlyList<BaseSyntax> bases,
-            Dictionary<string, Value> scope,
-            Dictionary<string, Value> fields,
-            IReadOnlyDictionary<string, Value>? preOverrides)
-        {
-            foreach (var @base in bases)
-            {
-                if (!context.Classes.TryGetValue(@base.Name, out var classSyntax))
-                {
-                    throw new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'.");
-                }
-
-                var classFields = InstantiateClass(classSyntax, @base.Arguments, scope, preOverrides);
-                foreach (var field in classFields)
-                {
-                    fields[field.Key] = field.Value;
-                    scope[field.Key] = field.Value;
-                }
-            }
-        }
-
-        private void ApplyBody(
+        private void ApplyPendingBody(
             IReadOnlyList<BodyItemSyntax> bodyItems,
             Dictionary<string, Value> scope,
-            Dictionary<string, Value> fields,
-            IReadOnlyDictionary<string, Value>? preOverrides = null)
+            PendingRecordState state)
         {
             foreach (var item in bodyItems)
             {
@@ -198,44 +199,27 @@ public static class Interpreter
                 {
                     case FieldSyntax field:
                     {
-                        if (preOverrides != null && preOverrides.ContainsKey(field.Name))
-                        {
-                            continue;
-                        }
-
-                        if (field.Initializer == null)
-                        {
-                            continue;
-                        }
-
-                        var value = expressionEvaluator.Evaluate(field.Initializer, scope);
-                        fields[field.Name] = ExpressionEvaluator.CoerceValue(field.TypeName, value);
-                        scope[field.Name] = fields[field.Name];
+                        state.DefineField(field, scope);
                         break;
                     }
                     case LetSyntax let:
                     {
-                        var value = expressionEvaluator.Evaluate(let.Value, scope);
-                        var finalValue = fields.TryGetValue(let.Name, out var existingField)
-                            ? ExpressionEvaluator.CoerceExistingValue(existingField, value)
-                            : value;
-                        fields[let.Name] = finalValue;
-                        scope[let.Name] = finalValue;
+                        state.ApplyLet(let, scope);
                         break;
                     }
                     case LocalDefVarSyntax defVar:
                     {
-                        scope[defVar.Name] = expressionEvaluator.Evaluate(defVar.Value, scope);
+                        scope[defVar.Name] = expressionEvaluator.Evaluate(defVar.Value, scope, TryResolveField(state));
                         break;
                     }
                     case AssertSyntax assert:
                     {
-                        var condition = expressionEvaluator.Evaluate(assert.Condition, scope);
+                        var condition = expressionEvaluator.Evaluate(assert.Condition, scope, TryResolveField(state));
                         if (!ExpressionEvaluator.IsTruthy(condition))
                         {
                             var message = assert.Message == null
                                 ? "TableGen assertion failed."
-                                : ExpressionEvaluator.ValueToString(expressionEvaluator.Evaluate(assert.Message, scope));
+                                : ExpressionEvaluator.ValueToString(expressionEvaluator.Evaluate(assert.Message, scope, TryResolveField(state)));
                             throw new InvalidOperationException(message);
                         }
 
@@ -245,55 +229,62 @@ public static class Interpreter
             }
         }
 
-        private Dictionary<string, Value> CollectPreOverrides(
-            IReadOnlyList<BodyItemSyntax> bodyItems,
-            IReadOnlyDictionary<string, Value> scope)
+        private Dictionary<string, Value> ResolveFields(PendingRecordState state)
         {
-            var preOverrides = new Dictionary<string, Value>();
-            var preOverrideScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
-
-            foreach (var item in bodyItems.OfType<LetSyntax>())
+            var fields = new Dictionary<string, Value>();
+            foreach (var pair in state.Fields)
             {
-                try
+                if (pair.Value.HasExpression && TryResolveFieldValue(state, pair.Key, out var value))
                 {
-                    var value = expressionEvaluator.Evaluate(item.Value, preOverrideScope);
-                    preOverrides[item.Name] = value;
-                    preOverrideScope[item.Name] = value;
-                }
-                catch (Exception ex) when (
-                    ex is InvalidOperationException
-                    or InvalidCastException
-                    or KeyNotFoundException)
-                {
-                    // Some let expressions only become valid after inherited fields or later body items
-                    // exist. Skip pre-seeding those; the regular body pass will still evaluate them.
+                    fields[pair.Key] = value;
                 }
             }
 
-            return preOverrides;
+            return fields;
         }
 
-        private static IReadOnlyDictionary<string, Value>? MergePreOverrides(
-            IReadOnlyDictionary<string, Value>? localPreOverrides,
-            IReadOnlyDictionary<string, Value>? inheritedPreOverrides)
+        private ExpressionEvaluator.TryResolveValue TryResolveField(PendingRecordState state)
         {
-            if (localPreOverrides == null || localPreOverrides.Count == 0)
+            return (string name, out Value value) => TryResolveFieldValue(state, name, out value);
+        }
+
+        private bool TryResolveFieldValue(PendingRecordState state, string name, out Value value)
+        {
+            if (!state.TryGetField(name, out var field) || !field.HasExpression)
             {
-                return inheritedPreOverrides;
+                value = null!;
+                return false;
             }
 
-            if (inheritedPreOverrides == null || inheritedPreOverrides.Count == 0)
+            if (field.HasResolvedValue)
             {
-                return localPreOverrides;
+                value = field.ResolvedValue!;
+                return true;
             }
 
-            var merged = localPreOverrides.ToDictionary(static kv => kv.Key, static kv => kv.Value);
-            foreach (var pair in inheritedPreOverrides)
+            if (field.IsResolving)
             {
-                merged[pair.Key] = pair.Value;
+                throw new InvalidOperationException($"Detected a cycle while resolving field '{name}'.");
             }
 
-            return merged;
+            field.IsResolving = true;
+            try
+            {
+                var resolved = expressionEvaluator.Evaluate(field.Expression!, field.LexicalScope, TryResolveField(state));
+                if (field.DeclaredTypeName != null)
+                {
+                    resolved = ExpressionEvaluator.CoerceValue(field.DeclaredTypeName, resolved);
+                }
+
+                field.ResolvedValue = resolved;
+                field.HasResolvedValue = true;
+                value = resolved;
+                return true;
+            }
+            finally
+            {
+                field.IsResolving = false;
+            }
         }
     }
 }

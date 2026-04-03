@@ -12,40 +12,39 @@ using TableGen.Syntax;
 internal sealed class ExpressionEvaluator
 {
     private readonly EvaluationContext context;
-    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, Dictionary<string, Value>> instantiateClass;
-    private readonly Action<IReadOnlyList<BaseSyntax>, Dictionary<string, Value>, Dictionary<string, Value>> applyBases;
-    private readonly Action<IReadOnlyList<BodyItemSyntax>, Dictionary<string, Value>, Dictionary<string, Value>> applyBody;
+    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, Dictionary<string, Value>> instantiateClass;
+    private readonly Func<DefSyntax, Record> buildDefinition;
+
+    internal delegate bool TryResolveValue(string name, out Value value);
 
     public ExpressionEvaluator(
         EvaluationContext context,
-        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, Dictionary<string, Value>> instantiateClass,
-        Action<IReadOnlyList<BaseSyntax>, Dictionary<string, Value>, Dictionary<string, Value>> applyBases,
-        Action<IReadOnlyList<BodyItemSyntax>, Dictionary<string, Value>, Dictionary<string, Value>> applyBody)
+        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, IReadOnlyDictionary<string, Value>, TryResolveValue?, Dictionary<string, Value>> instantiateClass,
+        Func<DefSyntax, Record> buildDefinition)
     {
         this.context = context;
         this.instantiateClass = instantiateClass;
-        this.applyBases = applyBases;
-        this.applyBody = applyBody;
+        this.buildDefinition = buildDefinition;
     }
 
-    public Value Evaluate(ExpressionSyntax expression, IReadOnlyDictionary<string, Value> scope)
+    public Value Evaluate(ExpressionSyntax expression, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue = null)
     {
         return expression switch
         {
             IntegerSyntax integer => new IntegerValue(integer.Value),
             StringSyntax str => new StringValue(str.Value),
             UnsetSyntax => new UnsetValue(),
-            IdentifierSyntax identifier => ResolveIdentifier(identifier.Name, scope),
-            ListSyntax list => new ListValue(list.Items.Select(item => Evaluate(item, scope)).ToList()),
-            DagSyntax dag => new DagValue(dag.OperatorName, dag.Arguments.Select(argument => new DagArgumentValue(Evaluate(argument.Value, scope), argument.Name)).ToList()),
-            ConcatSyntax concat => EvaluateConcatenation(concat, scope),
-            BangCallSyntax bangCall => EvaluateBangCall(bangCall, scope),
-            FoldlSyntax foldl => EvaluateFoldl(foldl, scope),
-            ForeachSyntax forEach => EvaluateForeach(forEach, scope),
-            AnonymousClassInstantiationSyntax anonInst => EvaluateAnonymousClassInstantiation(anonInst, scope),
-            FieldAccessSyntax fieldAccess => EvaluateFieldAccess(fieldAccess, scope),
-            SubscriptSyntax subscript => EvaluateSubscript(subscript, scope),
-            ClassInstantiationSyntax instantiation => EvaluateClassInstantiation(instantiation, scope),
+            IdentifierSyntax identifier => ResolveIdentifier(identifier.Name, scope, tryResolveValue),
+            ListSyntax list => new ListValue(list.Items.Select(item => Evaluate(item, scope, tryResolveValue)).ToList()),
+            DagSyntax dag => new DagValue(dag.OperatorName, dag.Arguments.Select(argument => new DagArgumentValue(Evaluate(argument.Value, scope, tryResolveValue), argument.Name)).ToList()),
+            ConcatSyntax concat => EvaluateConcatenation(concat, scope, tryResolveValue),
+            BangCallSyntax bangCall => EvaluateBangCall(bangCall, scope, tryResolveValue),
+            FoldlSyntax foldl => EvaluateFoldl(foldl, scope, tryResolveValue),
+            ForeachSyntax forEach => EvaluateForeach(forEach, scope, tryResolveValue),
+            AnonymousClassInstantiationSyntax anonInst => EvaluateAnonymousClassInstantiation(anonInst, scope, tryResolveValue),
+            FieldAccessSyntax fieldAccess => EvaluateFieldAccess(fieldAccess, scope, tryResolveValue),
+            SubscriptSyntax subscript => EvaluateSubscript(subscript, scope, tryResolveValue),
+            ClassInstantiationSyntax instantiation => EvaluateClassInstantiation(instantiation, scope, tryResolveValue),
             _ => throw new InvalidOperationException("Unknown TableGen expression."),
         };
     }
@@ -100,111 +99,111 @@ internal sealed class ExpressionEvaluator
         };
     }
 
-    private Value EvaluateConcatenation(ConcatSyntax concat, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateConcatenation(ConcatSyntax concat, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
     {
-        var left = Evaluate(concat.Left, scope);
-        var right = Evaluate(concat.Right, scope);
+        var left = Evaluate(concat.Left, scope, tryResolveValue);
+        var right = Evaluate(concat.Right, scope, tryResolveValue);
         return new StringValue(ValueToString(left) + ValueToString(right));
     }
 
-    private Value EvaluateBangCall(BangCallSyntax bangCall, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateBangCall(BangCallSyntax bangCall, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
     {
         switch (bangCall.OperatorName)
         {
             case "if":
             {
-                var cond = Evaluate(bangCall.Arguments[0], scope);
+                var cond = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 return IsTruthy(cond)
-                    ? Evaluate(bangCall.Arguments[1], scope)
-                    : Evaluate(bangCall.Arguments[2], scope);
+                    ? Evaluate(bangCall.Arguments[1], scope, tryResolveValue)
+                    : Evaluate(bangCall.Arguments[2], scope, tryResolveValue);
             }
 
             case "gt":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!gt");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!gt");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!gt");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!gt");
                 return new IntegerValue(a > b ? 1 : 0);
             }
 
             case "ge":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!ge");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!ge");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!ge");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!ge");
                 return new IntegerValue(a >= b ? 1 : 0);
             }
 
             case "lt":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!lt");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!lt");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!lt");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!lt");
                 return new IntegerValue(a < b ? 1 : 0);
             }
 
             case "le":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!le");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!le");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!le");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!le");
                 return new IntegerValue(a <= b ? 1 : 0);
             }
 
             case "eq":
             {
-                var a = Evaluate(bangCall.Arguments[0], scope);
-                var b = Evaluate(bangCall.Arguments[1], scope);
+                var a = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                var b = Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
                 return new IntegerValue(ValuesEqual(a, b) ? 1 : 0);
             }
 
             case "ne":
             {
-                var a = Evaluate(bangCall.Arguments[0], scope);
-                var b = Evaluate(bangCall.Arguments[1], scope);
+                var a = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                var b = Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
                 return new IntegerValue(ValuesEqual(a, b) ? 0 : 1);
             }
 
             case "add":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!add");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!add");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!add");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!add");
                 return new IntegerValue(a + b);
             }
 
             case "sub":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!sub");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!sub");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!sub");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!sub");
                 return new IntegerValue(a - b);
             }
 
             case "mul":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!mul");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!mul");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!mul");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!mul");
                 return new IntegerValue(a * b);
             }
 
             case "and":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!and");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!and");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!and");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!and");
                 return new IntegerValue(a & b);
             }
 
             case "or":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!or");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!or");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!or");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!or");
                 return new IntegerValue(a | b);
             }
 
             case "not":
             {
-                var val = Evaluate(bangCall.Arguments[0], scope);
+                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 return new IntegerValue(IsTruthy(val) ? 0 : 1);
             }
 
             case "size":
             {
-                var val = Evaluate(bangCall.Arguments[0], scope);
+                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 return val switch
                 {
                     StringValue str => new IntegerValue(str.Value.Length),
@@ -215,24 +214,24 @@ internal sealed class ExpressionEvaluator
 
             case "toupper":
             {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope), "!toupper");
+                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!toupper");
                 return new StringValue(str.ToUpperInvariant());
             }
 
             case "tolower":
             {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope), "!tolower");
+                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!tolower");
                 return new StringValue(str.ToLowerInvariant());
             }
 
             case "substr":
             {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope), "!substr");
-                var start = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!substr");
+                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!substr");
+                var start = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!substr");
                 var clampedStart = Math.Max(0, Math.Min(start, str.Length));
                 if (bangCall.Arguments.Count >= 3)
                 {
-                    var len = ToInteger(Evaluate(bangCall.Arguments[2], scope), "!substr");
+                    var len = ToInteger(Evaluate(bangCall.Arguments[2], scope, tryResolveValue), "!substr");
                     var clampedLen = Math.Max(0, Math.Min(len, str.Length - clampedStart));
                     return new StringValue(str.Substring(clampedStart, clampedLen));
                 }
@@ -242,18 +241,18 @@ internal sealed class ExpressionEvaluator
 
             case "find":
             {
-                var str = ToString(Evaluate(bangCall.Arguments[0], scope), "!find");
-                var sub = ToString(Evaluate(bangCall.Arguments[1], scope), "!find");
+                var str = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!find");
+                var sub = ToString(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!find");
                 var startIndex = bangCall.Arguments.Count >= 3
-                    ? ToInteger(Evaluate(bangCall.Arguments[2], scope), "!find")
+                    ? ToInteger(Evaluate(bangCall.Arguments[2], scope, tryResolveValue), "!find")
                     : 0;
                 return new IntegerValue(str.IndexOf(sub, startIndex, StringComparison.Ordinal));
             }
 
             case "range":
             {
-                var start = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!range");
-                var end = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!range");
+                var start = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!range");
+                var end = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!range");
                 var items = new List<Value>(Math.Max(0, end - start));
                 for (var i = start; i < end; i++)
                 {
@@ -265,8 +264,8 @@ internal sealed class ExpressionEvaluator
 
             case "listconcat":
             {
-                var a = (ListValue)Evaluate(bangCall.Arguments[0], scope);
-                var b = (ListValue)Evaluate(bangCall.Arguments[1], scope);
+                var a = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                var b = (ListValue)Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
                 var items = new List<Value>(a.Items.Count + b.Items.Count);
                 items.AddRange(a.Items);
                 items.AddRange(b.Items);
@@ -275,25 +274,25 @@ internal sealed class ExpressionEvaluator
 
             case "strconcat":
             {
-                var result = string.Concat(bangCall.Arguments.Select(arg => ToString(Evaluate(arg, scope), "!strconcat")));
+                var result = string.Concat(bangCall.Arguments.Select(arg => ToString(Evaluate(arg, scope, tryResolveValue), "!strconcat")));
                 return new StringValue(result);
             }
 
             case "shl":
             {
-                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope), "!shl");
-                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope), "!shl");
+                var a = ToInteger(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!shl");
+                var b = ToInteger(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!shl");
                 return new IntegerValue(a << b);
             }
 
             case "cast":
             {
-                return Evaluate(bangCall.Arguments[0], scope);
+                return Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
             }
 
             case "isa":
             {
-                var val = Evaluate(bangCall.Arguments[0], scope);
+                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 return new IntegerValue(IsValueOfType(val, bangCall.TypeArgument) ? 1 : 0);
             }
 
@@ -301,9 +300,9 @@ internal sealed class ExpressionEvaluator
             {
                 for (var i = 0; i + 1 < bangCall.Arguments.Count; i += 2)
                 {
-                    if (IsTruthy(Evaluate(bangCall.Arguments[i], scope)))
+                    if (IsTruthy(Evaluate(bangCall.Arguments[i], scope, tryResolveValue)))
                     {
-                        return Evaluate(bangCall.Arguments[i + 1], scope);
+                        return Evaluate(bangCall.Arguments[i + 1], scope, tryResolveValue);
                     }
                 }
 
@@ -312,22 +311,22 @@ internal sealed class ExpressionEvaluator
 
             case "interleave":
             {
-                var listVal = (ListValue)Evaluate(bangCall.Arguments[0], scope);
-                var sep = ToString(Evaluate(bangCall.Arguments[1], scope), "!interleave");
+                var listVal = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
+                var sep = ToString(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!interleave");
                 return new StringValue(string.Join(sep, listVal.Items.Select(item => ValueToString(item))));
             }
 
             case "subst":
             {
-                var from = ToString(Evaluate(bangCall.Arguments[0], scope), "!subst");
-                var to = ToString(Evaluate(bangCall.Arguments[1], scope), "!subst");
-                var text = ToString(Evaluate(bangCall.Arguments[2], scope), "!subst");
+                var from = ToString(Evaluate(bangCall.Arguments[0], scope, tryResolveValue), "!subst");
+                var to = ToString(Evaluate(bangCall.Arguments[1], scope, tryResolveValue), "!subst");
+                var text = ToString(Evaluate(bangCall.Arguments[2], scope, tryResolveValue), "!subst");
                 return new StringValue(text.Replace(from, to));
             }
 
             case "head":
             {
-                var list = (ListValue)Evaluate(bangCall.Arguments[0], scope);
+                var list = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 if (list.Items.Count == 0)
                 {
                     throw new InvalidOperationException("!head requires a non-empty list.");
@@ -338,7 +337,7 @@ internal sealed class ExpressionEvaluator
 
             case "tail":
             {
-                var list = (ListValue)Evaluate(bangCall.Arguments[0], scope);
+                var list = (ListValue)Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 if (list.Items.Count == 0)
                 {
                     throw new InvalidOperationException("!tail requires a non-empty list.");
@@ -349,7 +348,7 @@ internal sealed class ExpressionEvaluator
 
             case "empty":
             {
-                var val = Evaluate(bangCall.Arguments[0], scope);
+                var val = Evaluate(bangCall.Arguments[0], scope, tryResolveValue);
                 return val switch
                 {
                     StringValue str => new IntegerValue(string.IsNullOrEmpty(str.Value) ? 1 : 0),
@@ -362,13 +361,13 @@ internal sealed class ExpressionEvaluator
             case "filter":
             {
                 var variable = ((IdentifierSyntax)bangCall.Arguments[0]).Name;
-                var listValue = (ListValue)Evaluate(bangCall.Arguments[1], scope);
+                var listValue = (ListValue)Evaluate(bangCall.Arguments[1], scope, tryResolveValue);
                 var results = new List<Value>();
                 foreach (var item in listValue.Items)
                 {
                     var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
                     innerScope[variable] = item;
-                    if (IsTruthy(Evaluate(bangCall.Arguments[2], innerScope)))
+                    if (IsTruthy(Evaluate(bangCall.Arguments[2], innerScope, tryResolveValue)))
                     {
                         results.Add(item);
                     }
@@ -382,29 +381,32 @@ internal sealed class ExpressionEvaluator
         }
     }
 
-    private Value EvaluateFoldl(FoldlSyntax foldl, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateFoldl(FoldlSyntax foldl, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
     {
-        var accValue = Evaluate(foldl.Init, scope);
-        var listValue = (ListValue)Evaluate(foldl.List, scope);
+        var accValue = Evaluate(foldl.Init, scope, tryResolveValue);
+        var listValue = (ListValue)Evaluate(foldl.List, scope, tryResolveValue);
         foreach (var item in listValue.Items)
         {
             var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
             innerScope[foldl.AccVar] = accValue;
             innerScope[foldl.CurVar] = item;
-            accValue = Evaluate(foldl.Body, innerScope);
+            accValue = Evaluate(foldl.Body, innerScope, tryResolveValue);
         }
 
         return accValue;
     }
 
-    private Value EvaluateClassInstantiation(ClassInstantiationSyntax instantiation, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateClassInstantiation(
+        ClassInstantiationSyntax instantiation,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(instantiation.ClassName, out var classSyntax))
         {
             throw new KeyNotFoundException($"Unknown TableGen class '{instantiation.ClassName}'.");
         }
 
-        var fields = instantiateClass(classSyntax, instantiation.Arguments, scope);
+        var fields = instantiateClass(classSyntax, instantiation.Arguments, scope, tryResolveValue);
         if (!fields.TryGetValue(instantiation.FieldName, out var fieldValue))
         {
             throw new KeyNotFoundException($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'.");
@@ -413,20 +415,23 @@ internal sealed class ExpressionEvaluator
         return fieldValue;
     }
 
-    private Value EvaluateAnonymousClassInstantiation(AnonymousClassInstantiationSyntax inst, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateAnonymousClassInstantiation(
+        AnonymousClassInstantiationSyntax inst,
+        IReadOnlyDictionary<string, Value> scope,
+        TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(inst.ClassName, out var classSyntax))
         {
             throw new KeyNotFoundException($"Unknown TableGen class '{inst.ClassName}'.");
         }
 
-        var fields = instantiateClass(classSyntax, inst.Arguments, scope);
+        var fields = instantiateClass(classSyntax, inst.Arguments, scope, tryResolveValue);
         return new AnonymousRecordValue(inst.ClassName, fields);
     }
 
-    private Value EvaluateFieldAccess(FieldAccessSyntax fieldAccess, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateFieldAccess(FieldAccessSyntax fieldAccess, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
     {
-        var obj = Evaluate(fieldAccess.Object, scope);
+        var obj = Evaluate(fieldAccess.Object, scope, tryResolveValue);
 
         if (obj is AnonymousRecordValue rec)
         {
@@ -435,20 +440,17 @@ internal sealed class ExpressionEvaluator
 
         if (obj is RecordReferenceValue recRef && context.DefinitionsByName.TryGetValue(recRef.RecordName, out var defSyntax))
         {
-            var fields = new Dictionary<string, Value>();
-            var recScope = new Dictionary<string, Value>();
-            applyBases(defSyntax.Bases, recScope, fields);
-            applyBody(defSyntax.BodyItems, recScope, fields);
-            return fields.TryGetValue(fieldAccess.FieldName, out var fieldVal) ? fieldVal : new UnsetValue();
+            var record = buildDefinition(defSyntax);
+            return record.Fields.TryGetValue(fieldAccess.FieldName, out var fieldVal) ? fieldVal : new UnsetValue();
         }
 
         return new UnsetValue();
     }
 
-    private Value EvaluateSubscript(SubscriptSyntax subscript, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateSubscript(SubscriptSyntax subscript, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
     {
-        var target = Evaluate(subscript.Target, scope);
-        var index = ToInteger(Evaluate(subscript.Index, scope), "subscript");
+        var target = Evaluate(subscript.Target, scope, tryResolveValue);
+        var index = ToInteger(Evaluate(subscript.Index, scope, tryResolveValue), "subscript");
         return target switch
         {
             ListValue list => list.Items[NormalizeIndex(index, list.Items.Count, "list subscript")],
@@ -457,15 +459,15 @@ internal sealed class ExpressionEvaluator
         };
     }
 
-    private Value EvaluateForeach(ForeachSyntax forEach, IReadOnlyDictionary<string, Value> scope)
+    private Value EvaluateForeach(ForeachSyntax forEach, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
     {
-        var listValue = (ListValue)Evaluate(forEach.List, scope);
+        var listValue = (ListValue)Evaluate(forEach.List, scope, tryResolveValue);
         var results = new List<Value>(listValue.Items.Count);
         foreach (var item in listValue.Items)
         {
             var innerScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
             innerScope[forEach.VarName] = item;
-            results.Add(Evaluate(forEach.Body, innerScope));
+            results.Add(Evaluate(forEach.Body, innerScope, tryResolveValue));
         }
 
         return new ListValue(results);
@@ -504,9 +506,14 @@ internal sealed class ExpressionEvaluator
         return classSyntax.Bases.Any(@base => ClassIsA(@base.Name, typeName));
     }
 
-    private Value ResolveIdentifier(string name, IReadOnlyDictionary<string, Value> scope)
+    private Value ResolveIdentifier(string name, IReadOnlyDictionary<string, Value> scope, TryResolveValue? tryResolveValue)
     {
         if (scope.TryGetValue(name, out var value))
+        {
+            return value;
+        }
+
+        if (tryResolveValue != null && tryResolveValue(name, out value))
         {
             return value;
         }
