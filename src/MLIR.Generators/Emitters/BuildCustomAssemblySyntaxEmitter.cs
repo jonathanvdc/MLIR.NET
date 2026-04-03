@@ -221,7 +221,12 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         for (var i = 0; i < thenFieldCount + elseFieldCount; i++)
         {
             var f = metadata.Fields[groupStart + i];
-            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = default;");
+            // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
+            // list so WriteTo can safely iterate when the optional group is not entered.
+            var defaultExpr = f.CsType.Contains("IReadOnlyList", StringComparison.Ordinal)
+                ? "global::System.Array.Empty<SyntaxToken>()"
+                : "default";
+            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
 
         if (thenFieldCount == 0)
@@ -516,6 +521,12 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             }
 
             return "op." + propName + " != null";
+        }
+        else if (IsVariadicOperand(anchorName))
+        {
+            // Variadic operands are always present as a list; the anchor is true when there is
+            // at least one element (the optional group should only be emitted when non-empty).
+            return "op." + propName + ".Count > 0";
         }
         else
         {

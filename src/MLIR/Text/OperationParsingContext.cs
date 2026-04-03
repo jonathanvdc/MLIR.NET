@@ -23,6 +23,15 @@ public sealed class OperationParsingContext : DialectParsingContext
     }
 
     /// <summary>
+    /// Parses a comma-separated list of SSA value tokens, consuming as many as are present.
+    /// Returns an empty list when the current token is not an SSA name.
+    /// </summary>
+    public IReadOnlyList<SyntaxToken> ParseSsaTokenList()
+    {
+        return Parser.ParseSsaTokenListInternal();
+    }
+
+    /// <summary>
     /// Parses a block label token.
     /// </summary>
     public SyntaxToken ParseBlockLabelToken()

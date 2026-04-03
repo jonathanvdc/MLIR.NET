@@ -1270,6 +1270,31 @@ public sealed class Parser
         return ParseSsaToken();
     }
 
+    /// <summary>
+    /// Parses a comma-separated list of SSA value tokens, consuming as many as are present.
+    /// Returns an empty list when the current token is not an SSA name.
+    /// Stops as soon as a non-SSA, non-comma token is encountered.
+    /// </summary>
+    internal IReadOnlyList<SyntaxToken> ParseSsaTokenListInternal()
+    {
+        var list = new List<SyntaxToken>();
+        while (Is(TokenKind.SsaName))
+        {
+            list.Add(ParseSsaToken());
+            if (Is(TokenKind.Comma))
+            {
+                // Consume the comma separator and continue.
+                _ = ExpectToken(TokenKind.Comma, "Expected ','.");
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return list;
+    }
+
     internal SyntaxToken ParseBlockLabelTokenInternal()
     {
         return ParseBlockLabelToken();
