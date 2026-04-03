@@ -209,7 +209,20 @@ internal sealed class TryParseEmitter
         }
         else
         {
-            builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseSsaToken()", declare, field.CsType) + ";");
+            // Check whether this variable refers to a variadic operand.  If so, use the
+            // list-parsing helper; otherwise parse a single SSA token.
+            var isVariadic = false;
+            foreach (var operand in operation.Operands)
+            {
+                if (string.Equals(operand.Name, variable.Name, System.StringComparison.Ordinal))
+                {
+                    isVariadic = operand.IsVariadic;
+                    break;
+                }
+            }
+
+            var parseExpr = isVariadic ? "context.ParseSsaTokenList()" : "context.ParseSsaToken()";
+            builder.AppendLine(indent + DeclareOrAssign(varName, parseExpr, declare, field.CsType) + ";");
         }
     }
 
@@ -294,7 +307,12 @@ internal sealed class TryParseEmitter
         for (var i = 0; i < thenFieldCount + elseFieldCount; i++)
         {
             var f = metadata.Fields[groupStart + i];
-            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = default;");
+            // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
+            // array rather than null so callers can always iterate over the result safely.
+            var defaultExpr = f.CsType.Contains("IReadOnlyList", System.StringComparison.Ordinal)
+                ? "global::System.Array.Empty<global::MLIR.Text.SyntaxToken>()"
+                : "default";
+            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
 
         if (thenFieldCount == 0)
@@ -456,7 +474,10 @@ internal sealed class TryParseEmitter
         for (var i = 0; i < totalFields; i++)
         {
             var f = metadata.Fields[oilistStart + i];
-            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = default;");
+            var defaultExpr = f.CsType.Contains("IReadOnlyList", System.StringComparison.Ordinal)
+                ? "global::System.Array.Empty<global::MLIR.Text.SyntaxToken>()"
+                : "default";
+            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
 
         builder.AppendLine(indent + "bool foundOilist;");

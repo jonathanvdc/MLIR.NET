@@ -1,6 +1,8 @@
 namespace MLIR.Generators.Emitters;
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using MLIR.ODS.Model;
 using MLIR.ODS.Model.AssemblyFormat;
@@ -437,11 +439,37 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             // independent of the narrowed property type.
             return "context.BuildAttributeValueSyntax(op.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(variableName) + "].Value)";
         }
+
+        // Check if this is a variadic operand (the generated property returns IReadOnlyList<Value>).
+        if (IsVariadicOperand(variableName))
+        {
+            // Produce a List<SyntaxToken> from the variadic value list.
+            return "op." + propName + ".Select(v => v.Token ?? new SyntaxToken(v.Name)).ToList()";
+        }
+
+        if (nullable)
+        {
+            // Nullable operand: op.Rhs is Value?
+            return "op." + propName + "!.Token ?? new SyntaxToken(op." + propName + "!.Name)";
+        }
         else
         {
             // Required operand/result: op.Lhs is Value (non-nullable)
             return "op." + propName + ".Token ?? new SyntaxToken(op." + propName + ".Name)";
         }
+    }
+
+    private bool IsVariadicOperand(string variableName)
+    {
+        foreach (var operand in operation.Operands)
+        {
+            if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
+            {
+                return operand.IsVariadic;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -450,19 +478,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     /// </summary>
     private string BuildNullableVariableExpression(string variableName)
     {
-        var propName = DialectGeneratorNaming.ToPascalCase(variableName);
-        if (EmitterHelpers.ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
-        {
-            // Nullable attribute: inside the trigger check, we know it's non-null.
-            // Access via Attributes collection to get the AttributeValue,
-            // independent of the narrowed property type.
-            return "context.BuildAttributeValueSyntax(op.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(variableName) + "].Value)";
-        }
-        else
-        {
-            // Nullable operand: op.Rhs is Value?
-            return "op." + propName + "!.Token ?? new SyntaxToken(op." + propName + "!.Name)";
-        }
+        return BuildVariableExpression(variableName, nullable: true);
     }
 
     /// <summary>

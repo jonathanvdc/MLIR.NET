@@ -48,11 +48,27 @@ internal static class OperationConstructorEmitter
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: context.Syntax,");
 
+        // Track how many individual Value? slots have been consumed so far so we know
+        // the correct starting index when building the variadic slice.
+        var slotIndex = 0;
         for (var i = 0; i < operandMembers.Count; i++)
         {
             var member = operandMembers[i];
-            var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
-            builder.AppendLine("            " + member.ParameterName + ": context.OperandValues[" + i.ToString(CultureInfo.InvariantCulture) + "]" + suffix + ",");
+            if (member.IsVariadic)
+            {
+                // Collect all remaining (or all from slotIndex to Count) values as the list.
+                var skip = slotIndex.ToString(CultureInfo.InvariantCulture);
+                builder.AppendLine("            " + member.ParameterName + ": new global::System.Collections.Generic.List<Value>(context.OperandValues.Skip(" + skip + ").Where(v => v is not null).Select(v => v!)),");
+                // A variadic slot does not have a fixed count; assume it consumes all remaining.
+                // (More precise slicing would require knowing the count at construction time.)
+                slotIndex = -1; // sentinel: can't index further after variadic
+            }
+            else
+            {
+                var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
+                builder.AppendLine("            " + member.ParameterName + ": context.OperandValues[" + slotIndex.ToString(CultureInfo.InvariantCulture) + "]" + suffix + ",");
+                slotIndex++;
+            }
         }
 
         for (var i = 0; i < resultMembers.Count; i++)
@@ -97,18 +113,55 @@ internal static class OperationConstructorEmitter
         }
 
         builder.AppendLine(" },");
-        builder.Append("            new Value?[] { ");
-        for (var i = 0; i < operandMembers.Count; i++)
+
+        // Build the operand array, spreading variadic list members.
+        if (!operandMembers.Any(static m => m.IsVariadic))
         {
-            if (i > 0)
+            builder.Append("            new Value?[] { ");
+            for (var i = 0; i < operandMembers.Count; i++)
             {
-                builder.Append(", ");
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                builder.Append(operandMembers[i].ParameterName);
             }
 
-            builder.Append(operandMembers[i].ParameterName);
+            builder.AppendLine(" },");
+        }
+        else
+        {
+            // Mix of fixed and variadic: build via Concat / Cast.
+            builder.Append("            ");
+            var first = true;
+            foreach (var member in operandMembers)
+            {
+                if (!first)
+                {
+                    builder.Append(".Concat(");
+                }
+
+                if (member.IsVariadic)
+                {
+                    builder.Append("global::System.Linq.Enumerable.Cast<Value?>(" + member.ParameterName + ")");
+                }
+                else
+                {
+                    builder.Append("new Value?[] { " + member.ParameterName + " }");
+                }
+
+                if (!first)
+                {
+                    builder.Append(")");
+                }
+
+                first = false;
+            }
+
+            builder.AppendLine(".ToArray(),");
         }
 
-        builder.AppendLine(" },");
         builder.AppendLine("            global::System.Array.Empty<global::MLIR.Semantics.Block?>())");
         builder.AppendLine("    {");
         builder.AppendLine("    }");

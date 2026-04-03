@@ -240,24 +240,35 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
 
     /// <summary>
     /// The ODS for func.constant declares 'let results = (outs AnyType)' with an
-    /// unnamed result.  The ODS importer skips unnamed results, so the generated
-    /// ConstantOp expects exactly 0 result tokens.  Parsing '%2 = func.constant ...'
-    /// (with a result prefix) causes the Bind method to report a diagnostic and
-    /// return UninterpretedOperation.
+    /// unnamed result, now synthesized to 'result' in the ODS importer.
     /// Example from FuncOps.td:
     ///   %2 = func.constant @myfn : (tensor&lt;16xf32&gt;, f32) -&gt; tensor&lt;16xf32&gt;
     /// </summary>
-    [Fact(Skip = "Unnamed results are not imported from ODS. " +
-                 "The generated ConstantOp has 0 results, but func.constant " +
-                 "produces one result in MLIR.  Binding yields UninterpretedOperation. " +
-                 "Needs unnamed-result support in the ODS importer.")]
+    [Fact]
     public void BindsConstantOpWithResult()
     {
         var op = BindSingleOperation<ConstantOp>(
             "%2 = func.constant @myfn : (i32) -> f32",
             CreateFuncRegistry());
 
-        Assert.NotNull(op);
+        Assert.Equal("%2", op.ResultValue.Name);
+        Assert.Equal("value", op.Value.Name);
+    }
+
+    /// <summary>
+    /// Round-trip for func.constant.
+    /// </summary>
+    [Fact]
+    public void ReprintsConstantOp()
+    {
+        var op = ReprintAndRebindSingleOperation<ConstantOp>(
+            "%2 = func.constant @myfn : (i32) -> f32",
+            CreateFuncRegistry(),
+            out var printed);
+
+        Assert.Contains("func.constant", printed);
+        Assert.Contains("@myfn", printed);
+        Assert.Equal("%2", op.ResultValue.Name);
     }
 
     // ---------------------------------------------------------------------------

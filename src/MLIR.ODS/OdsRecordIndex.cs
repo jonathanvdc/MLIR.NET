@@ -160,10 +160,32 @@ internal sealed class OdsRecordIndex
         };
 
         var members = new List<DagMemberModel>(dag.Arguments.Count);
+        var unnamedNonVariadicCount = 0;
         foreach (var argument in dag.Arguments)
         {
             if (argument.Name == null)
             {
+                // Variadic unnamed members have no well-defined cardinality in the current
+                // model; skip them so the generator does not produce incorrect fixed-count
+                // checks.  Non-variadic unnamed members get a synthetic name so they are
+                // still surfaced to the generator.
+                if (IsVariadicValue(argument.Value))
+                {
+                    continue;
+                }
+
+                // Attributes in the `ins` dag are handled below; unnamed attributes in the
+                // `outs` dag are unusual so synthesize a result name and continue.
+                var constraintNameForUnnamed = GetConstraintName(argument.Value);
+                if (kind == OperationMemberKind.Operand && constraintNameForUnnamed != null && IsAttributeConstraint(constraintNameForUnnamed))
+                {
+                    // Unnamed attributes in `ins` are rare; skip to avoid confusing the model.
+                    continue;
+                }
+
+                var syntheticName = unnamedNonVariadicCount == 0 ? "result" : "result_" + unnamedNonVariadicCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                unnamedNonVariadicCount++;
+                members.Add(new DagMemberModel(syntheticName, constraintNameForUnnamed, kind));
                 continue;
             }
 
@@ -176,7 +198,8 @@ internal sealed class OdsRecordIndex
                 memberKind = OperationMemberKind.Attribute;
             }
 
-            members.Add(new DagMemberModel(argument.Name, constraintName, memberKind));
+            var isVariadic = IsVariadicValue(argument.Value);
+            members.Add(new DagMemberModel(argument.Name, constraintName, memberKind, isVariadic));
         }
 
         return members;
@@ -448,11 +471,12 @@ internal sealed class OdsRecordIndex
 
     public sealed class DagMemberModel
     {
-        public DagMemberModel(string name, string? constraintRecordName, OperationMemberKind kind)
+        public DagMemberModel(string name, string? constraintRecordName, OperationMemberKind kind, bool isVariadic = false)
         {
             Name = name;
             ConstraintRecordName = constraintRecordName;
             Kind = kind;
+            IsVariadic = isVariadic;
         }
 
         public string Name { get; }
@@ -460,6 +484,11 @@ internal sealed class OdsRecordIndex
         public string? ConstraintRecordName { get; }
 
         public OperationMemberKind Kind { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether this member accepts zero or more values (variadic).
+        /// </summary>
+        public bool IsVariadic { get; }
     }
 
     private static string? GetConstraintName(Value value)
@@ -474,6 +503,20 @@ internal sealed class OdsRecordIndex
             AnonymousRecordValue anonymous => anonymous.ClassName,
             _ => null,
         };
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="value"/> represents a <c>Variadic&lt;T&gt;</c>
+    /// or <c>VariadicOfVariadic&lt;T, …&gt;</c> type constraint.
+    /// These constraints have no fixed cardinality, so they cannot be mapped to a
+    /// single-element member in the generated code.
+    /// </summary>
+    private static bool IsVariadicValue(Value value)
+    {
+        // Both Variadic<T> and VariadicOfVariadic<T,…> are AnonymousRecordValues whose
+        // class name starts with "Variadic".
+        return value is AnonymousRecordValue anon &&
+               anon.ClassName.StartsWith("Variadic", StringComparison.Ordinal);
     }
 
     private bool IsAttributeConstraint(string constraintName)

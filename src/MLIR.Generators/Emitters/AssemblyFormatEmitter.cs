@@ -1,7 +1,9 @@
 namespace MLIR.Generators.Emitters;
 
+using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using MLIR.ODS.Model;
 
@@ -81,6 +83,15 @@ internal static class AssemblyFormatEmitter
     {
         if (plan.OperandFields.TryGetValue(operandName, out var fieldName))
         {
+            // Check if this operand is variadic by inspecting the body field type.
+            // Variadic fields have type IReadOnlyList<SyntaxToken>.
+            var field = metadata.Fields.FirstOrDefault(f => f.Name == fieldName);
+            if (field != null && field.CsType.Contains("IReadOnlyList", StringComparison.Ordinal))
+            {
+                // Produce a list of bound values from the list of SSA tokens.
+                return "body." + fieldName + ".Select(t => (Value)binder.BindValueReference(t)).ToList()";
+            }
+
             // When the body field is nullable (e.g. SyntaxToken? for an optional group operand),
             // emit a conditional expression that produces null when the operand is absent.
             if (IsNullableField(metadata, fieldName))

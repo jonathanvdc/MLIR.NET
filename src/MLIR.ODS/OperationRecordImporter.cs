@@ -28,10 +28,10 @@ internal static class OperationRecordImporter
                     opDialectName + "." + mnemonic,
                     index.GetOptionalStringField(record, "cppClassName") ?? record.Name,
                     argumentMembers.Where(static member => member.Kind == OperationMemberKind.Operand)
-                        .Select(static member => new OperandModel(member.Name, member.ConstraintRecordName))
+                        .Select(static member => new OperandModel(member.Name, member.ConstraintRecordName, isVariadic: member.IsVariadic))
                         .ToArray(),
                     resultMembers.Where(static member => member.Kind == OperationMemberKind.Result)
-                        .Select(static member => new ResultModel(member.Name, member.ConstraintRecordName))
+                        .Select(static member => new ResultModel(member.Name, member.ConstraintRecordName, isVariadic: member.IsVariadic))
                         .ToArray(),
                     argumentMembers.Where(static member => member.Kind == OperationMemberKind.Attribute)
                         .Select(static member => new AttributeUseModel(member.Name, member.ConstraintRecordName))
