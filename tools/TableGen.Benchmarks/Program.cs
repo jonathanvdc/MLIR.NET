@@ -257,12 +257,39 @@ internal sealed class BenchmarkContext
 
     private IReadOnlyDictionary<string, string> LoadPreludeFiles()
     {
-        var root = Path.Combine(RepositoryRoot, "src", "MLIR.Generators", "Prelude");
-        return Directory
-            .GetFiles(Path.Combine(root, "mlir"), "*.td", SearchOption.AllDirectories)
-            .ToDictionary(
-                path => Path.GetRelativePath(root, path).Replace('\\', '/'),
-                static path => File.ReadAllText(path));
+        var preludeRoot = Path.Combine(RepositoryRoot, "src", "MLIR.Generators", "Prelude");
+        var files = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        AddPreludeFiles(files, Path.Combine(preludeRoot, "Include"), static relativePath => relativePath);
+        AddPreludeFiles(files, Path.Combine(preludeRoot, "Upstream"), static relativePath => relativePath, addOnlyIfMissing: true);
+        AddPreludeFiles(files, Path.Combine(preludeRoot, "Upstream"), static relativePath => "mlir/Upstream/" + relativePath.Substring("mlir/".Length), addOnlyIfMissing: true);
+        AddPreludeFiles(files, Path.Combine(preludeRoot, "Extensions"), static relativePath => "mlir/Extensions/" + relativePath.Substring("mlir/".Length), addOnlyIfMissing: true);
+
+        return files;
+    }
+
+    private static void AddPreludeFiles(
+        Dictionary<string, string> files,
+        string directory,
+        Func<string, string> logicalNameSelector,
+        bool addOnlyIfMissing = false)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return;
+        }
+
+        foreach (var path in Directory.GetFiles(directory, "*.td", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(directory, path).Replace('\\', '/');
+            var logicalName = logicalNameSelector(relativePath);
+            if (addOnlyIfMissing && files.ContainsKey(logicalName))
+            {
+                continue;
+            }
+
+            files[logicalName] = File.ReadAllText(path);
+        }
     }
 }
 
