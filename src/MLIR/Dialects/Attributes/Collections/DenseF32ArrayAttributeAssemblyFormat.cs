@@ -5,12 +5,12 @@ using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 
 /// <summary>
-/// Parses dense double-precision floating-point array attribute literals such as <c>array&lt;f64: 1.0, 2.0&gt;</c>.
+/// Parses dense single-precision floating-point array attribute literals such as <c>array&lt;f32: 1.0, 2.0&gt;</c>.
 /// </summary>
-public sealed class DenseDoublePrecisionArrayAttributeAssemblyFormat : DenseArrayAttributeAssemblyFormat<double>
+public sealed class DenseF32ArrayAttributeAssemblyFormat : DenseArrayAttributeAssemblyFormat<float>
 {
     /// <inheritdoc/>
-    protected override AttributeValueSyntax ElementToSyntax(double element)
+    protected override AttributeValueSyntax ElementToSyntax(float element)
     {
         var text = element.ToString("G", CultureInfo.InvariantCulture);
         return new FloatingPointAttributeValueSyntax(new RawSyntaxText(text), text);
@@ -19,6 +19,6 @@ public sealed class DenseDoublePrecisionArrayAttributeAssemblyFormat : DenseArra
     /// <inheritdoc/>
     protected override TypeSyntax GetElementTypeSyntax(string? constraintName)
     {
-        return new RawTypeSyntax(new RawSyntaxText("f64"));
+        return new RawTypeSyntax(new RawSyntaxText("f32"));
     }
 }

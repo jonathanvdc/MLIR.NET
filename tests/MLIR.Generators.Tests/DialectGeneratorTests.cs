@@ -952,9 +952,9 @@ public sealed class DialectGeneratorTests
             ("mydialect.td", source));
         var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
-        Assert.Contains("DenseSinglePrecisionArrayAttributeValue", registrationSource);
+        Assert.Contains("DenseF32ArrayAttributeValue", registrationSource);
         Assert.Contains("public IReadOnlyList<float> Coeffs", registrationSource);
-        Assert.Contains("DenseSinglePrecisionArrayAttributeAssemblyFormat", registrationSource);
+        Assert.Contains("DenseF32ArrayAttributeAssemblyFormat", registrationSource);
         Assert.Contains("IReadOnlyList<float> coeffs,", registrationSource);
     }
 
@@ -981,9 +981,9 @@ public sealed class DialectGeneratorTests
             ("mydialect.td", source));
         var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
-        Assert.Contains("DenseDoublePrecisionArrayAttributeValue", registrationSource);
+        Assert.Contains("DenseF64ArrayAttributeValue", registrationSource);
         Assert.Contains("public IReadOnlyList<double> Weights", registrationSource);
-        Assert.Contains("DenseDoublePrecisionArrayAttributeAssemblyFormat", registrationSource);
+        Assert.Contains("DenseF64ArrayAttributeAssemblyFormat", registrationSource);
         Assert.Contains("IReadOnlyList<double> weights,", registrationSource);
     }
 }

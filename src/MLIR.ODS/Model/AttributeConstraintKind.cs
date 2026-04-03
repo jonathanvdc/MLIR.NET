@@ -73,10 +73,10 @@ public enum AttributeConstraintKind
     /// <summary>
     /// The constraint parses a dense array of single-precision floating-point values (<c>array&lt;f32: ...&gt;</c>).
     /// </summary>
-    DenseSinglePrecisionArrayAttribute = 13,
+    DenseF32ArrayAttribute = 13,
 
     /// <summary>
     /// The constraint parses a dense array of double-precision floating-point values (<c>array&lt;f64: ...&gt;</c>).
     /// </summary>
-    DenseDoublePrecisionArrayAttribute = 14,
+    DenseF64ArrayAttribute = 14,
 }

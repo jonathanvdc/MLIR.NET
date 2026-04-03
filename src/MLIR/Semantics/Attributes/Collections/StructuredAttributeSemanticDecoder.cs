@@ -130,8 +130,8 @@ public static class StructuredAttributeSemanticDecoder
         {
             "i1" => new DecodedDenseBooleanArrayAttributeValue(syntax),
             "i8" or "i16" or "i32" or "i64" => new DecodedDenseIntegerArrayAttributeValue(syntax),
-            "f32" => new DecodedDenseSinglePrecisionArrayAttributeValue(syntax),
-            "f64" or "bf16" => new DecodedDenseDoublePrecisionArrayAttributeValue(syntax),
+            "f32" => new DecodedDenseF32ArrayAttributeValue(syntax),
+            "f64" or "bf16" => new DecodedDenseF64ArrayAttributeValue(syntax),
             _ => throw new System.NotSupportedException($"Unsupported dense array element type '{typeText}'."),
         };
     }
@@ -346,9 +346,9 @@ public static class StructuredAttributeSemanticDecoder
         public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
-    private sealed class DecodedDenseSinglePrecisionArrayAttributeValue : DenseSinglePrecisionArrayAttributeValue
+    private sealed class DecodedDenseF32ArrayAttributeValue : DenseF32ArrayAttributeValue
     {
-        public DecodedDenseSinglePrecisionArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
+        public DecodedDenseF32ArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
             : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeSinglePrecisionItems(syntax.Items.Items))
         {
         }
@@ -358,9 +358,9 @@ public static class StructuredAttributeSemanticDecoder
         public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
-    private sealed class DecodedDenseDoublePrecisionArrayAttributeValue : DenseDoublePrecisionArrayAttributeValue
+    private sealed class DecodedDenseF64ArrayAttributeValue : DenseF64ArrayAttributeValue
     {
-        public DecodedDenseDoublePrecisionArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
+        public DecodedDenseF64ArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
             : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeDoublePrecisionItems(syntax.Items.Items))
         {
         }

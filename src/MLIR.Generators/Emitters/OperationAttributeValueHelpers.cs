@@ -15,8 +15,8 @@ internal static class OperationAttributeValueHelpers
     {
         return kind is AttributeConstraintKind.DenseBooleanArrayAttribute
             or AttributeConstraintKind.DenseIntegerArrayAttribute
-            or AttributeConstraintKind.DenseSinglePrecisionArrayAttribute
-            or AttributeConstraintKind.DenseDoublePrecisionArrayAttribute;
+            or AttributeConstraintKind.DenseF32ArrayAttribute
+            or AttributeConstraintKind.DenseF64ArrayAttribute;
     }
 
     public static string GetAttributeGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName)
