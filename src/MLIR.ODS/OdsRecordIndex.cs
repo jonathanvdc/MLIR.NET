@@ -183,7 +183,7 @@ internal sealed class OdsRecordIndex
                     continue;
                 }
 
-                var syntheticName = unnamedNonVariadicCount == 0 ? "result" : "result_" + unnamedNonVariadicCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                var syntheticName = "result_" + unnamedNonVariadicCount.ToString(System.Globalization.CultureInfo.InvariantCulture);
                 unnamedNonVariadicCount++;
                 members.Add(new DagMemberModel(syntheticName, constraintNameForUnnamed, kind));
                 continue;

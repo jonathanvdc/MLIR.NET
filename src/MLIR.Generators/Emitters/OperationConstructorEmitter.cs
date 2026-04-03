@@ -56,11 +56,11 @@ internal static class OperationConstructorEmitter
             var member = operandMembers[i];
             if (member.IsVariadic)
             {
-                // Collect all remaining (or all from slotIndex to Count) values as the list.
+                // Collect all remaining operands from slotIndex onward as a non-null Value list.
+                // context.OperandValues entries may be null for unresolved refs; filter them out.
                 var skip = slotIndex.ToString(CultureInfo.InvariantCulture);
-                builder.AppendLine("            " + member.ParameterName + ": new global::System.Collections.Generic.List<Value>(context.OperandValues.Skip(" + skip + ").Where(v => v is not null).Select(v => v!)),");
-                // A variadic slot does not have a fixed count; assume it consumes all remaining.
-                // (More precise slicing would require knowing the count at construction time.)
+                builder.AppendLine("            " + member.ParameterName + ": context.OperandValues.Skip(" + skip + ").OfType<Value>().ToList(),");
+                // A variadic slot consumes all remaining entries; no further fixed indexing.
                 slotIndex = -1; // sentinel: can't index further after variadic
             }
             else
