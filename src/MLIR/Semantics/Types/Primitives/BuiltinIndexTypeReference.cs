@@ -44,4 +44,7 @@ public class BuiltinIndexTypeReference : TypeReference
         : base(syntax ?? new BuiltinIndexTypeSyntax(new SyntaxToken("index")), location)
     {
     }
+
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(BuiltinIndexTypeReference);
 }

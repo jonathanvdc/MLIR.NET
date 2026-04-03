@@ -45,4 +45,7 @@ public class BuiltinFloatTypeReference : TypeReference
     {
         Name = name;
     }
+
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(BuiltinFloatTypeReference);
 }

@@ -54,6 +54,35 @@ public class TensorTypeReference : TypeReference
         TrailingParameters = trailingParameters;
     }
 
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(TensorTypeReference);
+
+    /// <inheritdoc/>
+    protected override bool SemanticEqualsValue(TypeReference other)
+    {
+        var otherTensor = (TensorTypeReference)other;
+        return IsUnranked == otherTensor.IsUnranked
+            && ElementType == otherTensor.ElementType
+            && HaveSameDimensions(Dimensions, otherTensor.Dimensions)
+            && HaveSameTrailingParameters(TrailingParameters, otherTensor.TrailingParameters);
+    }
+
+    /// <inheritdoc/>
+    protected override int GetSemanticHashCodeValue()
+    {
+        unchecked
+        {
+            var hash = (GetSequenceHashCode(Dimensions) * 397) ^ ElementType.GetHashCode();
+            hash = (hash * 397) ^ IsUnranked.GetHashCode();
+            for (var i = 0; i < TrailingParameters.Count; i++)
+            {
+                hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(TrailingParameters[i].Text);
+            }
+
+            return hash;
+        }
+    }
+
     private static TensorTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
     {
         var dimensionSyntax = dimensions.Select(CreateDimensionSyntax).ToArray();
@@ -86,5 +115,41 @@ public class TensorTypeReference : TypeReference
         return dimension.HasValue
             ? new StaticShapedTypeDimensionSyntax(new SyntaxToken(dimension.Value.ToString()), dimension.Value)
             : new DynamicShapedTypeDimensionSyntax(new SyntaxToken("?"));
+    }
+
+    private static bool HaveSameDimensions(IReadOnlyList<long?> left, IReadOnlyList<long?> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (left[i] != right[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HaveSameTrailingParameters(IReadOnlyList<RawSyntaxText> left, IReadOnlyList<RawSyntaxText> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (!StringComparer.Ordinal.Equals(left[i].Text, right[i].Text))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

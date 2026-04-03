@@ -48,6 +48,35 @@ public class TupleTypeReference : TypeReference
         Elements = elements;
     }
 
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(TupleTypeReference);
+
+    /// <inheritdoc/>
+    protected override bool SemanticEqualsValue(TypeReference other)
+    {
+        var otherTuple = (TupleTypeReference)other;
+        if (Elements.Count != otherTuple.Elements.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < Elements.Count; i++)
+        {
+            if (Elements[i] != otherTuple.Elements[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc/>
+    protected override int GetSemanticHashCodeValue()
+    {
+        return GetSequenceHashCode(Elements);
+    }
+
     private static TupleTypeSyntax BuildSyntax(IReadOnlyList<TypeReference> elements)
     {
         var commas = new List<SyntaxToken>(Math.Max(0, elements.Count - 1));

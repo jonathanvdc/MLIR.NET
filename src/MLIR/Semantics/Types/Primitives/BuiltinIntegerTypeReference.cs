@@ -62,6 +62,25 @@ public class BuiltinIntegerTypeReference : TypeReference
         Width = width;
     }
 
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(BuiltinIntegerTypeReference);
+
+    /// <inheritdoc/>
+    protected override bool SemanticEqualsValue(TypeReference other)
+    {
+        var otherInteger = (BuiltinIntegerTypeReference)other;
+        return Signedness == otherInteger.Signedness && Width == otherInteger.Width;
+    }
+
+    /// <inheritdoc/>
+    protected override int GetSemanticHashCodeValue()
+    {
+        unchecked
+        {
+            return ((int)Signedness * 397) ^ Width;
+        }
+    }
+
     private static BuiltinIntegerTypeSyntax BuildSyntax(IntegerTypeSignedness signedness, int width)
     {
         var text = signedness switch

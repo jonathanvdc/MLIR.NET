@@ -54,6 +54,26 @@ public class FunctionTypeReference : TypeReference
         Results = results;
     }
 
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(FunctionTypeReference);
+
+    /// <inheritdoc/>
+    protected override bool SemanticEqualsValue(TypeReference other)
+    {
+        var otherFunction = (FunctionTypeReference)other;
+        return HaveSameTypes(Inputs, otherFunction.Inputs)
+            && HaveSameTypes(Results, otherFunction.Results);
+    }
+
+    /// <inheritdoc/>
+    protected override int GetSemanticHashCodeValue()
+    {
+        unchecked
+        {
+            return (GetSequenceHashCode(Inputs) * 397) ^ GetSequenceHashCode(Results);
+        }
+    }
+
     private static FunctionTypeSyntax BuildSyntax(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results)
     {
         var inputCommas = new List<SyntaxToken>(Math.Max(0, inputs.Count - 1));
@@ -87,5 +107,23 @@ public class FunctionTypeReference : TypeReference
     private static TypeSyntax GetSyntax(TypeReference type)
     {
         return type.Syntax ?? throw new InvalidOperationException("Function operand types must carry syntax.");
+    }
+
+    private static bool HaveSameTypes(IReadOnlyList<TypeReference> left, IReadOnlyList<TypeReference> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (left[i] != right[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -48,6 +48,38 @@ public class VectorTypeReference : TypeReference
         ElementType = elementType;
     }
 
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(VectorTypeReference);
+
+    /// <inheritdoc/>
+    protected override bool SemanticEqualsValue(TypeReference other)
+    {
+        var otherVector = (VectorTypeReference)other;
+        if (ElementType != otherVector.ElementType || Dimensions.Count != otherVector.Dimensions.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < Dimensions.Count; i++)
+        {
+            if (Dimensions[i] != otherVector.Dimensions[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc/>
+    protected override int GetSemanticHashCodeValue()
+    {
+        unchecked
+        {
+            return (GetSequenceHashCode(Dimensions) * 397) ^ ElementType.GetHashCode();
+        }
+    }
+
     private static VectorTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, TypeReference elementType)
     {
         var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();

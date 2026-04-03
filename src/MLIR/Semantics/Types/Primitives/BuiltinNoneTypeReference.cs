@@ -44,4 +44,7 @@ public class BuiltinNoneTypeReference : TypeReference
         : base(syntax ?? new BuiltinNoneTypeSyntax(new SyntaxToken("none")), location)
     {
     }
+
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(BuiltinNoneTypeReference);
 }

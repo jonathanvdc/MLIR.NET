@@ -54,6 +54,35 @@ public class MemRefTypeReference : TypeReference
         TrailingParameters = trailingParameters;
     }
 
+    /// <inheritdoc/>
+    protected override Type SemanticFamily => typeof(MemRefTypeReference);
+
+    /// <inheritdoc/>
+    protected override bool SemanticEqualsValue(TypeReference other)
+    {
+        var otherMemRef = (MemRefTypeReference)other;
+        return IsUnranked == otherMemRef.IsUnranked
+            && ElementType == otherMemRef.ElementType
+            && HaveSameDimensions(Dimensions, otherMemRef.Dimensions)
+            && HaveSameTrailingParameters(TrailingParameters, otherMemRef.TrailingParameters);
+    }
+
+    /// <inheritdoc/>
+    protected override int GetSemanticHashCodeValue()
+    {
+        unchecked
+        {
+            var hash = (GetSequenceHashCode(Dimensions) * 397) ^ ElementType.GetHashCode();
+            hash = (hash * 397) ^ IsUnranked.GetHashCode();
+            for (var i = 0; i < TrailingParameters.Count; i++)
+            {
+                hash = (hash * 31) + StringComparer.Ordinal.GetHashCode(TrailingParameters[i].Text);
+            }
+
+            return hash;
+        }
+    }
+
     private static MemRefTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
     {
         var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
@@ -79,5 +108,41 @@ public class MemRefTypeReference : TypeReference
             commas,
             trailingParameters,
             new SyntaxToken(">"));
+    }
+
+    private static bool HaveSameDimensions(IReadOnlyList<long?> left, IReadOnlyList<long?> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (left[i] != right[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool HaveSameTrailingParameters(IReadOnlyList<RawSyntaxText> left, IReadOnlyList<RawSyntaxText> right)
+    {
+        if (left.Count != right.Count)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < left.Count; i++)
+        {
+            if (!StringComparer.Ordinal.Equals(left[i].Text, right[i].Text))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

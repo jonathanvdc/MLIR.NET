@@ -57,6 +57,49 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
+    public void TypeReferencesCompareBySemanticIdentityInsteadOfSyntaxIdentity()
+    {
+        var left = Binder.BindModule(Parser.ParseModule("\"test.op\"() : tensor<2x?xf32>")).Operations[0].TypeSignatureReference!;
+        var right = Binder.BindModule(Parser.ParseModule("\"test.op\"() : tensor<2x?xf32>")).Operations[0].TypeSignatureReference!;
+        var different = Binder.BindModule(Parser.ParseModule("\"test.op\"() : tensor<3x?xf32>")).Operations[0].TypeSignatureReference!;
+
+        Assert.Equal(left, right);
+        Assert.True(left == right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, different);
+    }
+
+    [Fact]
+    public void BuiltinRegisteredTypeWrappersCompareEqualToBuiltinSemanticTypes()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            new Dialect(
+                "builtin",
+                [],
+                [],
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
+
+        var builtin = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32")).Operations[0].TypeSignatureReference!;
+        var registered = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32", registry), registry).Operations[0].TypeSignatureReference!;
+
+        Assert.IsType<global::MLIR.Semantics.Types.Primitives.BuiltinIntegerTypeReference>(builtin);
+        Assert.IsType<BuiltinIntegerTypeReference>(registered);
+        Assert.Equal(builtin, registered);
+        Assert.Equal(registered, builtin);
+    }
+
+    [Fact]
+    public void UnknownTypeReferencesDoNotCompareEqualToKnownTypesWithTheSameName()
+    {
+        var unknown = new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown);
+        var known = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32")).Operations[0].TypeSignatureReference!;
+
+        Assert.NotEqual(unknown, known);
+        Assert.NotEqual(known, unknown);
+    }
+
+    [Fact]
     public void LeavesUnknownOperationsUnbound()
     {
         var module = Binder.BindModule(Parser.ParseModule("\"test.unknown\"() : () -> ()"));

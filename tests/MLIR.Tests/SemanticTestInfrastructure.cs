@@ -304,25 +304,19 @@ public sealed partial class SemanticTests
         }
     }
 
-    private sealed class BuiltinIntegerTypeReference : TypeReference
+    private sealed class BuiltinIntegerTypeReference : global::MLIR.Semantics.Types.Primitives.BuiltinIntegerTypeReference
     {
         public BuiltinIntegerTypeReference(TypeReferenceConstructionContext context)
-            : base(context.Syntax, context.Location)
+            : base(
+                global::MLIR.Syntax.Types.Primitives.IntegerTypeSignedness.Signless,
+                int.Parse(context.Name![1..]),
+                context.Syntax,
+                context.Location)
         {
-            Name = context.Name;
             Definition = context.Definition;
         }
 
-        public override string? Name { get; }
-
         public override TypeDefinition? Definition { get; }
-
-        public int? Width { get; private set; }
-
-        public void BindWidth(int width)
-        {
-            Width = width;
-        }
     }
 
     private sealed class I32AttributeValue : AttributeValue
@@ -616,16 +610,14 @@ public sealed partial class SemanticTests
 
         public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
         {
-            var integerType = new BuiltinIntegerTypeReference(new TypeReferenceConstructionContext(syntax, syntax.GetRawText().Text, definition, syntax.Location));
-            integerType.BindWidth(int.Parse(integerType.Name![1..]));
-            return integerType;
+            return new BuiltinIntegerTypeReference(new TypeReferenceConstructionContext(syntax, syntax.GetRawText().Text, definition, syntax.Location));
         }
 
         public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)
         {
-            if (type is BuiltinIntegerTypeReference integerType && integerType.Width.HasValue)
+            if (type is BuiltinIntegerTypeReference integerType)
             {
-                return new BuiltinIntegerTypeSyntax(new SyntaxToken("i" + integerType.Width.Value));
+                return new BuiltinIntegerTypeSyntax(new SyntaxToken("i" + integerType.Width));
             }
 
             return type.Syntax ?? throw new InvalidOperationException("Integer test types require syntax to rebuild their assembly form.");
