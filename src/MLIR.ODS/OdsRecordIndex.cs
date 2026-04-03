@@ -218,6 +218,14 @@ internal sealed class OdsRecordIndex
             return true;
         }
 
+        // EnumAttrInfo (old-style I32EnumAttr, I64EnumAttr, I32BitEnumAttr, etc.) should be
+        // classified as enum attributes before the generic integer-literal fallthrough.
+        if (record.HasBaseClass("EnumAttrInfo"))
+        {
+            kind = AttributeConstraintKind.EnumAttribute;
+            return true;
+        }
+
         if (record.HasBaseClass("AnyIntegerAttrBase")
             || record.Name == "APIntAttr"
             || record.Name == "IndexAttr"
@@ -258,6 +266,111 @@ internal sealed class OdsRecordIndex
 
         kind = AttributeConstraintKind.None;
         return false;
+    }
+
+    /// <summary>
+    /// Attempts to build an <see cref="EnumModel"/> from a record that represents an enum definition
+    /// (<c>EnumAttrInfo</c> or any of its subclasses such as <c>I64EnumAttr</c> / <c>I32BitEnumAttr</c>).
+    /// </summary>
+    public bool TryGetEnumModel(Record record, out Model.EnumModel? enumModel)
+    {
+        if (!record.HasBaseClass("EnumInfo"))
+        {
+            enumModel = null;
+            return false;
+        }
+
+        if (!TryGetStringField(record, "className", out var className) || string.IsNullOrEmpty(className))
+        {
+            enumModel = null;
+            return false;
+        }
+
+        var cppNamespace = GetOptionalStringField(record, "cppNamespace");
+        var bitwidth = 64;
+        if (record.Fields.TryGetValue("bitwidth", out var bwField) && bwField is TableGen.Evaluation.IntegerValue bwInt)
+        {
+            bitwidth = bwInt.Value;
+        }
+
+        var isBitEnum = record.HasBaseClass("BitEnumBase");
+        var separator = "|";
+        if (isBitEnum)
+        {
+            separator = GetOptionalStringField(record, "separator") ?? "|";
+            // Trim trailing whitespace from separator to get the delimiter character.
+            separator = separator.TrimEnd();
+        }
+
+        var cases = ReadEnumCases(record);
+        enumModel = new Model.EnumModel(className, cppNamespace, bitwidth, isBitEnum, separator, cases);
+        return true;
+    }
+
+    private IReadOnlyList<Model.EnumCaseModel> ReadEnumCases(Record record)
+    {
+        if (!record.Fields.TryGetValue("enumerants", out var enumerantsField)
+            || enumerantsField is not ListValue list)
+        {
+            return EmptyEnumCases;
+        }
+
+        var cases = new List<Model.EnumCaseModel>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            if (TryReadEnumCase(item, out var caseModel))
+            {
+                cases.Add(caseModel!);
+            }
+        }
+
+        return cases;
+    }
+
+    private bool TryReadEnumCase(Value item, out Model.EnumCaseModel? caseModel)
+    {
+        IReadOnlyDictionary<string, Value>? caseFields = null;
+
+        if (item is AnonymousRecordValue anon)
+        {
+            caseFields = anon.Fields;
+        }
+        else if (item is RecordReferenceValue recordRef && recordsByName.TryGetValue(recordRef.RecordName, out var caseRecord))
+        {
+            caseFields = caseRecord.Fields;
+        }
+
+        if (caseFields == null)
+        {
+            caseModel = null;
+            return false;
+        }
+
+        if (!caseFields.TryGetValue("symbol", out var symField) || symField is not StringValue symStr)
+        {
+            caseModel = null;
+            return false;
+        }
+
+        var symbol = symStr.Value;
+
+        // The 'str' field is the text representation; fall back to 'symbol' when absent or equal to the
+        // literal parameter name "sym" (which can happen before the evaluator fix is in effect).
+        var str = symbol;
+        if (caseFields.TryGetValue("str", out var strField) && strField is StringValue strStr
+            && !string.IsNullOrEmpty(strStr.Value) && strStr.Value != "sym")
+        {
+            str = strStr.Value;
+        }
+
+        var value = 0L;
+        if (caseFields.TryGetValue("value", out var valField) && valField is IntegerValue valInt)
+        {
+            value = valInt.Value;
+        }
+
+        caseModel = new Model.EnumCaseModel(symbol, str, value);
+        return true;
     }
 
     public sealed class DagMemberModel
@@ -302,4 +415,5 @@ internal sealed class OdsRecordIndex
 
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];
     private static readonly IReadOnlyList<DagMemberModel> EmptyDagMembers = new DagMemberModel[0];
+    private static readonly IReadOnlyList<Model.EnumCaseModel> EmptyEnumCases = new Model.EnumCaseModel[0];
 }

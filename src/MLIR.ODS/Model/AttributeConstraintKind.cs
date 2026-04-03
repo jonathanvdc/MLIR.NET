@@ -79,4 +79,9 @@ public enum AttributeConstraintKind
     /// The constraint parses a dense array of double-precision floating-point values (<c>array&lt;f64: ...&gt;</c>).
     /// </summary>
     DenseF64ArrayAttribute = 14,
+
+    /// <summary>
+    /// The constraint parses an enum keyword (or a combination of enum keywords for bit enums).
+    /// </summary>
+    EnumAttribute = 15,
 }

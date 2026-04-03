@@ -3,7 +3,7 @@ namespace MLIR.ODS.Model;
 /// <summary>
 /// Represents an attribute description extracted from ODS.
 /// </summary>
-public sealed class AttributeModel(string name, string recordName, string? className = null)
+public sealed class AttributeModel(string name, string recordName, string? className = null, EnumModel? enumModel = null)
 {
     /// <summary>
     /// Gets the canonical attribute name.
@@ -19,4 +19,10 @@ public sealed class AttributeModel(string name, string recordName, string? class
     /// Gets the generated C# class name, if one was specified explicitly.
     /// </summary>
     public string? ClassName { get; } = className;
+
+    /// <summary>
+    /// Gets the enum model for this attribute, if it is backed by an enum definition.
+    /// </summary>
+    public EnumModel? EnumModel { get; } = enumModel;
 }
+

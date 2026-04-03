@@ -15,7 +15,20 @@ internal static class AttributeRecordImporter
             }
 
             var dialect = builder.GetOrCreateDialect(attrDialectName);
-            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, index.GetOptionalStringField(record, "cppClassName") ?? record.Name));
+            var className = index.GetOptionalStringField(record, "cppClassName") ?? record.Name;
+
+            // If this is an EnumAttr (has the 'enum' field pointing to an EnumInfo record),
+            // extract the enum model so the generator can produce typed C# enums and value properties.
+            EnumModel? enumModel = null;
+            if (record.HasBaseClass("EnumAttr")
+                && record.Fields.TryGetValue("enum", out var enumField)
+                && enumField is TableGen.Evaluation.RecordReferenceValue enumRef
+                && index.TryGetRecord(enumRef.RecordName, out var enumRecord))
+            {
+                index.TryGetEnumModel(enumRecord, out enumModel);
+            }
+
+            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel));
         }
     }
 }

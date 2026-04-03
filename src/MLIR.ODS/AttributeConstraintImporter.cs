@@ -14,7 +14,13 @@ internal static class AttributeConstraintImporter
                 continue;
             }
 
-            builder.AddSharedAttributeConstraint(new AttributeConstraintModel(record.Name, record.Name, constraintKind));
+            EnumModel? enumModel = null;
+            if (constraintKind == AttributeConstraintKind.EnumAttribute)
+            {
+                index.TryGetEnumModel(record, out enumModel);
+            }
+
+            builder.AddSharedAttributeConstraint(new AttributeConstraintModel(record.Name, record.Name, constraintKind, enumModel));
         }
     }
 }
