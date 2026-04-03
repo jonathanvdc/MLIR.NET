@@ -1,145 +1,129 @@
 namespace MLIR.Generators.Tests;
 
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using MLIR.Generators;
 using Xunit;
 
 public sealed class DialectGeneratorTests
 {
+    private static readonly string[] MiniArithPreamble =
+    [
+        "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :",
+        "    Op<MiniArith_Dialect, mnemonic, traits>;",
+        string.Empty,
+        "def MiniArith_Dialect : Dialect {",
+        "  let name = \"miniarith\";",
+        "  let cppNamespace = \"::mlir::miniarith\";",
+        "};",
+    ];
+
+    private static readonly string[] MyDialectPreamble =
+    [
+        "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :",
+        "    Op<MyDialect_Dialect, mnemonic, traits>;",
+        string.Empty,
+        "def MyDialect_Dialect : Dialect {",
+        "  let name = \"mydialect\";",
+        "  let cppNamespace = \"::mlir::mydialect\";",
+        "};",
+    ];
+
     [Fact]
     public void GeneratesDialectRegistrationTypedNodesAndCustomAssemblyStubs()
     {
-        const string source =
-            "def Builtin_Dialect : Dialect {\n" +
-            "  let name = \"builtin\";\n" +
-            "  let cppNamespace = \"::mlir::builtin\";\n" +
-            "};\n" +
-            "\n" +
-            "class Builtin_Attr<string name> : AttrDef<Builtin_Dialect, name> { let mnemonic = name; };\n" +
-            "\n" +
-            "def BuiltinI32Attr : Builtin_Attr<\"i32\">;\n" +
-            "\n" +
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let summary = \"integer constant\";\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$value attr-dict\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {\n" +
-            "  let summary = \"integer addition\";\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def Builtin_Dialect : Dialect {",
+                "  let name = \"builtin\";",
+                "  let cppNamespace = \"::mlir::builtin\";",
+                "};",
+                string.Empty,
+                "class Builtin_Attr<string name> : AttrDef<Builtin_Dialect, name> { let mnemonic = name; };",
+                string.Empty,
+                "def BuiltinI32Attr : Builtin_Attr<\"i32\">;",
+                string.Empty,
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let summary = \"integer constant\";",
+                "  let arguments = (ins I32Attr:$value);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$value attr-dict\";",
+                "};",
+                string.Empty,
+                "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {",
+                "  let summary = \"integer addition\";",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        Assert.Contains("namespace MLIR.Miniarith;", registrationSource);
-        Assert.Contains("public static class MiniarithDialectRegistration", registrationSource);
-        Assert.Contains("public sealed class MiniArith_ConstantOp : Operation", registrationSource);
-        Assert.Contains("public sealed class MiniArith_AddIOp : Operation", registrationSource);
-        Assert.Contains("public static OperationDefinition OperationDefinition { get; } = CreateOperationDefinition();", registrationSource);
-        Assert.Contains("public sealed class MiniArith_ConstantOpAssemblyFormat : IOperationAssemblyFormat", registrationSource);
-        Assert.Contains("public sealed class MiniArith_AddIOpAssemblyFormat : IOperationAssemblyFormat", registrationSource);
-        Assert.Contains("dialect.AddOperation(MiniArith_ConstantOp.OperationDefinition);", registrationSource);
-        Assert.Contains("dialect.AddOperation(MiniArith_AddIOp.OperationDefinition);", registrationSource);
-        Assert.Contains(".WithFactory(static context => new MiniArith_AddIOp(context))", registrationSource);
-        Assert.Contains(".WithAssemblyFormat(new MiniArith_AddIOpAssemblyFormat())", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "namespace MLIR.Miniarith;",
+            "public static class MiniarithDialectRegistration",
+            "public sealed class MiniArith_ConstantOp : Operation",
+            "public sealed class MiniArith_AddIOp : Operation",
+            "public static OperationDefinition OperationDefinition { get; } = CreateOperationDefinition();",
+            "public sealed class MiniArith_ConstantOpAssemblyFormat : IOperationAssemblyFormat",
+            "public sealed class MiniArith_AddIOpAssemblyFormat : IOperationAssemblyFormat",
+            "dialect.AddOperation(MiniArith_ConstantOp.OperationDefinition);",
+            "dialect.AddOperation(MiniArith_AddIOp.OperationDefinition);",
+            ".WithFactory(static context => new MiniArith_AddIOp(context))",
+            ".WithAssemblyFormat(new MiniArith_AddIOpAssemblyFormat())",
+            "public MiniArith_ConstantOp(OperationConstructionContext context)",
+            "public MiniArith_AddIOp(OperationConstructionContext context)");
         Assert.DoesNotContain("RewriteChildren", registrationSource);
-        Assert.Contains("public MiniArith_ConstantOp(OperationConstructionContext context)", registrationSource);
-        Assert.Contains("public MiniArith_AddIOp(OperationConstructionContext context)", registrationSource);
     }
 
     [Fact]
     public void GeneratesOperationBodySyntaxClassForDeclarativeAssemblyFormat()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let summary = \"integer constant\";\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$value attr-dict\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {\n" +
-            "  let summary = \"integer addition\";\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let summary = \"integer constant\";",
+                "  let arguments = (ins I32Attr:$value);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$value attr-dict\";",
+                "};",
+                string.Empty,
+                "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {",
+                "  let summary = \"integer addition\";",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // BodySyntax classes are generated for operations with declarative assembly formats.
-        Assert.Contains("public sealed class MiniArith_ConstantOpBodySyntax : OperationBodySyntax", registrationSource);
-        Assert.Contains("public sealed class MiniArith_AddIOpBodySyntax : OperationBodySyntax", registrationSource);
-
-        // MiniArith_ConstantOp: $value (attribute) and attr-dict.
-        Assert.Contains("public AttributeValueSyntax Value { get; }", registrationSource);
-
-        // MiniArith_AddIOp: $lhs, `,`, $rhs, attr-dict, `:`, type($result).
-        Assert.Contains("public SyntaxToken Lhs { get; }", registrationSource);
-        Assert.Contains("public SyntaxToken CommaToken { get; }", registrationSource);
-        Assert.Contains("public SyntaxToken Rhs { get; }", registrationSource);
-        Assert.Contains("public SyntaxToken ColonToken { get; }", registrationSource);
-        Assert.Contains("public TypeSyntax ResultType { get; }", registrationSource);
-
-        // Both classes share AttrDict.
-        Assert.Contains("public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }", registrationSource);
-
-        // WriteTo is implemented.
-        Assert.Contains("public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class MiniArith_ConstantOpBodySyntax : OperationBodySyntax",
+            "public sealed class MiniArith_AddIOpBodySyntax : OperationBodySyntax",
+            "public AttributeValueSyntax Value { get; }",
+            "public SyntaxToken Lhs { get; }",
+            "public SyntaxToken CommaToken { get; }",
+            "public SyntaxToken Rhs { get; }",
+            "public SyntaxToken ColonToken { get; }",
+            "public TypeSyntax ResultType { get; }",
+            "public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }",
+            "public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)");
     }
 
     [Fact]
     public void GeneratedBindMethodUsesPatternMatchInsteadOfHardCastForBodyType()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {\n" +
-            "  let summary = \"integer addition\";\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {",
+                "  let summary = \"integer addition\";",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // The Bind method must use a safe pattern-match rather than a hard cast so that
-        // a wrong body type yields a diagnostic instead of an InvalidCastException.
         Assert.Contains("if (syntax.Body is not MiniArith_AddIOpBodySyntax body)", registrationSource);
         Assert.DoesNotContain("(MiniArith_AddIOpBodySyntax)syntax.Body", registrationSource);
     }
@@ -147,86 +131,62 @@ public sealed class DialectGeneratorTests
     [Fact]
     public void BodySyntaxClassIsNotGeneratedForOperationsWithoutDeclarativeAssemblyFormat()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let arguments = (ins I32Attr:$value);",
+                "  let results = (outs I32:$result);",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // No BodySyntax class when there is no declarative assembly format.
         Assert.DoesNotContain("BodySyntax", registrationSource);
     }
 
     [Fact]
     public void GeneratesXmlDocCommentsFromSummaryAndDescription()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "  let summary = \"Mini arithmetic dialect\";\n" +
-            "  let description = [{A dialect for basic integer arithmetic operations.}];\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let summary = \"integer constant\";\n" +
-            "  let description = [{Produces a constant integer value.}];\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "};";
+        var registrationSource = GenerateRegistrationSource(
+            "miniarith.td",
+            "MiniarithDialectRegistration.g.cs",
+            ComposeSource(
+                [
+                    "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :",
+                    "    Op<MiniArith_Dialect, mnemonic, traits>;",
+                    string.Empty,
+                    "def MiniArith_Dialect : Dialect {",
+                    "  let name = \"miniarith\";",
+                    "  let cppNamespace = \"::mlir::miniarith\";",
+                    "  let summary = \"Mini arithmetic dialect\";",
+                    "  let description = [{A dialect for basic integer arithmetic operations.}];",
+                    "};",
+                    string.Empty,
+                    "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                    "  let summary = \"integer constant\";",
+                    "  let description = [{Produces a constant integer value.}];",
+                    "  let arguments = (ins I32Attr:$value);",
+                    "  let results = (outs I32:$result);",
+                    "};",
+                ]));
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Operation summary and description as doc-comments.
-        Assert.Contains("/// <summary>integer constant</summary>", registrationSource);
-        Assert.Contains("/// <remarks>", registrationSource);
-        Assert.Contains("/// Produces a constant integer value.", registrationSource);
-
-        // Dialect class summary and description as doc-comments.
-        Assert.Contains("/// <summary>Mini arithmetic dialect</summary>", registrationSource);
-        Assert.Contains("/// A dialect for basic integer arithmetic operations.", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "/// <summary>integer constant</summary>",
+            "/// <remarks>",
+            "/// Produces a constant integer value.",
+            "/// <summary>Mini arithmetic dialect</summary>",
+            "/// A dialect for basic integer arithmetic operations.");
     }
 
     [Fact]
     public void DoesNotGenerateDocCommentsWhenSummaryAndDescriptionAreAbsent()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "};";
-
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let arguments = (ins I32Attr:$value);",
+                "  let results = (outs I32:$result);",
+                "};",
+            ]);
 
         Assert.DoesNotContain("/// <summary>", registrationSource);
         Assert.DoesNotContain("/// <remarks>", registrationSource);
@@ -235,30 +195,24 @@ public sealed class DialectGeneratorTests
     [Fact]
     public void ReportsDiagnosticWhenEmissionFails()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_BrokenOp : MiniArith_Op<\"broken\", [Pure]> {\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"attr-dict\";\n" +
-            "};";
-
         var runResult = GeneratorTestHelpers.RunGeneratorDetailed(
             new DialectGenerator(),
             true,
-            ("miniarith.td", source));
+            (
+                "miniarith.td",
+                ComposeMiniArithSource(
+                    [
+                        "def MiniArith_BrokenOp : MiniArith_Op<\"broken\", [Pure]> {",
+                        "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                        "  let results = (outs I32:$result);",
+                        "  let assemblyFormat = \"attr-dict\";",
+                        "};",
+                    ])));
 
-        var diagnostics = runResult.Results.Single().Diagnostics;
-        var diagnostic = Assert.Single(diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN002"));
+        var result = Assert.Single(runResult.Results);
+        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN002"));
 
-        Assert.Empty(runResult.Results.Single().GeneratedSources);
+        Assert.Empty(result.GeneratedSources);
         Assert.Contains("MiniArith_BrokenOp", diagnostic.GetMessage());
         Assert.Contains("No body field was generated for operand 'lhs'", diagnostic.GetMessage());
     }
@@ -266,791 +220,552 @@ public sealed class DialectGeneratorTests
     [Fact]
     public void AttributesPropertyHoldsDataAndNamedAttributeAccessorsAreDerived()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let summary = \"integer constant\";\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {\n" +
-            "  let summary = \"integer addition\";\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let summary = \"integer constant\";",
+                "  let arguments = (ins I32Attr:$value);",
+                "  let results = (outs I32:$result);",
+                "};",
+                string.Empty,
+                "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure, Commutative]> {",
+                "  let summary = \"integer addition\";",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Attribute access flows through the mutable base operation state.
-        Assert.DoesNotContain("public override NamedAttributeCollection Attributes { get; }", registrationSource);
-
-        // Individual named attribute is a derived accessor using the narrowed BigInteger type.
-        // MiniArith_ConstantOp has no assembly format, so 'value' cannot be determined to
-        // be required – it is generated as a nullable optional accessor.
-        Assert.Contains("public BigInteger? Value", registrationSource);
-        Assert.Contains("get => Attributes.TryGet(\"value\",", registrationSource);
-        Assert.Contains("set => SetAttribute(\"value\", value.HasValue", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute Value { get; }", registrationSource);
-
-        // Constructors use NamedAttributeCollection attributes parameter instead of individual NamedAttribute params.
-        Assert.Contains("NamedAttributeCollection attributes,", registrationSource);
-
-        // Per-attribute convenience constructor also exists (using individual BigInteger? param for optional).
-        Assert.Contains("BigInteger? value,", registrationSource);
-
-        // Context constructor passes context.Attributes directly.
-        Assert.Contains("attributes: context.Attributes,", registrationSource);
-        Assert.DoesNotContain("context.Attributes[\"value\"]", registrationSource);
-
-        // Base constructor now receives the attribute collection directly.
-        Assert.Contains("attributes,", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public BigInteger? Value",
+            "get => Attributes.TryGet(\"value\",",
+            "set => SetAttribute(\"value\", value.HasValue",
+            "NamedAttributeCollection attributes,",
+            "BigInteger? value,",
+            "attributes: context.Attributes,",
+            "attributes,");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public override NamedAttributeCollection Attributes { get; }",
+            "public NamedAttribute Value { get; }",
+            "context.Attributes[\"value\"]");
     }
 
     [Fact]
     public void OptionalUnitAttributesGenerateBooleanPropertiesWhileRequiredUnitAttributesDoNot()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_FlagOp : MiniArith_Op<\"flag\", []> {\n" +
-            "  let arguments = (ins UnitAttr:$requiredFlag, UnitAttr:$optionalFlag);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$requiredFlag (`optional` $optionalFlag^)? attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_FlagOp : MiniArith_Op<\"flag\", []> {",
+                "  let arguments = (ins UnitAttr:$requiredFlag, UnitAttr:$optionalFlag);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$requiredFlag (`optional` $optionalFlag^)? attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        Assert.Contains("public bool OptionalFlag", registrationSource);
-        Assert.Contains("get => Attributes.Contains(\"optionalFlag\")", registrationSource);
-        Assert.Contains("SetAttribute(\"optionalFlag\", value ? new NamedAttribute(\"optionalFlag\", new UnknownAttributeValue(", registrationSource);
-        Assert.Contains("new UnitAttributeValueSyntax(new SyntaxToken(\"unit\"))", registrationSource);
-        Assert.Contains("bool optionalFlag,", registrationSource);
-
-        Assert.DoesNotContain("public UnitAttributeValue RequiredFlag", registrationSource);
-        Assert.DoesNotContain("public bool RequiredFlag", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public bool OptionalFlag",
+            "get => Attributes.Contains(\"optionalFlag\")",
+            "SetAttribute(\"optionalFlag\", value ? new NamedAttribute(\"optionalFlag\", new UnknownAttributeValue(",
+            "new UnitAttributeValueSyntax(new SyntaxToken(\"unit\"))",
+            "bool optionalFlag,");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public UnitAttributeValue RequiredFlag",
+            "public bool RequiredFlag");
     }
 
     [Fact]
     public void UnitAttributeAnchorInsideOptionalGroupUsesKeywordSyntax()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_AddUnitImmediateOp : MiniArith_Op<\"add_unit_immediate\", [Pure]> {\n" +
-            "  let summary = \"integer addition with a unit immediate\";\n" +
-            "  let arguments = (ins UnitAttr:$value, I32:$lhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"(`keyword` $value^)? `,` $lhs attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_AddUnitImmediateOp : MiniArith_Op<\"add_unit_immediate\", [Pure]> {",
+                "  let summary = \"integer addition with a unit immediate\";",
+                "  let arguments = (ins UnitAttr:$value, I32:$lhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"(`keyword` $value^)? `,` $lhs attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        Assert.Contains("value = new UnitAttributeValueSyntax(keywordKeyword.Value);", registrationSource);
-        Assert.DoesNotContain("context.ParseAttributeValueSyntax(MLIR.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)", registrationSource);
-
-        // The convenience constructor must use the nullable-array form so that the bool
-        // UnitAttribute (which generates a ternary that can be null) does not trigger CS8604.
-        Assert.DoesNotContain("NamedAttributeCollection.Create(value ?", registrationSource);
-        Assert.Contains("new NamedAttributeCollection(new NamedAttribute?[]", registrationSource);
-
-        // The BuildCustomAssemblySyntax anchor condition for a bool UnitAttribute must be
-        // 'op.Value' (not 'op.Value != null', which always evaluates to true for a bool).
-        Assert.Contains("if (op.Value)", registrationSource);
-        Assert.DoesNotContain("if (op.Value != null)", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "value = new UnitAttributeValueSyntax(keywordKeyword.Value);",
+            "new NamedAttributeCollection(new NamedAttribute?[]",
+            "if (op.Value)");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "context.ParseAttributeValueSyntax(MLIR.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)",
+            "NamedAttributeCollection.Create(value ?",
+            "if (op.Value != null)");
     }
 
     [Fact]
     public void TryParseGeneratesOperandAndLiteralParsingCallsForAddIOp()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure]> {\n" +
-            "  let summary = \"integer addition\";\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure]> {",
+                "  let summary = \"integer addition\";",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // TryParse method is generated for the operation.
-        Assert.Contains("public bool TryParse(", registrationSource);
-
-        // Operand variables are parsed as SSA tokens.
-        Assert.Contains("var lhs = context.ParseSsaToken();", registrationSource);
-        Assert.Contains("var rhs = context.ParseSsaToken();", registrationSource);
-
-        // Punctuation literals are consumed via Expect.
-        Assert.Contains("context.Expect(TokenKind.Comma, ", registrationSource);
-        Assert.Contains("context.Expect(TokenKind.Colon, ", registrationSource);
-
-        // Attribute dictionary is parsed.
-        Assert.Contains("var attrDict = context.ParseAttrDict();", registrationSource);
-
-        // Type directive is parsed.
-        Assert.Contains("context.ParseTypeSyntax()", registrationSource);
-
-        // Body is constructed from the parsed locals.
-        Assert.Contains("body = new MiniArith_AddIOpBodySyntax(lhs, commaToken, rhs, attrDict, colonToken, resultType);", registrationSource);
-
-        // Method returns true on success.
-        Assert.Contains("return true;", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public bool TryParse(",
+            "var lhs = context.ParseSsaToken();",
+            "var rhs = context.ParseSsaToken();",
+            "context.Expect(TokenKind.Comma, ",
+            "context.Expect(TokenKind.Colon, ",
+            "var attrDict = context.ParseAttrDict();",
+            "context.ParseTypeSyntax()",
+            "body = new MiniArith_AddIOpBodySyntax(lhs, commaToken, rhs, attrDict, colonToken, resultType);",
+            "return true;");
     }
 
     [Fact]
     public void TryParseGeneratesAttributeValueParsingForConstantOp()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let summary = \"integer constant\";\n" +
-            "  let arguments = (ins BuiltinI32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$value attr-dict\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def Builtin_Dialect : Dialect {",
+                "  let name = \"builtin\";",
+                "  let cppNamespace = \"::mlir::builtin\";",
+                "};",
+                string.Empty,
+                "class Builtin_Attr<string name> : AttrDef<Builtin_Dialect, name> { let mnemonic = name; };",
+                string.Empty,
+                "def BuiltinI32Attr : Builtin_Attr<\"i32\">;",
+                string.Empty,
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let summary = \"integer constant\";",
+                "  let arguments = (ins BuiltinI32Attr:$value);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$value attr-dict\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Attribute variable is parsed as an attribute value.
-        Assert.Contains("context.ParseAttributeValueSyntax(", registrationSource);
-
-        // Attribute dictionary is parsed.
-        Assert.Contains("var attrDict = context.ParseAttrDict();", registrationSource);
-
-        // Body is constructed with the parsed attribute and attr-dict.
-        Assert.Contains("body = new MiniArith_ConstantOpBodySyntax(value, attrDict);", registrationSource);
-
-        // The implementation returns true on success.
-        Assert.Contains("return true;", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "context.ParseAttributeValueSyntax(",
+            "var attrDict = context.ParseAttrDict();",
+            "body = new MiniArith_ConstantOpBodySyntax(value, attrDict);",
+            "return true;");
     }
 
     [Fact]
     public void TryParseGeneratesKeywordExpectForKeywordLiterals()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_CastOp : MyDialect_Op<\"cast\", []> {\n" +
-            "  let arguments = (ins I32:$input);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$input `to` attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_CastOp : MyDialect_Op<\"cast\", []> {",
+                "  let arguments = (ins I32:$input);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$input `to` attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Keyword literal produces an ExpectKeyword call.
         Assert.Contains("context.ExpectKeyword(\"to\", ", registrationSource);
     }
 
     [Fact]
     public void TryParseGeneratesQualifiedTypeField()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_ConvertOp : MyDialect_Op<\"convert\", []> {\n" +
-            "  let arguments = (ins I32:$input);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$input attr-dict `:` qualified(type($result))\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_ConvertOp : MyDialect_Op<\"convert\", []> {",
+                "  let arguments = (ins I32:$input);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$input attr-dict `:` qualified(type($result))\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // qualified(...) does not affect parsing – a TypeSyntax field is generated and a type is parsed.
-        Assert.Contains("TypeSyntax", registrationSource);
-        // The generated parse call should be one of the type-parsing variants.
-        Assert.Contains("context.ParseTypeSyntax()", registrationSource);
-        Assert.Contains("return true;", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "TypeSyntax",
+            "context.ParseTypeSyntax()",
+            "return true;");
     }
 
     [Fact]
     public void TryParseGeneratesResultsTypeField()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_GenOp : MyDialect_Op<\"gen\", []> {\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"attr-dict `:` results\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_GenOp : MyDialect_Op<\"gen\", []> {",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"attr-dict `:` results\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // A TypeSyntax field called ResultsType should be generated for the results directive.
-        Assert.Contains("ResultsType", registrationSource);
-        Assert.Contains("TypeSyntax", registrationSource);
-        Assert.Contains("return true;", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "ResultsType",
+            "TypeSyntax",
+            "return true;");
     }
 
     [Fact]
     public void TryParseGeneratesOptionalGroupConditionalCode()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_BinaryOp : MyDialect_Op<\"binary\", []> {\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$lhs (`,` $rhs^)? attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_BinaryOp : MyDialect_Op<\"binary\", []> {",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs (`,` $rhs^)? attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Optional group fields are nullable.
-        Assert.Contains("SyntaxToken?", registrationSource);
-
-        // The conditional guard uses TryMatch for the leading comma.
-        Assert.Contains("context.TryMatch(TokenKind.Comma,", registrationSource);
-
-        // The TryParse returns true for the success path.
-        Assert.Contains("return true;", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "SyntaxToken?",
+            "context.TryMatch(TokenKind.Comma,",
+            "return true;");
     }
 
     [Fact]
     public void TryParseGeneratesOilistDoWhileLoop()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_ConfigOp : MyDialect_Op<\"config\", []> {\n" +
-            "  let arguments = (ins I32Attr:$stride, I32Attr:$padding);\n" +
-            "  let assemblyFormat = \"oilist(`stride` $stride | `padding` $padding) attr-dict\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_ConfigOp : MyDialect_Op<\"config\", []> {",
+                "  let arguments = (ins I32Attr:$stride, I32Attr:$padding);",
+                "  let assemblyFormat = \"oilist(`stride` $stride | `padding` $padding) attr-dict\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Oilist fields are nullable.
-        Assert.Contains("SyntaxToken?", registrationSource);
-        Assert.Contains("AttributeValueSyntax?", registrationSource);
-
-        // The oilist loop is emitted.
-        Assert.Contains("bool foundOilist;", registrationSource);
-        Assert.Contains("while (foundOilist);", registrationSource);
-
-        // IsKeyword is used to dispatch each clause.
-        Assert.Contains("context.IsKeyword(\"stride\")", registrationSource);
-        Assert.Contains("context.IsKeyword(\"padding\")", registrationSource);
-
-        Assert.Contains("return true;", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "SyntaxToken?",
+            "AttributeValueSyntax?",
+            "bool foundOilist;",
+            "while (foundOilist);",
+            "context.IsKeyword(\"stride\")",
+            "context.IsKeyword(\"padding\")",
+            "return true;");
     }
 
     [Fact]
     public void RequiredAttributeInAssemblyFormatGeneratesNonNullablePropertyAndRequiredRegistration()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {\n" +
-            "  let summary = \"integer constant\";\n" +
-            "  let arguments = (ins I32Attr:$value);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$value attr-dict\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let summary = \"integer constant\";",
+                "  let arguments = (ins I32Attr:$value);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$value attr-dict\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // $value appears directly at the top level of the format → required.
-        // The accessor property is non-nullable with the narrowed BigInteger type.
-        Assert.Contains("public BigInteger Value", registrationSource);
-        Assert.Contains("I32AttrConstraintAttributeValue)Attributes[\"value\"].Value).Value;", registrationSource);
-        Assert.Contains("new NamedAttribute(\"value\", new", registrationSource);
-        Assert.DoesNotContain("public BigInteger? Value", registrationSource);
-
-        // Per-attribute convenience constructor uses non-nullable BigInteger.
-        Assert.Contains("BigInteger value,", registrationSource);
-        Assert.DoesNotContain("BigInteger? value,", registrationSource);
-        Assert.Contains("new NamedAttribute(\"value\", new", registrationSource);
-
-        // OperationDefinition registration uses RequiredAttribute, not OptionalAttribute.
-        Assert.Contains("operation.RequiredAttribute(\"value\",", registrationSource);
-        Assert.DoesNotContain("operation.OptionalAttribute(\"value\")", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public BigInteger Value",
+            "I32AttrConstraintAttributeValue)Attributes[\"value\"].Value).Value;",
+            "new NamedAttribute(\"value\", new",
+            "BigInteger value,",
+            "operation.RequiredAttribute(\"value\",");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public BigInteger? Value",
+            "BigInteger? value,",
+            "operation.OptionalAttribute(\"value\")");
     }
 
     [Fact]
     public void OptionalAttributeInOptionalGroupGeneratesNullablePropertyAndOptionalRegistration()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_FlagOp : MyDialect_Op<\"flag\", []> {\n" +
-            "  let arguments = (ins I32Attr:$optAttr);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"($optAttr^)? attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_FlagOp : MyDialect_Op<\"flag\", []> {",
+                "  let arguments = (ins I32Attr:$optAttr);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"($optAttr^)? attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // $optAttr is inside an optional group → optional.
-        // The accessor property is nullable BigInteger? with the narrowed type.
-        Assert.Contains("public BigInteger? OptAttr", registrationSource);
-        Assert.Contains("Attributes.TryGet(\"optAttr\",", registrationSource);
-        Assert.Contains("set => SetAttribute(\"optAttr\", value.HasValue", registrationSource);
-        Assert.DoesNotContain("public BigInteger OptAttr", registrationSource);
-
-        // OperationDefinition registration uses OptionalAttribute.
-        Assert.Contains("operation.OptionalAttribute(\"optAttr\",", registrationSource);
-        Assert.DoesNotContain("operation.RequiredAttribute(\"optAttr\")", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public BigInteger? OptAttr",
+            "Attributes.TryGet(\"optAttr\",",
+            "set => SetAttribute(\"optAttr\", value.HasValue",
+            "operation.OptionalAttribute(\"optAttr\",");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public BigInteger OptAttr",
+            "operation.RequiredAttribute(\"optAttr\")");
     }
 
     [Fact]
     public void RequiredOperandInAssemblyFormatGeneratesNonNullableProperty()
     {
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-            "\n" +
-            "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure]> {\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_AddIOp : MiniArith_Op<\"addi\", [Pure]> {",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Both operands appear at the top level → required, non-nullable.
-        Assert.Contains("public Value Lhs", registrationSource);
-        Assert.Contains("get => Operands[0].Value!;", registrationSource);
-        Assert.Contains("set => SetOperand(0, value);", registrationSource);
-        Assert.Contains("public Value Rhs", registrationSource);
-        Assert.Contains("get => Operands[1].Value!;", registrationSource);
-        Assert.Contains("set => SetOperand(1, value);", registrationSource);
-        Assert.DoesNotContain("public Value? Lhs", registrationSource);
-        Assert.DoesNotContain("public Value? Rhs", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public Value Lhs",
+            "get => Operands[0].Value!;",
+            "set => SetOperand(0, value);",
+            "public Value Rhs",
+            "get => Operands[1].Value!;",
+            "set => SetOperand(1, value);");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public Value? Lhs",
+            "public Value? Rhs");
     }
 
     [Fact]
     public void OptionalOperandInOptionalGroupGeneratesNullableProperty()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_BinaryOp : MyDialect_Op<\"binary\", []> {\n" +
-            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$lhs (`,` $rhs^)? attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_BinaryOp : MyDialect_Op<\"binary\", []> {",
+                "  let arguments = (ins I32:$lhs, I32:$rhs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs (`,` $rhs^)? attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // $lhs at the top level → required, non-nullable.
-        Assert.Contains("public Value Lhs", registrationSource);
-        Assert.Contains("get => Operands[0].Value!;", registrationSource);
-        Assert.Contains("set => SetOperand(0, value);", registrationSource);
-        Assert.DoesNotContain("public Value? Lhs", registrationSource);
-
-        // $rhs inside optional group → optional, nullable.
-        Assert.Contains("public Value? Rhs", registrationSource);
-        Assert.Contains("get => Operands[1].Value;", registrationSource);
-        Assert.Contains("set => SetOperand(1, value);", registrationSource);
-        Assert.DoesNotContain("public Value Rhs { get; }", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public Value Lhs",
+            "get => Operands[0].Value!;",
+            "set => SetOperand(0, value);",
+            "public Value? Rhs",
+            "get => Operands[1].Value;",
+            "set => SetOperand(1, value);");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public Value? Lhs",
+            "public Value Rhs { get; }");
     }
 
     [Fact]
     public void OilistAttributesAreOptionalInRegistration()
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_ConfigOp : MyDialect_Op<\"config\", []> {\n" +
-            "  let arguments = (ins I32Attr:$stride, I32Attr:$padding);\n" +
-            "  let assemblyFormat = \"oilist(`stride` $stride | `padding` $padding) attr-dict\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_ConfigOp : MyDialect_Op<\"config\", []> {",
+                "  let arguments = (ins I32Attr:$stride, I32Attr:$padding);",
+                "  let assemblyFormat = \"oilist(`stride` $stride | `padding` $padding) attr-dict\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Attributes inside oilist are optional.
-        Assert.Contains("operation.OptionalAttribute(\"stride\",", registrationSource);
-        Assert.Contains("operation.OptionalAttribute(\"padding\",", registrationSource);
-        Assert.DoesNotContain("operation.RequiredAttribute(\"stride\")", registrationSource);
-        Assert.DoesNotContain("operation.RequiredAttribute(\"padding\")", registrationSource);
-
-        // Nullable BigInteger? accessor properties for the optional attributes.
-        Assert.Contains("public BigInteger? Stride", registrationSource);
-        Assert.Contains("public BigInteger? Padding", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "operation.OptionalAttribute(\"stride\",",
+            "operation.OptionalAttribute(\"padding\",",
+            "public BigInteger? Stride",
+            "public BigInteger? Padding");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "operation.RequiredAttribute(\"stride\")",
+            "operation.RequiredAttribute(\"padding\")");
     }
 
     [Fact]
     public void AttributePropertyTypeIsNarrowedForKnownConstraintKinds()
     {
-        // Verify that when an operation uses a well-known ODS attribute constraint,
-        // the generated property exposes the underlying value type rather than NamedAttribute.
-        const string source =
-            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MiniArith_Dialect : Dialect {\n" +
-            "  let name = \"miniarith\";\n" +
-            "  let cppNamespace = \"::mlir::miniarith\";\n" +
-            "};\n" +
-        "\n" +
-        "def MiniArith_AddImmOp : MiniArith_Op<\"add_imm\", []> {\n" +
-        "  let arguments = (ins I32Attr:$intVal, BoolAttr:$boolVal, StrAttr:$strVal, F32Attr:$floatVal, F64Attr:$doubleVal);\n" +
-        "  let results = (outs I32:$result);\n" +
-        "  let assemblyFormat = \"$intVal `,` $boolVal `,` $strVal `,` $floatVal `,` $doubleVal attr-dict `:` type($result)\";\n" +
-        "};";
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_AddImmOp : MiniArith_Op<\"add_imm\", []> {",
+                "  let arguments = (ins I32Attr:$intVal, BoolAttr:$boolVal, StrAttr:$strVal, F32Attr:$floatVal, F64Attr:$doubleVal);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$intVal `,` $boolVal `,` $strVal `,` $floatVal `,` $doubleVal attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("miniarith.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
-
-        // I32Attr → required BigInteger (all four are required since they appear at the top level)
-        Assert.Contains("public BigInteger IntVal", registrationSource);
-        Assert.Contains("I32AttrConstraintAttributeValue)Attributes[\"intVal\"].Value).Value;", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute IntVal", registrationSource);
-
-        // BoolAttr → required bool
-        Assert.Contains("public bool BoolVal", registrationSource);
-        Assert.Contains("BoolAttrConstraintAttributeValue)Attributes[\"boolVal\"].Value).Value;", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute BoolVal", registrationSource);
-
-        // StrAttr → required string
-        Assert.Contains("public string StrVal", registrationSource);
-        Assert.Contains("StrAttrConstraintAttributeValue)Attributes[\"strVal\"].Value).Value;", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute StrVal", registrationSource);
-
-        // F32Attr → required float
-        Assert.Contains("public float FloatVal", registrationSource);
-        Assert.Contains("F32AttrConstraintAttributeValue)Attributes[\"floatVal\"].Value).Value;", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute FloatVal", registrationSource);
-
-        // F64Attr → required double
-        Assert.Contains("public double DoubleVal", registrationSource);
-        Assert.Contains("F64AttrConstraintAttributeValue)Attributes[\"doubleVal\"].Value).Value;", registrationSource);
-        Assert.DoesNotContain("public NamedAttribute DoubleVal", registrationSource);
-
-        // Per-attribute convenience constructor uses narrowed value types, not NamedAttribute.
-        Assert.Contains("BigInteger intVal,", registrationSource);
-        Assert.Contains("bool boolVal,", registrationSource);
-        Assert.Contains("string strVal,", registrationSource);
-        Assert.Contains("float floatVal,", registrationSource);
-        Assert.Contains("double doubleVal,", registrationSource);
-        Assert.DoesNotContain("NamedAttribute intVal,", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "public BigInteger IntVal",
+            "I32AttrConstraintAttributeValue)Attributes[\"intVal\"].Value).Value;",
+            "public bool BoolVal",
+            "BoolAttrConstraintAttributeValue)Attributes[\"boolVal\"].Value).Value;",
+            "public string StrVal",
+            "StrAttrConstraintAttributeValue)Attributes[\"strVal\"].Value).Value;",
+            "public float FloatVal",
+            "F32AttrConstraintAttributeValue)Attributes[\"floatVal\"].Value).Value;",
+            "public double DoubleVal",
+            "F64AttrConstraintAttributeValue)Attributes[\"doubleVal\"].Value).Value;",
+            "BigInteger intVal,",
+            "bool boolVal,",
+            "string strVal,",
+            "float floatVal,",
+            "double doubleVal,");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public NamedAttribute IntVal",
+            "public NamedAttribute BoolVal",
+            "public NamedAttribute StrVal",
+            "public NamedAttribute FloatVal",
+            "public NamedAttribute DoubleVal",
+            "NamedAttribute intVal,");
     }
 
-    [Fact]
-    public void GeneratesDenseIntegerArrayAttributePropertyWithTypedItemsList()
+    [Theory]
+    [InlineData("DenseI32ArrayAttr", "indices", "BigInteger", "DenseIntegerArrayAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
+    [InlineData("DenseBoolArrayAttr", "flags", "bool", "DenseBooleanArrayAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "Flags")]
+    [InlineData("DenseF32ArrayAttr", "coeffs", "float", "DenseF32ArrayAttributeValue", "DenseF32ArrayAttributeAssemblyFormat", "Coeffs")]
+    [InlineData("DenseF64ArrayAttr", "weights", "double", "DenseF64ArrayAttributeValue", "DenseF64ArrayAttributeAssemblyFormat", "Weights")]
+    public void GeneratesDenseArrayAttributePropertyWithTypedItemsList(
+        string constraintType,
+        string attributeName,
+        string elementType,
+        string attributeValueType,
+        string assemblyFormatType,
+        string propertyName)
     {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
-            "  let arguments = (ins DenseI32ArrayAttr:$indices, I32:$lhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$indices `,` $lhs attr-dict `:` type($result)\";\n" +
-            "};";
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {",
+                $"  let arguments = (ins {constraintType}:${attributeName}, I32:$lhs);",
+                "  let results = (outs I32:$result);",
+                $"  let assemblyFormat = \"${attributeName} `,` $lhs attr-dict `:` type($result)\";",
+                "};",
+            ]);
 
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        // Constraint base type is DenseIntegerArrayAttributeValue.
-        Assert.Contains("DenseIntegerArrayAttributeValue", registrationSource);
-
-        // Property type exposes IReadOnlyList<BigInteger> items directly.
-        Assert.Contains("public IReadOnlyList<BigInteger> Indices", registrationSource);
-        Assert.Contains("DenseIntegerArrayAttributeAssemblyFormat", registrationSource);
-
-        // Constructor parameter uses the typed list.
-        Assert.Contains("IReadOnlyList<BigInteger> indices,", registrationSource);
-    }
-
-    [Fact]
-    public void GeneratesDenseBooleanArrayAttributePropertyWithTypedItemsList()
-    {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
-            "  let arguments = (ins DenseBoolArrayAttr:$flags, I32:$lhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$flags `,` $lhs attr-dict `:` type($result)\";\n" +
-            "};";
-
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        Assert.Contains("DenseBooleanArrayAttributeValue", registrationSource);
-        Assert.Contains("public IReadOnlyList<bool> Flags", registrationSource);
-        Assert.Contains("DenseBooleanArrayAttributeAssemblyFormat", registrationSource);
-        Assert.Contains("IReadOnlyList<bool> flags,", registrationSource);
-    }
-
-    [Fact]
-    public void GeneratesDenseF32ArrayAttributePropertyWithSinglePrecisionItemsList()
-    {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
-            "  let arguments = (ins DenseF32ArrayAttr:$coeffs, I32:$lhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$coeffs `,` $lhs attr-dict `:` type($result)\";\n" +
-            "};";
-
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        Assert.Contains("DenseF32ArrayAttributeValue", registrationSource);
-        Assert.Contains("public IReadOnlyList<float> Coeffs", registrationSource);
-        Assert.Contains("DenseF32ArrayAttributeAssemblyFormat", registrationSource);
-        Assert.Contains("IReadOnlyList<float> coeffs,", registrationSource);
-    }
-
-    [Fact]
-    public void GeneratesDenseF64ArrayAttributePropertyWithDoublePrecisionItemsList()
-    {
-        const string source =
-            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
-            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
-            "\n" +
-            "def MyDialect_Dialect : Dialect {\n" +
-            "  let name = \"mydialect\";\n" +
-            "  let cppNamespace = \"::mlir::mydialect\";\n" +
-            "};\n" +
-            "\n" +
-            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
-            "  let arguments = (ins DenseF64ArrayAttr:$weights, I32:$lhs);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$weights `,` $lhs attr-dict `:` type($result)\";\n" +
-            "};";
-
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
-            new DialectGenerator(),
-            ("mydialect.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
-
-        Assert.Contains("DenseF64ArrayAttributeValue", registrationSource);
-        Assert.Contains("public IReadOnlyList<double> Weights", registrationSource);
-        Assert.Contains("DenseF64ArrayAttributeAssemblyFormat", registrationSource);
-        Assert.Contains("IReadOnlyList<double> weights,", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            attributeValueType,
+            $"public IReadOnlyList<{elementType}> {propertyName}",
+            assemblyFormatType,
+            $"IReadOnlyList<{elementType}> {attributeName},");
     }
 
     [Fact]
     public void GeneratesTypedEnumAttributesAndOperationsWithoutDuplicateEnumDeclarations()
     {
-        const string source =
-            "include \"mlir/IR/EnumAttr.td\"\n" +
-            "\n" +
-            "class MiniEnum_Op<string mnemonic, list<Trait> traits = []> : Op<MiniEnum_Dialect, mnemonic, traits>;\n" +
-            "def MiniEnum_Dialect : Dialect {\n" +
-            "  let name = \"minienum\";\n" +
-            "  let cppNamespace = \"::mlir::minienum\";\n" +
-            "};\n" +
-            "def MINI_MODE_A : I32EnumAttrCase<\"a\", 0>;\n" +
-            "def MINI_MODE_B : I32EnumAttrCase<\"b\", 1>;\n" +
-            "def MiniEnum_Mode : I32EnumAttr<\"Mode\", \"mode summary\", [MINI_MODE_A, MINI_MODE_B]> {\n" +
-            "  let cppNamespace = \"::mlir::minienum\";\n" +
-            "  let genSpecializedAttr = 0;\n" +
-            "};\n" +
-            "def MiniEnum_ModeAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Mode, \"mode\"> {\n" +
-            "  let assemblyFormat = \"`<` $value `>`\";\n" +
-            "};\n" +
-            "def MINI_FLAG_NONE : I32BitEnumAttrCaseNone<\"none\">;\n" +
-            "def MINI_FLAG_X : I32BitEnumAttrCaseBit<\"x\", 0>;\n" +
-            "def MINI_FLAG_Y : I32BitEnumAttrCaseBit<\"y\", 1>;\n" +
-            "def MINI_FLAG_XY : I32BitEnumAttrCaseGroup<\"xy\", [MINI_FLAG_X, MINI_FLAG_Y]>;\n" +
-            "def MiniEnum_Flags : I32BitEnumAttr<\"Flags\", \"flags summary\", [MINI_FLAG_NONE, MINI_FLAG_X, MINI_FLAG_Y, MINI_FLAG_XY]> {\n" +
-            "  let separator = \",\";\n" +
-            "  let cppNamespace = \"::mlir::minienum\";\n" +
-            "  let genSpecializedAttr = 0;\n" +
-            "  let printBitEnumPrimaryGroups = 1;\n" +
-            "};\n" +
-            "def MiniEnum_FlagsAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Flags, \"flags\"> {\n" +
-            "  let assemblyFormat = \"`<` $value `>`\";\n" +
-            "};\n" +
-            "def MiniEnum_ModeOp : MiniEnum_Op<\"mode_op\", [Pure]> {\n" +
-            "  let arguments = (ins MiniEnum_ModeAttr:$mode, I32:$input);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$mode `,` $input attr-dict `:` type($result)\";\n" +
-            "};\n" +
-            "def MiniEnum_FlagsOp : MiniEnum_Op<\"flags_op\", [Pure]> {\n" +
-            "  let arguments = (ins MiniEnum_FlagsAttr:$flags, I32:$input);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$flags $input attr-dict `:` type($result)\";\n" +
-            "};";
-
-        var generatedSources = GeneratorTestHelpers.RunGenerator(new DialectGenerator(), ("minienum.td", source));
-        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MinienumDialectRegistration.g.cs")).SourceText.ToString();
+        var registrationSource = GenerateRegistrationSource(
+            "minienum.td",
+            "MinienumDialectRegistration.g.cs",
+            ComposeSource(
+                [
+                    "include \"mlir/IR/EnumAttr.td\"",
+                    string.Empty,
+                    "class MiniEnum_Op<string mnemonic, list<Trait> traits = []> : Op<MiniEnum_Dialect, mnemonic, traits>;",
+                    "def MiniEnum_Dialect : Dialect {",
+                    "  let name = \"minienum\";",
+                    "  let cppNamespace = \"::mlir::minienum\";",
+                    "};",
+                    "def MINI_MODE_A : I32EnumAttrCase<\"a\", 0>;",
+                    "def MINI_MODE_B : I32EnumAttrCase<\"b\", 1>;",
+                    "def MiniEnum_Mode : I32EnumAttr<\"Mode\", \"mode summary\", [MINI_MODE_A, MINI_MODE_B]> {",
+                    "  let cppNamespace = \"::mlir::minienum\";",
+                    "  let genSpecializedAttr = 0;",
+                    "};",
+                    "def MiniEnum_ModeAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Mode, \"mode\"> {",
+                    "  let assemblyFormat = \"`<` $value `>`\";",
+                    "};",
+                    "def MINI_FLAG_NONE : I32BitEnumAttrCaseNone<\"none\">;",
+                    "def MINI_FLAG_X : I32BitEnumAttrCaseBit<\"x\", 0>;",
+                    "def MINI_FLAG_Y : I32BitEnumAttrCaseBit<\"y\", 1>;",
+                    "def MINI_FLAG_XY : I32BitEnumAttrCaseGroup<\"xy\", [MINI_FLAG_X, MINI_FLAG_Y]>;",
+                    "def MiniEnum_Flags : I32BitEnumAttr<\"Flags\", \"flags summary\", [MINI_FLAG_NONE, MINI_FLAG_X, MINI_FLAG_Y, MINI_FLAG_XY]> {",
+                    "  let separator = \",\";",
+                    "  let cppNamespace = \"::mlir::minienum\";",
+                    "  let genSpecializedAttr = 0;",
+                    "  let printBitEnumPrimaryGroups = 1;",
+                    "};",
+                    "def MiniEnum_FlagsAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Flags, \"flags\"> {",
+                    "  let assemblyFormat = \"`<` $value `>`\";",
+                    "};",
+                    "def MiniEnum_ModeOp : MiniEnum_Op<\"mode_op\", [Pure]> {",
+                    "  let arguments = (ins MiniEnum_ModeAttr:$mode, I32:$input);",
+                    "  let results = (outs I32:$result);",
+                    "  let assemblyFormat = \"$mode `,` $input attr-dict `:` type($result)\";",
+                    "};",
+                    "def MiniEnum_FlagsOp : MiniEnum_Op<\"flags_op\", [Pure]> {",
+                    "  let arguments = (ins MiniEnum_FlagsAttr:$flags, I32:$input);",
+                    "  let results = (outs I32:$result);",
+                    "  let assemblyFormat = \"$flags $input attr-dict `:` type($result)\";",
+                    "};",
+                ]));
 
         Assert.Equal(1, CountOccurrences(registrationSource, "public enum Mode : uint"));
         Assert.Equal(1, CountOccurrences(registrationSource, "public enum Flags : uint"));
-        Assert.Contains("[global::System.Flags]", registrationSource);
-        Assert.Contains("internal static class ModeInfo", registrationSource);
-        Assert.Contains("internal static class FlagsInfo", registrationSource);
-        Assert.Contains("public MLIR.Minienum.Mode Mode", registrationSource);
-        Assert.Contains("get => ((MLIR.Minienum.ModeAttr)Attributes[\"mode\"].Value).TypedValue;", registrationSource);
-        Assert.Contains("public MLIR.Minienum.Flags Flags", registrationSource);
-        Assert.Contains("new MLIR.Minienum.FlagsAttr(value)", registrationSource);
-        Assert.Contains("return string.Join(\",\", parts);", registrationSource);
+        AssertContainsAll(
+            registrationSource,
+            "[global::System.Flags]",
+            "internal static class ModeInfo",
+            "internal static class FlagsInfo",
+            "public MLIR.Minienum.Mode Mode",
+            "get => ((MLIR.Minienum.ModeAttr)Attributes[\"mode\"].Value).TypedValue;",
+            "public MLIR.Minienum.Flags Flags",
+            "new MLIR.Minienum.FlagsAttr(value)",
+            "return string.Join(\",\", parts);");
+    }
+
+    private static string GenerateMiniArithRegistrationSource(IEnumerable<string> lines)
+    {
+        return GenerateRegistrationSource(
+            "miniarith.td",
+            "MiniarithDialectRegistration.g.cs",
+            ComposeMiniArithSource(lines));
+    }
+
+    private static string GenerateMyDialectRegistrationSource(IEnumerable<string> lines)
+    {
+        return GenerateRegistrationSource(
+            "mydialect.td",
+            "MydialectDialectRegistration.g.cs",
+            ComposeMyDialectSource(lines));
+    }
+
+    private static string GenerateRegistrationSource(string path, string hintName, string source)
+    {
+        var generatedSources = GeneratorTestHelpers.RunGenerator(new DialectGenerator(), (path, source));
+        return Assert.Single(generatedSources.Where(result => result.HintName == hintName)).SourceText.ToString();
+    }
+
+    private static string ComposeMiniArithSource(IEnumerable<string> lines)
+    {
+        return ComposeSource(MiniArithPreamble.Concat(new[] { string.Empty }).Concat(lines));
+    }
+
+    private static string ComposeMyDialectSource(IEnumerable<string> lines)
+    {
+        return ComposeSource(MyDialectPreamble.Concat(new[] { string.Empty }).Concat(lines));
+    }
+
+    private static string ComposeSource(IEnumerable<string> lines)
+    {
+        return string.Join("\n", lines);
+    }
+
+    private static void AssertContainsAll(string text, params string[] snippets)
+    {
+        foreach (var snippet in snippets)
+        {
+            Assert.Contains(snippet, text);
+        }
+    }
+
+    private static void AssertDoesNotContainAny(string text, params string[] snippets)
+    {
+        foreach (var snippet in snippets)
+        {
+            Assert.DoesNotContain(snippet, text);
+        }
     }
 
     private static int CountOccurrences(string text, string value)
     {
         var count = 0;
         var index = 0;
-        while ((index = text.IndexOf(value, index, System.StringComparison.Ordinal)) >= 0)
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
         {
             count++;
             index += value.Length;
