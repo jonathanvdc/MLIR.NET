@@ -487,6 +487,22 @@ internal static class EmitterHelpers
             metadata.AddField(field);
             metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variableName, field.Name));
         }
+        else if (IsVariadicOperand(operation, variableName))
+        {
+            // Variadic operands use a list of SSA tokens.  The write statement iterates over
+            // the list and inserts commas between items.
+            const string csType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Text.SyntaxToken>";
+            var writeStmt =
+                "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
+                "if (_i > 0) writer.WriteToken(new global::MLIR.Text.SyntaxToken(\",\"), \"\"); " +
+                "writer.WriteToken(" + name + "[_i], _i > 0 ? \" \" : \"\"); }";
+            var field = new BodySyntaxField(name, csType, writeStmt);
+            metadata.AddField(field);
+            metadata.AddComponentField(new BodyComponentField(
+                GetComponentKindForVariable(operation, variableName),
+                variableName,
+                field.Name));
+        }
         else
         {
             var (csType, writeStmt) = nullable
@@ -499,6 +515,20 @@ internal static class EmitterHelpers
                 variableName,
                 field.Name));
         }
+    }
+
+    /// <summary>Returns true when <paramref name="variableName"/> names a variadic operand of <paramref name="operation"/>.</summary>
+    private static bool IsVariadicOperand(OperationModel operation, string variableName)
+    {
+        foreach (var operand in operation.Operands)
+        {
+            if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
+            {
+                return operand.IsVariadic;
+            }
+        }
+
+        return false;
     }
 
     private static void AppendTypeField(HashSet<string> usedNames, string baseName, string operandName, OperationBodySyntaxMetadata metadata, bool nullable)
