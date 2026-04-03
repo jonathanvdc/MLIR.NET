@@ -655,7 +655,7 @@ public sealed class DialectGeneratorTests
         // $value appears directly at the top level of the format → required.
         // The accessor property is non-nullable with the narrowed BigInteger type.
         Assert.Contains("public BigInteger Value", registrationSource);
-        Assert.Contains("((IntegerAttributeValue)Attributes[\"value\"].Value).Value;", registrationSource);
+        Assert.Contains("I32AttrConstraintAttributeValue)Attributes[\"value\"].Value).Value;", registrationSource);
         Assert.Contains("new NamedAttribute(\"value\", new", registrationSource);
         Assert.DoesNotContain("public BigInteger? Value", registrationSource);
 
@@ -820,12 +820,12 @@ public sealed class DialectGeneratorTests
             "  let name = \"miniarith\";\n" +
             "  let cppNamespace = \"::mlir::miniarith\";\n" +
             "};\n" +
-            "\n" +
-            "def MiniArith_AddImmOp : MiniArith_Op<\"add_imm\", []> {\n" +
-            "  let arguments = (ins I32Attr:$intVal, BoolAttr:$boolVal, StrAttr:$strVal, F32Attr:$floatVal);\n" +
-            "  let results = (outs I32:$result);\n" +
-            "  let assemblyFormat = \"$intVal `,` $boolVal `,` $strVal `,` $floatVal attr-dict `:` type($result)\";\n" +
-            "};";
+        "\n" +
+        "def MiniArith_AddImmOp : MiniArith_Op<\"add_imm\", []> {\n" +
+        "  let arguments = (ins I32Attr:$intVal, BoolAttr:$boolVal, StrAttr:$strVal, F32Attr:$floatVal, F64Attr:$doubleVal);\n" +
+        "  let results = (outs I32:$result);\n" +
+        "  let assemblyFormat = \"$intVal `,` $boolVal `,` $strVal `,` $floatVal `,` $doubleVal attr-dict `:` type($result)\";\n" +
+        "};";
 
         var generatedSources = GeneratorTestHelpers.RunGenerator(
             new DialectGenerator(),
@@ -834,29 +834,35 @@ public sealed class DialectGeneratorTests
 
         // I32Attr → required BigInteger (all four are required since they appear at the top level)
         Assert.Contains("public BigInteger IntVal", registrationSource);
-        Assert.Contains("((IntegerAttributeValue)Attributes[\"intVal\"].Value).Value;", registrationSource);
+        Assert.Contains("I32AttrConstraintAttributeValue)Attributes[\"intVal\"].Value).Value;", registrationSource);
         Assert.DoesNotContain("public NamedAttribute IntVal", registrationSource);
 
         // BoolAttr → required bool
         Assert.Contains("public bool BoolVal", registrationSource);
-        Assert.Contains("((BooleanAttributeValue)Attributes[\"boolVal\"].Value).Value;", registrationSource);
+        Assert.Contains("BoolAttrConstraintAttributeValue)Attributes[\"boolVal\"].Value).Value;", registrationSource);
         Assert.DoesNotContain("public NamedAttribute BoolVal", registrationSource);
 
         // StrAttr → required string
         Assert.Contains("public string StrVal", registrationSource);
-        Assert.Contains("((StringAttributeValue)Attributes[\"strVal\"].Value).Value;", registrationSource);
+        Assert.Contains("StrAttrConstraintAttributeValue)Attributes[\"strVal\"].Value).Value;", registrationSource);
         Assert.DoesNotContain("public NamedAttribute StrVal", registrationSource);
 
-        // F32Attr → required string (LiteralText)
-        Assert.Contains("public string FloatVal", registrationSource);
-        Assert.Contains("((FloatingPointAttributeValue)Attributes[\"floatVal\"].Value).LiteralText;", registrationSource);
+        // F32Attr → required float
+        Assert.Contains("public float FloatVal", registrationSource);
+        Assert.Contains("F32AttrConstraintAttributeValue)Attributes[\"floatVal\"].Value).Value;", registrationSource);
         Assert.DoesNotContain("public NamedAttribute FloatVal", registrationSource);
+
+        // F64Attr → required double
+        Assert.Contains("public double DoubleVal", registrationSource);
+        Assert.Contains("F64AttrConstraintAttributeValue)Attributes[\"doubleVal\"].Value).Value;", registrationSource);
+        Assert.DoesNotContain("public NamedAttribute DoubleVal", registrationSource);
 
         // Per-attribute convenience constructor uses narrowed value types, not NamedAttribute.
         Assert.Contains("BigInteger intVal,", registrationSource);
         Assert.Contains("bool boolVal,", registrationSource);
         Assert.Contains("string strVal,", registrationSource);
-        Assert.Contains("string floatVal,", registrationSource);
+        Assert.Contains("float floatVal,", registrationSource);
+        Assert.Contains("double doubleVal,", registrationSource);
         Assert.DoesNotContain("NamedAttribute intVal,", registrationSource);
     }
 

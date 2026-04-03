@@ -1,11 +1,13 @@
 namespace MLIR.Tests;
 
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;
@@ -322,6 +324,44 @@ public sealed partial class SemanticTests
         {
             Value = value;
         }
+    }
+
+    private sealed class TestF32AttributeValue : MLIR.Semantics.Attributes.Primitives.F32AttributeValue
+    {
+        public TestF32AttributeValue(AttributeValueConstructionContext context)
+            : base(context, float.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, CultureInfo.InvariantCulture))
+        {
+            Name = context.Name;
+            Definition = context.Definition;
+        }
+
+        public TestF32AttributeValue(float value)
+            : base(value)
+        {
+        }
+
+        public override string? Name { get; }
+
+        public override AttributeConstraintDefinition? Definition { get; }
+    }
+
+    private sealed class TestF64AttributeValue : MLIR.Semantics.Attributes.Primitives.F64AttributeValue
+    {
+        public TestF64AttributeValue(AttributeValueConstructionContext context)
+            : base(context, double.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, CultureInfo.InvariantCulture))
+        {
+            Name = context.Name;
+            Definition = context.Definition;
+        }
+
+        public TestF64AttributeValue(double value)
+            : base(value)
+        {
+        }
+
+        public override string? Name { get; }
+
+        public override AttributeConstraintDefinition? Definition { get; }
     }
 
     private sealed class BuiltinIntegerTypeSyntax : TypeSyntax

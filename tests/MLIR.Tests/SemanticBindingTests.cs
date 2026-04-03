@@ -2,8 +2,10 @@ namespace MLIR.Tests;
 
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using Xunit;
 
@@ -156,6 +158,62 @@ public sealed partial class SemanticTests
         Assert.Equal(42, value.Value);
         Assert.IsType<IntegerLiteralAttributeSyntax>(value.Syntax);
         Assert.Equal("%0 = arith.constant 42 : i32", module.ToText(ReplaceExistingSyntaxOptions()));
+    }
+
+    [Fact]
+    public void OperationAssemblyFormatCanBindF32AttributesAsSinglePrecisionValues()
+    {
+        var f32AttributeDefinition = new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context));
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation
+                            .Result("result")
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(f32AttributeDefinition)));
+                }));
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = arith.constant 1.500 : f32", registry),
+            registry);
+
+        var operation = Assert.IsType<GeneratedConstantOperation>(module.Operations[0]);
+        var value = Assert.IsType<TestF32AttributeValue>(operation.ValueAttribute.Value);
+        Assert.Equal(1.5f, value.Value);
+        Assert.IsType<FloatingPointAttributeValueSyntax>(value.Syntax);
+    }
+
+    [Fact]
+    public void OperationAssemblyFormatCanBindF64AttributesAsDoublePrecisionValues()
+    {
+        var f64AttributeDefinition = new AttributeDefinition("f64", new F64AttributeAssemblyFormat(), factory: static context => new TestF64AttributeValue(context));
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation
+                            .Result("result")
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(f64AttributeDefinition)));
+                }));
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = arith.constant 1.500 : f64", registry),
+            registry);
+
+        var operation = Assert.IsType<GeneratedConstantOperation>(module.Operations[0]);
+        var value = Assert.IsType<TestF64AttributeValue>(operation.ValueAttribute.Value);
+        Assert.Equal(1.5, value.Value);
+        Assert.IsType<FloatingPointAttributeValueSyntax>(value.Syntax);
     }
 
     [Fact]

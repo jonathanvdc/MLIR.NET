@@ -2,8 +2,10 @@ namespace MLIR.Tests;
 
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Semantics;
 using MLIR.Text;
+using MLIR.Syntax.Attributes.Primitives;
 using Xunit;
 
 public sealed partial class SemanticTests
@@ -33,6 +35,33 @@ public sealed partial class SemanticTests
             registry);
 
         Assert.Equal("%0 = arith.constant 0 : () -> i32", module.ToText(ReplaceExistingSyntaxOptions()));
+    }
+
+    [Fact]
+    public void SemanticPrinterRebuildsF32AttributesFromTheirNumericValue()
+    {
+        var f32AttributeDefinition = new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context));
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation =>
+                        {
+                            operation.Result("result")
+                                .WithFactory(static context => new GeneratedConstantOperation(context))
+                                .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(f32AttributeDefinition));
+                        });
+                }));
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = arith.constant 1.500 : f32", registry),
+            registry);
+
+        Assert.Equal("%0 = arith.constant 1.5 : f32", module.ToText(ReplaceExistingSyntaxOptions()));
     }
 
     [Fact]

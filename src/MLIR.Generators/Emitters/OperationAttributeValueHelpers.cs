@@ -11,11 +11,6 @@ internal static class OperationAttributeValueHelpers
             or AttributeConstraintKind.StringLiteral or AttributeConstraintKind.FloatingPointLiteral;
     }
 
-    public static bool IsValueTypeConstraintKind(AttributeConstraintKind kind)
-    {
-        return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral;
-    }
-
     public static bool IsDenseCollectionConstraintKind(AttributeConstraintKind kind)
     {
         return kind is AttributeConstraintKind.DenseBooleanArrayAttribute
@@ -103,7 +98,7 @@ internal static class OperationAttributeValueHelpers
                 return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + "))";
             }
 
-            if (IsValueTypeConstraintKind(member.ConstraintKind))
+            if (IsPrimitiveValueType(member.TypeName))
             {
                 return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ".Value)) : null";
             }
@@ -142,33 +137,27 @@ internal static class OperationAttributeValueHelpers
 
     private static string GetPrimitiveValueAccessExpression(GeneratedMember member, string localName, string sourceNameLiteral, bool isOptional)
     {
-        var castExpr = GetPrimitiveAttributeCastExpression(member.ConstraintKind);
+        var castExpr = "((" + member.ConstraintClassName + ")";
         if (isOptional)
         {
-            return castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member.ConstraintKind);
+            return castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member.ConstraintKind, member.TypeName);
         }
 
-        return castExpr + "Attributes[" + sourceNameLiteral + "].Value)" + GetPrimitiveValueAccess(member.ConstraintKind);
+        return castExpr + "Attributes[" + sourceNameLiteral + "].Value)" + GetPrimitiveValueAccess(member.ConstraintKind, member.TypeName);
     }
 
-    private static string GetPrimitiveAttributeCastExpression(AttributeConstraintKind kind)
+    private static string GetPrimitiveValueAccess(AttributeConstraintKind kind, string typeName)
     {
-        return kind switch
-        {
-            AttributeConstraintKind.IntegerLiteral => "((IntegerAttributeValue)",
-            AttributeConstraintKind.BooleanLiteral => "((BooleanAttributeValue)",
-            AttributeConstraintKind.StringLiteral => "((StringAttributeValue)",
-            AttributeConstraintKind.FloatingPointLiteral => "((FloatingPointAttributeValue)",
-            _ => "((AttributeValue)",
-        };
+        return kind == AttributeConstraintKind.FloatingPointLiteral && string.Equals(typeName.TrimEnd('?'), "string", StringComparison.Ordinal)
+            ? ".LiteralText"
+            : ".Value";
     }
 
-    private static string GetPrimitiveValueAccess(AttributeConstraintKind kind)
+    private static bool IsPrimitiveValueType(string typeName)
     {
-        return kind switch
-        {
-            AttributeConstraintKind.FloatingPointLiteral => ".LiteralText",
-            _ => ".Value",
-        };
+        return string.Equals(typeName.TrimEnd('?'), "bool", StringComparison.Ordinal)
+            || string.Equals(typeName.TrimEnd('?'), "BigInteger", StringComparison.Ordinal)
+            || string.Equals(typeName.TrimEnd('?'), "float", StringComparison.Ordinal)
+            || string.Equals(typeName.TrimEnd('?'), "double", StringComparison.Ordinal);
     }
 }

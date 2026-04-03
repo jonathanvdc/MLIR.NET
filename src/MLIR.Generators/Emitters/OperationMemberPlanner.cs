@@ -130,14 +130,14 @@ internal static class OperationMemberPlanner
                 }
             }
 
-            var typeName = GetAttributeTypeName(constraintKind, isRequired);
+            var typeName = GetAttributeTypeName(constraintKind, isRequired, constraintRecordName);
             members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintKind, constraintClassName));
         }
 
         return members;
     }
 
-    private static string GetAttributeTypeName(AttributeConstraintKind kind, bool isRequired)
+    private static string GetAttributeTypeName(AttributeConstraintKind kind, bool isRequired, string? constraintRecordName)
     {
         if (kind == AttributeConstraintKind.UnitAttribute)
         {
@@ -149,7 +149,12 @@ internal static class OperationMemberPlanner
             AttributeConstraintKind.IntegerLiteral => "BigInteger",
             AttributeConstraintKind.BooleanLiteral => "bool",
             AttributeConstraintKind.StringLiteral => "string",
-            AttributeConstraintKind.FloatingPointLiteral => "string",
+            AttributeConstraintKind.FloatingPointLiteral => constraintRecordName switch
+            {
+                "F32Attr" => "float",
+                "F64Attr" => "double",
+                _ => "string",
+            },
             AttributeConstraintKind.DenseBooleanArrayAttribute => "IReadOnlyList<bool>",
             AttributeConstraintKind.DenseIntegerArrayAttribute => "IReadOnlyList<BigInteger>",
             AttributeConstraintKind.DenseSinglePrecisionArrayAttribute => "IReadOnlyList<float>",

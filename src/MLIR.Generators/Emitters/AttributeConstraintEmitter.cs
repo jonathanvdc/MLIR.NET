@@ -8,13 +8,13 @@ internal static class AttributeConstraintEmitter
     public static void Emit(StringBuilder builder, AttributeConstraintModel attributeConstraint)
     {
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
-        var baseType = GetBaseType(attributeConstraint.Kind);
+        var baseType = GetBaseType(attributeConstraint);
         builder.AppendLine("public sealed class " + className + " : " + baseType);
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
         builder.Append("        new AttributeConstraintDefinition(");
         builder.Append(EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        var assemblyFormatType = GetAssemblyFormatType(attributeConstraint.Kind);
+        var assemblyFormatType = GetAssemblyFormatType(attributeConstraint);
         if (assemblyFormatType != null)
         {
             builder.Append(", new " + assemblyFormatType + "()");
@@ -23,7 +23,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine(", factory: static context => new " + className + "(context));");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
-        var primitiveBaseConstructor = GetPrimitiveBaseConstructor(attributeConstraint.Kind);
+        var primitiveBaseConstructor = GetPrimitiveBaseConstructor(attributeConstraint);
         if (primitiveBaseConstructor != null)
         {
             builder.AppendLine("        : base(" + primitiveBaseConstructor + ")");
@@ -35,7 +35,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
 
-        var valueConstructorParam = GetValueConstructorParameter(attributeConstraint.Kind);
+        var valueConstructorParam = GetValueConstructorParameter(attributeConstraint);
         if (valueConstructorParam != null)
         {
             builder.AppendLine();
@@ -51,13 +51,13 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("}");
     }
 
-    private static string GetBaseType(AttributeConstraintKind kind)
+    private static string GetBaseType(AttributeConstraintModel attributeConstraint)
     {
-        return kind switch
+        return attributeConstraint.Kind switch
         {
             AttributeConstraintKind.BooleanLiteral => "BooleanAttributeValue",
             AttributeConstraintKind.IntegerLiteral => "IntegerAttributeValue",
-            AttributeConstraintKind.FloatingPointLiteral => "FloatingPointAttributeValue",
+            AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointBaseType(attributeConstraint.RecordName),
             AttributeConstraintKind.StringLiteral => "StringAttributeValue",
             AttributeConstraintKind.DenseBooleanArrayAttribute => "DenseBooleanArrayAttributeValue",
             AttributeConstraintKind.DenseIntegerArrayAttribute => "DenseIntegerArrayAttributeValue",
@@ -72,13 +72,23 @@ internal static class AttributeConstraintEmitter
         };
     }
 
-    private static string? GetAssemblyFormatType(AttributeConstraintKind kind)
+    private static string GetFloatingPointBaseType(string recordName)
     {
-        return kind switch
+        return recordName switch
+        {
+            "F32Attr" => "F32AttributeValue",
+            "F64Attr" => "F64AttributeValue",
+            _ => "FloatingPointAttributeValue",
+        };
+    }
+
+    private static string? GetAssemblyFormatType(AttributeConstraintModel attributeConstraint)
+    {
+        return attributeConstraint.Kind switch
         {
             AttributeConstraintKind.BooleanLiteral => "BooleanLiteralAttributeAssemblyFormat",
             AttributeConstraintKind.IntegerLiteral => "IntegerLiteralAttributeAssemblyFormat",
-            AttributeConstraintKind.FloatingPointLiteral => "FloatingPointLiteralAttributeAssemblyFormat",
+            AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointAssemblyFormatType(attributeConstraint.RecordName),
             AttributeConstraintKind.StringLiteral => "StringLiteralAttributeAssemblyFormat",
             AttributeConstraintKind.DenseBooleanArrayAttribute => "DenseBooleanArrayAttributeAssemblyFormat",
             AttributeConstraintKind.DenseIntegerArrayAttribute => "DenseIntegerArrayAttributeAssemblyFormat",
@@ -92,13 +102,23 @@ internal static class AttributeConstraintEmitter
         };
     }
 
-    private static string? GetPrimitiveBaseConstructor(AttributeConstraintKind kind)
+    private static string GetFloatingPointAssemblyFormatType(string recordName)
     {
-        return kind switch
+        return recordName switch
+        {
+            "F32Attr" => "F32AttributeAssemblyFormat",
+            "F64Attr" => "F64AttributeAssemblyFormat",
+            _ => "FloatingPointLiteralAttributeAssemblyFormat",
+        };
+    }
+
+    private static string? GetPrimitiveBaseConstructor(AttributeConstraintModel attributeConstraint)
+    {
+        return attributeConstraint.Kind switch
         {
             AttributeConstraintKind.BooleanLiteral => "context, ((BooleanAttributeValueSyntax)context.Syntax).Value",
             AttributeConstraintKind.IntegerLiteral => "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
-            AttributeConstraintKind.FloatingPointLiteral => "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText",
+            AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointBaseConstructor(attributeConstraint.RecordName),
             AttributeConstraintKind.StringLiteral => "context, ((StringAttributeValueSyntax)context.Syntax).Value",
             AttributeConstraintKind.DenseBooleanArrayAttribute => "context, StructuredAttributeSemanticDecoder.DecodeBooleanItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
             AttributeConstraintKind.DenseIntegerArrayAttribute => "context, StructuredAttributeSemanticDecoder.DecodeIntegerItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
@@ -113,19 +133,39 @@ internal static class AttributeConstraintEmitter
         };
     }
 
-    private static string? GetValueConstructorParameter(AttributeConstraintKind kind)
+    private static string GetFloatingPointBaseConstructor(string recordName)
     {
-        return kind switch
+        return recordName switch
+        {
+            "F32Attr" => "context, global::System.Single.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, global::System.Globalization.CultureInfo.InvariantCulture)",
+            "F64Attr" => "context, global::System.Double.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, global::System.Globalization.CultureInfo.InvariantCulture)",
+            _ => "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText",
+        };
+    }
+
+    private static string? GetValueConstructorParameter(AttributeConstraintModel attributeConstraint)
+    {
+        return attributeConstraint.Kind switch
         {
             AttributeConstraintKind.IntegerLiteral => "global::System.Numerics.BigInteger",
             AttributeConstraintKind.BooleanLiteral => "bool",
             AttributeConstraintKind.StringLiteral => "string",
-            AttributeConstraintKind.FloatingPointLiteral => "string",
+            AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointValueConstructorParameter(attributeConstraint.RecordName),
             AttributeConstraintKind.DenseBooleanArrayAttribute => "global::System.Collections.Generic.IReadOnlyList<bool>",
             AttributeConstraintKind.DenseIntegerArrayAttribute => "global::System.Collections.Generic.IReadOnlyList<global::System.Numerics.BigInteger>",
             AttributeConstraintKind.DenseSinglePrecisionArrayAttribute => "global::System.Collections.Generic.IReadOnlyList<float>",
             AttributeConstraintKind.DenseDoublePrecisionArrayAttribute => "global::System.Collections.Generic.IReadOnlyList<double>",
             _ => null,
+        };
+    }
+
+    private static string GetFloatingPointValueConstructorParameter(string recordName)
+    {
+        return recordName switch
+        {
+            "F32Attr" => "float",
+            "F64Attr" => "double",
+            _ => "string",
         };
     }
 }

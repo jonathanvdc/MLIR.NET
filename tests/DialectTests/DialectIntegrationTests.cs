@@ -160,7 +160,7 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddFloatImmediateOp>(Assert.Single(module.Operations));
-        Assert.Equal("1.5", operation.Value);
+        Assert.Equal(1.5f, operation.Value);
     }
 
     [Fact]
