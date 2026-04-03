@@ -345,6 +345,16 @@ public sealed class DialectGeneratorTests
 
         Assert.Contains("value = new UnitAttributeValueSyntax(keywordKeyword.Value);", registrationSource);
         Assert.DoesNotContain("context.ParseAttributeValueSyntax(MLIR.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)", registrationSource);
+
+        // The convenience constructor must use the nullable-array form so that the bool
+        // UnitAttribute (which generates a ternary that can be null) does not trigger CS8604.
+        Assert.DoesNotContain("NamedAttributeCollection.Create(value ?", registrationSource);
+        Assert.Contains("new NamedAttributeCollection(new NamedAttribute?[]", registrationSource);
+
+        // The BuildCustomAssemblySyntax anchor condition for a bool UnitAttribute must be
+        // 'op.Value' (not 'op.Value != null', which always evaluates to true for a bool).
+        Assert.Contains("if (op.Value)", registrationSource);
+        Assert.DoesNotContain("if (op.Value != null)", registrationSource);
     }
 
     [Fact]

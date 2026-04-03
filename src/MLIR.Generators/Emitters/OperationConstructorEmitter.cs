@@ -162,7 +162,9 @@ internal static class OperationConstructorEmitter
         var hasOptionalAttributes = false;
         for (var i = 0; i < attributeMembers.Count; i++)
         {
-            if (attributeMembers[i].TypeName.EndsWith("?", StringComparison.Ordinal))
+            if (attributeMembers[i].TypeName.EndsWith("?", StringComparison.Ordinal)
+                || (attributeMembers[i].ConstraintKind == AttributeConstraintKind.UnitAttribute
+                    && string.Equals(attributeMembers[i].TypeName, "bool", StringComparison.Ordinal)))
             {
                 hasOptionalAttributes = true;
                 break;
