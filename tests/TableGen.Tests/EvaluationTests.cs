@@ -292,6 +292,54 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void NestedTopLevelLetsUseTheInnermostBinding()
+    {
+        const string source =
+            "class Base<int width> {\n" +
+            "  int Width = width;\n" +
+            "  int WidthPlusOne = !add(Width, 1);\n" +
+            "};\n" +
+            "let Width = 7 in let Width = 9 in def Example : Base<4>;";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal(9, Assert.IsType<IntegerValue>(record.GetField("Width")).Value);
+        Assert.Equal(10, Assert.IsType<IntegerValue>(record.GetField("WidthPlusOne")).Value);
+    }
+
+    [Fact]
+    public void TopLevelLetsDoNotAffectLocalOnlyFields()
+    {
+        const string source =
+            "let Width = 9 in def Example {\n" +
+            "  int Width = 4;\n" +
+            "  int WidthPlusOne = !add(Width, 1);\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal(4, Assert.IsType<IntegerValue>(record.GetField("Width")).Value);
+        Assert.Equal(5, Assert.IsType<IntegerValue>(record.GetField("WidthPlusOne")).Value);
+    }
+
+    [Fact]
+    public void ClassesDeclaredInsideTopLevelLetsRetainThoseBindings()
+    {
+        const string source =
+            "class Root<int width> {\n" +
+            "  int Width = width;\n" +
+            "};\n" +
+            "let Width = 11 in {\n" +
+            "  class Wrapped<int width> : Root<width>;\n" +
+            "}\n" +
+            "def Example : Wrapped<4>;";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal(11, Assert.IsType<IntegerValue>(record.GetField("Width")).Value);
+    }
+
+    [Fact]
     public void CollectsBaseClassesLeftToRightAndAncestorsTopToBottom()
     {
         const string source =
