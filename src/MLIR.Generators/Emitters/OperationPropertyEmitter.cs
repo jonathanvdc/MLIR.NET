@@ -14,6 +14,13 @@ internal static class OperationPropertyEmitter
         EmitAttributeProperties(builder, plan.Attributes);
     }
 
+    // Base-class member names in Operation that an operand or result property might shadow.
+    private static readonly System.Collections.Generic.HashSet<string> BaseClassMemberNames =
+        new(System.StringComparer.Ordinal) { "Operands", "Results", "Attributes", "Regions", "Successors" };
+
+    private static string MemberModifier(string propertyName) =>
+        BaseClassMemberNames.Contains(propertyName) ? "new " : string.Empty;
+
     private static void EmitOperandAndResultProperties(
         StringBuilder builder,
         IReadOnlyList<GeneratedMember> operandMembers,
@@ -24,9 +31,11 @@ internal static class OperationPropertyEmitter
         {
             var member = operandMembers[i];
             var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
-            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
+            builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
             builder.AppendLine("    {");
-            builder.AppendLine("        get => Operands[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
+            // Use base.Operands to guard against a generated property that shadows the inherited
+            // Operands list when an operand happens to be named "Operands".
+            builder.AppendLine("        get => base.Operands[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
             builder.AppendLine("        set => SetOperand(" + i.ToString(CultureInfo.InvariantCulture) + ", value);");
             builder.AppendLine("    }");
         }
@@ -34,12 +43,15 @@ internal static class OperationPropertyEmitter
         for (var i = 0; i < resultMembers.Count; i++)
         {
             var member = resultMembers[i];
-            builder.AppendLine("    public OperationResult " + member.PropertyName + " => Results[" + i.ToString(CultureInfo.InvariantCulture) + "];");
+            // Use base.Results to guard against a generated property that shadows the inherited
+            // Results list when a result happens to be named "Results".
+            builder.AppendLine("    public " + MemberModifier(member.PropertyName) + "OperationResult " + member.PropertyName + " => base.Results[" + i.ToString(CultureInfo.InvariantCulture) + "];");
         }
 
         if (operation.Results.Count == 1 && operation.Results[0].Name != "result")
         {
-            builder.AppendLine("    public OperationResult " + DialectGeneratorNaming.ToPascalCase(operation.Results[0].Name) + " => ResultValue;");
+            var aliasName = DialectGeneratorNaming.ToPascalCase(operation.Results[0].Name);
+            builder.AppendLine("    public " + MemberModifier(aliasName) + "OperationResult " + aliasName + " => ResultValue;");
         }
 
         builder.AppendLine();
