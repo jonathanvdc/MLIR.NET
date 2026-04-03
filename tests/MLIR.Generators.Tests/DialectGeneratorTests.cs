@@ -287,6 +287,67 @@ public sealed class DialectGeneratorTests
     }
 
     [Fact]
+    public void OptionalUnitAttributesGenerateBooleanPropertiesWhileRequiredUnitAttributesDoNot()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_FlagOp : MiniArith_Op<\"flag\", []> {\n" +
+            "  let arguments = (ins UnitAttr:$requiredFlag, UnitAttr:$optionalFlag);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$requiredFlag (`optional` $optionalFlag^)? attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        Assert.Contains("public bool OptionalFlag", registrationSource);
+        Assert.Contains("get => Attributes.Contains(\"optionalFlag\")", registrationSource);
+        Assert.Contains("SetAttribute(\"optionalFlag\", value ? new NamedAttribute(\"optionalFlag\", new UnknownAttributeValue(", registrationSource);
+        Assert.Contains("new UnitAttributeValueSyntax(new SyntaxToken(\"unit\"))", registrationSource);
+        Assert.Contains("bool optionalFlag,", registrationSource);
+
+        Assert.DoesNotContain("public UnitAttributeValue RequiredFlag", registrationSource);
+        Assert.DoesNotContain("public bool RequiredFlag", registrationSource);
+    }
+
+    [Fact]
+    public void UnitAttributeAnchorInsideOptionalGroupUsesKeywordSyntax()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_AddUnitImmediateOp : MiniArith_Op<\"add_unit_immediate\", [Pure]> {\n" +
+            "  let summary = \"integer addition with a unit immediate\";\n" +
+            "  let arguments = (ins UnitAttr:$value, I32:$lhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"(`keyword` $value^)? `,` $lhs attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("miniarith.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
+
+        Assert.Contains("value = new UnitAttributeValueSyntax(keywordKeyword.Value);", registrationSource);
+        Assert.DoesNotContain("context.ParseAttributeValueSyntax(MLIR.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)", registrationSource);
+    }
+
+    [Fact]
     public void TryParseGeneratesOperandAndLiteralParsingCallsForAddIOp()
     {
         const string source =

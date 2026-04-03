@@ -327,7 +327,7 @@ internal sealed class TryParseEmitter
             // Emit remaining then-elements as assignments.
             for (var i = 1; i < group.ThenElements.Count; i++)
             {
-                EmitElement(builder, group.ThenElements[i], i, group.ThenElements, indent + "    ", declare: false);
+                EmitOptionalGroupElement(builder, group, group.ThenElements[i], i, group.ThenElements, indent + "    ");
             }
         }
         else
@@ -335,7 +335,7 @@ internal sealed class TryParseEmitter
             fieldIndex = groupStart;
             for (var i = 0; i < group.ThenElements.Count; i++)
             {
-                EmitElement(builder, group.ThenElements[i], i, group.ThenElements, indent + "    ", declare: false);
+                EmitOptionalGroupElement(builder, group, group.ThenElements[i], i, group.ThenElements, indent + "    ");
             }
         }
 
@@ -348,13 +348,34 @@ internal sealed class TryParseEmitter
             fieldIndex = groupStart + thenFieldCount;
             for (var i = 0; i < group.ElseElements.Count; i++)
             {
-                EmitElement(builder, group.ElseElements[i], i, group.ElseElements, indent + "    ", declare: false);
+                EmitOptionalGroupElement(builder, group, group.ElseElements[i], i, group.ElseElements, indent + "    ");
             }
 
             builder.AppendLine(indent + "}");
         }
 
         fieldIndex = groupStart + thenFieldCount + elseFieldCount;
+    }
+
+    private void EmitOptionalGroupElement(
+        StringBuilder builder,
+        OptionalGroup group,
+        Element element,
+        int elementIndex,
+        IReadOnlyList<Element> siblings,
+        string indent)
+    {
+        if (element is VariableChunk variable && IsImplicitUnitAttributeAnchor(group, elementIndex, variable))
+        {
+            var field = NextField();
+            var varName = EmitterHelpers.LowerFirst(field.Name);
+            var keywordField = metadata.Fields[fieldIndex - 2];
+            var keywordVarName = EmitterHelpers.LowerFirst(keywordField.Name);
+            builder.AppendLine(indent + varName + " = new UnitAttributeValueSyntax(" + keywordVarName + ".Value);");
+            return;
+        }
+
+        EmitElement(builder, element, elementIndex, siblings, indent, declare: false);
     }
 
     /// <summary>
@@ -396,6 +417,24 @@ internal sealed class TryParseEmitter
         }
 
         return (null, null);
+    }
+
+    private bool IsImplicitUnitAttributeAnchor(OptionalGroup group, int elementIndex, VariableChunk variable)
+    {
+        if (elementIndex == 0 || !variable.IsAnchor)
+        {
+            return false;
+        }
+
+        return EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name)
+            && IsUnitAttribute(variable.Name);
+    }
+
+    private bool IsUnitAttribute(string attributeName)
+    {
+        var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
+        return !string.IsNullOrEmpty(constraintRecordName)
+            && resolver.TryResolveAttributeConstraintKind(constraintRecordName!) == AttributeConstraintKind.UnitAttribute;
     }
 
     // -----------------------------------------------------------------------

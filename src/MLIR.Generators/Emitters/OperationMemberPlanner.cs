@@ -139,6 +139,11 @@ internal static class OperationMemberPlanner
 
     private static string GetAttributeTypeName(AttributeConstraintKind kind, bool isRequired)
     {
+        if (kind == AttributeConstraintKind.UnitAttribute)
+        {
+            return isRequired ? "UnitAttributeValue" : "bool";
+        }
+
         var baseType = kind switch
         {
             AttributeConstraintKind.IntegerLiteral => "BigInteger",
@@ -149,7 +154,6 @@ internal static class OperationMemberPlanner
             AttributeConstraintKind.ElementsAttribute => "ElementsAttributeValue",
             AttributeConstraintKind.DictionaryAttribute => "DictionaryAttributeValue",
             AttributeConstraintKind.TypeAttribute => "TypeAttributeValue",
-            AttributeConstraintKind.UnitAttribute => "UnitAttributeValue",
             AttributeConstraintKind.OpaqueAttribute => "OpaqueAttributeValue",
             _ => null,
         };

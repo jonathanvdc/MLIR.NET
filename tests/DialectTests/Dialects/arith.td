@@ -82,7 +82,7 @@ def MiniArith_AddUnitImmediateOp : MiniArith_Op<"add_unit_immediate", [Pure]> {
   let arguments = (ins UnitAttr:$value, I32:$lhs);
   let results = (outs I32:$result);
 
-  let assemblyFormat = "$value `,` $lhs attr-dict `:` type($result)";
+  let assemblyFormat = "(`keyword` $value^)? $lhs attr-dict `:` type($result)";
 };
 
 def MiniArith_AddArrayImmediateOp : MiniArith_Op<"add_array_immediate", [Pure]> {

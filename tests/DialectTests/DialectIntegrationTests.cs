@@ -196,7 +196,7 @@ public sealed class DialectIntegrationTests
     [Fact]
     public void GeneratedAssemblyFormatParsesUnitAttributeBeforeOperand()
     {
-        const string source = "%result = miniarith.add_unit_immediate unit, %lhs : i32";
+        const string source = "%result = miniarith.add_unit_immediate keyword %lhs : i32";
 
         var registry = new DialectRegistry();
         registry.RegisterDialect(MiniarithDialectRegistration.Create());
@@ -204,9 +204,21 @@ public sealed class DialectIntegrationTests
         var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
 
         var operation = Assert.IsType<MiniArith_AddUnitImmediateOp>(Assert.Single(module.Operations));
-        var value = operation.Value;
-        Assert.IsType<UnitAttributeValueSyntax>(value.Syntax);
-        Assert.Equal("unit", value.Syntax!.GetRawText().Text);
+        Assert.True(operation.Value);
+    }
+
+    [Fact]
+    public void GeneratedAssemblyFormatParsesMissingUnitAttributeBeforeOperand()
+    {
+        const string source = "%result = miniarith.add_unit_immediate %lhs : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MiniarithDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniArith_AddUnitImmediateOp>(Assert.Single(module.Operations));
+        Assert.False(operation.Value);
     }
 
     [Fact]

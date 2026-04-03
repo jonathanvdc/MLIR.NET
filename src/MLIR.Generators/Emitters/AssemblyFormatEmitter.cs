@@ -230,7 +230,7 @@ internal static class AssemblyFormatEmitter
         builder.AppendLine("            " + GetTypeBindExpression(syntaxDescriptor, bodySyntaxMetadata) + ");");
         builder.AppendLine("    }");
         builder.AppendLine();
-        BuildCustomAssemblySyntaxEmitter.Emit(builder, operation, bodySyntaxMetadata);
+        BuildCustomAssemblySyntaxEmitter.Emit(builder, operation, bodySyntaxMetadata, resolver);
         builder.AppendLine("}");
     }
 }

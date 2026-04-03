@@ -1,5 +1,6 @@
 namespace MLIR.Generators.Emitters;
 
+using System;
 using MLIR.ODS.Model;
 
 internal static class OperationAttributeValueHelpers
@@ -60,6 +61,16 @@ internal static class OperationAttributeValueHelpers
         var sourceName = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
         var isOptional = IsOptionalMember(member);
 
+        if (member.ConstraintKind == AttributeConstraintKind.UnitAttribute)
+        {
+            if (string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
+            {
+                return valueExpression + " ? new NamedAttribute(" + sourceName + ", " + GetUnitAttributeValueExpression() + ") : null";
+            }
+
+            return "new NamedAttribute(" + sourceName + ", " + valueExpression + ")";
+        }
+
         if (member.ConstraintKind == AttributeConstraintKind.None)
         {
             return valueExpression;
@@ -87,6 +98,11 @@ internal static class OperationAttributeValueHelpers
         }
 
         return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + valueExpression + ") : null";
+    }
+
+    public static string GetUnitAttributeValueExpression()
+    {
+        return "new UnknownAttributeValue(new UnitAttributeValueSyntax(new SyntaxToken(\"unit\")), null, null, SourceLocation.Unknown)";
     }
 
     private static bool IsOptionalMember(GeneratedMember member)

@@ -19,12 +19,14 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private readonly OperationModel operation;
     private readonly OperationBodySyntaxMetadata metadata;
     private readonly string className;
+    private readonly DialectSymbolResolver resolver;
     private int fieldIndex;
 
-    private BuildCustomAssemblySyntaxEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata)
+    private BuildCustomAssemblySyntaxEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
     {
         this.operation = operation;
         this.metadata = metadata;
+        this.resolver = resolver;
         className = DialectGeneratorNaming.GetOperationClassName(operation);
     }
 
@@ -32,9 +34,9 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     /// Emits the full <c>BuildCustomAssemblySyntax</c> method, including signature and closing
     /// brace, into <paramref name="builder"/>.
     /// </summary>
-    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata metadata)
+    public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
     {
-        var emitter = new BuildCustomAssemblySyntaxEmitter(operation, metadata);
+        var emitter = new BuildCustomAssemblySyntaxEmitter(operation, metadata, resolver);
         emitter.EmitMethod(builder);
     }
 
@@ -233,7 +235,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         fieldIndex = groupStart;
         for (var i = 0; i < group.ThenElements.Count; i++)
         {
-            EmitOptionalGroupElement(builder, group.ThenElements[i], indent + "    ");
+            EmitOptionalGroupElement(builder, group, group.ThenElements[i], i, indent + "    ");
         }
 
         builder.AppendLine(indent + "}");
@@ -245,7 +247,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             fieldIndex = groupStart + thenFieldCount;
             for (var i = 0; i < group.ElseElements.Count; i++)
             {
-                EmitOptionalGroupElement(builder, group.ElseElements[i], indent + "    ");
+                EmitOptionalGroupElement(builder, group, group.ElseElements[i], i, indent + "    ");
             }
 
             builder.AppendLine(indent + "}");
@@ -254,7 +256,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         fieldIndex = groupStart + thenFieldCount + elseFieldCount;
     }
 
-    private void EmitOptionalGroupElement(StringBuilder builder, Element element, string indent)
+    private void EmitOptionalGroupElement(StringBuilder builder, OptionalGroup group, Element element, int elementIndex, string indent)
     {
         switch (element)
         {
@@ -266,7 +268,9 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             {
                 var field = NextField();
                 var varName = EmitterHelpers.LowerFirst(field.Name);
-                var expr = BuildNullableVariableExpression(variable.Name);
+                var expr = IsImplicitUnitAttributeAnchor(group, elementIndex, variable)
+                    ? "new UnitAttributeValueSyntax(" + EmitterHelpers.LowerFirst(metadata.Fields[fieldIndex - 2].Name) + ".Value)"
+                    : BuildNullableVariableExpression(variable.Name);
                 builder.AppendLine(indent + varName + " = " + expr + ";");
                 break;
             }
@@ -281,6 +285,24 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 break;
             }
         }
+    }
+
+    private bool IsImplicitUnitAttributeAnchor(OptionalGroup group, int elementIndex, VariableChunk variable)
+    {
+        if (elementIndex == 0 || !variable.IsAnchor)
+        {
+            return false;
+        }
+
+        return EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name)
+            && IsUnitAttribute(variable.Name);
+    }
+
+    private bool IsUnitAttribute(string attributeName)
+    {
+        var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
+        return !string.IsNullOrEmpty(constraintRecordName)
+            && resolver.TryResolveAttributeConstraintKind(constraintRecordName!) == AttributeConstraintKind.UnitAttribute;
     }
 
     // -----------------------------------------------------------------------

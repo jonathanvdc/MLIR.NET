@@ -52,6 +52,22 @@ internal static class OperationPropertyEmitter
             var member = attributeMembers[i];
             var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
 
+            if (member.ConstraintKind == AttributeConstraintKind.UnitAttribute)
+            {
+                if (!string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+                builder.AppendLine("    public bool " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => Attributes.Contains(" + sourceNameLiteral + ");");
+                builder.AppendLine("        set => SetAttribute(" + sourceNameLiteral + ", value ? new NamedAttribute(" + sourceNameLiteral + ", " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + ") : null);");
+                builder.AppendLine("    }");
+                continue;
+            }
+
             if (member.ConstraintKind == AttributeConstraintKind.None)
             {
                 if (isOptional)
