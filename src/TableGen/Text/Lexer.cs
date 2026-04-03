@@ -3,29 +3,73 @@ namespace TableGen.Text;
 using System.Collections.Generic;
 using System.Text;
 
+/// <summary>
+/// Converts raw TableGen source text into a stream of tokens for the parser.
+/// </summary>
 internal static class Lexer
 {
+    /// <summary>
+    /// Lexes a TableGen source string.
+    /// </summary>
+    /// <param name="source">The source text to tokenize.</param>
+    /// <param name="sourceFilePath">An optional logical path used only for diagnostics.</param>
+    /// <returns>The token sequence, including a trailing end-of-file token.</returns>
     public static IReadOnlyList<Token> Lex(string source, string? sourceFilePath = null)
     {
         var lexer = new LexerImpl(source, sourceFilePath);
         return lexer.Lex();
     }
 
+    /// <summary>
+    /// Stateful lexer implementation that tracks the current character position and source location.
+    /// </summary>
     private sealed class LexerImpl
     {
+        /// <summary>
+        /// Stores the source text being tokenized.
+        /// </summary>
         private readonly string source;
+
+        /// <summary>
+        /// Stores the logical source path used in diagnostics.
+        /// </summary>
         private readonly string? sourceFilePath;
+
+        /// <summary>
+        /// Accumulates the emitted tokens.
+        /// </summary>
         private readonly List<Token> tokens = new List<Token>();
+
+        /// <summary>
+        /// Tracks the current character offset.
+        /// </summary>
         private int position;
+
+        /// <summary>
+        /// Tracks the current 1-based source line number.
+        /// </summary>
         private int line = 1;
+
+        /// <summary>
+        /// Tracks the current 1-based source column number.
+        /// </summary>
         private int column = 1;
 
+        /// <summary>
+        /// Initializes the lexer implementation.
+        /// </summary>
+        /// <param name="source">The source text to tokenize.</param>
+        /// <param name="sourceFilePath">An optional logical path used in diagnostics.</param>
         public LexerImpl(string source, string? sourceFilePath)
         {
             this.source = source;
             this.sourceFilePath = sourceFilePath;
         }
 
+        /// <summary>
+        /// Tokenizes the entire source string.
+        /// </summary>
+        /// <returns>The emitted token sequence, including a trailing end-of-file token.</returns>
         public IReadOnlyList<Token> Lex()
         {
             while (!IsAtEnd)
@@ -43,6 +87,7 @@ internal static class Lexer
 
                 if (char.IsLetter(current) || current == '_')
                 {
+                    // Identifiers and keywords share the same spelling rules; keyword classification happens after reading.
                     var text = ReadWhile(static c => char.IsLetterOrDigit(c) || c == '_');
                     tokens.Add(new Token(GetKeywordKind(text), text, tokenStart, tokenLine, tokenColumn));
                     continue;
@@ -50,6 +95,7 @@ internal static class Lexer
 
                 if (char.IsDigit(current))
                 {
+                    // TableGen integer-like tokens can degrade back to identifiers when letters or underscores appear.
                     var text = ReadWhile(static c => char.IsLetterOrDigit(c) || c == '_');
                     var kind = TokenKind.Integer;
                     foreach (var ch in text)
@@ -67,6 +113,7 @@ internal static class Lexer
 
                 if (current == '-' && char.IsDigit(Peek(1)))
                 {
+                    // Negative integer literals are lexed as one token to keep the parser simple.
                     Advance();
                     var text = source.Substring(tokenStart, position - tokenStart) + ReadWhile(char.IsDigit);
                     tokens.Add(new Token(TokenKind.Integer, text, tokenStart, tokenLine, tokenColumn));
@@ -106,16 +153,30 @@ internal static class Lexer
             return tokens;
         }
 
+        /// <summary>
+        /// Gets a value indicating whether the lexer has consumed all source characters.
+        /// </summary>
         private bool IsAtEnd => position >= source.Length;
 
+        /// <summary>
+        /// Gets the current character under the lexer cursor.
+        /// </summary>
         private char Current => source[position];
 
+        /// <summary>
+        /// Peeks ahead in the source without advancing the cursor.
+        /// </summary>
+        /// <param name="offset">The relative offset from the current position.</param>
+        /// <returns>The peeked character or <c>'\0'</c> when out of bounds.</returns>
         private char Peek(int offset)
         {
             var index = position + offset;
             return index < source.Length ? source[index] : '\0';
         }
 
+        /// <summary>
+        /// Advances the lexer by one character while updating line and column counters.
+        /// </summary>
         private void Advance()
         {
             if (source[position] == '\n')
@@ -131,6 +192,9 @@ internal static class Lexer
             position++;
         }
 
+        /// <summary>
+        /// Skips whitespace, comments, and preprocessor directive lines that the parser should not see.
+        /// </summary>
         private void SkipTrivia()
         {
             while (!IsAtEnd)
@@ -175,6 +239,7 @@ internal static class Lexer
                     char.IsLetter(source[position + 1]) &&
                     IsAtDirectiveStart())
                 {
+                    // Directive handling happens in the preprocessor; the lexer simply hides any residual lines.
                     while (!IsAtEnd && Current != '\n')
                     {
                         Advance();
@@ -187,6 +252,11 @@ internal static class Lexer
             }
         }
 
+        /// <summary>
+        /// Reads characters while the supplied predicate returns <see langword="true"/>.
+        /// </summary>
+        /// <param name="predicate">The continuation predicate.</param>
+        /// <returns>The consumed substring.</returns>
         private string ReadWhile(System.Func<char, bool> predicate)
         {
             var start = position;
@@ -198,6 +268,10 @@ internal static class Lexer
             return source.Substring(start, position - start);
         }
 
+        /// <summary>
+        /// Determines whether the current <c>#</c> begins a line-oriented preprocessor directive.
+        /// </summary>
+        /// <returns><see langword="true"/> when the current position is effectively at the start of a logical line.</returns>
         private bool IsAtDirectiveStart()
         {
             for (var i = position - 1; i >= 0; i--)
@@ -216,6 +290,10 @@ internal static class Lexer
             return true;
         }
 
+        /// <summary>
+        /// Reads a quoted string literal and decodes the small escape set supported by the lexer.
+        /// </summary>
+        /// <returns>The decoded string contents.</returns>
         private string ReadStringLiteral()
         {
             var builder = new StringBuilder();
@@ -257,6 +335,10 @@ internal static class Lexer
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Reads a <c>[{ ... }]</c> code block literal, preserving its contents exactly.
+        /// </summary>
+        /// <returns>The raw code block contents without the wrapping delimiters.</returns>
         private string ReadCodeBlockLiteral()
         {
             var builder = new StringBuilder();
@@ -279,6 +361,11 @@ internal static class Lexer
             throw Error("Unterminated code block literal.");
         }
 
+        /// <summary>
+        /// Classifies an identifier-like token as either a keyword or a regular identifier.
+        /// </summary>
+        /// <param name="text">The raw token text.</param>
+        /// <returns>The appropriate token kind.</returns>
         private TokenKind GetKeywordKind(string text)
         {
             return text switch
@@ -294,6 +381,11 @@ internal static class Lexer
             };
         }
 
+        /// <summary>
+        /// Maps a punctuation character to its token kind.
+        /// </summary>
+        /// <param name="c">The punctuation character.</param>
+        /// <returns>The corresponding token kind.</returns>
         private TokenKind GetPunctuationKind(char c)
         {
             return c switch
@@ -318,6 +410,11 @@ internal static class Lexer
             };
         }
 
+        /// <summary>
+        /// Creates a parse exception at the lexer's current source position.
+        /// </summary>
+        /// <param name="message">The diagnostic message.</param>
+        /// <returns>The constructed parse exception.</returns>
         private ParseException Error(string message)
         {
             return new ParseException(new Diagnostic(message, line, column, sourceFilePath));

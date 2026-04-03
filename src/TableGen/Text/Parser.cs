@@ -5,23 +5,52 @@ using System.Globalization;
 using System.Linq;
 using TableGen.Syntax;
 
+/// <summary>
+/// Parses the token stream emitted by <see cref="Lexer"/> into TableGen syntax nodes.
+/// </summary>
 internal sealed class Parser
 {
+    /// <summary>
+    /// Stores the token stream being parsed.
+    /// </summary>
     private readonly IReadOnlyList<Token> tokens;
+
+    /// <summary>
+    /// Stores the logical source path used when reporting parse errors.
+    /// </summary>
     private readonly string? sourceFilePath;
+
+    /// <summary>
+    /// Tracks the current token position.
+    /// </summary>
     private int position;
 
+    /// <summary>
+    /// Initializes a parser for a source string.
+    /// </summary>
+    /// <param name="source">The source text to parse.</param>
+    /// <param name="sourceFilePath">An optional logical source path for diagnostics.</param>
     private Parser(string source, string? sourceFilePath)
     {
         tokens = Lexer.Lex(source, sourceFilePath);
         this.sourceFilePath = sourceFilePath;
     }
 
+    /// <summary>
+    /// Parses a complete TableGen document.
+    /// </summary>
+    /// <param name="source">The source text to parse.</param>
+    /// <param name="sourceFilePath">An optional logical source path for diagnostics.</param>
+    /// <returns>The parsed syntax tree.</returns>
     public static DocumentSyntax ParseDocument(string source, string? sourceFilePath = null)
     {
         return new Parser(source, sourceFilePath).ParseDocumentCore();
     }
 
+    /// <summary>
+    /// Parses a complete TableGen document from the current token stream.
+    /// </summary>
+    /// <returns>The parsed syntax tree.</returns>
     private DocumentSyntax ParseDocumentCore()
     {
         var declarations = new List<TopLevelSyntax>();
@@ -33,6 +62,11 @@ internal sealed class Parser
         return new DocumentSyntax(declarations);
     }
 
+    /// <summary>
+    /// Parses one or more top-level declarations, threading any outer <c>let ... in</c> bindings into nested declarations.
+    /// </summary>
+    /// <param name="topLevelLets">The top-level lets currently in scope.</param>
+    /// <returns>The parsed top-level declarations.</returns>
     private IReadOnlyList<TopLevelSyntax> ParseTopLevelItems(IReadOnlyList<LetSyntax> topLevelLets)
     {
         if (TryMatch(TokenKind.IncludeKeyword))
@@ -52,6 +86,7 @@ internal sealed class Parser
             var declarations = new List<TopLevelSyntax>();
             if (TryMatch(TokenKind.LBrace))
             {
+                // `let ... in { ... }` applies to every nested declaration until the matching brace.
                 while (!TryMatch(TokenKind.RBrace))
                 {
                     declarations.AddRange(ParseTopLevelItems(nestedLets));
@@ -87,6 +122,11 @@ internal sealed class Parser
         throw Error("Expected 'class', 'def', 'defvar', or 'let'.");
     }
 
+    /// <summary>
+    /// Parses a <c>class</c> declaration.
+    /// </summary>
+    /// <param name="topLevelLets">The top-level lets captured for this declaration.</param>
+    /// <returns>The parsed class syntax node.</returns>
     private ClassSyntax ParseClass(IReadOnlyList<LetSyntax> topLevelLets)
     {
         var name = ExpectName("Expected a class name.").Text;
@@ -101,6 +141,11 @@ internal sealed class Parser
         return new ClassSyntax(name, templateParameters, bases, topLevelLets, bodyItems);
     }
 
+    /// <summary>
+    /// Parses a <c>def</c> declaration.
+    /// </summary>
+    /// <param name="topLevelLets">The top-level lets captured for this declaration.</param>
+    /// <returns>The parsed definition syntax node.</returns>
     private DefSyntax ParseDef(IReadOnlyList<LetSyntax> topLevelLets)
     {
         var name = ExpectName("Expected a definition name.").Text;
@@ -114,6 +159,10 @@ internal sealed class Parser
         return new DefSyntax(name, bases, topLevelLets, bodyItems);
     }
 
+    /// <summary>
+    /// Parses an optional template parameter list such as <c>&lt;string name, int n = 0&gt;</c>.
+    /// </summary>
+    /// <returns>The parsed template parameters, or an empty list when no parameter list is present.</returns>
     private IReadOnlyList<TemplateParameterSyntax> ParseOptionalTemplateParameters()
     {
         var parameters = new List<TemplateParameterSyntax>();
@@ -145,6 +194,10 @@ internal sealed class Parser
         return parameters;
     }
 
+    /// <summary>
+    /// Parses an optional base-class list following a colon.
+    /// </summary>
+    /// <returns>The parsed base list, or an empty list when no bases are present.</returns>
     private IReadOnlyList<BaseSyntax> ParseOptionalBases()
     {
         var bases = new List<BaseSyntax>();
@@ -163,6 +216,10 @@ internal sealed class Parser
         return bases;
     }
 
+    /// <summary>
+    /// Parses an optional angle-bracketed argument list.
+    /// </summary>
+    /// <returns>The parsed arguments, or an empty list when no argument list is present.</returns>
     private IReadOnlyList<ExpressionSyntax> ParseOptionalArgumentList()
     {
         var arguments = new List<ExpressionSyntax>();
@@ -186,6 +243,10 @@ internal sealed class Parser
         return arguments;
     }
 
+    /// <summary>
+    /// Parses an optional braced body block.
+    /// </summary>
+    /// <returns>A tuple indicating whether braces were present and the parsed body items.</returns>
     private (bool hadBraces, IReadOnlyList<BodyItemSyntax> items) ParseOptionalBody()
     {
         var items = new List<BodyItemSyntax>();
@@ -202,6 +263,10 @@ internal sealed class Parser
         return (true, items);
     }
 
+    /// <summary>
+    /// Parses one item inside a class or definition body.
+    /// </summary>
+    /// <returns>The parsed body item.</returns>
     private BodyItemSyntax ParseBodyItem()
     {
         if (TryMatch(TokenKind.LetKeyword))
@@ -247,6 +312,10 @@ internal sealed class Parser
         return new FieldSyntax(typeName, nameToken.Text, initializer);
     }
 
+    /// <summary>
+    /// Parses a type name, preserving any nested angle-bracketed suffix as raw text.
+    /// </summary>
+    /// <returns>The parsed type name text.</returns>
     private string ParseTypeName()
     {
         var name = ExpectName("Expected a type name.").Text;
@@ -278,6 +347,10 @@ internal sealed class Parser
         return string.Concat(parts);
     }
 
+    /// <summary>
+    /// Parses an expression, currently treating <c>#</c> concatenation as the only infix operator.
+    /// </summary>
+    /// <returns>The parsed expression syntax node.</returns>
     private ExpressionSyntax ParseExpression()
     {
         var left = ParsePrimaryExpression();
@@ -290,6 +363,10 @@ internal sealed class Parser
         return left;
     }
 
+    /// <summary>
+    /// Parses a primary expression before postfix field access and subscripts are applied.
+    /// </summary>
+    /// <returns>The parsed expression syntax node.</returns>
     private ExpressionSyntax ParsePrimaryExpression()
     {
         if (TryMatch(TokenKind.QuestionMark))
@@ -389,6 +466,11 @@ internal sealed class Parser
         throw Error("Expected an expression.");
     }
 
+    /// <summary>
+    /// Parses immediately adjacent string or code-block literals as chained TableGen concatenations.
+    /// </summary>
+    /// <param name="left">The already-parsed leftmost literal expression.</param>
+    /// <returns>The combined concatenation expression.</returns>
     private ExpressionSyntax ParseAdjacentStringLiterals(ExpressionSyntax left)
     {
         while (true)
@@ -409,6 +491,11 @@ internal sealed class Parser
         }
     }
 
+    /// <summary>
+    /// Applies postfix field access and subscript operators to an already-parsed primary expression.
+    /// </summary>
+    /// <param name="expr">The base expression.</param>
+    /// <returns>The expression with any postfix operators applied.</returns>
     private ExpressionSyntax ApplyPostfixAccess(ExpressionSyntax expr)
     {
         while (true)
@@ -432,6 +519,11 @@ internal sealed class Parser
         }
     }
 
+    /// <summary>
+    /// Parses a bang operator expression, including the special syntactic forms for operators like <c>!foldl</c> and <c>!cond</c>.
+    /// </summary>
+    /// <param name="operatorName">The operator name without the leading <c>!</c>.</param>
+    /// <returns>The parsed bang expression syntax node.</returns>
     private ExpressionSyntax ParseBangExpression(string operatorName)
     {
         string? typeArgument = null;
@@ -524,11 +616,20 @@ internal sealed class Parser
         return new BangCallSyntax(operatorName, args, typeArgument);
     }
 
+    /// <summary>
+    /// Checks whether the current token has the requested kind.
+    /// </summary>
+    /// <param name="kind">The token kind to test.</param>
+    /// <returns><see langword="true"/> when the current token matches; otherwise <see langword="false"/>.</returns>
     private bool Is(TokenKind kind)
     {
         return Current.Kind == kind;
     }
 
+    /// <summary>
+    /// Parses the raw type argument text inside a bang operator type argument list.
+    /// </summary>
+    /// <returns>The parsed type argument text.</returns>
     private string ParseTypeArgument()
     {
         var parts = new List<string>();
@@ -564,8 +665,16 @@ internal sealed class Parser
         return string.Concat(parts);
     }
 
+    /// <summary>
+    /// Gets the current token, or the final end-of-file token when the parser has advanced past the end.
+    /// </summary>
     private Token Current => position < tokens.Count ? tokens[position] : tokens[tokens.Count - 1];
 
+    /// <summary>
+    /// Consumes the current token if it matches the requested kind.
+    /// </summary>
+    /// <param name="kind">The token kind to match.</param>
+    /// <returns><see langword="true"/> when a token was consumed; otherwise <see langword="false"/>.</returns>
     private bool TryMatch(TokenKind kind)
     {
         if (!Is(kind))
@@ -577,6 +686,12 @@ internal sealed class Parser
         return true;
     }
 
+    /// <summary>
+    /// Consumes the current token if it matches the requested kind and returns it.
+    /// </summary>
+    /// <param name="kind">The token kind to match.</param>
+    /// <param name="token">Receives the consumed token.</param>
+    /// <returns><see langword="true"/> when a token was consumed; otherwise <see langword="false"/>.</returns>
     private bool TryMatch(TokenKind kind, out Token token)
     {
         if (!Is(kind))
@@ -589,6 +704,12 @@ internal sealed class Parser
         return true;
     }
 
+    /// <summary>
+    /// Requires that the current token have the requested kind.
+    /// </summary>
+    /// <param name="kind">The required token kind.</param>
+    /// <param name="message">The parse error to throw if the token does not match.</param>
+    /// <returns>The consumed token.</returns>
     private Token Expect(TokenKind kind, string message)
     {
         if (!Is(kind))
@@ -599,6 +720,11 @@ internal sealed class Parser
         return tokens[position++];
     }
 
+    /// <summary>
+    /// Requires that the current token be usable as a TableGen name.
+    /// </summary>
+    /// <param name="message">The parse error to throw if no name token is present.</param>
+    /// <returns>The consumed name token.</returns>
     private Token ExpectName(string message)
     {
         if (TryMatchName(out var token))
@@ -609,6 +735,11 @@ internal sealed class Parser
         throw Error(message);
     }
 
+    /// <summary>
+    /// Consumes the current token when it is one of the token kinds allowed to act as a TableGen name.
+    /// </summary>
+    /// <param name="token">Receives the consumed token.</param>
+    /// <returns><see langword="true"/> when a name token was consumed; otherwise <see langword="false"/>.</returns>
     private bool TryMatchName(out Token token)
     {
         if (IsNameTokenKind(Current.Kind))
@@ -621,6 +752,11 @@ internal sealed class Parser
         return false;
     }
 
+    /// <summary>
+    /// Determines whether a token kind is accepted in name positions.
+    /// </summary>
+    /// <param name="kind">The token kind to classify.</param>
+    /// <returns><see langword="true"/> when the token kind can act as a name; otherwise <see langword="false"/>.</returns>
     private static bool IsNameTokenKind(TokenKind kind)
     {
         return kind is TokenKind.Identifier
@@ -633,11 +769,20 @@ internal sealed class Parser
             or TokenKind.DefVarKeyword;
     }
 
+    /// <summary>
+    /// Consumes the current token without validating its kind.
+    /// </summary>
+    /// <returns>The consumed token.</returns>
     private Token Consume()
     {
         return position < tokens.Count ? tokens[position++] : tokens[tokens.Count - 1];
     }
 
+    /// <summary>
+    /// Creates a parse exception anchored at the current token.
+    /// </summary>
+    /// <param name="message">The parse error message.</param>
+    /// <returns>The constructed parse exception.</returns>
     private ParseException Error(string message)
     {
         var token = Current;

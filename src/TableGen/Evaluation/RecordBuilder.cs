@@ -9,11 +9,30 @@ using TableGen.Syntax;
 /// </summary>
 internal sealed class RecordBuilder
 {
+    /// <summary>
+    /// Holds document-wide lookup tables and caches shared across evaluation.
+    /// </summary>
     private readonly EvaluationContext context;
+
+    /// <summary>
+    /// Evaluates expressions that appear inside field initializers, lets, and template arguments.
+    /// </summary>
     private readonly ExpressionEvaluator expressionEvaluator;
+
+    /// <summary>
+    /// Memoizes fully built top-level definitions by record name.
+    /// </summary>
     private readonly Dictionary<string, Record> evaluatedDefinitions = new();
+
+    /// <summary>
+    /// Memoizes class instantiations by class name and evaluated template argument fingerprint.
+    /// </summary>
     private readonly Dictionary<(string ClassName, string ArgumentKey), Dictionary<string, Value>> instantiatedClasses = new();
 
+    /// <summary>
+    /// Initializes a builder for a single parsed document.
+    /// </summary>
+    /// <param name="context">The shared document-level evaluation state.</param>
     public RecordBuilder(EvaluationContext context)
     {
         this.context = context;
@@ -23,9 +42,15 @@ internal sealed class RecordBuilder
             definition => BuildDefinition(definition));
     }
 
+    /// <summary>
+    /// Evaluates the entire document into concrete records.
+    /// </summary>
+    /// <returns>The interpreted document on success, or a diagnostic on failure.</returns>
     public EvaluationResult<InterpretedDocument> BuildDocument()
     {
         var emptyScope = Scope.Empty;
+
+        // Top-level defvars behave like global constants that later expressions may reference.
         foreach (var defvar in context.Document.Declarations.OfType<DefVarSyntax>())
         {
             var defvarValue = expressionEvaluator.TryEvaluate(defvar.Value, emptyScope);
@@ -52,6 +77,11 @@ internal sealed class RecordBuilder
         return EvaluationResult<InterpretedDocument>.Success(new InterpretedDocument(records));
     }
 
+    /// <summary>
+    /// Builds one top-level <c>def</c> into its fully evaluated record form.
+    /// </summary>
+    /// <param name="definition">The definition to evaluate.</param>
+    /// <returns>The fully evaluated record or a diagnostic.</returns>
     public EvaluationResult<Record> BuildDefinition(DefSyntax definition)
     {
         if (evaluatedDefinitions.TryGetValue(definition.Name, out var existingRecord))
@@ -90,6 +120,14 @@ internal sealed class RecordBuilder
         return EvaluationResult<Record>.Success(record);
     }
 
+    /// <summary>
+    /// Instantiates a class and resolves all of its fields for expression-time use.
+    /// </summary>
+    /// <param name="classSyntax">The class declaration to instantiate.</param>
+    /// <param name="arguments">The supplied template arguments.</param>
+    /// <param name="outerScope">The lexical scope in which the instantiation appears.</param>
+    /// <param name="tryResolveValue">Optional deferred lookup for field references.</param>
+    /// <returns>A dictionary containing the instantiated field values or a diagnostic.</returns>
     public EvaluationResult<Dictionary<string, Value>> InstantiateClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
@@ -164,6 +202,12 @@ internal sealed class RecordBuilder
         return EvaluationResult<Dictionary<string, Value>>.Success(CloneFields(resolvedFields.Value));
     }
 
+    /// <summary>
+    /// Collects the transitive base-class names for a record, preserving first-seen order.
+    /// </summary>
+    /// <param name="bases">The direct bases to walk.</param>
+    /// <param name="seenBaseClasses">Tracks base names that have already been emitted.</param>
+    /// <param name="baseClasses">Accumulates the ordered base-class list.</param>
     private void CollectBaseClasses(
         IReadOnlyList<BaseSyntax> bases,
         HashSet<string> seenBaseClasses,
@@ -178,11 +222,19 @@ internal sealed class RecordBuilder
 
             if (context.Classes.TryGetValue(@base.Name, out var classSyntax))
             {
+                // Recurse into class declarations so a record remembers the full inherited chain.
                 CollectBaseClasses(classSyntax.Bases, seenBaseClasses, baseClasses);
             }
         }
     }
 
+    /// <summary>
+    /// Instantiates and imports each direct base class into the pending state.
+    /// </summary>
+    /// <param name="bases">The direct bases to apply.</param>
+    /// <param name="scope">The lexical scope for evaluating base arguments.</param>
+    /// <param name="state">The pending record state receiving inherited fields.</param>
+    /// <returns>A success flag or a diagnostic.</returns>
     private EvaluationResult<bool> ApplyPendingBases(
         IReadOnlyList<BaseSyntax> bases,
         Scope scope,
@@ -207,6 +259,13 @@ internal sealed class RecordBuilder
         return EvaluationResult<bool>.Success(true);
     }
 
+    /// <summary>
+    /// Instantiates a class into pending-field form without forcing its fields immediately.
+    /// </summary>
+    /// <param name="classSyntax">The class declaration to instantiate.</param>
+    /// <param name="arguments">The supplied template arguments.</param>
+    /// <param name="outerScope">The lexical scope in which the instantiation occurs.</param>
+    /// <returns>The pending field state for the instantiation or a diagnostic.</returns>
     private EvaluationResult<PendingRecordState> InstantiatePendingClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
@@ -265,6 +324,12 @@ internal sealed class RecordBuilder
         return EvaluationResult<PendingRecordState>.Success(state);
     }
 
+    /// <summary>
+    /// Applies outer <c>let ... in</c> bindings to the current pending state.
+    /// </summary>
+    /// <param name="topLevelLets">The top-level lets captured on the surrounding declaration.</param>
+    /// <param name="scope">The lexical scope where those lets were declared.</param>
+    /// <param name="state">The pending state being updated.</param>
     private void ApplyTopLevelLets(
         IReadOnlyList<LetSyntax> topLevelLets,
         Scope scope,
@@ -276,6 +341,11 @@ internal sealed class RecordBuilder
         }
     }
 
+    /// <summary>
+    /// Clones a field dictionary so cached class instantiations are not mutated by callers.
+    /// </summary>
+    /// <param name="fields">The field dictionary to copy.</param>
+    /// <returns>A shallow copy of the field dictionary.</returns>
     private static Dictionary<string, Value> CloneFields(IReadOnlyDictionary<string, Value> fields)
     {
         var clone = new Dictionary<string, Value>(fields.Count);
@@ -287,6 +357,13 @@ internal sealed class RecordBuilder
         return clone;
     }
 
+    /// <summary>
+    /// Applies the body items of a class or record to the pending state in lexical order.
+    /// </summary>
+    /// <param name="bodyItems">The body items to interpret.</param>
+    /// <param name="scope">The starting lexical scope.</param>
+    /// <param name="state">The pending record state being updated.</param>
+    /// <returns>A success flag or a diagnostic.</returns>
     private EvaluationResult<bool> ApplyPendingBody(
         IReadOnlyList<BodyItemSyntax> bodyItems,
         Scope scope,
@@ -305,6 +382,7 @@ internal sealed class RecordBuilder
                     break;
                 case LocalDefVarSyntax defVar:
                 {
+                    // Local defvars extend only the remainder of the current body, matching TableGen's lexical scope rules.
                     var value = expressionEvaluator.TryEvaluate(defVar.Value, currentScope, TryResolveField(state));
                     if (!value.IsSuccess)
                     {
@@ -350,6 +428,14 @@ internal sealed class RecordBuilder
         return EvaluationResult<bool>.Success(true);
     }
 
+    /// <summary>
+    /// Evaluates an assert message expression and converts it to text.
+    /// </summary>
+    /// <param name="messageExpression">The expression that should produce the assertion message.</param>
+    /// <param name="scope">The lexical scope for evaluating the message.</param>
+    /// <param name="state">The pending record state used for lazy field resolution.</param>
+    /// <param name="error">Receives the diagnostic if message evaluation fails.</param>
+    /// <returns>The final message text when successful.</returns>
     private string GetAssertionMessage(
         ExpressionSyntax messageExpression,
         Scope scope,
@@ -368,6 +454,11 @@ internal sealed class RecordBuilder
         return text.IsSuccess ? text.Value : string.Empty;
     }
 
+    /// <summary>
+    /// Resolves every pending field into its final evaluated value.
+    /// </summary>
+    /// <param name="state">The pending state whose fields should be forced.</param>
+    /// <returns>The resolved field map or a diagnostic.</returns>
     private EvaluationResult<Dictionary<string, Value>> ResolveFields(PendingRecordState state)
     {
         var fields = new Dictionary<string, Value>();
@@ -390,11 +481,22 @@ internal sealed class RecordBuilder
         return EvaluationResult<Dictionary<string, Value>>.Success(fields);
     }
 
+    /// <summary>
+    /// Creates a callback that resolves fields lazily against the given pending state.
+    /// </summary>
+    /// <param name="state">The pending state whose fields should be resolved on demand.</param>
+    /// <returns>A lazy field resolver callback.</returns>
     private ExpressionEvaluator.TryResolveValue TryResolveField(PendingRecordState state)
     {
         return name => TryResolveFieldValue(state, name);
     }
 
+    /// <summary>
+    /// Resolves a single field value, memoizing the result and detecting dependency cycles.
+    /// </summary>
+    /// <param name="state">The pending state that owns the field.</param>
+    /// <param name="name">The field name to resolve.</param>
+    /// <returns>The resolved field value or a diagnostic.</returns>
     private EvaluationResult<Value> TryResolveFieldValue(PendingRecordState state, string name)
     {
             if (!state.TryGetField(name, out var field) || !field.HasExpression)
@@ -415,6 +517,7 @@ internal sealed class RecordBuilder
         field.IsResolving = true;
         try
         {
+            // Field expressions close over the lexical scope in which they were declared, not the scope in which they are forced.
             var resolved = expressionEvaluator.TryEvaluate(field.Expression!, field.LexicalScope, TryResolveField(state));
             if (!resolved.IsSuccess)
             {
@@ -443,11 +546,21 @@ internal sealed class RecordBuilder
         }
     }
 
+    /// <summary>
+    /// Creates an invalid-operation diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic InvalidOperation(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
     }
 
+    /// <summary>
+    /// Creates a missing-key diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic MissingKey(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.MissingKey, message);

@@ -10,14 +10,44 @@ using TableGen.Syntax;
 /// </summary>
 internal sealed class ExpressionEvaluator
 {
+    /// <summary>
+    /// Holds document-wide lookup tables and caches used by expression evaluation.
+    /// </summary>
     private readonly EvaluationContext context;
+
+    /// <summary>
+    /// Instantiates classes so expression-time class calls can compute field values.
+    /// </summary>
     private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass;
+
+    /// <summary>
+    /// Builds top-level definitions on demand for record field access.
+    /// </summary>
     private readonly Func<DefSyntax, EvaluationResult<Record>> buildDefinition;
+
+    /// <summary>
+    /// Resolves identifiers and <c>!isa</c> queries using document-wide state.
+    /// </summary>
     private readonly IdentifierResolver identifierResolver;
+
+    /// <summary>
+    /// Evaluates bang operators such as <c>!if</c> and <c>!foreach</c>.
+    /// </summary>
     private readonly BangOperatorEvaluator bangOperatorEvaluator;
 
+    /// <summary>
+    /// Resolves names that are not stored directly in lexical scope, such as lazily computed fields.
+    /// </summary>
+    /// <param name="name">The name to resolve.</param>
+    /// <returns>The resolved value or a diagnostic.</returns>
     internal delegate EvaluationResult<Value> TryResolveValue(string name);
 
+    /// <summary>
+    /// Initializes a new expression evaluator.
+    /// </summary>
+    /// <param name="context">The shared document-level evaluation state.</param>
+    /// <param name="instantiateClass">Callback used for expression-time class instantiation.</param>
+    /// <param name="buildDefinition">Callback used for on-demand record building.</param>
     public ExpressionEvaluator(
         EvaluationContext context,
         Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass,
@@ -30,6 +60,13 @@ internal sealed class ExpressionEvaluator
         bangOperatorEvaluator = new BangOperatorEvaluator(context, identifierResolver, TryEvaluate);
     }
 
+    /// <summary>
+    /// Attempts to evaluate an expression into a runtime <see cref="Value"/>.
+    /// </summary>
+    /// <param name="expression">The syntax node to evaluate.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The evaluated value or a diagnostic.</returns>
     public EvaluationResult<Value> TryEvaluate(
         ExpressionSyntax expression,
         Scope scope,
@@ -70,6 +107,13 @@ internal sealed class ExpressionEvaluator
         }
     }
 
+    /// <summary>
+    /// Evaluates an expression and throws if evaluation fails.
+    /// </summary>
+    /// <param name="expression">The syntax node to evaluate.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The evaluated value.</returns>
     public Value Evaluate(
         ExpressionSyntax expression,
         Scope scope,
@@ -84,6 +128,13 @@ internal sealed class ExpressionEvaluator
         return result.Value;
     }
 
+    /// <summary>
+    /// Evaluates a list literal by evaluating each element in order.
+    /// </summary>
+    /// <param name="list">The list syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The evaluated list value or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateList(
         ListSyntax list,
         Scope scope,
@@ -104,6 +155,13 @@ internal sealed class ExpressionEvaluator
         return Success(new ListValue(items));
     }
 
+    /// <summary>
+    /// Evaluates a dag literal by evaluating each argument expression while preserving argument names.
+    /// </summary>
+    /// <param name="dag">The dag syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The evaluated dag value or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateDag(
         DagSyntax dag,
         Scope scope,
@@ -124,6 +182,13 @@ internal sealed class ExpressionEvaluator
         return Success(new DagValue(dag.OperatorName, arguments));
     }
 
+    /// <summary>
+    /// Evaluates the TableGen <c>#</c> concatenation operator.
+    /// </summary>
+    /// <param name="concat">The concatenation syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The concatenated string value or a diagnostic.</returns>
     private EvaluationResult<Value> EvaluateConcatenation(
         ConcatSyntax concat,
         Scope scope,
@@ -156,6 +221,13 @@ internal sealed class ExpressionEvaluator
         return Success(new StringValue(leftString.Value + rightString.Value));
     }
 
+    /// <summary>
+    /// Evaluates a <c>!foldl</c> expression by threading an accumulator across list elements.
+    /// </summary>
+    /// <param name="foldl">The fold expression syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The final accumulator value or a diagnostic.</returns>
     private EvaluationResult<Value> EvaluateFoldl(
         FoldlSyntax foldl,
         Scope scope,
@@ -181,6 +253,7 @@ internal sealed class ExpressionEvaluator
         var current = accValue.Value;
         foreach (var item in list.Items)
         {
+            // Each iteration extends the outer scope with the current accumulator and list element bindings.
             var innerScope = scope.With(foldl.AccVar, current).With(foldl.CurVar, item);
             var body = TryEvaluate(foldl.Body, innerScope, tryResolveValue);
             if (!body.IsSuccess)
@@ -194,6 +267,13 @@ internal sealed class ExpressionEvaluator
         return Success(current);
     }
 
+    /// <summary>
+    /// Evaluates a class instantiation expression and extracts a single field from the resulting instance.
+    /// </summary>
+    /// <param name="instantiation">The class instantiation syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The requested field value or a diagnostic.</returns>
     private EvaluationResult<Value> EvaluateClassInstantiation(
         ClassInstantiationSyntax instantiation,
         Scope scope,
@@ -215,6 +295,13 @@ internal sealed class ExpressionEvaluator
             : Failure(MissingKey($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'."));
     }
 
+    /// <summary>
+    /// Evaluates an anonymous class instantiation expression into an in-memory record value.
+    /// </summary>
+    /// <param name="inst">The anonymous instantiation syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The anonymous record value or a diagnostic.</returns>
     private EvaluationResult<Value> EvaluateAnonymousClassInstantiation(
         AnonymousClassInstantiationSyntax inst,
         Scope scope,
@@ -231,6 +318,13 @@ internal sealed class ExpressionEvaluator
             : Failure(fields.Diagnostic!);
     }
 
+    /// <summary>
+    /// Evaluates a field access on either an anonymous record value or a top-level record reference.
+    /// </summary>
+    /// <param name="fieldAccess">The field-access syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The field value when present, otherwise <see cref="UnsetValue"/>.</returns>
     private EvaluationResult<Value> EvaluateFieldAccess(
         FieldAccessSyntax fieldAccess,
         Scope scope,
@@ -261,6 +355,13 @@ internal sealed class ExpressionEvaluator
         return Success(new UnsetValue());
     }
 
+    /// <summary>
+    /// Evaluates list and string subscripts, including TableGen's negative-index behavior.
+    /// </summary>
+    /// <param name="subscript">The subscript syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The indexed value or a diagnostic.</returns>
     private EvaluationResult<Value> EvaluateSubscript(
         SubscriptSyntax subscript,
         Scope scope,
@@ -299,6 +400,13 @@ internal sealed class ExpressionEvaluator
         }
     }
 
+    /// <summary>
+    /// Evaluates a <c>!foreach</c> expression by mapping the body across each list element.
+    /// </summary>
+    /// <param name="forEach">The foreach syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The resulting list value or a diagnostic.</returns>
     private EvaluationResult<Value> EvaluateForeach(
         ForeachSyntax forEach,
         Scope scope,
@@ -331,6 +439,14 @@ internal sealed class ExpressionEvaluator
         return Success(new ListValue(results));
     }
 
+    /// <summary>
+    /// Evaluates an expression and then requires the result to be an integer.
+    /// </summary>
+    /// <param name="expression">The expression to evaluate.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <returns>The integer value or a diagnostic.</returns>
     private EvaluationResult<int> TryEvaluateInteger(
         ExpressionSyntax expression,
         Scope scope,
@@ -343,26 +459,51 @@ internal sealed class ExpressionEvaluator
             : ValueUtilities.TryToInteger(value.Value, contextName);
     }
 
+    /// <summary>
+    /// Creates an invalid-operation diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic InvalidOperation(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
     }
 
+    /// <summary>
+    /// Creates a missing-key diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic MissingKey(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.MissingKey, message);
     }
 
+    /// <summary>
+    /// Creates an invalid-cast diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic InvalidCast(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidCast, message);
     }
 
+    /// <summary>
+    /// Creates a successful value result.
+    /// </summary>
+    /// <param name="value">The computed value.</param>
+    /// <returns>A successful evaluation result.</returns>
     private static EvaluationResult<Value> Success(Value value)
     {
         return EvaluationResult<Value>.Success(value);
     }
 
+    /// <summary>
+    /// Creates a failed value result.
+    /// </summary>
+    /// <param name="diagnostic">The diagnostic describing the failure.</param>
+    /// <returns>A failed evaluation result.</returns>
     private static EvaluationResult<Value> Failure(EvaluationDiagnostic diagnostic)
     {
         return EvaluationResult<Value>.Failure(diagnostic);

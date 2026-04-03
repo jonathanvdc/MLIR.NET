@@ -6,12 +6,32 @@ using System.Linq;
 
 using TableGen.Syntax;
 
+/// <summary>
+/// Implements the semantics of TableGen bang operators such as <c>!if</c>, <c>!foreach</c>, and <c>!subst</c>.
+/// </summary>
 internal sealed class BangOperatorEvaluator
 {
+    /// <summary>
+    /// Holds document-wide lookup tables and caches used by bang operators that inspect classes or records.
+    /// </summary>
     private readonly EvaluationContext context;
+
+    /// <summary>
+    /// Resolves identifier and type queries shared with the main expression evaluator.
+    /// </summary>
     private readonly IdentifierResolver identifierResolver;
+
+    /// <summary>
+    /// Re-enters general expression evaluation for operator arguments and nested expressions.
+    /// </summary>
     private readonly Func<ExpressionSyntax, Scope, ExpressionEvaluator.TryResolveValue?, EvaluationResult<Value>> tryEvaluate;
 
+    /// <summary>
+    /// Initializes a bang-operator evaluator.
+    /// </summary>
+    /// <param name="context">The shared document-level evaluation state.</param>
+    /// <param name="identifierResolver">The shared identifier/type resolver.</param>
+    /// <param name="tryEvaluate">A callback for evaluating nested expressions.</param>
     public BangOperatorEvaluator(
         EvaluationContext context,
         IdentifierResolver identifierResolver,
@@ -22,6 +42,13 @@ internal sealed class BangOperatorEvaluator
         this.tryEvaluate = tryEvaluate;
     }
 
+    /// <summary>
+    /// Evaluates a bang operator call by dispatching on its operator name.
+    /// </summary>
+    /// <param name="bangCall">The bang call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The evaluated value or a diagnostic.</returns>
     public EvaluationResult<Value> Evaluate(
         BangCallSyntax bangCall,
         Scope scope,
@@ -43,6 +70,7 @@ internal sealed class BangOperatorEvaluator
                     return Failure(truthy.Diagnostic!);
                 }
 
+                // Match TableGen's lazy branch behavior by evaluating only the selected branch.
                 return tryEvaluate(truthy.Value ? bangCall.Arguments[1] : bangCall.Arguments[2], scope, tryResolveValue);
             }
             case "gt":
@@ -139,6 +167,14 @@ internal sealed class BangOperatorEvaluator
         }
     }
 
+    /// <summary>
+    /// Evaluates an integer comparison builtin such as <c>!gt</c> or <c>!le</c>.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <param name="predicate">The integer comparison to apply.</param>
+    /// <returns>An integer-as-bool result or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateIntegerComparison(
         BangCallSyntax bangCall,
         Scope scope,
@@ -157,6 +193,14 @@ internal sealed class BangOperatorEvaluator
             : Failure(b.Diagnostic!);
     }
 
+    /// <summary>
+    /// Evaluates <c>!eq</c> and <c>!ne</c> using the interpreter's current equality rules.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <param name="expectedEqual">Indicates whether the operator expects equality or inequality.</param>
+    /// <returns>An integer-as-bool result or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateEquality(
         BangCallSyntax bangCall,
         Scope scope,
@@ -179,6 +223,15 @@ internal sealed class BangOperatorEvaluator
         return Success(new IntegerValue(isEqual == expectedEqual ? 1 : 0));
     }
 
+    /// <summary>
+    /// Evaluates a binary integer builtin such as <c>!add</c> or <c>!shl</c>.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <param name="operation">The integer operation to apply.</param>
+    /// <returns>The computed integer value or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateIntegerBinary(
         BangCallSyntax bangCall,
         Scope scope,
@@ -198,6 +251,15 @@ internal sealed class BangOperatorEvaluator
             : Failure(b.Diagnostic!);
     }
 
+    /// <summary>
+    /// Evaluates a unary string builtin such as <c>!toupper</c> or <c>!tolower</c>.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <param name="operation">The string transformation to apply.</param>
+    /// <returns>The transformed string value or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateUnaryString(
         BangCallSyntax bangCall,
         Scope scope,
@@ -211,6 +273,13 @@ internal sealed class BangOperatorEvaluator
             : Failure(text.Diagnostic!);
     }
 
+    /// <summary>
+    /// Evaluates <c>!substr</c>, clamping start and length into the source string's bounds.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The substring result or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateSubstr(
         BangCallSyntax bangCall,
         Scope scope,
@@ -244,6 +313,13 @@ internal sealed class BangOperatorEvaluator
         return Success(new StringValue(str.Value.Substring(clampedStart)));
     }
 
+    /// <summary>
+    /// Evaluates <c>!find</c> using ordinal string matching.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The found index or <c>-1</c> if missing, wrapped as an integer value.</returns>
     private EvaluationResult<Value> TryEvaluateFind(
         BangCallSyntax bangCall,
         Scope scope,
@@ -272,6 +348,13 @@ internal sealed class BangOperatorEvaluator
         return Success(new IntegerValue(str.Value.IndexOf(sub.Value, startIndex.Value, StringComparison.Ordinal)));
     }
 
+    /// <summary>
+    /// Evaluates <c>!range</c> into a half-open integer list <c>[start, end)</c>.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The generated integer list or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateRange(
         BangCallSyntax bangCall,
         Scope scope,
@@ -298,6 +381,13 @@ internal sealed class BangOperatorEvaluator
         return Success(new ListValue(items));
     }
 
+    /// <summary>
+    /// Evaluates <c>!listconcat</c> by concatenating two list values.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The concatenated list value or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateListConcat(
         BangCallSyntax bangCall,
         Scope scope,
@@ -326,6 +416,13 @@ internal sealed class BangOperatorEvaluator
         return Success(new ListValue(items));
     }
 
+    /// <summary>
+    /// Evaluates <c>!strconcat</c> by requiring each argument to already be a string.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The concatenated string value or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateStrConcat(
         BangCallSyntax bangCall,
         Scope scope,
@@ -352,6 +449,13 @@ internal sealed class BangOperatorEvaluator
         return Success(new StringValue(string.Concat(parts)));
     }
 
+    /// <summary>
+    /// Evaluates <c>!cond</c> by selecting the first truthy condition/value pair.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The selected branch value or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateCond(
         BangCallSyntax bangCall,
         Scope scope,
@@ -380,6 +484,13 @@ internal sealed class BangOperatorEvaluator
         return Failure(InvalidOperation("!cond requires at least one true condition."));
     }
 
+    /// <summary>
+    /// Evaluates <c>!interleave</c> by converting each list element to a string and joining with a separator.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The interleaved string result or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateInterleave(
         BangCallSyntax bangCall,
         Scope scope,
@@ -417,6 +528,13 @@ internal sealed class BangOperatorEvaluator
         return Success(new StringValue(string.Join(sep.Value, items)));
     }
 
+    /// <summary>
+    /// Evaluates <c>!subst</c> using ordinal string replacement.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The substituted string result or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateSubst(
         BangCallSyntax bangCall,
         Scope scope,
@@ -440,6 +558,13 @@ internal sealed class BangOperatorEvaluator
             : Failure(text.Diagnostic!);
     }
 
+    /// <summary>
+    /// Evaluates <c>!head</c> by returning the first element of a non-empty list.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The first list element or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateHead(
         BangCallSyntax bangCall,
         Scope scope,
@@ -461,6 +586,13 @@ internal sealed class BangOperatorEvaluator
             : Success(values.Items[0]);
     }
 
+    /// <summary>
+    /// Evaluates <c>!tail</c> by returning all but the first element of a non-empty list.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The tail list or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateTail(
         BangCallSyntax bangCall,
         Scope scope,
@@ -482,6 +614,13 @@ internal sealed class BangOperatorEvaluator
             : Success(new ListValue(values.Items.Skip(1).ToList()));
     }
 
+    /// <summary>
+    /// Evaluates <c>!empty</c> using the interpreter's string/list/unset emptiness rules.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>An integer-as-bool result.</returns>
     private EvaluationResult<Value> TryEvaluateEmpty(
         BangCallSyntax bangCall,
         Scope scope,
@@ -502,6 +641,13 @@ internal sealed class BangOperatorEvaluator
         };
     }
 
+    /// <summary>
+    /// Evaluates <c>!filter</c> by binding each element to the supplied variable name and keeping truthy matches.
+    /// </summary>
+    /// <param name="bangCall">The operator call syntax node.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <returns>The filtered list or a diagnostic.</returns>
     private EvaluationResult<Value> TryEvaluateFilter(
         BangCallSyntax bangCall,
         Scope scope,
@@ -544,6 +690,14 @@ internal sealed class BangOperatorEvaluator
         return Success(new ListValue(results));
     }
 
+    /// <summary>
+    /// Evaluates an expression and then requires the result to be an integer.
+    /// </summary>
+    /// <param name="expression">The expression to evaluate.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <returns>The integer value or a diagnostic.</returns>
     private EvaluationResult<int> TryEvaluateInteger(
         ExpressionSyntax expression,
         Scope scope,
@@ -556,6 +710,14 @@ internal sealed class BangOperatorEvaluator
             : ValueUtilities.TryToInteger(value.Value, contextName);
     }
 
+    /// <summary>
+    /// Evaluates an expression and then requires the result to be a string.
+    /// </summary>
+    /// <param name="expression">The expression to evaluate.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <returns>The string value or a diagnostic.</returns>
     private EvaluationResult<string> TryEvaluateString(
         ExpressionSyntax expression,
         Scope scope,
@@ -568,21 +730,41 @@ internal sealed class BangOperatorEvaluator
             : ValueUtilities.TryToString(value.Value, contextName);
     }
 
+    /// <summary>
+    /// Creates an invalid-operation diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic InvalidOperation(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
     }
 
+    /// <summary>
+    /// Creates an invalid-cast diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic InvalidCast(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidCast, message);
     }
 
+    /// <summary>
+    /// Creates a successful value result.
+    /// </summary>
+    /// <param name="value">The computed value.</param>
+    /// <returns>A successful evaluation result.</returns>
     private static EvaluationResult<Value> Success(Value value)
     {
         return EvaluationResult<Value>.Success(value);
     }
 
+    /// <summary>
+    /// Creates a failed value result.
+    /// </summary>
+    /// <param name="diagnostic">The diagnostic describing the failure.</param>
+    /// <returns>A failed evaluation result.</returns>
     private static EvaluationResult<Value> Failure(EvaluationDiagnostic diagnostic)
     {
         return EvaluationResult<Value>.Failure(diagnostic);

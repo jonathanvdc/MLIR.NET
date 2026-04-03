@@ -47,6 +47,8 @@ public static class TableGenPreprocessor
 
         bool IsActive()
         {
+            // A line is active only if every nested conditional frame is active in both its own branch
+            // and its inherited parent context.
             foreach (var (ownActive, parentActive) in condStack)
             {
                 if (!ownActive || !parentActive)
@@ -142,6 +144,11 @@ public static class TableGenPreprocessor
         return output.ToString();
     }
 
+    /// <summary>
+    /// Determines whether a trimmed line is an <c>#endif</c> directive.
+    /// </summary>
+    /// <param name="trimmed">The line text with leading whitespace removed.</param>
+    /// <returns><see langword="true"/> when the line is an <c>#endif</c> directive; otherwise <see langword="false"/>.</returns>
     private static bool IsEndif(string trimmed)
     {
         if (!trimmed.StartsWith("#endif"))
@@ -154,6 +161,11 @@ public static class TableGenPreprocessor
             || trimmed["#endif".Length] == '/';
     }
 
+    /// <summary>
+    /// Determines whether a trimmed line is an <c>#else</c> directive.
+    /// </summary>
+    /// <param name="trimmed">The line text with leading whitespace removed.</param>
+    /// <returns><see langword="true"/> when the line is an <c>#else</c> directive; otherwise <see langword="false"/>.</returns>
     private static bool IsElse(string trimmed)
     {
         if (!trimmed.StartsWith("#else"))
@@ -166,6 +178,11 @@ public static class TableGenPreprocessor
             || trimmed["#else".Length] == '/';
     }
 
+    /// <summary>
+    /// Finds the first whitespace character in a string.
+    /// </summary>
+    /// <param name="s">The string to inspect.</param>
+    /// <returns>The index of the first whitespace character, or <c>-1</c> if none exists.</returns>
     private static int IndexOfWhitespace(string s)
     {
         for (var i = 0; i < s.Length; i++)

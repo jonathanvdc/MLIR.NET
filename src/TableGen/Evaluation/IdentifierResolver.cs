@@ -4,8 +4,18 @@ using System.Linq;
 
 using TableGen.Syntax;
 
+/// <summary>
+/// Resolves names and type relationships that depend on document-wide evaluation context.
+/// </summary>
 internal sealed class IdentifierResolver(EvaluationContext context)
 {
+    /// <summary>
+    /// Resolves an identifier expression by consulting local scope, deferred field lookups, global defvars, and definitions.
+    /// </summary>
+    /// <param name="name">The identifier name as written in source.</param>
+    /// <param name="scope">The current lexical scope.</param>
+    /// <param name="tryResolveValue">An optional callback for lazy field resolution.</param>
+    /// <returns>The resolved value or a symbolic/reference value when no concrete binding exists.</returns>
     public EvaluationResult<Value> ResolveIdentifier(
         string name,
         Scope scope,
@@ -48,6 +58,12 @@ internal sealed class IdentifierResolver(EvaluationContext context)
         return EvaluationResult<Value>.Success(new SymbolReferenceValue(name));
     }
 
+    /// <summary>
+    /// Determines whether a runtime value satisfies a TableGen class type used by <c>!isa</c>.
+    /// </summary>
+    /// <param name="value">The value to classify.</param>
+    /// <param name="typeName">The queried TableGen type name.</param>
+    /// <returns><see langword="true"/> when the value conforms to the queried class; otherwise <see langword="false"/>.</returns>
     public bool IsValueOfType(Value value, string? typeName)
     {
         if (string.IsNullOrEmpty(typeName))
@@ -65,6 +81,12 @@ internal sealed class IdentifierResolver(EvaluationContext context)
         };
     }
 
+    /// <summary>
+    /// Checks whether one class is transitively derived from another, with caching.
+    /// </summary>
+    /// <param name="className">The candidate derived class.</param>
+    /// <param name="typeName">The target base class.</param>
+    /// <returns><see langword="true"/> when <paramref name="className"/> is-a <paramref name="typeName"/>.</returns>
     private bool ClassIsA(string className, string typeName)
     {
         if (context.ClassIsACache.TryGetValue((className, typeName), out var cached))

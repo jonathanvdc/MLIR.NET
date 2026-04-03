@@ -142,6 +142,17 @@ Interpreter-focused benchmarks live in `tools/TableGen.Benchmarks`.
 - Prefer adding model richness in `MLIR.ODS` over embedding ad hoc parsing rules in the emitter.
 - Prefer explicit tests for new TableGen constructs such as dags, code blocks, record references, traits, or assembly formats.
 
+## Documentation Policy
+
+Treat documentation as part of the implementation, not polish to add only for public APIs.
+
+- Add XML doc comments for non-public types and members when they carry behavior, invariants, caching rules, evaluation order, layering boundaries, or other logic a reader would need to understand the code confidently.
+- Optimize comments for reader understanding rather than API formality. Explain responsibilities, data flow, captured assumptions, and why an algorithm is structured the way it is.
+- Add inline comments for non-obvious control flow, subtle semantic choices, memoization, scope capture, inheritance merging, parser quirks, or behavior chosen to match upstream MLIR/TableGen semantics.
+- Do not add comments that merely restate the code line-by-line. Prefer comments that help a future maintainer build the right mental model.
+- When touching older code with weak documentation, improve it as you go, especially around internal helpers and private state that would otherwise require reverse engineering.
+- If the repo intentionally diverges from upstream MLIR/TableGen behavior, document that near the code and in tests.
+
 ## Samples
 
 `samples/GeneratedDialectConsumer` is the canary for real analyzer usage.

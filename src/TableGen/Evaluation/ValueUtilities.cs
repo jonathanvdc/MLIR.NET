@@ -4,8 +4,16 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
+/// <summary>
+/// Centralizes common runtime value operations used by the evaluator.
+/// </summary>
 internal static class ValueUtilities
 {
+    /// <summary>
+    /// Converts a runtime value into TableGen truthiness.
+    /// </summary>
+    /// <param name="value">The value to interpret as a condition.</param>
+    /// <returns>The boolean interpretation or a diagnostic.</returns>
     public static EvaluationResult<bool> TryIsTruthy(Value value)
     {
         return value switch
@@ -16,6 +24,11 @@ internal static class ValueUtilities
         };
     }
 
+    /// <summary>
+    /// Converts a runtime value into TableGen truthiness and throws on failure.
+    /// </summary>
+    /// <param name="value">The value to interpret as a condition.</param>
+    /// <returns>The boolean interpretation.</returns>
     public static bool IsTruthy(Value value)
     {
         var result = TryIsTruthy(value);
@@ -27,6 +40,11 @@ internal static class ValueUtilities
         return result.Value;
     }
 
+    /// <summary>
+    /// Converts a runtime value into the string form used by TableGen concatenation and string-oriented builtins.
+    /// </summary>
+    /// <param name="value">The value to convert.</param>
+    /// <returns>The converted string or a diagnostic.</returns>
     public static EvaluationResult<string> TryValueToString(Value value)
     {
         switch (value)
@@ -66,6 +84,11 @@ internal static class ValueUtilities
         }
     }
 
+    /// <summary>
+    /// Converts a runtime value into the string form used by TableGen and throws on failure.
+    /// </summary>
+    /// <param name="value">The value to convert.</param>
+    /// <returns>The converted string.</returns>
     public static string ValueToString(Value value)
     {
         var result = TryValueToString(value);
@@ -77,6 +100,12 @@ internal static class ValueUtilities
         return result.Value;
     }
 
+    /// <summary>
+    /// Coerces a value to the declared TableGen field type when the interpreter needs to enforce field types.
+    /// </summary>
+    /// <param name="typeName">The declared TableGen type name.</param>
+    /// <param name="value">The runtime value to coerce.</param>
+    /// <returns>The coerced value or a diagnostic.</returns>
     public static EvaluationResult<Value> TryCoerceValue(string typeName, Value value)
     {
         if (value is UnsetValue)
@@ -110,6 +139,12 @@ internal static class ValueUtilities
         }
     }
 
+    /// <summary>
+    /// Coerces a value to the declared TableGen field type and throws on failure.
+    /// </summary>
+    /// <param name="typeName">The declared TableGen type name.</param>
+    /// <param name="value">The runtime value to coerce.</param>
+    /// <returns>The coerced value.</returns>
     public static Value CoerceValue(string typeName, Value value)
     {
         var result = TryCoerceValue(typeName, value);
@@ -121,6 +156,12 @@ internal static class ValueUtilities
         return result.Value;
     }
 
+    /// <summary>
+    /// Adapts a replacement value to the runtime shape of an existing value when overriding already-resolved fields.
+    /// </summary>
+    /// <param name="existingValue">The existing runtime value.</param>
+    /// <param name="replacementValue">The replacement runtime value.</param>
+    /// <returns>The adapted replacement value or a diagnostic.</returns>
     public static EvaluationResult<Value> TryCoerceExistingValue(Value existingValue, Value replacementValue)
     {
         return existingValue switch
@@ -131,6 +172,12 @@ internal static class ValueUtilities
         };
     }
 
+    /// <summary>
+    /// Adapts a replacement value to the runtime shape of an existing value and throws on failure.
+    /// </summary>
+    /// <param name="existingValue">The existing runtime value.</param>
+    /// <param name="replacementValue">The replacement runtime value.</param>
+    /// <returns>The adapted replacement value.</returns>
     public static Value CoerceExistingValue(Value existingValue, Value replacementValue)
     {
         var result = TryCoerceExistingValue(existingValue, replacementValue);
@@ -142,6 +189,12 @@ internal static class ValueUtilities
         return result.Value;
     }
 
+    /// <summary>
+    /// Requires that a runtime value be an integer.
+    /// </summary>
+    /// <param name="value">The value to inspect.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <returns>The integer value or a diagnostic.</returns>
     public static EvaluationResult<int> TryToInteger(Value value, string contextName)
     {
         return value is IntegerValue integer
@@ -149,6 +202,12 @@ internal static class ValueUtilities
             : EvaluationResult<int>.Failure(InvalidOperation($"{contextName} requires an integer argument, got {value.GetType().Name}."));
     }
 
+    /// <summary>
+    /// Requires that a runtime value be a string.
+    /// </summary>
+    /// <param name="value">The value to inspect.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <returns>The string value or a diagnostic.</returns>
     public static EvaluationResult<string> TryToString(Value value, string contextName)
     {
         return value is StringValue str
@@ -156,6 +215,13 @@ internal static class ValueUtilities
             : EvaluationResult<string>.Failure(InvalidOperation($"{contextName} requires a string argument, got {value.GetType().Name}."));
     }
 
+    /// <summary>
+    /// Normalizes negative indices and checks bounds for list and string subscripts.
+    /// </summary>
+    /// <param name="index">The raw index written in source.</param>
+    /// <param name="length">The collection length.</param>
+    /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <returns>The normalized index or a diagnostic.</returns>
     public static EvaluationResult<int> TryNormalizeIndex(int index, int length, string contextName)
     {
         var normalized = index < 0 ? length + index : index;
@@ -164,6 +230,12 @@ internal static class ValueUtilities
             : EvaluationResult<int>.Success(normalized);
     }
 
+    /// <summary>
+    /// Compares two values for the subset of equality currently supported by the interpreter.
+    /// </summary>
+    /// <param name="a">The left value.</param>
+    /// <param name="b">The right value.</param>
+    /// <returns><see langword="true"/> when the values compare equal; otherwise <see langword="false"/>.</returns>
     public static bool ValuesEqual(Value a, Value b)
     {
         return (a, b) switch
@@ -175,16 +247,31 @@ internal static class ValueUtilities
         };
     }
 
+    /// <summary>
+    /// Creates an invalid-operation diagnostic with a consistent helper call site.
+    /// </summary>
+    /// <param name="message">The diagnostic message.</param>
+    /// <returns>The constructed diagnostic.</returns>
     private static EvaluationDiagnostic InvalidOperation(string message)
     {
         return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
     }
 
+    /// <summary>
+    /// Creates a successful value result.
+    /// </summary>
+    /// <param name="value">The computed value.</param>
+    /// <returns>A successful evaluation result.</returns>
     private static EvaluationResult<Value> Success(Value value)
     {
         return EvaluationResult<Value>.Success(value);
     }
 
+    /// <summary>
+    /// Creates a failed value result.
+    /// </summary>
+    /// <param name="diagnostic">The diagnostic describing the failure.</param>
+    /// <returns>A failed evaluation result.</returns>
     private static EvaluationResult<Value> Failure(EvaluationDiagnostic diagnostic)
     {
         return EvaluationResult<Value>.Failure(diagnostic);

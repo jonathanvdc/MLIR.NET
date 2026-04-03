@@ -79,6 +79,14 @@ public sealed class Document(DocumentSyntax syntax)
         return Interpreter.Evaluate(Syntax);
     }
 
+    /// <summary>
+    /// Recursively preprocesses, parses, and expands include directives into a flat declaration list.
+    /// </summary>
+    /// <param name="source">The source text of the current file.</param>
+    /// <param name="sourceFile">The logical file currently being expanded.</param>
+    /// <param name="resolver">The include resolver used for nested includes.</param>
+    /// <param name="defines">The shared preprocessor symbol set.</param>
+    /// <param name="output">The accumulated flattened declaration list.</param>
     private static void ExpandIncludes(
         string source,
         TableGenSourceFile? sourceFile,
@@ -102,6 +110,7 @@ public sealed class Document(DocumentSyntax syntax)
                 }
 
                 var includedFile = new TableGenSourceFile(resolved.LogicalPath);
+                // Includes are expanded eagerly so later stages can operate on one flat declaration stream.
                 ExpandIncludes(resolved.SourceText, includedFile, resolver, defines, output);
             }
             else
