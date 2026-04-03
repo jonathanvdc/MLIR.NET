@@ -238,7 +238,7 @@ public sealed class IncludeResolutionTests
             "include \"base.td\"\n" +
             "def Example : Base<\"hello\">;";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
         var doc = Document.Load(mainSource, resolver);
@@ -252,9 +252,9 @@ public sealed class IncludeResolutionTests
     public void CompositeResolverUsesEmbeddedPreludeAsFallback()
     {
         // Consumer resolver is empty; prelude resolver is the fallback.
-        var consumerResolver = new TableGenDictionaryIncludeResolver(
+        var consumerResolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
-        var preludeResolver = new TableGenDictionaryIncludeResolver(
+        var preludeResolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>
             {
                 ["mlir/IR/OpBase.td"] =
@@ -262,7 +262,7 @@ public sealed class IncludeResolutionTests
                     "def Pure : Trait;\n",
             });
 
-        var composite = new TableGenCompositeIncludeResolver(consumerResolver, preludeResolver);
+        var composite = new CompositeIncludeResolver(consumerResolver, preludeResolver);
         var doc = Document.Load("include \"mlir/IR/OpBase.td\"", composite);
 
         // Pure should be available as a record.

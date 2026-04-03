@@ -16,15 +16,15 @@ using TableGen;
 /// <item><description><c>mlir/Dialect/Arith/IR/*</c> – upstream MLIR Arith ODS definitions</description></item>
 /// </list>
 /// </remarks>
-internal sealed class EmbeddedPreludeResolver : TableGenIncludeResolver
+internal sealed class EmbeddedPreludeResolver : IncludeResolver
 {
     private static readonly Assembly ThisAssembly = typeof(EmbeddedPreludeResolver).Assembly;
 
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        TableGenSourceFile? includingFile,
-        out TableGenResolvedInclude resolvedInclude)
+        SourceFile? includingFile,
+        out ResolvedInclude resolvedInclude)
     {
         // Resource names are stored with the LogicalName set in the .csproj, which uses
         // forward slashes (e.g. "mlir/IR/OpBase.td").
@@ -41,7 +41,7 @@ internal sealed class EmbeddedPreludeResolver : TableGenIncludeResolver
             text = reader.ReadToEnd();
         }
 
-        resolvedInclude = new TableGenResolvedInclude(includePath, text);
+        resolvedInclude = new ResolvedInclude(includePath, text);
         return true;
     }
 }

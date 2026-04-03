@@ -7,19 +7,19 @@ using TableGen;
 /// <summary>
 /// Resolves TableGen includes from the local file system.
 /// </summary>
-internal sealed class FileSystemIncludeResolver : TableGenIncludeResolver
+internal sealed class FileSystemIncludeResolver : IncludeResolver
 {
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        TableGenSourceFile? includingFile,
-        out TableGenResolvedInclude resolvedInclude)
+        SourceFile? includingFile,
+        out ResolvedInclude resolvedInclude)
     {
         foreach (var candidatePath in GetCandidatePaths(includePath, includingFile))
         {
             if (File.Exists(candidatePath))
             {
-                resolvedInclude = new TableGenResolvedInclude(candidatePath, File.ReadAllText(candidatePath));
+                resolvedInclude = new ResolvedInclude(candidatePath, File.ReadAllText(candidatePath));
                 return true;
             }
         }
@@ -28,7 +28,7 @@ internal sealed class FileSystemIncludeResolver : TableGenIncludeResolver
         return false;
     }
 
-    private static IEnumerable<string> GetCandidatePaths(string includePath, TableGenSourceFile? includingFile)
+    private static IEnumerable<string> GetCandidatePaths(string includePath, SourceFile? includingFile)
     {
         var candidates = new List<string>();
         if (Path.IsPathRooted(includePath))

@@ -26,8 +26,8 @@ var recordPattern = args.Length >= 2 ? args[1] : "*";
 try
 {
     var sourceText = File.ReadAllText(inputPath);
-    var sourceFile = new TableGenSourceFile(Path.GetFullPath(inputPath));
-    var resolver = new TableGenCompositeIncludeResolver(
+    var sourceFile = new SourceFile(Path.GetFullPath(inputPath));
+    var resolver = new CompositeIncludeResolver(
         new FileSystemIncludeResolver(),
         PreludeIncludeResolvers.CreateEmbeddedPreludeResolver());
 

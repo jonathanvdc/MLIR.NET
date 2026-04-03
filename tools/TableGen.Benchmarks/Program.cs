@@ -286,7 +286,7 @@ internal static class BenchmarkCases
         var sourceText = File.ReadAllText(sourcePath);
         var resolver = manifest.IncludeResolver switch
         {
-            "mlir-prelude" => new TableGenDictionaryIncludeResolver(context.PreludeFiles),
+            "mlir-prelude" => new DictionaryIncludeResolver(context.PreludeFiles),
             "none" => null,
             _ => throw new InvalidOperationException($"Unknown include resolver '{manifest.IncludeResolver}' in benchmark '{manifest.Name}'."),
         };
@@ -303,7 +303,7 @@ internal static class BenchmarkCases
         BenchmarkContext context,
         BenchmarkManifest manifest,
         string sourceText,
-        TableGenIncludeResolver? resolver)
+        IncludeResolver? resolver)
     {
         var document = resolver == null
             ? Document.Parse(sourceText)
@@ -318,7 +318,7 @@ internal static class BenchmarkCases
         BenchmarkContext context,
         BenchmarkManifest manifest,
         string sourceText,
-        TableGenIncludeResolver? resolver)
+        IncludeResolver? resolver)
     {
         return new BenchmarkCase(
             manifest.Name,

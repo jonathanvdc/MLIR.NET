@@ -55,7 +55,7 @@ public sealed class IncludeTests
             "include \"base.td\"\n" +
             "def Derived { string Tag = \"derived\"; };";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
         var document = Document.Load(mainSource, resolver);
@@ -74,7 +74,7 @@ public sealed class IncludeTests
             "include \"base.td\"\n" +
             "def Example : Base<\"hello\">;";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
         var document = Document.Load(mainSource, resolver);
@@ -98,7 +98,7 @@ public sealed class IncludeTests
             "include \"shared.td\"\n" +
             "include \"shared.td\"\n";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["shared.td"] = sharedSource });
 
         var document = Document.Load(mainSource, resolver);
@@ -118,7 +118,7 @@ public sealed class IncludeTests
             "include \"level1.td\"\n" +
             "def L0 { int V = 0; };";
 
-        var resolver = new TableGenDictionaryIncludeResolver(new Dictionary<string, string>
+        var resolver = new DictionaryIncludeResolver(new Dictionary<string, string>
         {
             ["level1.td"] = level1,
             ["level2.td"] = level2,
@@ -136,7 +136,7 @@ public sealed class IncludeTests
     {
         const string mainSource = "include \"missing.td\"";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
 
         var exception = Assert.Throws<InvalidOperationException>(
@@ -150,10 +150,10 @@ public sealed class IncludeTests
     {
         const string mainSource = "include \"missing.td\"";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
 
-        var sourceFile = new TableGenSourceFile("my_ops.td");
+        var sourceFile = new SourceFile("my_ops.td");
 
         var exception = Assert.Throws<InvalidOperationException>(
             () => Document.Load(mainSource, resolver, sourceFile));
@@ -168,11 +168,11 @@ public sealed class IncludeTests
         const string mainSource = "include \"dep.td\"";
         const string dependencySource = "def Broken : Base<1;";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["dep.td"] = dependencySource });
 
         var exception = Assert.Throws<ParseException>(
-            () => Document.Load(mainSource, resolver, new TableGenSourceFile("main.td")));
+            () => Document.Load(mainSource, resolver, new SourceFile("main.td")));
 
         Assert.Contains("dep.td", exception.Message);
         Assert.Equal("dep.td", exception.Diagnostic.SourceFilePath);
@@ -184,12 +184,12 @@ public sealed class IncludeTests
         const string firstSource = "def FromFirst { int X = 1; };";
         const string secondSource = "def FromSecond { int X = 2; };";
 
-        var first = new TableGenDictionaryIncludeResolver(
+        var first = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["shared.td"] = firstSource });
-        var second = new TableGenDictionaryIncludeResolver(
+        var second = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["shared.td"] = secondSource });
 
-        var composite = new TableGenCompositeIncludeResolver(first, second);
+        var composite = new CompositeIncludeResolver(first, second);
         var document = Document.Load("include \"shared.td\"", composite);
 
         // The first resolver wins.
@@ -203,12 +203,12 @@ public sealed class IncludeTests
     {
         const string secondSource = "def FromSecond { int X = 2; };";
 
-        var first = new TableGenDictionaryIncludeResolver(
+        var first = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
-        var second = new TableGenDictionaryIncludeResolver(
+        var second = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["only-in-second.td"] = secondSource });
 
-        var composite = new TableGenCompositeIncludeResolver(first, second);
+        var composite = new CompositeIncludeResolver(first, second);
         var document = Document.Load("include \"only-in-second.td\"", composite);
 
         var record = document.Evaluate().Records.Single();
@@ -222,7 +222,7 @@ public sealed class IncludeTests
             "dep.td",
             "def Dep { int X = 1; };");
 
-        var mainFile = new TableGenSourceFile("main.td");
+        var mainFile = new SourceFile("main.td");
         Document.Load("include \"dep.td\"", trackingResolver, mainFile);
 
         Assert.NotNull(trackingResolver.CapturedIncludingFile);
@@ -238,7 +238,7 @@ public sealed class IncludeTests
     {
         const string source = "def Foo { int X = 1; };";
         var defines = new System.Collections.Generic.HashSet<string>();
-        var result = TableGenPreprocessor.Process(source, defines);
+        var result = Preprocessor.Process(source, defines);
         Assert.Contains("def Foo", result);
     }
 
@@ -247,7 +247,7 @@ public sealed class IncludeTests
     {
         const string source = "#define MY_SYMBOL\ndef Foo { int X = 1; };";
         var defines = new System.Collections.Generic.HashSet<string>();
-        TableGenPreprocessor.Process(source, defines);
+        Preprocessor.Process(source, defines);
         Assert.Contains("MY_SYMBOL", defines);
     }
 
@@ -259,7 +259,7 @@ public sealed class IncludeTests
             "def ShouldBeSkipped { int X = 1; };\n" +
             "#endif\n";
         var defines = new System.Collections.Generic.HashSet<string> { "MY_SYMBOL" };
-        var result = TableGenPreprocessor.Process(source, defines);
+        var result = Preprocessor.Process(source, defines);
         Assert.DoesNotContain("ShouldBeSkipped", result);
     }
 
@@ -271,7 +271,7 @@ public sealed class IncludeTests
             "def ShouldBeIncluded { int X = 1; };\n" +
             "#endif\n";
         var defines = new System.Collections.Generic.HashSet<string>();
-        var result = TableGenPreprocessor.Process(source, defines);
+        var result = Preprocessor.Process(source, defines);
         Assert.Contains("ShouldBeIncluded", result);
     }
 
@@ -285,7 +285,7 @@ public sealed class IncludeTests
             "def ElseBranch { int X = 2; };\n" +
             "#endif\n";
         var defines = new System.Collections.Generic.HashSet<string> { "MY_SYMBOL" };
-        var result = TableGenPreprocessor.Process(source, defines);
+        var result = Preprocessor.Process(source, defines);
         Assert.DoesNotContain("IfBranch", result);
         Assert.Contains("ElseBranch", result);
     }
@@ -300,7 +300,7 @@ public sealed class IncludeTests
             "  #endif\n" +
             "#endif\n";
         var defines = new System.Collections.Generic.HashSet<string>();
-        var result = TableGenPreprocessor.Process(source, defines);
+        var result = Preprocessor.Process(source, defines);
         Assert.Contains("BothAbsent", result);
     }
 
@@ -316,7 +316,7 @@ public sealed class IncludeTests
             "include \"guarded.td\"\n" +
             "include \"guarded.td\"\n";
 
-        var resolver = new TableGenDictionaryIncludeResolver(
+        var resolver = new DictionaryIncludeResolver(
             new System.Collections.Generic.Dictionary<string, string>
             {
                 ["guarded.td"] = guardedSource,
@@ -338,13 +338,13 @@ public sealed class IncludeTests
             "#endif\n" +
             "def Line4 { int X = 2; };\n";
         var defines = new System.Collections.Generic.HashSet<string> { "MY_SYMBOL" };
-        var result = TableGenPreprocessor.Process(source, defines);
+        var result = Preprocessor.Process(source, defines);
         var resultLines = result.Split('\n');
         // Line 4 (index 3) of the output should still contain the def.
         Assert.Contains("Line4", resultLines[3]);
     }
 
-    private sealed class TrackingResolver : TableGenIncludeResolver
+    private sealed class TrackingResolver : IncludeResolver
     {
         private readonly string expectedPath;
         private readonly string resolvedText;
@@ -355,17 +355,17 @@ public sealed class IncludeTests
             this.resolvedText = resolvedText;
         }
 
-        public TableGenSourceFile? CapturedIncludingFile { get; private set; }
+        public SourceFile? CapturedIncludingFile { get; private set; }
 
         public override bool TryResolveInclude(
             string includePath,
-            TableGenSourceFile? includingFile,
-            out TableGenResolvedInclude resolvedInclude)
+            SourceFile? includingFile,
+            out ResolvedInclude resolvedInclude)
         {
             if (includePath == expectedPath)
             {
                 CapturedIncludingFile = includingFile;
-                resolvedInclude = new TableGenResolvedInclude(includePath, resolvedText);
+                resolvedInclude = new ResolvedInclude(includePath, resolvedText);
                 return true;
             }
 

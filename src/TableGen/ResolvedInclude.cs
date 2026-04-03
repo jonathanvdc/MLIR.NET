@@ -3,7 +3,7 @@ namespace TableGen;
 /// <summary>
 /// Represents a successfully resolved TableGen include.
 /// </summary>
-public sealed class TableGenResolvedInclude
+public sealed class ResolvedInclude
 {
     /// <summary>
     /// Initializes a new instance.
@@ -12,7 +12,7 @@ public sealed class TableGenResolvedInclude
     /// The logical path of the included file, used for diagnostics and include deduplication.
     /// </param>
     /// <param name="sourceText">The source text of the included file.</param>
-    public TableGenResolvedInclude(string logicalPath, string sourceText)
+    public ResolvedInclude(string logicalPath, string sourceText)
     {
         LogicalPath = logicalPath;
         SourceText = sourceText;

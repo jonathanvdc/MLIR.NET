@@ -35,7 +35,7 @@ public sealed class Document(DocumentSyntax syntax)
     /// <param name="source">The source text to parse.</param>
     /// <param name="sourceFile">The logical source file used in diagnostics, if known.</param>
     /// <returns>The parsed document.</returns>
-    public static Document Parse(string source, TableGenSourceFile? sourceFile)
+    public static Document Parse(string source, SourceFile? sourceFile)
     {
         return new Document(Parser.ParseDocument(source, sourceFile?.LogicalPath));
     }
@@ -61,8 +61,8 @@ public sealed class Document(DocumentSyntax syntax)
     /// </exception>
     public static Document Load(
         string source,
-        TableGenIncludeResolver resolver,
-        TableGenSourceFile? sourceFile = null)
+        IncludeResolver resolver,
+        SourceFile? sourceFile = null)
     {
         var defines = new HashSet<string>(StringComparer.Ordinal);
         var declarations = new List<TopLevelSyntax>();
@@ -89,12 +89,12 @@ public sealed class Document(DocumentSyntax syntax)
     /// <param name="output">The accumulated flattened declaration list.</param>
     private static void ExpandIncludes(
         string source,
-        TableGenSourceFile? sourceFile,
-        TableGenIncludeResolver resolver,
+        SourceFile? sourceFile,
+        IncludeResolver resolver,
         HashSet<string> defines,
         List<TopLevelSyntax> output)
     {
-        var preprocessed = TableGenPreprocessor.Process(source, defines);
+        var preprocessed = Preprocessor.Process(source, defines);
         var syntax = Parser.ParseDocument(preprocessed, sourceFile?.LogicalPath);
         foreach (var declaration in syntax.Declarations)
         {
@@ -109,7 +109,7 @@ public sealed class Document(DocumentSyntax syntax)
                         $"Could not resolve include '{include.Path}'{location}.");
                 }
 
-                var includedFile = new TableGenSourceFile(resolved.LogicalPath);
+                var includedFile = new SourceFile(resolved.LogicalPath);
                 // Includes are expanded eagerly so later stages can operate on one flat declaration stream.
                 ExpandIncludes(resolved.SourceText, includedFile, resolver, defines, output);
             }

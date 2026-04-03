@@ -19,7 +19,7 @@ using System.Text;
 /// The <see cref="Process"/> method's <c>defines</c> parameter is updated in-place so that symbols defined in one file
 /// remain visible when other files are processed.
 /// </remarks>
-public static class TableGenPreprocessor
+public static class Preprocessor
 {
     /// <summary>
     /// Processes preprocessor directives in <paramref name="source"/> using the given

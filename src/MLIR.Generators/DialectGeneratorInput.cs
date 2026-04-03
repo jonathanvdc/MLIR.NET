@@ -11,7 +11,7 @@ internal static class DialectGeneratorInput
 {
     public static ParsedDialectFile ParseFile(
         AdditionalText file,
-        TableGenIncludeResolver? resolver,
+        IncludeResolver? resolver,
         System.Threading.CancellationToken cancellationToken)
     {
         var text = file.GetText(cancellationToken);
@@ -22,7 +22,7 @@ internal static class DialectGeneratorInput
 
         try
         {
-            var sourceFile = new TableGenSourceFile(file.Path);
+            var sourceFile = new SourceFile(file.Path);
             var document = resolver != null
                 ? Document.Load(text.ToString(), resolver, sourceFile)
                 : Document.Parse(text.ToString());

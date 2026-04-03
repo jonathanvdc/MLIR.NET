@@ -6,7 +6,7 @@ using System.Collections.Generic;
 /// A simple include resolver that serves includes from an in-memory dictionary.
 /// Suitable for unit tests and lightweight single-process scenarios.
 /// </summary>
-public sealed class TableGenDictionaryIncludeResolver : TableGenIncludeResolver
+public sealed class DictionaryIncludeResolver : IncludeResolver
 {
     private readonly IReadOnlyDictionary<string, string> files;
 
@@ -16,7 +16,7 @@ public sealed class TableGenDictionaryIncludeResolver : TableGenIncludeResolver
     /// <param name="files">
     /// A mapping from logical include paths to their source text.
     /// </param>
-    public TableGenDictionaryIncludeResolver(IReadOnlyDictionary<string, string> files)
+    public DictionaryIncludeResolver(IReadOnlyDictionary<string, string> files)
     {
         this.files = files;
     }
@@ -24,12 +24,12 @@ public sealed class TableGenDictionaryIncludeResolver : TableGenIncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        TableGenSourceFile? includingFile,
-        out TableGenResolvedInclude resolvedInclude)
+        SourceFile? includingFile,
+        out ResolvedInclude resolvedInclude)
     {
         if (files.TryGetValue(includePath, out var sourceText))
         {
-            resolvedInclude = new TableGenResolvedInclude(includePath, sourceText);
+            resolvedInclude = new ResolvedInclude(includePath, sourceText);
             return true;
         }
 

@@ -18,7 +18,7 @@ using TableGen;
 /// </list>
 /// Path comparisons are case-insensitive on all platforms to match common file-system behavior.
 /// </remarks>
-internal sealed class ConsumerFileResolver : TableGenIncludeResolver
+internal sealed class ConsumerFileResolver : IncludeResolver
 {
     private readonly IReadOnlyDictionary<string, string> filesByPath;
 
@@ -45,13 +45,13 @@ internal sealed class ConsumerFileResolver : TableGenIncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        TableGenSourceFile? includingFile,
-        out TableGenResolvedInclude resolvedInclude)
+        SourceFile? includingFile,
+        out ResolvedInclude resolvedInclude)
     {
         // 1. Exact path match.
         if (filesByPath.TryGetValue(includePath, out var text))
         {
-            resolvedInclude = new TableGenResolvedInclude(includePath, text);
+            resolvedInclude = new ResolvedInclude(includePath, text);
             return true;
         }
 
@@ -66,14 +66,14 @@ internal sealed class ConsumerFileResolver : TableGenIncludeResolver
                 var normalized = combined.Replace('\\', '/');
                 if (filesByPath.TryGetValue(normalized, out var relativeText))
                 {
-                    resolvedInclude = new TableGenResolvedInclude(normalized, relativeText);
+                    resolvedInclude = new ResolvedInclude(normalized, relativeText);
                     return true;
                 }
 
                 // Also try with OS-native separators.
                 if (filesByPath.TryGetValue(combined, out relativeText))
                 {
-                    resolvedInclude = new TableGenResolvedInclude(combined, relativeText);
+                    resolvedInclude = new ResolvedInclude(combined, relativeText);
                     return true;
                 }
             }

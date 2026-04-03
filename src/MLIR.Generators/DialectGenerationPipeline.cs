@@ -25,11 +25,11 @@ internal static class DialectGenerationPipeline
         return MergeDialects(results, productionContext).ToArray();
     }
 
-    private static TableGenIncludeResolver BuildIncludeResolver(
+    private static IncludeResolver BuildIncludeResolver(
         ImmutableArray<AdditionalText> additionalTexts,
         System.Threading.CancellationToken cancellationToken)
     {
-        return new TableGenCompositeIncludeResolver(
+        return new CompositeIncludeResolver(
             new ConsumerFileResolver(additionalTexts, cancellationToken),
             new EmbeddedPreludeResolver());
     }

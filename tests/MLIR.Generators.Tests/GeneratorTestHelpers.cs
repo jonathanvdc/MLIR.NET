@@ -78,12 +78,12 @@ internal static class GeneratorTestHelpers
 
     public static Document LoadTableGenWithUpstreamPrelude(string source)
     {
-        return Document.Load(EnsureUpstreamPrelude(source), new TableGenDictionaryIncludeResolver(PreludeFiles));
+        return Document.Load(EnsureUpstreamPrelude(source), new DictionaryIncludeResolver(PreludeFiles));
     }
 
     public static Document LoadTableGenFromPrelude(string source)
     {
-        return Document.Load(source, new TableGenDictionaryIncludeResolver(PreludeFiles));
+        return Document.Load(source, new DictionaryIncludeResolver(PreludeFiles));
     }
 
     private static string EnsureUpstreamPrelude(string source)

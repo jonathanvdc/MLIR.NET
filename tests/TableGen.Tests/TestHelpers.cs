@@ -19,7 +19,7 @@ internal static class TestHelpers
 
     public static Document LoadWithPrelude(string source)
     {
-        return Document.Load(source, new TableGenDictionaryIncludeResolver(PreludeFiles));
+        return Document.Load(source, new DictionaryIncludeResolver(PreludeFiles));
     }
 
     private static readonly IReadOnlyDictionary<string, string> PreludeFiles = Directory

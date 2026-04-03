@@ -3,18 +3,18 @@ namespace TableGen;
 using System.Collections.Generic;
 
 /// <summary>
-/// Combines multiple <see cref="TableGenIncludeResolver"/> instances, trying each in order.
+/// Combines multiple <see cref="IncludeResolver"/> instances, trying each in order.
 /// The first resolver that successfully resolves an include wins.
 /// </summary>
-public sealed class TableGenCompositeIncludeResolver : TableGenIncludeResolver
+public sealed class CompositeIncludeResolver : IncludeResolver
 {
-    private readonly IReadOnlyList<TableGenIncludeResolver> resolvers;
+    private readonly IReadOnlyList<IncludeResolver> resolvers;
 
     /// <summary>
     /// Initializes a new composite resolver with the given sub-resolvers.
     /// </summary>
     /// <param name="resolvers">The resolvers to try in priority order (first match wins).</param>
-    public TableGenCompositeIncludeResolver(params TableGenIncludeResolver[] resolvers)
+    public CompositeIncludeResolver(params IncludeResolver[] resolvers)
     {
         this.resolvers = resolvers;
     }
@@ -22,8 +22,8 @@ public sealed class TableGenCompositeIncludeResolver : TableGenIncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        TableGenSourceFile? includingFile,
-        out TableGenResolvedInclude resolvedInclude)
+        SourceFile? includingFile,
+        out ResolvedInclude resolvedInclude)
     {
         foreach (var resolver in resolvers)
         {

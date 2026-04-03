@@ -10,7 +10,7 @@ public static class PreludeIncludeResolvers
     /// <summary>
     /// Creates an include resolver that serves the embedded MLIR prelude files.
     /// </summary>
-    public static TableGenIncludeResolver CreateEmbeddedPreludeResolver()
+    public static IncludeResolver CreateEmbeddedPreludeResolver()
     {
         return new EmbeddedPreludeResolver();
     }

@@ -3,7 +3,7 @@ namespace TableGen;
 /// <summary>
 /// Abstract base class for resolving TableGen include directives.
 /// </summary>
-public abstract class TableGenIncludeResolver
+public abstract class IncludeResolver
 {
     /// <summary>
     /// Attempts to resolve a TableGen include directive.
@@ -22,6 +22,6 @@ public abstract class TableGenIncludeResolver
     /// </returns>
     public abstract bool TryResolveInclude(
         string includePath,
-        TableGenSourceFile? includingFile,
-        out TableGenResolvedInclude resolvedInclude);
+        SourceFile? includingFile,
+        out ResolvedInclude resolvedInclude);
 }
