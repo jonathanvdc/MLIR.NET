@@ -1373,30 +1373,35 @@ public sealed partial class Parser
 
     private ParseResult<AttributeValueSyntax> TryParseCustomAttributeSyntaxResult(AttributeConstraintDefinition? definition)
     {
-        try
+        if (definition?.AssemblyFormat == null)
         {
-            return TryParseCustomAttributeSyntax(definition, out var syntax)
-                ? ParseResult<AttributeValueSyntax>.Success(syntax)
-                : ParseResult<AttributeValueSyntax>.NoMatch();
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
-        catch (ParseException ex)
+
+        var checkpoint = Mark();
+        if (definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var syntax))
         {
-            return ParseResult<AttributeValueSyntax>.Failure(ex.Diagnostic);
+            return ParseResult<AttributeValueSyntax>.Success(syntax!);
         }
+
+        Reset(checkpoint);
+        return ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeSyntaxResult()
     {
-        try
+        if (dialectRegistry == null)
         {
-            return TryParseSelfIdentifyingAttributeSyntax(out var syntax)
-                ? ParseResult<AttributeValueSyntax>.Success(syntax)
-                : ParseResult<AttributeValueSyntax>.NoMatch();
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
-        catch (ParseException ex)
+
+        var canonicalName = TryPeekAttributeDefinitionName();
+        if (canonicalName == null || !dialectRegistry.TryGetAttribute(canonicalName, out var definition))
         {
-            return ParseResult<AttributeValueSyntax>.Failure(ex.Diagnostic);
+            return ParseResult<AttributeValueSyntax>.NoMatch();
         }
+
+        return TryParseCustomAttributeSyntaxResult(definition);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseBuiltinStructuredAttributeSyntaxResult()
@@ -1417,34 +1422,50 @@ public sealed partial class Parser
                 : ParseResult<AttributeValueSyntax>.Failure(dictResult.Diagnostic!);
         }
 
-        try
+        var denseArrayResult = TryParseAttributeAssemblyFormatResult(BuiltinAttributeConstraintDefinition("DenseArrayAttr"), DenseArrayAttributeAssemblyFormat);
+        if (!denseArrayResult.IsNoMatch)
         {
-            if (TryParseWith(BuiltinAttributeConstraintDefinition("DenseArrayAttr"), DenseArrayAttributeAssemblyFormat, out var syntax)
-                || TryParseWith(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat, out syntax))
-            {
-                return ParseResult<AttributeValueSyntax>.Success(syntax);
-            }
+            return denseArrayResult;
+        }
 
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-        catch (ParseException ex)
+        return TryParseAttributeAssemblyFormatResult(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseAttributeAssemblyFormatResult(
+        AttributeConstraintDefinition? definition,
+        IAttributeAssemblyFormat assemblyFormat)
+    {
+        var checkpoint = Mark();
+        if (assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var syntax))
         {
-            return ParseResult<AttributeValueSyntax>.Failure(ex.Diagnostic);
+            return ParseResult<AttributeValueSyntax>.Success(syntax!);
         }
+
+        Reset(checkpoint);
+        return ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     private ParseResult<TypeSyntax> TryParseCustomTypeSyntaxResult()
     {
-        try
+        if (dialectRegistry == null)
         {
-            return TryParseCustomTypeSyntax(out var syntax)
-                ? ParseResult<TypeSyntax>.Success(syntax)
-                : ParseResult<TypeSyntax>.NoMatch();
+            return ParseResult<TypeSyntax>.NoMatch();
         }
-        catch (ParseException ex)
+
+        var canonicalName = TryPeekTypeDefinitionName();
+        if (canonicalName == null || !dialectRegistry.TryGetType(canonicalName, out var definition) || definition.AssemblyFormat == null)
         {
-            return ParseResult<TypeSyntax>.Failure(ex.Diagnostic);
+            return ParseResult<TypeSyntax>.NoMatch();
         }
+
+        var checkpoint = Mark();
+        if (definition.AssemblyFormat.TryParse(new TypeParsingContext(this), out var syntax))
+        {
+            return ParseResult<TypeSyntax>.Success(syntax!);
+        }
+
+        Reset(checkpoint);
+        return ParseResult<TypeSyntax>.NoMatch();
     }
 
     private ParseResult<TypeSyntax> TryParseBuiltinTypeSyntaxResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
@@ -1818,47 +1839,101 @@ public sealed partial class Parser
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(false, (AttributeDefinition?)null, delimiters);
+        var result = TryParseAttributeValueSyntaxResult(false, (AttributeDefinition?)null, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(false, expectedDefinitionName, delimiters);
+        var result = TryParseAttributeValueSyntaxResult(false, expectedDefinitionName, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(false, expectedDefinition, delimiters);
+        var result = TryParseAttributeValueSyntaxResult(false, expectedDefinition, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(true, (AttributeDefinition?)null, delimiters);
+        var result = TryParseAttributeValueSyntaxResult(true, (AttributeDefinition?)null, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(true, expectedDefinitionName, delimiters);
+        var result = TryParseAttributeValueSyntaxResult(true, expectedDefinitionName, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal AttributeValueSyntax ParseAttributeValueSyntaxOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        return ParseAttributeValueSyntax(true, expectedDefinition, delimiters);
+        var result = TryParseAttributeValueSyntaxResult(true, expectedDefinition, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal TypeSyntax ParseTypeSyntaxInternal(params TokenKind[] delimiters)
     {
-        return ParseTypeSyntax(delimiters);
+        var result = TryParseTypeSyntaxResult(delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal TypeSyntax ParseTypeSyntaxInternal(string[] stopBeforeKeywords, params TokenKind[] delimiters)
     {
-        return ParseTypeSyntax(stopBeforeKeywords, delimiters);
+        var result = TryParseTypeSyntaxResult(stopBeforeKeywords, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal TypeSyntax ParseTypeSyntaxUntilOperationBoundaryInternal()
     {
-        return ParseTypeSyntaxUntilOperationBoundary();
+        var result = TryParseTypeSyntaxUntilOperationBoundaryResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 
     internal RawSyntaxText ParseRawUntilDelimiterInternal(params TokenKind[] delimiters)
