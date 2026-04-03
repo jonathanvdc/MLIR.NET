@@ -10,6 +10,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - name: Check out repository
@@ -54,6 +57,14 @@ jobs:
         run: |
           dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release --no-build -- compare --baseline /tmp/mlir-base/artifacts/benchmarks/base.json --candidate artifacts/benchmarks/head.json --output artifacts/benchmarks/compare.md
           cat artifacts/benchmarks/compare.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish sticky benchmark PR comment
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: tablegen-benchmarks
+          path: artifacts/benchmarks/compare.md
+          recreate: true
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4

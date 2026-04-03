@@ -63,7 +63,8 @@ dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Rel
 
 - Every CI build runs the head benchmark suite and uploads the JSON artifact.
 - Pull request builds also run the benchmark suite on the PR base commit.
-- PR builds generate a markdown comparison and append it to the GitHub Actions step summary.
+- PR builds generate a markdown comparison, append it to the GitHub Actions step summary, and publish it as a sticky PR comment for same-repository pull requests.
+- Fork-based pull requests may not be able to write PR comments with the default workflow token; when that happens, use the step summary and uploaded artifacts.
 
 ## Interpretation Guidance
 

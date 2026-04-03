@@ -128,10 +128,12 @@ Interpreter-focused benchmarks live in `tools/TableGen.Benchmarks`.
 
 - Use `dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output artifacts/benchmarks/local.json` to generate a local benchmark report.
 - On pull requests, CI runs the benchmark tool on both the PR head and the PR base, then publishes a relative comparison in the GitHub Actions step summary.
+- On same-repository pull requests, CI also publishes the comparison as a sticky PR comment so the latest benchmark table stays visible on the conversation thread.
 - The benchmark JSON is intended to be machine-readable; if you are making `TableGen` interpreter changes, prefer checking the benchmark summary instead of inferring performance from `dotnet test` wall-clock time.
 - Treat changes within roughly 5% as noise unless the benchmark scenario is especially stable or repeated measurements show a consistent shift.
 - If a change is meant to improve interpreter performance, mention which benchmark cases should move and verify them explicitly before concluding the work helped.
 - Benchmark scenarios are directory-backed, not baked into the runner. Add new cases under `tools/TableGen.Benchmarks/Cases/` with their `.td` inputs under `tools/TableGen.Benchmarks/Inputs/`.
+- Fork-based pull requests may not have permission to write PR comments with `GITHUB_TOKEN`; in those cases rely on the workflow summary and uploaded artifacts instead of assuming the sticky comment will appear.
 
 ## Editing Guidance
 
