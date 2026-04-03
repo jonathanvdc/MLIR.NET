@@ -1,0 +1,7 @@
+{
+  "name": "Evaluate.UtilsTd",
+  "description": "Evaluates the in-repo Utils.td-style helper workload without parse overhead.",
+  "mode": "evaluate",
+  "source": "Inputs/evaluate-utils-td.td",
+  "includeResolver": "none"
+}

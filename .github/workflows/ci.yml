@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -28,3 +30,36 @@ jobs:
 
       - name: Test
         run: dotnet test MLIR.slnx --configuration Release --no-build
+
+      - name: Run head benchmarks
+        run: dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release --no-build -- run --output artifacts/benchmarks/head.json --warmup 3 --iterations 8
+
+      - name: Benchmark summary
+        if: github.event_name != 'pull_request'
+        run: |
+          {
+            echo "## TableGen Interpreter Benchmarks"
+            echo
+            echo "Head benchmark results were written to \`artifacts/benchmarks/head.json\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run base benchmarks
+        if: github.event_name == 'pull_request'
+        run: |
+          git worktree add /tmp/mlir-base "${{ github.event.pull_request.base.sha }}"
+          dotnet run --project /tmp/mlir-base/tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output /tmp/mlir-base/artifacts/benchmarks/base.json --warmup 3 --iterations 8
+
+      - name: Compare benchmark results
+        if: github.event_name == 'pull_request'
+        run: |
+          dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release --no-build -- compare --baseline /tmp/mlir-base/artifacts/benchmarks/base.json --candidate artifacts/benchmarks/head.json --output artifacts/benchmarks/compare.md
+          cat artifacts/benchmarks/compare.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tablegen-benchmarks
+          if-no-files-found: ignore
+          path: |
+            artifacts/benchmarks/head.json
+            artifacts/benchmarks/compare.md

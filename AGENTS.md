@@ -112,6 +112,7 @@ Preferred validation commands:
 - `dotnet test tests/MLIR.Generators.Tests/MLIR.Generators.Tests.csproj`
 - `dotnet test tests/DialectTests/DialectTests.csproj`
 - `dotnet test tests/MLIR.Tests/MLIR.Tests.csproj`
+- `dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output artifacts/benchmarks/local.json`
 - `dotnet build samples/GeneratedDialectConsumer/GeneratedDialectConsumer.csproj`
 - `dotnet test MLIR.slnx -m:1`
 
@@ -120,6 +121,17 @@ Important:
 - Prefer sequential test/build runs when touching `TableGen` or `MLIR.Generators`.
 - Parallel `dotnet` runs can cause DLL lock failures in `obj/`.
 - If a parallel run fails with "cannot open ... for writing," rerun sequentially before assuming the code is broken.
+
+## Performance Benchmarks
+
+Interpreter-focused benchmarks live in `tools/TableGen.Benchmarks`.
+
+- Use `dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output artifacts/benchmarks/local.json` to generate a local benchmark report.
+- On pull requests, CI runs the benchmark tool on both the PR head and the PR base, then publishes a relative comparison in the GitHub Actions step summary.
+- The benchmark JSON is intended to be machine-readable; if you are making `TableGen` interpreter changes, prefer checking the benchmark summary instead of inferring performance from `dotnet test` wall-clock time.
+- Treat changes within roughly 5% as noise unless the benchmark scenario is especially stable or repeated measurements show a consistent shift.
+- If a change is meant to improve interpreter performance, mention which benchmark cases should move and verify them explicitly before concluding the work helped.
+- Benchmark scenarios are directory-backed, not baked into the runner. Add new cases under `tools/TableGen.Benchmarks/Cases/` with their `.td` inputs under `tools/TableGen.Benchmarks/Inputs/`.
 
 ## Editing Guidance
 

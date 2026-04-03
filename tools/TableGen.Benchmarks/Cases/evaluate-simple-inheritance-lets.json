@@ -1,0 +1,7 @@
+{
+  "name": "Evaluate.SimpleInheritanceLets",
+  "description": "Evaluates a small inherited-field/let scenario without parse overhead.",
+  "mode": "evaluate",
+  "source": "Inputs/evaluate-simple-inheritance-lets.td",
+  "includeResolver": "none"
+}

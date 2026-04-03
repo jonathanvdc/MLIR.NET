@@ -1,0 +1,7 @@
+{
+  "name": "Evaluate.PreludeMiniDialect",
+  "description": "Evaluates a small MLIR-style dialect/op against the embedded MLIR prelude without parse overhead.",
+  "mode": "evaluate",
+  "source": "Inputs/prelude-mini-dialect.td",
+  "includeResolver": "mlir-prelude"
+}

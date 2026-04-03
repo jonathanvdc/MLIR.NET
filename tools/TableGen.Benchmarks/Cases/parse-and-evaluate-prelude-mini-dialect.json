@@ -1,0 +1,7 @@
+{
+  "name": "ParseAndEvaluate.PreludeMiniDialect",
+  "description": "Parses includes and evaluates a small MLIR-style dialect/op end-to-end.",
+  "mode": "parse-and-evaluate",
+  "source": "Inputs/prelude-mini-dialect.td",
+  "includeResolver": "mlir-prelude"
+}
