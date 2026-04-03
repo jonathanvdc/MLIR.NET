@@ -129,4 +129,9 @@ public enum TokenKind
     /// Represents the <c>.</c> token.
     /// </summary>
     Dot,
+
+    /// <summary>
+    /// Represents the <c>|</c> token.
+    /// </summary>
+    Pipe,
 }

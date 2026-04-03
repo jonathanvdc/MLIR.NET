@@ -113,8 +113,36 @@ public static class Interpreter
             IReadOnlyList<ExpressionSyntax> arguments,
             IReadOnlyDictionary<string, Value> outerScope)
         {
+            return InstantiateClass(classSyntax, arguments, outerScope, preOverrides: null);
+        }
+
+        /// <summary>
+        /// Instantiates a class, optionally pre-seeding fields with <paramref name="preOverrides"/> that come
+        /// from <c>let</c> statements in a derived class.  Pre-seeded values are written into the local
+        /// scope before any base-class or body processing so that computed fields such as
+        /// <c>attrName = dialect.name # "." # mnemonic</c> in <c>AttrDef</c> see the already-resolved value
+        /// of <c>mnemonic</c> that was supplied by the derived class body.
+        /// Field declarations whose initializer would overwrite a pre-seeded entry are skipped.
+        /// </summary>
+        private Dictionary<string, Value> InstantiateClass(
+            ClassSyntax classSyntax,
+            IReadOnlyList<ExpressionSyntax> arguments,
+            IReadOnlyDictionary<string, Value> outerScope,
+            IReadOnlyDictionary<string, Value>? preOverrides)
+        {
             var scope = new Dictionary<string, Value>();
             var fields = new Dictionary<string, Value>();
+
+            // Pre-seed scope and fields with derived-class let overrides so that field initializers
+            // in this class (and its base classes) can see them before they are declared.
+            if (preOverrides != null)
+            {
+                foreach (var pair in preOverrides)
+                {
+                    scope[pair.Key] = pair.Value;
+                    fields[pair.Key] = pair.Value;
+                }
+            }
 
             for (var i = 0; i < classSyntax.TemplateParameters.Count; i++)
             {
@@ -126,7 +154,9 @@ public static class Interpreter
                 }
                 else if (parameter.DefaultValue != null)
                 {
-                    value = EvaluateExpression(parameter.DefaultValue, outerScope);
+                    // Evaluate default values against the partially-built scope so that
+                    // earlier template parameters (e.g. `string str = sym`) resolve correctly.
+                    value = EvaluateExpression(parameter.DefaultValue, scope);
                 }
                 else
                 {
@@ -136,15 +166,28 @@ public static class Interpreter
                 scope[parameter.Name] = value;
             }
 
-            ApplyBases(classSyntax.Bases, scope, fields);
-            ApplyBody(classSyntax.BodyItems, scope, fields);
+            ApplyBases(classSyntax.Bases, scope, fields, preOverrides);
+
+            // Apply body.  Field declarations (FieldSyntax) whose name is in preOverrides are skipped
+            // because the derived class has already supplied the authoritative value.
+            ApplyBody(classSyntax.BodyItems, scope, fields, letOverrides: null, preOverrides: preOverrides);
+
             return fields;
         }
 
-        private void ApplyBody(
-            IReadOnlyList<BodyItemSyntax> bodyItems,
+        private void ApplyBases(
+            IReadOnlyList<BaseSyntax> bases,
             Dictionary<string, Value> scope,
             Dictionary<string, Value> fields)
+        {
+            ApplyBases(bases, scope, fields, preOverrides: null);
+        }
+
+        private void ApplyBases(
+            IReadOnlyList<BaseSyntax> bases,
+            Dictionary<string, Value> scope,
+            Dictionary<string, Value> fields,
+            IReadOnlyDictionary<string, Value>? preOverrides)
         {
             foreach (var item in bodyItems)
             {
@@ -170,6 +213,7 @@ public static class Interpreter
                             : value;
                         fields[let.Name] = finalValue;
                         scope[let.Name] = finalValue;
+                        overriddenByLet?.Add(let.Name);
                         break;
                     }
                     case LocalDefVarSyntax defVar:

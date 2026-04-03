@@ -156,6 +156,7 @@ internal static class Lexer
                 '*' => TokenKind.Star,
                 '+' => TokenKind.Plus,
                 '.' => TokenKind.Dot,
+                '|' => TokenKind.Pipe,
                 '-' => index + 1 < source.Length && source[index + 1] == '>' ? TokenKind.Arrow : TokenKind.Minus,
                 _ => throw new ParseException(new Diagnostic($"Unexpected character '{chAtToken}'.", tokenLine, tokenColumn)),
             };
