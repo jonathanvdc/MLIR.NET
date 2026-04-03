@@ -71,7 +71,12 @@ public enum AttributeConstraintKind
     DenseIntegerArrayAttribute = 12,
 
     /// <summary>
-    /// The constraint parses a dense array of floating-point values (<c>array&lt;f32: ...&gt;</c>, etc.).
+    /// The constraint parses a dense array of single-precision floating-point values (<c>array&lt;f32: ...&gt;</c>).
     /// </summary>
-    DenseFloatingPointArrayAttribute = 13,
+    DenseSinglePrecisionArrayAttribute = 13,
+
+    /// <summary>
+    /// The constraint parses a dense array of double-precision floating-point values (<c>array&lt;f64: ...&gt;</c>).
+    /// </summary>
+    DenseDoublePrecisionArrayAttribute = 14,
 }

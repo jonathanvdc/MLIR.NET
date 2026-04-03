@@ -60,14 +60,28 @@ public static class StructuredAttributeSemanticDecoder
     }
 
     /// <summary>
-    /// Decodes a list of attribute-value syntax nodes into a list of <see cref="double"/> values.
+    /// Decodes a list of attribute-value syntax nodes into a list of single-precision <see cref="float"/> values.
     /// </summary>
-    public static IReadOnlyList<double> DecodeFloatingPointItems(IReadOnlyList<AttributeValueSyntax> items)
+    public static IReadOnlyList<float> DecodeSinglePrecisionItems(IReadOnlyList<AttributeValueSyntax> items)
+    {
+        var result = new List<float>(items.Count);
+        for (var i = 0; i < items.Count; i++)
+        {
+            result.Add(DecodeSinglePrecisionValue(items[i]));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Decodes a list of attribute-value syntax nodes into a list of double-precision <see cref="double"/> values.
+    /// </summary>
+    public static IReadOnlyList<double> DecodeDoublePrecisionItems(IReadOnlyList<AttributeValueSyntax> items)
     {
         var result = new List<double>(items.Count);
         for (var i = 0; i < items.Count; i++)
         {
-            result.Add(DecodeFloatingPointValue(items[i]));
+            result.Add(DecodeDoublePrecisionValue(items[i]));
         }
 
         return result;
@@ -116,7 +130,8 @@ public static class StructuredAttributeSemanticDecoder
         {
             "i1" => new DecodedDenseBooleanArrayAttributeValue(syntax),
             "i8" or "i16" or "i32" or "i64" => new DecodedDenseIntegerArrayAttributeValue(syntax),
-            "f32" or "f64" or "bf16" => new DecodedDenseFloatingPointArrayAttributeValue(syntax),
+            "f32" => new DecodedDenseSinglePrecisionArrayAttributeValue(syntax),
+            "f64" or "bf16" => new DecodedDenseDoublePrecisionArrayAttributeValue(syntax),
             _ => throw new System.NotSupportedException($"Unsupported dense array element type '{typeText}'."),
         };
     }
@@ -152,7 +167,24 @@ public static class StructuredAttributeSemanticDecoder
         return false;
     }
 
-    private static double DecodeFloatingPointValue(AttributeValueSyntax syntax)
+    private static float DecodeSinglePrecisionValue(AttributeValueSyntax syntax)
+    {
+        if (syntax is FloatingPointAttributeValueSyntax fpSyntax
+            && float.TryParse(fpSyntax.LiteralText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (syntax is RawAttributeValueSyntax rawSyntax
+            && float.TryParse(rawSyntax.RawText.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var rawParsed))
+        {
+            return rawParsed;
+        }
+
+        return 0.0f;
+    }
+
+    private static double DecodeDoublePrecisionValue(AttributeValueSyntax syntax)
     {
         if (syntax is FloatingPointAttributeValueSyntax fpSyntax
             && double.TryParse(fpSyntax.LiteralText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
@@ -314,10 +346,22 @@ public static class StructuredAttributeSemanticDecoder
         public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
-    private sealed class DecodedDenseFloatingPointArrayAttributeValue : DenseFloatingPointArrayAttributeValue
+    private sealed class DecodedDenseSinglePrecisionArrayAttributeValue : DenseSinglePrecisionArrayAttributeValue
     {
-        public DecodedDenseFloatingPointArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeFloatingPointItems(syntax.Items.Items))
+        public DecodedDenseSinglePrecisionArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeSinglePrecisionItems(syntax.Items.Items))
+        {
+        }
+
+        public override string? Name => null;
+
+        public override Dialects.AttributeConstraintDefinition? Definition => null;
+    }
+
+    private sealed class DecodedDenseDoublePrecisionArrayAttributeValue : DenseDoublePrecisionArrayAttributeValue
+    {
+        public DecodedDenseDoublePrecisionArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeDoublePrecisionItems(syntax.Items.Items))
         {
         }
 

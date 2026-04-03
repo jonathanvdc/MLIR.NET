@@ -924,7 +924,7 @@ public sealed class DialectGeneratorTests
     }
 
     [Fact]
-    public void GeneratesDenseFloatingPointArrayAttributePropertyWithTypedItemsList()
+    public void GeneratesDenseF32ArrayAttributePropertyWithSinglePrecisionItemsList()
     {
         const string source =
             "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
@@ -946,9 +946,38 @@ public sealed class DialectGeneratorTests
             ("mydialect.td", source));
         var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
-        Assert.Contains("DenseFloatingPointArrayAttributeValue", registrationSource);
-        Assert.Contains("public IReadOnlyList<double> Coeffs", registrationSource);
-        Assert.Contains("DenseFloatingPointArrayAttributeAssemblyFormat", registrationSource);
-        Assert.Contains("IReadOnlyList<double> coeffs,", registrationSource);
+        Assert.Contains("DenseSinglePrecisionArrayAttributeValue", registrationSource);
+        Assert.Contains("public IReadOnlyList<float> Coeffs", registrationSource);
+        Assert.Contains("DenseSinglePrecisionArrayAttributeAssemblyFormat", registrationSource);
+        Assert.Contains("IReadOnlyList<float> coeffs,", registrationSource);
+    }
+
+    [Fact]
+    public void GeneratesDenseF64ArrayAttributePropertyWithDoublePrecisionItemsList()
+    {
+        const string source =
+            "class MyDialect_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyDialect_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyDialect_Dialect : Dialect {\n" +
+            "  let name = \"mydialect\";\n" +
+            "  let cppNamespace = \"::mlir::mydialect\";\n" +
+            "};\n" +
+            "\n" +
+            "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {\n" +
+            "  let arguments = (ins DenseF64ArrayAttr:$weights, I32:$lhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$weights `,` $lhs attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("mydialect.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static r => r.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
+
+        Assert.Contains("DenseDoublePrecisionArrayAttributeValue", registrationSource);
+        Assert.Contains("public IReadOnlyList<double> Weights", registrationSource);
+        Assert.Contains("DenseDoublePrecisionArrayAttributeAssemblyFormat", registrationSource);
+        Assert.Contains("IReadOnlyList<double> weights,", registrationSource);
     }
 }

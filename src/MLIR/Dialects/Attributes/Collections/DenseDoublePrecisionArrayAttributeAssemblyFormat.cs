@@ -5,9 +5,9 @@ using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 
 /// <summary>
-/// Parses dense floating-point-array attribute literals such as <c>array&lt;f32: 1.0, 2.0&gt;</c>.
+/// Parses dense double-precision floating-point array attribute literals such as <c>array&lt;f64: 1.0, 2.0&gt;</c>.
 /// </summary>
-public sealed class DenseFloatingPointArrayAttributeAssemblyFormat : DenseArrayAttributeAssemblyFormat<double>
+public sealed class DenseDoublePrecisionArrayAttributeAssemblyFormat : DenseArrayAttributeAssemblyFormat<double>
 {
     /// <inheritdoc/>
     protected override AttributeValueSyntax ElementToSyntax(double element)
@@ -19,10 +19,6 @@ public sealed class DenseFloatingPointArrayAttributeAssemblyFormat : DenseArrayA
     /// <inheritdoc/>
     protected override TypeSyntax GetElementTypeSyntax(string? constraintName)
     {
-        return constraintName switch
-        {
-            "DenseF64ArrayAttr" => new RawTypeSyntax(new RawSyntaxText("f64")),
-            _ => new RawTypeSyntax(new RawSyntaxText("f32")),
-        };
+        return new RawTypeSyntax(new RawSyntaxText("f64"));
     }
 }
