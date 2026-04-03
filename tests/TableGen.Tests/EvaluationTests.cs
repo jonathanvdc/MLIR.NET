@@ -219,6 +219,25 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void DerivedLetsAffectBaseComputedFieldsBeforeBodyResolution()
+    {
+        const string source =
+            "class Base<string fallback> {\n" +
+            "  string mnemonic = fallback;\n" +
+            "  string attrName = mnemonic # \".suffix\";\n" +
+            "};\n" +
+            "class Derived<string name> : Base<\"default\"> {\n" +
+            "  let mnemonic = name;\n" +
+            "};\n" +
+            "def Example : Derived<\"real\">;";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("real", Assert.IsType<StringValue>(record.GetField("mnemonic")).Value);
+        Assert.Equal("real.suffix", Assert.IsType<StringValue>(record.GetField("attrName")).Value);
+    }
+
+    [Fact]
     public void ReportsMissingTemplateArgumentsWhenNoDefaultExists()
     {
         const string source =

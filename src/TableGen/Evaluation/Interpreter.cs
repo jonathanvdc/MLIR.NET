@@ -87,27 +87,6 @@ public static class Interpreter
             }
         }
 
-        private void ApplyBases(
-            IReadOnlyList<BaseSyntax> bases,
-            Dictionary<string, Value> scope,
-            Dictionary<string, Value> fields)
-        {
-            foreach (var @base in bases)
-            {
-                if (!classes.TryGetValue(@base.Name, out var classSyntax))
-                {
-                    throw new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'.");
-                }
-
-                var classFields = InstantiateClass(classSyntax, @base.Arguments, scope);
-                foreach (var field in classFields)
-                {
-                    fields[field.Key] = field.Value;
-                    scope[field.Key] = field.Value;
-                }
-            }
-        }
-
         private Dictionary<string, Value> InstantiateClass(
             ClassSyntax classSyntax,
             IReadOnlyList<ExpressionSyntax> arguments,
@@ -166,11 +145,14 @@ public static class Interpreter
                 scope[parameter.Name] = value;
             }
 
-            ApplyBases(classSyntax.Bases, scope, fields, preOverrides);
+            var bodyPreOverrides = CollectPreOverrides(classSyntax.BodyItems, scope);
+            var mergedPreOverrides = MergePreOverrides(bodyPreOverrides, preOverrides);
+
+            ApplyBases(classSyntax.Bases, scope, fields, mergedPreOverrides);
 
             // Apply body.  Field declarations (FieldSyntax) whose name is in preOverrides are skipped
             // because the derived class has already supplied the authoritative value.
-            ApplyBody(classSyntax.BodyItems, scope, fields, letOverrides: null, preOverrides: preOverrides);
+            ApplyBody(classSyntax.BodyItems, scope, fields, mergedPreOverrides);
 
             return fields;
         }
@@ -189,12 +171,39 @@ public static class Interpreter
             Dictionary<string, Value> fields,
             IReadOnlyDictionary<string, Value>? preOverrides)
         {
+            foreach (var @base in bases)
+            {
+                if (!classes.TryGetValue(@base.Name, out var classSyntax))
+                {
+                    throw new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'.");
+                }
+
+                var classFields = InstantiateClass(classSyntax, @base.Arguments, scope, preOverrides);
+                foreach (var field in classFields)
+                {
+                    fields[field.Key] = field.Value;
+                    scope[field.Key] = field.Value;
+                }
+            }
+        }
+
+        private void ApplyBody(
+            IReadOnlyList<BodyItemSyntax> bodyItems,
+            Dictionary<string, Value> scope,
+            Dictionary<string, Value> fields,
+            IReadOnlyDictionary<string, Value>? preOverrides = null)
+        {
             foreach (var item in bodyItems)
             {
                 switch (item)
                 {
                     case FieldSyntax field:
                     {
+                        if (preOverrides != null && preOverrides.ContainsKey(field.Name))
+                        {
+                            continue;
+                        }
+
                         if (field.Initializer == null)
                         {
                             continue;
@@ -213,7 +222,6 @@ public static class Interpreter
                             : value;
                         fields[let.Name] = finalValue;
                         scope[let.Name] = finalValue;
-                        overriddenByLet?.Add(let.Name);
                         break;
                     }
                     case LocalDefVarSyntax defVar:
@@ -236,6 +244,57 @@ public static class Interpreter
                     }
                 }
             }
+        }
+
+        private Dictionary<string, Value> CollectPreOverrides(
+            IReadOnlyList<BodyItemSyntax> bodyItems,
+            IReadOnlyDictionary<string, Value> scope)
+        {
+            var preOverrides = new Dictionary<string, Value>();
+            var preOverrideScope = scope.ToDictionary(static kv => kv.Key, static kv => kv.Value);
+
+            foreach (var item in bodyItems.OfType<LetSyntax>())
+            {
+                try
+                {
+                    var value = EvaluateExpression(item.Value, preOverrideScope);
+                    preOverrides[item.Name] = value;
+                    preOverrideScope[item.Name] = value;
+                }
+                catch (Exception ex) when (
+                    ex is InvalidOperationException
+                    or InvalidCastException
+                    or KeyNotFoundException)
+                {
+                    // Some let expressions only become valid after inherited fields or later body items
+                    // exist. Skip pre-seeding those; the regular body pass will still evaluate them.
+                }
+            }
+
+            return preOverrides;
+        }
+
+        private static IReadOnlyDictionary<string, Value>? MergePreOverrides(
+            IReadOnlyDictionary<string, Value>? localPreOverrides,
+            IReadOnlyDictionary<string, Value>? inheritedPreOverrides)
+        {
+            if (localPreOverrides == null || localPreOverrides.Count == 0)
+            {
+                return inheritedPreOverrides;
+            }
+
+            if (inheritedPreOverrides == null || inheritedPreOverrides.Count == 0)
+            {
+                return localPreOverrides;
+            }
+
+            var merged = localPreOverrides.ToDictionary(static kv => kv.Key, static kv => kv.Value);
+            foreach (var pair in inheritedPreOverrides)
+            {
+                merged[pair.Key] = pair.Value;
+            }
+
+            return merged;
         }
 
         private Value EvaluateExpression(ExpressionSyntax expression, IReadOnlyDictionary<string, Value> scope)
