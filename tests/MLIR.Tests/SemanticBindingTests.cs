@@ -34,6 +34,27 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
+    public void BindsBuiltinTypesWithoutRegistry()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32, #map>>"));
+
+        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+        var tensor = Assert.IsType<TensorTypeReference>(function.Inputs[0]);
+        var index = Assert.IsType<BuiltinIndexTypeReference>(function.Inputs[1]);
+        var tuple = Assert.IsType<TupleTypeReference>(function.Results[0]);
+        var vector = Assert.IsType<VectorTypeReference>(tuple.Elements[0]);
+        var memref = Assert.IsType<MemRefTypeReference>(tuple.Elements[1]);
+
+        Assert.Equal(new long?[] { 2, null }, tensor.Dimensions);
+        Assert.IsType<BuiltinFloatTypeReference>(tensor.ElementType);
+        Assert.Equal("index", index.Name);
+        Assert.Equal(new long?[] { 4 }, vector.Dimensions);
+        Assert.True(memref.IsUnranked);
+        Assert.Equal("#map", Assert.Single(memref.TrailingParameters).Text);
+    }
+
+    [Fact]
     public void LeavesUnknownOperationsUnbound()
     {
         var module = Binder.BindModule(Parser.ParseModule("\"test.unknown\"() : () -> ()"));
@@ -122,8 +143,8 @@ public sealed partial class SemanticTests
         Assert.NotNull(operation.TypeSignatureReference);
         Assert.True(operation.TypeSignatureReference!.IsKnown);
         Assert.Equal("i32", operation.TypeSignatureReference.Name);
-        Assert.Equal(32, Assert.IsType<BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
-        Assert.IsType<BuiltinIntegerTypeSyntax>(operation.TypeSignatureReference.Syntax);
+        Assert.Equal(32, Assert.IsType<global::MLIR.Semantics.BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
+        Assert.IsType<global::MLIR.Syntax.BuiltinIntegerTypeSyntax>(operation.TypeSignatureReference.Syntax);
     }
 
     [Fact]

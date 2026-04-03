@@ -69,6 +69,21 @@ public sealed class Parser
         return syntax;
     }
 
+    /// <summary>
+    /// Parses a standalone type from the supplied MLIR source text.
+    /// </summary>
+    public static TypeSyntax ParseType(string source, DialectRegistry? dialectRegistry = null)
+    {
+        var parser = new Parser(source, dialectRegistry);
+        var syntax = parser.ParseTypeSyntaxUntilOperationBoundary();
+        if (!parser.Is(TokenKind.EndOfFile))
+        {
+            throw parser.Error("Expected the type to consume the entire input.");
+        }
+
+        return syntax;
+    }
+
     private ModuleSyntax ParseModuleCore()
     {
         var operations = new List<OperationSyntax>();
@@ -398,22 +413,30 @@ public sealed class Parser
 
     private TypeSyntax ParseTypeSyntax(params TokenKind[] stopBefore)
     {
-        if (TryParseCustomTypeSyntax(out var syntax))
-        {
-            return syntax;
-        }
-
-        return new RawTypeSyntax(ParseRawUntilDelimiter(stopBefore));
+        return ParseTypeSyntaxCore(stopBefore, stopAtOperationBoundary: false);
     }
 
     private TypeSyntax ParseTypeSyntaxUntilOperationBoundary()
     {
-        if (TryParseCustomTypeSyntax(out var syntax))
+        return ParseTypeSyntaxCore([], stopAtOperationBoundary: true);
+    }
+
+    private TypeSyntax ParseTypeSyntaxCore(TokenKind[] stopBefore, bool stopAtOperationBoundary)
+    {
+        if (TryParseBuiltinTypeSyntax(stopBefore, stopAtOperationBoundary, out var syntax))
         {
             return syntax;
         }
 
-        return new RawTypeSyntax(ParseRawUntilOperationBoundary());
+        if (TryParseCustomTypeSyntax(out syntax))
+        {
+            return syntax;
+        }
+
+        return new RawTypeSyntax(
+            stopAtOperationBoundary
+                ? ParseRawUntilDelimiterOrBoundaryInternal(stopBefore)
+                : ParseRawUntilDelimiter(stopBefore));
     }
 
     private bool TryParseCustomAttributeSyntax(string? expectedDefinitionName, out AttributeValueSyntax syntax)
@@ -558,6 +581,333 @@ public sealed class Parser
 
         position = checkpoint;
         return false;
+    }
+
+    private bool TryParseBuiltinTypeSyntax(TokenKind[] stopBefore, bool stopAtOperationBoundary, out TypeSyntax syntax)
+    {
+        syntax = null!;
+        var checkpoint = position;
+        if (TryParseFunctionTypeSyntax(stopBefore, stopAtOperationBoundary, out syntax)
+            || TryParseTupleTypeSyntax(out syntax)
+            || TryParseTensorTypeSyntax(out syntax)
+            || TryParseVectorTypeSyntax(out syntax)
+            || TryParseMemRefTypeSyntax(out syntax)
+            || TryParseBuiltinPrimitiveTypeSyntax(out syntax))
+        {
+            return true;
+        }
+
+        position = checkpoint;
+        return false;
+    }
+
+    private bool TryParseBuiltinPrimitiveTypeSyntax(out TypeSyntax syntax)
+    {
+        syntax = null!;
+        if (!Is(TokenKind.Identifier))
+        {
+            return false;
+        }
+
+        var token = ToSyntaxToken(ConsumeToken());
+        if (TryParseBuiltinIntegerName(token.Text, out var signedness, out var width))
+        {
+            syntax = new BuiltinIntegerTypeSyntax(token, signedness, width);
+            return true;
+        }
+
+        if (IsBuiltinFloatName(token.Text))
+        {
+            syntax = new BuiltinFloatTypeSyntax(token);
+            return true;
+        }
+
+        if (token.Text == "index")
+        {
+            syntax = new BuiltinIndexTypeSyntax(token);
+            return true;
+        }
+
+        position--;
+        return false;
+    }
+
+    private bool TryParseFunctionTypeSyntax(TokenKind[] stopBefore, bool stopAtOperationBoundary, out TypeSyntax syntax)
+    {
+        syntax = null!;
+        if (!Is(TokenKind.LParen))
+        {
+            return false;
+        }
+
+        var checkpoint = position;
+        var inputs = ParseTypeList(TokenKind.LParen, TokenKind.RParen, stopAtOperationBoundary: false);
+        if (!TryMatch(TokenKind.Arrow, out var arrowToken))
+        {
+            position = checkpoint;
+            return false;
+        }
+
+        TypeSyntax? resultType = null;
+        DelimitedSyntaxList<TypeSyntax> resultTypes;
+        if (Is(TokenKind.LParen))
+        {
+            resultTypes = ParseTypeList(TokenKind.LParen, TokenKind.RParen, stopAtOperationBoundary);
+        }
+        else
+        {
+            resultTypes = new DelimitedSyntaxList<TypeSyntax>(null, [], [], null);
+            resultType = ParseTypeSyntaxCore(stopBefore, stopAtOperationBoundary);
+        }
+
+        syntax = new FunctionTypeSyntax(inputs, ToSyntaxToken(arrowToken), resultType, resultTypes);
+        return true;
+    }
+
+    private bool TryParseTupleTypeSyntax(out TypeSyntax syntax)
+    {
+        syntax = null!;
+        if (!IsKeyword("tuple"))
+        {
+            return false;
+        }
+
+        var keyword = ExpectKeywordInternal("tuple", "Expected 'tuple'.");
+        var lessThan = ExpectToken(TokenKind.LessThan, "Expected '<' after 'tuple'.");
+        var elements = new List<TypeSyntax>();
+        var commas = new List<SyntaxToken>();
+        if (!TryMatch(TokenKind.GreaterThan, out var greaterThan))
+        {
+            elements.Add(ParseTypeSyntax(TokenKind.Comma, TokenKind.GreaterThan));
+            while (TryMatch(TokenKind.Comma, out var comma))
+            {
+                commas.Add(ToSyntaxToken(comma));
+                elements.Add(ParseTypeSyntax(TokenKind.Comma, TokenKind.GreaterThan));
+            }
+
+            greaterThan = ExpectRawToken(TokenKind.GreaterThan, "Expected '>' to close the tuple type.");
+        }
+
+        syntax = new TupleTypeSyntax(keyword, lessThan, elements, commas, ToSyntaxToken(greaterThan));
+        return true;
+    }
+
+    private bool TryParseTensorTypeSyntax(out TypeSyntax syntax)
+    {
+        syntax = null!;
+        if (!IsKeyword("tensor"))
+        {
+            return false;
+        }
+
+        var keyword = ExpectKeywordInternal("tensor", "Expected 'tensor'.");
+        var lessThan = ExpectToken(TokenKind.LessThan, "Expected '<' after 'tensor'.");
+        var prefix = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.GreaterThan);
+        if (!TryParseShapedTypeBody(prefix.Text, allowUnranked: true, minimumDimensionCount: 0, out var dimensions, out var xTokens, out var unrankedToken, out var elementTypeText))
+        {
+            return false;
+        }
+
+        var elementType = ParseType(elementTypeText, dialectRegistry);
+        var trailingCommaTokens = new List<SyntaxToken>();
+        var trailingParameters = new List<RawSyntaxText>();
+        while (TryMatch(TokenKind.Comma, out var comma))
+        {
+            trailingCommaTokens.Add(ToSyntaxToken(comma));
+            trailingParameters.Add(ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.GreaterThan));
+        }
+
+        var greaterThan = ExpectToken(TokenKind.GreaterThan, "Expected '>' to close the tensor type.");
+        syntax = new TensorTypeSyntax(keyword, lessThan, dimensions, xTokens, unrankedToken, elementType, trailingCommaTokens, trailingParameters, greaterThan);
+        return true;
+    }
+
+    private bool TryParseVectorTypeSyntax(out TypeSyntax syntax)
+    {
+        syntax = null!;
+        if (!IsKeyword("vector"))
+        {
+            return false;
+        }
+
+        var checkpoint = position;
+        var keyword = ExpectKeywordInternal("vector", "Expected 'vector'.");
+        var lessThan = ExpectToken(TokenKind.LessThan, "Expected '<' after 'vector'.");
+        var prefix = ParseRawUntilDelimiter(TokenKind.GreaterThan);
+        if (!TryParseShapedTypeBody(prefix.Text, allowUnranked: false, minimumDimensionCount: 1, out var dimensions, out var xTokens, out _, out var elementTypeText))
+        {
+            position = checkpoint;
+            return false;
+        }
+
+        var elementType = ParseType(elementTypeText, dialectRegistry);
+        var greaterThan = ExpectToken(TokenKind.GreaterThan, "Expected '>' to close the vector type.");
+        syntax = new VectorTypeSyntax(keyword, lessThan, dimensions, xTokens, elementType, greaterThan);
+        return true;
+    }
+
+    private bool TryParseMemRefTypeSyntax(out TypeSyntax syntax)
+    {
+        syntax = null!;
+        if (!IsKeyword("memref"))
+        {
+            return false;
+        }
+
+        var keyword = ExpectKeywordInternal("memref", "Expected 'memref'.");
+        var lessThan = ExpectToken(TokenKind.LessThan, "Expected '<' after 'memref'.");
+        var prefix = ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.GreaterThan);
+        if (!TryParseShapedTypeBody(prefix.Text, allowUnranked: true, minimumDimensionCount: 0, out var dimensions, out var xTokens, out var unrankedToken, out var elementTypeText))
+        {
+            return false;
+        }
+
+        var elementType = ParseType(elementTypeText, dialectRegistry);
+        var trailingCommaTokens = new List<SyntaxToken>();
+        var trailingParameters = new List<RawSyntaxText>();
+        while (TryMatch(TokenKind.Comma, out var comma))
+        {
+            trailingCommaTokens.Add(ToSyntaxToken(comma));
+            trailingParameters.Add(ParseRawUntilDelimiter(TokenKind.Comma, TokenKind.GreaterThan));
+        }
+
+        var greaterThan = ExpectToken(TokenKind.GreaterThan, "Expected '>' to close the memref type.");
+        syntax = new MemRefTypeSyntax(keyword, lessThan, dimensions, xTokens, unrankedToken, elementType, trailingCommaTokens, trailingParameters, greaterThan);
+        return true;
+    }
+
+    private static bool TryParseShapedTypeBody(
+        string text,
+        bool allowUnranked,
+        int minimumDimensionCount,
+        out List<ShapedTypeDimensionSyntax> dimensions,
+        out List<SyntaxToken> xTokens,
+        out SyntaxToken? unrankedToken,
+        out string elementTypeText)
+    {
+        dimensions = [];
+        xTokens = [];
+        unrankedToken = null;
+        elementTypeText = string.Empty;
+
+        if (allowUnranked && text.StartsWith("*x", System.StringComparison.Ordinal))
+        {
+            unrankedToken = new SyntaxToken("*");
+            xTokens.Add(new SyntaxToken("x"));
+            elementTypeText = text.Substring(2);
+            return elementTypeText.Length > 0;
+        }
+
+        var index = 0;
+        while (index < text.Length)
+        {
+            if (text[index] == '?')
+            {
+                dimensions.Add(new DynamicShapedTypeDimensionSyntax(new SyntaxToken("?")));
+                index++;
+            }
+            else if (char.IsDigit(text[index]))
+            {
+                var start = index;
+                while (index < text.Length && char.IsDigit(text[index]))
+                {
+                    index++;
+                }
+
+                var digits = text.Substring(start, index - start);
+                dimensions.Add(new StaticShapedTypeDimensionSyntax(new SyntaxToken(digits), long.Parse(digits)));
+            }
+            else
+            {
+                break;
+            }
+
+            if (index >= text.Length || text[index] != 'x')
+            {
+                return false;
+            }
+
+            xTokens.Add(new SyntaxToken("x"));
+            index++;
+        }
+
+        if (dimensions.Count < minimumDimensionCount)
+        {
+            return false;
+        }
+
+        elementTypeText = text.Substring(index);
+        return elementTypeText.Length > 0;
+    }
+
+    private DelimitedSyntaxList<TypeSyntax> ParseTypeList(TokenKind openKind, TokenKind closeKind, bool stopAtOperationBoundary)
+    {
+        var openToken = ExpectToken(openKind, $"Expected '{TokenText(openKind)}' to start the type list.");
+        var items = new List<TypeSyntax>();
+        var separators = new List<SyntaxToken>();
+        if (!TryMatch(closeKind, out var closeToken))
+        {
+            items.Add(ParseTypeSyntaxCore([TokenKind.Comma, closeKind], stopAtOperationBoundary));
+            while (TryMatch(TokenKind.Comma, out var comma))
+            {
+                separators.Add(ToSyntaxToken(comma));
+                items.Add(ParseTypeSyntaxCore([TokenKind.Comma, closeKind], stopAtOperationBoundary));
+            }
+
+            closeToken = ExpectRawToken(closeKind, $"Expected '{TokenText(closeKind)}' to close the type list.");
+        }
+
+        return new DelimitedSyntaxList<TypeSyntax>(openToken, items, separators, ToSyntaxToken(closeToken));
+    }
+
+    private static bool TryParseBuiltinIntegerName(string text, out IntegerTypeSignedness signedness, out int width)
+    {
+        signedness = IntegerTypeSignedness.Signless;
+        width = 0;
+
+        string digits;
+        if (text.Length > 1 && text[0] == 'i')
+        {
+            digits = text.Substring(1);
+        }
+        else if (text.Length > 2 && text[0] == 's' && text[1] == 'i')
+        {
+            signedness = IntegerTypeSignedness.Signed;
+            digits = text.Substring(2);
+        }
+        else if (text.Length > 2 && text[0] == 'u' && text[1] == 'i')
+        {
+            signedness = IntegerTypeSignedness.Unsigned;
+            digits = text.Substring(2);
+        }
+        else
+        {
+            return false;
+        }
+
+        return int.TryParse(digits, out width);
+    }
+
+    private static bool IsBuiltinFloatName(string text)
+    {
+        return text is "bf16" or "f16" or "f32" or "f64" or "f80" or "f128" or "tf32";
+    }
+
+    private bool IsKeyword(string text)
+    {
+        return Is(TokenKind.Identifier) && Current.Text == text;
+    }
+
+    private static string TokenText(TokenKind kind)
+    {
+        return kind switch
+        {
+            TokenKind.LParen => "(",
+            TokenKind.RParen => ")",
+            TokenKind.LessThan => "<",
+            TokenKind.GreaterThan => ">",
+            _ => kind.ToString(),
+        };
     }
 
     private SyntaxToken ParseOperationNameToken()
@@ -1039,7 +1389,20 @@ public sealed class Parser
 
     private string? TryPeekTypeDefinitionName()
     {
-        return Is(TokenKind.Identifier) ? Current.Text : null;
+        if (Is(TokenKind.Identifier))
+        {
+            return Current.Text;
+        }
+
+        if (Is(TokenKind.Bang))
+        {
+            var lookahead = position + 1;
+            return lookahead < tokens.Count && tokens[lookahead].Kind == TokenKind.Identifier
+                ? tokens[lookahead].Text
+                : null;
+        }
+
+        return null;
     }
 
     private static string NormalizeOperationName(string name)

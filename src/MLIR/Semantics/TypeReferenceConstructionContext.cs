@@ -15,7 +15,7 @@ public sealed class TypeReferenceConstructionContext
     /// <param name="name">The canonical type name, if one was recognized.</param>
     /// <param name="definition">The registered type definition.</param>
     /// <param name="location">The source location of the type syntax.</param>
-    public TypeReferenceConstructionContext(TypeSyntax syntax, string? name, TypeDefinition definition, SourceLocation location)
+    public TypeReferenceConstructionContext(TypeSyntax? syntax, string? name, TypeDefinition definition, SourceLocation location)
     {
         Syntax = syntax;
         Name = name;
@@ -26,7 +26,7 @@ public sealed class TypeReferenceConstructionContext
     /// <summary>
     /// Gets the raw syntax text for the type.
     /// </summary>
-    public TypeSyntax Syntax { get; }
+    public TypeSyntax? Syntax { get; }
 
     /// <summary>
     /// Gets the canonical type name, if one was recognized.

@@ -501,14 +501,62 @@ public sealed class Binder
     /// <returns>The semantic type reference.</returns>
     public TypeReference BindTypeReference(TypeSyntax syntax)
     {
-        if (syntax.TryGetRawText(out var rawTypeSyntax))
+        if (syntax is RawTypeSyntax rawTypeSyntax)
         {
-            return BindTypeReferenceCore(syntax, rawTypeSyntax!);
+            var reparsed = ReparseTypeSyntax(rawTypeSyntax.RawText);
+            if (reparsed is not RawTypeSyntax)
+            {
+                return BindTypeReference(reparsed);
+            }
+
+            return BindTypeReferenceCore(reparsed, rawTypeSyntax.RawText);
         }
-        else
+
+        return BindStructuredTypeReference(syntax);
+    }
+
+    private TypeReference BindStructuredTypeReference(TypeSyntax syntax)
+    {
+        switch (syntax)
         {
-            Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported type syntax '{syntax.GetType().Name}'."));
-            return new UnknownTypeReference(syntax, null, null, syntax.Location);
+            case BuiltinIntegerTypeSyntax integerSyntax:
+                return new BuiltinIntegerTypeReference(integerSyntax);
+            case BuiltinFloatTypeSyntax floatSyntax:
+                return new BuiltinFloatTypeReference(floatSyntax);
+            case BuiltinIndexTypeSyntax indexSyntax:
+                return new BuiltinIndexTypeReference(indexSyntax);
+            case TupleTypeSyntax tupleSyntax:
+                return new TupleTypeReference(tupleSyntax, tupleSyntax.Elements.Select(BindTypeReference).ToArray());
+            case FunctionTypeSyntax functionSyntax:
+                return new FunctionTypeReference(
+                    functionSyntax,
+                    functionSyntax.InputTypes.Items.Select(BindTypeReference).ToArray(),
+                    GetFunctionResults(functionSyntax).Select(BindTypeReference).ToArray());
+            case TensorTypeSyntax tensorSyntax:
+                return new TensorTypeReference(
+                    tensorSyntax,
+                    DecodeDimensions(tensorSyntax.Dimensions),
+                    BindTypeReference(tensorSyntax.ElementType),
+                    tensorSyntax.TrailingParameters);
+            case VectorTypeSyntax vectorSyntax:
+                return new VectorTypeReference(
+                    vectorSyntax,
+                    DecodeDimensions(vectorSyntax.Dimensions),
+                    BindTypeReference(vectorSyntax.ElementType));
+            case MemRefTypeSyntax memRefSyntax:
+                return new MemRefTypeReference(
+                    memRefSyntax,
+                    DecodeDimensions(memRefSyntax.Dimensions),
+                    BindTypeReference(memRefSyntax.ElementType),
+                    memRefSyntax.TrailingParameters);
+            default:
+                if (syntax.TryGetRawText(out var rawTypeSyntax))
+                {
+                    return BindTypeReferenceCore(syntax, rawTypeSyntax!);
+                }
+
+                Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported type syntax '{syntax.GetType().Name}'."));
+                return new UnknownTypeReference(syntax, null, null, syntax.Location);
         }
     }
 
@@ -519,13 +567,17 @@ public sealed class Binder
     /// <returns>The semantic type reference.</returns>
     public TypeReference BindTypeReference(RawSyntaxText syntax)
     {
-        // TODO: make this internal in the future and only expose the TypeSyntax overload publicly once we have more robust support for different type syntax forms.
-        return BindTypeReferenceCore(new RawTypeSyntax(syntax), syntax);
+        return BindTypeReference(ReparseTypeSyntax(syntax));
     }
 
     internal AttributeValueSyntax ReparseAttributeValueSyntax(RawSyntaxText rawSyntax, AttributeConstraintDefinition? expectedDefinition = null)
     {
         return Parser.ParseAttributeValue(rawSyntax.Text, dialectRegistry, expectedDefinition);
+    }
+
+    internal TypeSyntax ReparseTypeSyntax(RawSyntaxText rawSyntax)
+    {
+        return Parser.ParseType(rawSyntax.Text, dialectRegistry);
     }
 
     private TypeReference BindTypeReferenceCore(TypeSyntax syntaxNode, RawSyntaxText rawSyntax)
@@ -550,6 +602,29 @@ public sealed class Binder
         }
 
         return type;
+    }
+
+    private static IReadOnlyList<TypeSyntax> GetFunctionResults(FunctionTypeSyntax syntax)
+    {
+        return syntax.HasDelimitedResults
+            ? syntax.ResultTypes.Items
+            : syntax.ResultType != null ? [syntax.ResultType] : [];
+    }
+
+    private static IReadOnlyList<long?> DecodeDimensions(IReadOnlyList<ShapedTypeDimensionSyntax> dimensions)
+    {
+        var decoded = new long?[dimensions.Count];
+        for (var i = 0; i < dimensions.Count; i++)
+        {
+            decoded[i] = dimensions[i] switch
+            {
+                StaticShapedTypeDimensionSyntax staticDimension => staticDimension.Size,
+                DynamicShapedTypeDimensionSyntax => null,
+                _ => null,
+            };
+        }
+
+        return decoded;
     }
 
     private static string? TryGetAttributeDefinitionName(string text)

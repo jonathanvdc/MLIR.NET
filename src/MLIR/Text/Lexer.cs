@@ -141,6 +141,7 @@ internal static class Lexer
             {
                 '@' => TokenKind.At,
                 '#' => TokenKind.Hash,
+                '!' => TokenKind.Bang,
                 ':' => TokenKind.Colon,
                 ',' => TokenKind.Comma,
                 '=' => TokenKind.Equal,

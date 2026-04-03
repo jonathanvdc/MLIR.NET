@@ -279,6 +279,27 @@ public sealed class ParsingTests
         Assert.Equal(source, Printer.Print(module));
     }
 
+    [Fact]
+    public void ParsesBuiltinTypeSyntaxIntoStructuredNodes()
+    {
+        var syntax = Parser.ParseType("(tensor<2x?xf32>) -> tuple<vector<4xf32>, memref<*xf32, #map>>");
+
+        var function = Assert.IsType<FunctionTypeSyntax>(syntax);
+        var tensor = Assert.IsType<TensorTypeSyntax>(function.InputTypes[0]);
+        var tuple = Assert.IsType<TupleTypeSyntax>(function.ResultType);
+        var vector = Assert.IsType<VectorTypeSyntax>(tuple.Elements[0]);
+        var memref = Assert.IsType<MemRefTypeSyntax>(tuple.Elements[1]);
+
+        Assert.Collection(
+            tensor.Dimensions,
+            static dimension => Assert.Equal("2", dimension.GetRawText().Text),
+            static dimension => Assert.Equal("?", dimension.GetRawText().Text));
+        Assert.Equal("f32", tensor.ElementType.GetRawText().Text);
+        Assert.Equal("4", vector.Dimensions[0].GetRawText().Text);
+        Assert.True(memref.IsUnranked);
+        Assert.Equal("#map", Assert.Single(memref.TrailingParameters).Text);
+    }
+
     // [Fact]
     // public void CanRewriteCustomAssemblySyntaxToGenericSyntax()
     // {

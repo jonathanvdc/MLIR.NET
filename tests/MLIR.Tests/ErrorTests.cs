@@ -16,9 +16,9 @@ public sealed class ErrorTests
     [Fact]
     public void ReportsLexerErrorForUnexpectedCharacter()
     {
-        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"arith.addi\"(%lhs) !"));
+        var exception = Assert.Throws<ParseException>(() => Parser.ParseModule("\"arith.addi\"(%lhs) ;"));
 
-        Assert.Equal("Unexpected character '!'.", exception.Diagnostic.Message);
+        Assert.Equal("Unexpected character ';'.", exception.Diagnostic.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
         Assert.Equal(20, exception.Diagnostic.Column);
     }

@@ -202,7 +202,7 @@ public static class ConcreteSyntaxBuilder
                 operation.Successors.Select(static successor => successor.Label).ToList(),
                 operation.Regions.Select(BuildRegion).ToList(),
                 operation.Attributes.Select(BuildNamedAttribute).ToList(),
-                operation.TypeSignatureReference != null ? operation.TypeSignatureReference.Syntax : null)
+                operation.TypeSignatureReference != null ? BuildTypeReference(operation.TypeSignatureReference) : null)
                 .Body;
         }
 
@@ -248,7 +248,12 @@ public static class ConcreteSyntaxBuilder
                 return typeReference.Definition.AssemblyFormat.BuildCustomAssemblySyntax(typeReference, new ConcreteSyntaxBuilderContext(this));
             }
 
-            return typeReference.Syntax;
+            if (typeReference.Syntax != null)
+            {
+                return typeReference.Syntax;
+            }
+
+            throw new InvalidOperationException($"Cannot build syntax for unrecognized type reference of type {typeReference.GetType().FullName}.");
         }
 
         /// <summary>

@@ -11,16 +11,16 @@ public abstract class TypeReference
     /// <summary>
     /// Initializes a new instance of the <see cref="TypeReference"/> class.
     /// </summary>
-    protected TypeReference(TypeSyntax syntax, SourceLocation location)
+    protected TypeReference(TypeSyntax? syntax, SourceLocation location)
     {
         Syntax = syntax;
         Location = location;
     }
 
     /// <summary>
-    /// Gets the syntax for the type.
+    /// Gets the syntax for the type, or <see langword="null"/> if this is a synthetic type with no preserved source text.
     /// </summary>
-    public TypeSyntax Syntax { get; }
+    public TypeSyntax? Syntax { get; }
 
     /// <summary>
     /// Gets the canonical type name, if one was recognized.

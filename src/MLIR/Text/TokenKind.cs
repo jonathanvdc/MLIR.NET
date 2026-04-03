@@ -46,6 +46,11 @@ public enum TokenKind
     Hash,
 
     /// <summary>
+    /// Represents the <c>!</c> token.
+    /// </summary>
+    Bang,
+
+    /// <summary>
     /// Represents the <c>:</c> token.
     /// </summary>
     Colon,

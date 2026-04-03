@@ -116,6 +116,17 @@ public sealed class SyntaxWriter
     }
 
     /// <summary>
+    /// Writes a delimited list of type syntax nodes.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited type list to write.</param>
+    /// <param name="openLeadingTrivia">The fallback leading trivia for the opening delimiter token.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<TypeSyntax> list, string openLeadingTrivia)
+    {
+        list.WriteTo(this, openLeadingTrivia, static (type, writer, trivia) => type.WriteTo(writer, trivia));
+    }
+
+    /// <summary>
     /// Writes a type syntax node.
     /// </summary>
     /// <param name="type">The type to write.</param>
