@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents the builtin <c>none</c> type.
 /// </summary>
-public class BuiltinNoneTypeReference : TypeReference
+public class NoneTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
@@ -17,7 +17,7 @@ public class BuiltinNoneTypeReference : TypeReference
     /// <summary>
     /// Initializes a new parsed builtin none type reference.
     /// </summary>
-    public BuiltinNoneTypeReference(BuiltinNoneTypeSyntax syntax)
+    public NoneTypeReference(BuiltinNoneTypeSyntax syntax)
         : this(syntax, syntax.Location)
     {
     }
@@ -25,7 +25,7 @@ public class BuiltinNoneTypeReference : TypeReference
     /// <summary>
     /// Initializes a new synthetic builtin none type reference.
     /// </summary>
-    public BuiltinNoneTypeReference()
+    public NoneTypeReference()
         : this(null, SourceLocation.Unknown)
     {
     }
@@ -37,14 +37,14 @@ public class BuiltinNoneTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BuiltinNoneTypeReference"/> class
+    /// Initializes a new instance of the <see cref="NoneTypeReference"/> class
     /// with an optional preserved syntax node.
     /// </summary>
-    protected BuiltinNoneTypeReference(TypeSyntax? syntax, SourceLocation location)
+    protected NoneTypeReference(TypeSyntax? syntax, SourceLocation location)
         : base(syntax ?? new BuiltinNoneTypeSyntax(new SyntaxToken("none")), location)
     {
     }
 
     /// <inheritdoc/>
-    protected override Type SemanticFamily => typeof(BuiltinNoneTypeReference);
+    protected override Type SemanticFamily => typeof(NoneTypeReference);
 }

@@ -530,13 +530,13 @@ public sealed class Binder
         switch (syntax)
         {
             case BuiltinIntegerTypeSyntax integerSyntax:
-                return new BuiltinIntegerTypeReference(integerSyntax);
+                return new IntegerTypeReference(integerSyntax);
             case BuiltinFloatTypeSyntax floatSyntax:
-                return new BuiltinFloatTypeReference(floatSyntax);
+                return new FloatTypeReference(floatSyntax);
             case BuiltinIndexTypeSyntax indexSyntax:
-                return new BuiltinIndexTypeReference(indexSyntax);
+                return new IndexTypeReference(indexSyntax);
             case BuiltinNoneTypeSyntax noneSyntax:
-                return new BuiltinNoneTypeReference(noneSyntax);
+                return new NoneTypeReference(noneSyntax);
             case TupleTypeSyntax tupleSyntax:
                 return new TupleTypeReference(tupleSyntax, tupleSyntax.Elements.Select(BindTypeReference).ToArray());
             case FunctionTypeSyntax functionSyntax:

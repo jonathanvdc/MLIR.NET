@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents a builtin integer type such as <c>i32</c> or <c>si64</c>.
 /// </summary>
-public class BuiltinIntegerTypeReference : TypeReference
+public class IntegerTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
@@ -17,7 +17,7 @@ public class BuiltinIntegerTypeReference : TypeReference
     /// <summary>
     /// Initializes a new parsed builtin integer type reference.
     /// </summary>
-    public BuiltinIntegerTypeReference(BuiltinIntegerTypeSyntax syntax)
+    public IntegerTypeReference(BuiltinIntegerTypeSyntax syntax)
         : this(syntax.Signedness, syntax.Width, syntax, syntax.Location)
     {
     }
@@ -25,7 +25,7 @@ public class BuiltinIntegerTypeReference : TypeReference
     /// <summary>
     /// Initializes a new synthetic builtin integer type reference.
     /// </summary>
-    public BuiltinIntegerTypeReference(IntegerTypeSignedness signedness, int width)
+    public IntegerTypeReference(IntegerTypeSignedness signedness, int width)
         : this(signedness, width, null, SourceLocation.Unknown)
     {
     }
@@ -52,10 +52,10 @@ public class BuiltinIntegerTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BuiltinIntegerTypeReference"/> class
+    /// Initializes a new instance of the <see cref="IntegerTypeReference"/> class
     /// with an optional preserved syntax node.
     /// </summary>
-    protected BuiltinIntegerTypeReference(IntegerTypeSignedness signedness, int width, TypeSyntax? syntax, SourceLocation location)
+    protected IntegerTypeReference(IntegerTypeSignedness signedness, int width, TypeSyntax? syntax, SourceLocation location)
         : base(syntax ?? BuildSyntax(signedness, width), location)
     {
         Signedness = signedness;
@@ -63,12 +63,12 @@ public class BuiltinIntegerTypeReference : TypeReference
     }
 
     /// <inheritdoc/>
-    protected override Type SemanticFamily => typeof(BuiltinIntegerTypeReference);
+    protected override Type SemanticFamily => typeof(IntegerTypeReference);
 
     /// <inheritdoc/>
     protected override bool SemanticEqualsValue(TypeReference other)
     {
-        var otherInteger = (BuiltinIntegerTypeReference)other;
+        var otherInteger = (IntegerTypeReference)other;
         return Signedness == otherInteger.Signedness && Width == otherInteger.Width;
     }
 

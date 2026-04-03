@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents the builtin <c>index</c> type.
 /// </summary>
-public class BuiltinIndexTypeReference : TypeReference
+public class IndexTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
@@ -17,7 +17,7 @@ public class BuiltinIndexTypeReference : TypeReference
     /// <summary>
     /// Initializes a new parsed builtin index type reference.
     /// </summary>
-    public BuiltinIndexTypeReference(BuiltinIndexTypeSyntax syntax)
+    public IndexTypeReference(BuiltinIndexTypeSyntax syntax)
         : this(syntax, syntax.Location)
     {
     }
@@ -25,7 +25,7 @@ public class BuiltinIndexTypeReference : TypeReference
     /// <summary>
     /// Initializes a new synthetic builtin index type reference.
     /// </summary>
-    public BuiltinIndexTypeReference()
+    public IndexTypeReference()
         : this(null, SourceLocation.Unknown)
     {
     }
@@ -37,14 +37,14 @@ public class BuiltinIndexTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BuiltinIndexTypeReference"/> class
+    /// Initializes a new instance of the <see cref="IndexTypeReference"/> class
     /// with an optional preserved syntax node.
     /// </summary>
-    protected BuiltinIndexTypeReference(TypeSyntax? syntax, SourceLocation location)
+    protected IndexTypeReference(TypeSyntax? syntax, SourceLocation location)
         : base(syntax ?? new BuiltinIndexTypeSyntax(new SyntaxToken("index")), location)
     {
     }
 
     /// <inheritdoc/>
-    protected override Type SemanticFamily => typeof(BuiltinIndexTypeReference);
+    protected override Type SemanticFamily => typeof(IndexTypeReference);
 }

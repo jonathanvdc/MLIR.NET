@@ -304,9 +304,9 @@ public sealed partial class SemanticTests
         }
     }
 
-    private sealed class BuiltinIntegerTypeReference : global::MLIR.Semantics.Types.Primitives.BuiltinIntegerTypeReference
+    private sealed class IntegerTypeReference : global::MLIR.Semantics.Types.Primitives.IntegerTypeReference
     {
-        public BuiltinIntegerTypeReference(TypeReferenceConstructionContext context)
+        public IntegerTypeReference(TypeReferenceConstructionContext context)
             : base(
                 global::MLIR.Syntax.Types.Primitives.IntegerTypeSignedness.Signless,
                 int.Parse(context.Name![1..]),
@@ -610,12 +610,12 @@ public sealed partial class SemanticTests
 
         public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
         {
-            return new BuiltinIntegerTypeReference(new TypeReferenceConstructionContext(syntax, syntax.GetRawText().Text, definition, syntax.Location));
+            return new IntegerTypeReference(new TypeReferenceConstructionContext(syntax, syntax.GetRawText().Text, definition, syntax.Location));
         }
 
         public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)
         {
-            if (type is BuiltinIntegerTypeReference integerType)
+            if (type is IntegerTypeReference integerType)
             {
                 return new BuiltinIntegerTypeSyntax(new SyntaxToken("i" + integerType.Width));
             }

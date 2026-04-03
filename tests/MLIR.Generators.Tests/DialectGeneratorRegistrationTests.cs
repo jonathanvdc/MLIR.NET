@@ -142,10 +142,10 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public sealed class I32ConstraintTypeReference : BuiltinIntegerTypeReference",
-            "public sealed class F32ConstraintTypeReference : BuiltinFloatTypeReference",
-            "public sealed class IndexConstraintTypeReference : BuiltinIndexTypeReference",
-            "public sealed class NoneTypeConstraintTypeReference : BuiltinNoneTypeReference",
+            "public sealed class I32ConstraintTypeReference : IntegerTypeReference",
+            "public sealed class F32ConstraintTypeReference : FloatTypeReference",
+            "public sealed class IndexConstraintTypeReference : IndexTypeReference",
+            "public sealed class NoneTypeConstraintTypeReference : NoneTypeReference",
             "public sealed class AnyTupleConstraintTypeReference : TupleTypeReference",
             "public sealed class FunctionTypeConstraintTypeReference : FunctionTypeReference",
             "public sealed class AnyTensorConstraintTypeReference : TensorTypeReference",

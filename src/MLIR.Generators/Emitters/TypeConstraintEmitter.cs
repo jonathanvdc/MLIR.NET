@@ -16,10 +16,10 @@ internal static class TypeConstraintEmitter
                 EmitExactFloatConstraint(builder, typeConstraint);
                 return;
             case TypeConstraintKind.IndexType:
-                EmitPrimitiveConstraint(builder, typeConstraint, "BuiltinIndexTypeReference", "context.Syntax, context.Location");
+                EmitPrimitiveConstraint(builder, typeConstraint, "IndexTypeReference", "context.Syntax, context.Location");
                 return;
             case TypeConstraintKind.NoneType:
-                EmitPrimitiveConstraint(builder, typeConstraint, "BuiltinNoneTypeReference", "context.Syntax, context.Location");
+                EmitPrimitiveConstraint(builder, typeConstraint, "NoneTypeReference", "context.Syntax, context.Location");
                 return;
             case TypeConstraintKind.TupleType:
                 EmitTupleConstraint(builder, typeConstraint);
@@ -45,7 +45,7 @@ internal static class TypeConstraintEmitter
     private static void EmitExactIntegerConstraint(StringBuilder builder, TypeConstraintModel typeConstraint)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
-        builder.AppendLine("public sealed class " + className + " : BuiltinIntegerTypeReference");
+        builder.AppendLine("public sealed class " + className + " : IntegerTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => new " + className + "(context));");
@@ -77,7 +77,7 @@ internal static class TypeConstraintEmitter
     private static void EmitExactFloatConstraint(StringBuilder builder, TypeConstraintModel typeConstraint)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
-        builder.AppendLine("public sealed class " + className + " : BuiltinFloatTypeReference");
+        builder.AppendLine("public sealed class " + className + " : FloatTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => new " + className + "(context));");

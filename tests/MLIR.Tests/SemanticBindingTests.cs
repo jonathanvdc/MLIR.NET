@@ -43,13 +43,13 @@ public sealed partial class SemanticTests
 
         var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
         var tensor = Assert.IsType<TensorTypeReference>(function.Inputs[0]);
-        var index = Assert.IsType<BuiltinIndexTypeReference>(function.Inputs[1]);
+        var index = Assert.IsType<IndexTypeReference>(function.Inputs[1]);
         var tuple = Assert.IsType<TupleTypeReference>(function.Results[0]);
         var vector = Assert.IsType<VectorTypeReference>(tuple.Elements[0]);
         var memref = Assert.IsType<MemRefTypeReference>(tuple.Elements[1]);
 
         Assert.Equal(new long?[] { 2, null }, tensor.Dimensions);
-        Assert.IsType<BuiltinFloatTypeReference>(tensor.ElementType);
+        Assert.IsType<FloatTypeReference>(tensor.ElementType);
         Assert.Equal("index", index.Name);
         Assert.Equal(new long?[] { 4 }, vector.Dimensions);
         Assert.True(memref.IsUnranked);
@@ -78,13 +78,13 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerTypeReference(context))]));
 
         var builtin = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32")).Operations[0].TypeSignatureReference!;
         var registered = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32", registry), registry).Operations[0].TypeSignatureReference!;
 
-        Assert.IsType<global::MLIR.Semantics.Types.Primitives.BuiltinIntegerTypeReference>(builtin);
-        Assert.IsType<BuiltinIntegerTypeReference>(registered);
+        Assert.IsType<global::MLIR.Semantics.Types.Primitives.IntegerTypeReference>(builtin);
+        Assert.IsType<IntegerTypeReference>(registered);
         Assert.Equal(builtin, registered);
         Assert.Equal(registered, builtin);
     }
@@ -173,7 +173,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat(), factory: static context => new DenseAttributeValue(context))],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerTypeReference(context))]));
 
         var module = Binder.BindModule(
             Parser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32", registry),
@@ -188,7 +188,7 @@ public sealed partial class SemanticTests
         Assert.NotNull(operation.TypeSignatureReference);
         Assert.True(operation.TypeSignatureReference!.IsKnown);
         Assert.Equal("i32", operation.TypeSignatureReference.Name);
-        Assert.Equal(32, Assert.IsType<BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
+        Assert.Equal(32, Assert.IsType<IntegerTypeReference>(operation.TypeSignatureReference).Width);
         Assert.IsType<global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax>(operation.TypeSignatureReference.Syntax);
     }
 
@@ -202,7 +202,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [i32AttributeDefinition],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new BuiltinIntegerTypeReference(context))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerTypeReference(context))]));
         registry.RegisterDialect(
             Dialect.Create(
                 "arith",

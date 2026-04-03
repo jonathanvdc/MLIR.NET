@@ -7,7 +7,7 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents a builtin floating-point type such as <c>f32</c>.
 /// </summary>
-public class BuiltinFloatTypeReference : TypeReference
+public class FloatTypeReference : TypeReference
 {
     /// <summary>
     /// Gets the shared builtin type definition.
@@ -17,7 +17,7 @@ public class BuiltinFloatTypeReference : TypeReference
     /// <summary>
     /// Initializes a new parsed builtin floating-point type reference.
     /// </summary>
-    public BuiltinFloatTypeReference(BuiltinFloatTypeSyntax syntax)
+    public FloatTypeReference(BuiltinFloatTypeSyntax syntax)
         : this(syntax.Name, syntax, syntax.Location)
     {
     }
@@ -25,7 +25,7 @@ public class BuiltinFloatTypeReference : TypeReference
     /// <summary>
     /// Initializes a new synthetic builtin floating-point type reference.
     /// </summary>
-    public BuiltinFloatTypeReference(string name)
+    public FloatTypeReference(string name)
         : this(name, null, SourceLocation.Unknown)
     {
     }
@@ -37,15 +37,15 @@ public class BuiltinFloatTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BuiltinFloatTypeReference"/> class
+    /// Initializes a new instance of the <see cref="FloatTypeReference"/> class
     /// with an optional preserved syntax node.
     /// </summary>
-    protected BuiltinFloatTypeReference(string name, TypeSyntax? syntax, SourceLocation location)
+    protected FloatTypeReference(string name, TypeSyntax? syntax, SourceLocation location)
         : base(syntax ?? new BuiltinFloatTypeSyntax(new SyntaxToken(name)), location)
     {
         Name = name;
     }
 
     /// <inheritdoc/>
-    protected override Type SemanticFamily => typeof(BuiltinFloatTypeReference);
+    protected override Type SemanticFamily => typeof(FloatTypeReference);
 }
