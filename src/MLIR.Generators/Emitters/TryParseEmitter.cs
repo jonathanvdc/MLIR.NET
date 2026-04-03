@@ -141,6 +141,9 @@ internal sealed class TryParseEmitter
             case ResultsDirectiveChunk _:
                 EmitResultsType(builder, elementIndex, allElements, indent, declare);
                 break;
+            case FunctionalTypeDirectiveChunk functionalType:
+                EmitFunctionalType(builder, functionalType, elementIndex, allElements, indent, declare);
+                break;
             case RegionsDirectiveChunk _:
                 EmitRegions(builder, indent, declare);
                 break;
@@ -272,6 +275,14 @@ internal sealed class TryParseEmitter
         builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
     }
 
+    private void EmitFunctionalType(StringBuilder builder, FunctionalTypeDirectiveChunk functionalType, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
+    {
+        var field = NextField();
+        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var expr = BuildTypeParseExpr(elementIndex, allElements);
+        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+    }
+
     private void EmitRegions(StringBuilder builder, string indent, bool declare)
     {
         var field = NextField();
@@ -309,9 +320,7 @@ internal sealed class TryParseEmitter
             var f = metadata.Fields[groupStart + i];
             // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
             // array rather than null so callers can always iterate over the result safely.
-            var defaultExpr = f.CsType.Contains("IReadOnlyList", System.StringComparison.Ordinal)
-                ? "global::System.Array.Empty<SyntaxToken>()"
-                : "default";
+            var defaultExpr = GetFieldDefaultExpression(f.CsType);
             builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
 
@@ -474,9 +483,7 @@ internal sealed class TryParseEmitter
         for (var i = 0; i < totalFields; i++)
         {
             var f = metadata.Fields[oilistStart + i];
-            var defaultExpr = f.CsType.Contains("IReadOnlyList", System.StringComparison.Ordinal)
-                ? "global::System.Array.Empty<SyntaxToken>()"
-                : "default";
+            var defaultExpr = GetFieldDefaultExpression(f.CsType);
             builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
 
@@ -635,6 +642,7 @@ internal sealed class TryParseEmitter
             TypeDirectiveChunk _ => true,
             QualifiedDirectiveChunk _ => true,
             ResultsDirectiveChunk _ => true,
+            FunctionalTypeDirectiveChunk _ => true,
             RegionsDirectiveChunk _ => true,
             SuccessorsDirectiveChunk _ => true,
             OperandsDirectiveChunk _ => true,
@@ -677,6 +685,7 @@ internal sealed class TryParseEmitter
             case TypeDirectiveChunk _: return 1;
             case QualifiedDirectiveChunk _: return 1;
             case ResultsDirectiveChunk _: return 1;
+            case FunctionalTypeDirectiveChunk _: return 1;
             case RegionsDirectiveChunk _: return 1;
             case SuccessorsDirectiveChunk _: return 1;
             case OperandsDirectiveChunk _: return 1;
@@ -740,6 +749,12 @@ internal sealed class TryParseEmitter
 
     private string BuildTypeParseExpr(int elementIndex, IReadOnlyList<Element> allElements)
     {
+        var field = metadata.Fields[fieldIndex - 1];
+        if (field.CsType == "IReadOnlyList<TypeSyntax>")
+        {
+            return "context.ParseTypeSyntaxList()";
+        }
+
         var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
         var keywords = FindNextKeywordDelimitersForRawParsing(elementIndex, allElements);
         if (delimiters.Count > 0 || keywords.Count > 0)
@@ -752,6 +767,21 @@ internal sealed class TryParseEmitter
         }
 
         return "context.ParseTypeSyntax()";
+    }
+
+    private static string GetFieldDefaultExpression(string csType)
+    {
+        if (csType.Contains("IReadOnlyList<SyntaxToken>", System.StringComparison.Ordinal))
+        {
+            return "global::System.Array.Empty<SyntaxToken>()";
+        }
+
+        if (csType.Contains("IReadOnlyList<TypeSyntax>", System.StringComparison.Ordinal))
+        {
+            return "global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
+        }
+
+        return "default";
     }
 
     private static IReadOnlyList<string> FindNextKeywordDelimitersForRawParsing(int currentIndex, IReadOnlyList<Element> elements)

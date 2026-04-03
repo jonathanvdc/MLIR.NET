@@ -123,6 +123,14 @@ public sealed class OperationParsingContext : DialectParsingContext
     }
 
     /// <summary>
+    /// Parses a comma-separated list of types, consuming items until an operation boundary is reached.
+    /// </summary>
+    public IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()
+    {
+        return Parser.ParseTypeSyntaxListUntilOperationBoundaryInternal();
+    }
+
+    /// <summary>
     /// Parses an attribute value, stopping before any of the supplied delimiter tokens or
     /// an operation boundary, whichever comes first.
     /// </summary>

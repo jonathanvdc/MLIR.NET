@@ -170,6 +170,13 @@ internal static class AssemblyFormatEmitter
             return "null";
         }
 
+        if (GetFieldCsType(metadata, plan.TypeField) == "IReadOnlyList<TypeSyntax>")
+        {
+            // type($variadic) stores several surface-level type syntax nodes and does not
+            // correspond to a single semantic TypeReference on the operation.
+            return "null";
+        }
+
         // When the type field is nullable (e.g. inside an optional group), emit a conditional
         // expression that produces null when the type syntax is absent rather than passing
         // null directly to binder.BindTypeReference which requires a non-null argument.
@@ -197,9 +204,27 @@ internal static class AssemblyFormatEmitter
         builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, \"Expected a " + className + "BodySyntax but found \" + syntax.Body.GetType().Name + \".\"));");
         builder.AppendLine("            return new UninterpretedOperation(syntax, definition.Name);");
         builder.AppendLine("        }");
-        builder.AppendLine("        if (syntax.ResultTokens.Count != " + operation.Results.Count.ToString(CultureInfo.InvariantCulture) + ")");
+        var hasVariadicResults = operation.Results.Any(static result => result.IsVariadic);
+        var minimumResultCount = 0;
+        foreach (var result in operation.Results)
+        {
+            if (result.IsVariadic)
+            {
+                break;
+            }
+
+            minimumResultCount++;
+        }
+
+        var resultCountCondition = hasVariadicResults
+            ? "syntax.ResultTokens.Count < " + minimumResultCount.ToString(CultureInfo.InvariantCulture)
+            : "syntax.ResultTokens.Count != " + operation.Results.Count.ToString(CultureInfo.InvariantCulture);
+        var resultCountMessage = hasVariadicResults
+            ? "\"Expected at least " + minimumResultCount.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultTokens.Count + \".\""
+            : "\"Expected exactly " + operation.Results.Count.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultTokens.Count + \".\"";
+        builder.AppendLine("        if (" + resultCountCondition + ")");
         builder.AppendLine("        {");
-        builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, \"Expected exactly " + operation.Results.Count.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultTokens.Count + \".\"));");
+        builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, " + resultCountMessage + "));");
         builder.AppendLine("            return new UninterpretedOperation(syntax, definition.Name);");
         builder.AppendLine("        }");
         builder.AppendLine("        return new " + className + "(");

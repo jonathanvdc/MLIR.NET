@@ -109,6 +109,21 @@ public sealed class DialectRegistry
     }
 
     /// <summary>
+    /// Replaces an already-registered operation definition with a new one that has the same canonical name.
+    /// This is intended for narrowly overriding generated assembly-format behavior in tests or extensions
+    /// without re-registering the entire dialect.
+    /// </summary>
+    public void ReplaceOperation(OperationDefinition operation)
+    {
+        if (!operationsByName.ContainsKey(operation.Name))
+        {
+            throw new ArgumentException($"The operation '{operation.Name}' is not registered.", nameof(operation));
+        }
+
+        operationsByName[operation.Name] = operation;
+    }
+
+    /// <summary>
     /// Tries to resolve an operation definition by its canonical name.
     /// </summary>
     /// <param name="name">The canonical operation name.</param>
