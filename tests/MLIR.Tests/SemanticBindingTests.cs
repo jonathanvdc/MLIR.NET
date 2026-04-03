@@ -4,6 +4,7 @@ using MLIR;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Semantics;
+using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
@@ -214,6 +215,145 @@ public sealed partial class SemanticTests
         var value = Assert.IsType<TestF64AttributeValue>(operation.ValueAttribute.Value);
         Assert.Equal(1.5, value.Value);
         Assert.IsType<FloatingPointAttributeValueSyntax>(value.Syntax);
+    }
+
+    [Theory]
+    [InlineData("+1.500", 1.5f)]
+    public void OperationAssemblyFormatCanRoundTripF32Attributes(string sourceValue, float expectedValue)
+    {
+        var f32AttributeDefinition = new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
+
+        var source = $"%0 = arith.constant {sourceValue} : f32";
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<GeneratedConstantOperation>(module.Operations[0]);
+        var value = Assert.IsType<TestF32AttributeValue>(operation.ValueAttribute.Value);
+
+        Assert.Equal(expectedValue, value.Value);
+        Assert.IsType<FloatingPointAttributeValueSyntax>(value.Syntax);
+        Assert.Equal($"%0 = arith.constant {FloatingPointLiteralParser.FormatSingle(value.Value)} : f32", module.ToText(ReplaceExistingSyntaxOptions()));
+    }
+
+    [Theory]
+    [InlineData("+2.5000", 2.5)]
+    [InlineData("-3.125e200", -3.125e200)]
+    public void OperationAssemblyFormatCanRoundTripF64Attributes(string sourceValue, double expectedValue)
+    {
+        var f64AttributeDefinition = new AttributeDefinition("f64", new F64AttributeAssemblyFormat(), factory: static context => new TestF64AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
+
+        var source = $"%0 = arith.constant {sourceValue} : f64";
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<GeneratedConstantOperation>(module.Operations[0]);
+        var value = Assert.IsType<TestF64AttributeValue>(operation.ValueAttribute.Value);
+
+        Assert.Equal(expectedValue, value.Value);
+        Assert.IsType<FloatingPointAttributeValueSyntax>(value.Syntax);
+        Assert.Equal($"%0 = arith.constant {FloatingPointLiteralParser.FormatDouble(value.Value)} : f64", module.ToText(ReplaceExistingSyntaxOptions()));
+    }
+
+    [Theory]
+    [InlineData("1.", 1f)]
+    [InlineData("1.e3", 1000f)]
+    [InlineData("+1.", 1f)]
+    public void OperationAssemblyFormatCanParseAdditionalF32FloatForms(string sourceValue, float expectedValue)
+    {
+        var f32AttributeDefinition = new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f32", registry),
+            registry);
+
+        var value = Assert.IsType<TestF32AttributeValue>(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]).ValueAttribute.Value);
+        Assert.Equal(expectedValue, value.Value);
+    }
+
+    [Theory]
+    [InlineData("0x3f800000", "finite", 1f)]
+    [InlineData("0x7f800000", "posinf", 0f)]
+    [InlineData("-inf", "neginf", 0f)]
+    [InlineData("nan", "nan", 0f)]
+    [InlineData("0x7fc00000", "nan", 0f)]
+    public void OperationAssemblyFormatCanBindMoreF32FloatForms(string sourceValue, string kind, float expectedValue)
+    {
+        var f32AttributeDefinition = new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f32", registry),
+            registry);
+
+        var value = Assert.IsType<TestF32AttributeValue>(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]).ValueAttribute.Value);
+
+        switch (kind)
+        {
+            case "finite":
+                Assert.Equal(expectedValue, value.Value);
+                break;
+            case "posinf":
+                Assert.True(float.IsPositiveInfinity(value.Value));
+                break;
+            case "neginf":
+                Assert.True(float.IsNegativeInfinity(value.Value));
+                break;
+            case "nan":
+                Assert.True(float.IsNaN(value.Value));
+                break;
+        }
+    }
+
+    [Theory]
+    [InlineData("1.", 1d)]
+    [InlineData("1.e+3", 1000d)]
+    [InlineData("+1.", 1d)]
+    public void OperationAssemblyFormatCanParseAdditionalF64FloatForms(string sourceValue, double expectedValue)
+    {
+        var f64AttributeDefinition = new AttributeDefinition("f64", new F64AttributeAssemblyFormat(), factory: static context => new TestF64AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f64", registry),
+            registry);
+
+        var value = Assert.IsType<TestF64AttributeValue>(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]).ValueAttribute.Value);
+        Assert.Equal(expectedValue, value.Value);
+    }
+
+    [Theory]
+    [InlineData("0x3ff0000000000000", "finite", 1d)]
+    [InlineData("0x7ff0000000000000", "posinf", 0d)]
+    [InlineData("-inf", "neginf", 0d)]
+    [InlineData("nan", "nan", 0d)]
+    [InlineData("0x7ff8000000000000", "nan", 0d)]
+    public void OperationAssemblyFormatCanBindMoreF64FloatForms(string sourceValue, string kind, double expectedValue)
+    {
+        var f64AttributeDefinition = new AttributeDefinition("f64", new F64AttributeAssemblyFormat(), factory: static context => new TestF64AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f64", registry),
+            registry);
+
+        var value = Assert.IsType<TestF64AttributeValue>(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]).ValueAttribute.Value);
+
+        switch (kind)
+        {
+            case "finite":
+                Assert.Equal(expectedValue, value.Value);
+                break;
+            case "posinf":
+                Assert.True(double.IsPositiveInfinity(value.Value));
+                break;
+            case "neginf":
+                Assert.True(double.IsNegativeInfinity(value.Value));
+                break;
+            case "nan":
+                Assert.True(double.IsNaN(value.Value));
+                break;
+        }
     }
 
     [Fact]

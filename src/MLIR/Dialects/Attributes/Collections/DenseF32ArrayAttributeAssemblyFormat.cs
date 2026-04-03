@@ -1,6 +1,5 @@
 namespace MLIR.Dialects.Attributes.Collections;
 
-using System.Globalization;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 
@@ -12,7 +11,7 @@ public sealed class DenseF32ArrayAttributeAssemblyFormat : DenseArrayAttributeAs
     /// <inheritdoc/>
     protected override AttributeValueSyntax ElementToSyntax(float element)
     {
-        var text = element.ToString("G", CultureInfo.InvariantCulture);
+        var text = MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatSingle(element);
         return new FloatingPointAttributeValueSyntax(new RawSyntaxText(text), text);
     }
 

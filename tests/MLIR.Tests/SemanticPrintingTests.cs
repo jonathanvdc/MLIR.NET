@@ -1,9 +1,11 @@
 namespace MLIR.Tests;
 
+using System;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Semantics;
+using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Syntax.Attributes.Primitives;
 using Xunit;
@@ -62,6 +64,116 @@ public sealed partial class SemanticTests
             registry);
 
         Assert.Equal("%0 = arith.constant 1.5 : f32", module.ToText(ReplaceExistingSyntaxOptions()));
+    }
+
+    [Theory]
+    [InlineData("+1.500")]
+    public void SemanticPrinterNormalizesAndRoundTripsF32Attributes(string sourceValue)
+    {
+        var f32AttributeDefinition = new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f32", registry),
+            registry);
+
+        var printed = module.ToText(ReplaceExistingSyntaxOptions());
+
+        var parsedValue = Assert.IsType<TestF32AttributeValue>(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]).ValueAttribute.Value).Value;
+        Assert.Equal($"%0 = arith.constant {FloatingPointLiteralParser.FormatSingle(parsedValue)} : f32", printed);
+
+        var rebound = Binder.BindModule(Parser.ParseModule(printed, registry), registry);
+        Assert.Equal(
+            FloatingPointLiteralParser.FormatSingle(parsedValue),
+            Assert.IsType<TestF32AttributeValue>(Assert.IsType<GeneratedConstantOperation>(rebound.Operations[0]).ValueAttribute.Value)
+                .Value
+                .ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData("+2.5000")]
+    [InlineData("-3.125e200")]
+    public void SemanticPrinterNormalizesAndRoundTripsF64Attributes(string sourceValue)
+    {
+        var f64AttributeDefinition = new AttributeDefinition("f64", new F64AttributeAssemblyFormat(), factory: static context => new TestF64AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f64", registry),
+            registry);
+
+        var printed = module.ToText(ReplaceExistingSyntaxOptions());
+
+        var parsedValue = Assert.IsType<TestF64AttributeValue>(Assert.IsType<GeneratedConstantOperation>(module.Operations[0]).ValueAttribute.Value).Value;
+        Assert.Equal($"%0 = arith.constant {FloatingPointLiteralParser.FormatDouble(parsedValue)} : f64", printed);
+
+        var rebound = Binder.BindModule(Parser.ParseModule(printed, registry), registry);
+        Assert.Equal(
+            FloatingPointLiteralParser.FormatDouble(parsedValue),
+            Assert.IsType<TestF64AttributeValue>(Assert.IsType<GeneratedConstantOperation>(rebound.Operations[0]).ValueAttribute.Value)
+                .Value
+                .ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData("%0 = arith.constant 0x3f800000 : f32")]
+    [InlineData("%0 = arith.constant inf : f32")]
+    [InlineData("%0 = arith.constant nan : f32")]
+    [InlineData("%0 = arith.constant 0x3ff0000000000000 : f64")]
+    [InlineData("%0 = arith.constant -inf : f64")]
+    [InlineData("%0 = arith.constant nan : f64")]
+    public void ParserPreservesCustomFloatAssemblyExactly(string source)
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(source.Contains(": f32", StringComparison.Ordinal) || source.Contains("f32", StringComparison.Ordinal)
+                                ? new ContextDirectedConstantAssemblyFormat(new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context)))
+                                : new ContextDirectedConstantAssemblyFormat(new AttributeDefinition("f64", new F64AttributeAssemblyFormat(), factory: static context => new TestF64AttributeValue(context)))));
+                }));
+
+        var module = Parser.ParseModule(source, registry);
+
+        Assert.Equal(source, Printer.Print(module));
+    }
+
+    [Theory]
+    [InlineData("0x3f800000", "1.0")]
+    [InlineData("0x7f800000", "inf")]
+    [InlineData("nan", "nan")]
+    public void SemanticPrinterCanonicalizesF32HexAndSpecialForms(string sourceValue, string normalizedValue)
+    {
+        var f32AttributeDefinition = new AttributeDefinition("f32", new F32AttributeAssemblyFormat(), factory: static context => new TestF32AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f32", registry),
+            registry);
+
+        Assert.Equal($"%0 = arith.constant {normalizedValue} : f32", module.ToText(ReplaceExistingSyntaxOptions()));
+    }
+
+    [Theory]
+    [InlineData("0x3ff0000000000000", "1.0")]
+    [InlineData("0x7ff0000000000000", "inf")]
+    [InlineData("nan", "nan")]
+    public void SemanticPrinterCanonicalizesF64HexAndSpecialForms(string sourceValue, string normalizedValue)
+    {
+        var f64AttributeDefinition = new AttributeDefinition("f64", new F64AttributeAssemblyFormat(), factory: static context => new TestF64AttributeValue(context));
+        var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
+
+        var module = Binder.BindModule(
+            Parser.ParseModule($"%0 = arith.constant {sourceValue} : f64", registry),
+            registry);
+
+        Assert.Equal($"%0 = arith.constant {normalizedValue} : f64", module.ToText(ReplaceExistingSyntaxOptions()));
     }
 
     [Fact]

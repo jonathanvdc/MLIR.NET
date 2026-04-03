@@ -137,8 +137,8 @@ internal static class AttributeConstraintEmitter
     {
         return recordName switch
         {
-            "F32Attr" => "context, global::System.Single.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, global::System.Globalization.CultureInfo.InvariantCulture)",
-            "F64Attr" => "context, global::System.Double.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, global::System.Globalization.CultureInfo.InvariantCulture)",
+            "F32Attr" => "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseSingle(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)",
+            "F64Attr" => "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseDouble(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)",
             _ => "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText",
         };
     }

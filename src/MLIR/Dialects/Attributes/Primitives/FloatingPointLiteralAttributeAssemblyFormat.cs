@@ -1,7 +1,5 @@
 namespace MLIR.Dialects.Attributes.Primitives;
 
-using System.Collections.Generic;
-using System.Linq;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
@@ -18,34 +16,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     /// <inheritdoc/>
     public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
     {
-        syntax = null;
-        var tokens = new List<SyntaxToken>();
-        if (context.TryMatch(TokenKind.Minus, out var minus))
-        {
-            tokens.Add(minus);
-        }
-
-        if (!context.TryMatch(TokenKind.Integer, out var integerPart))
-        {
-            return false;
-        }
-
-        tokens.Add(integerPart);
-        if (!context.TryMatch(TokenKind.Dot, out var dot))
-        {
-            return false;
-        }
-
-        tokens.Add(dot);
-        if (!context.TryMatch(TokenKind.Integer, out var fractionalPart))
-        {
-            return false;
-        }
-
-        tokens.Add(fractionalPart);
-        var literalText = string.Concat(tokens.Select(static token => token.Text));
-        syntax = new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText);
-        return true;
+        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context, out syntax);
     }
 
     /// <inheritdoc/>
@@ -61,7 +32,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     {
         if (attribute is FloatingPointAttributeValue floatingPointAttribute)
         {
-            return new FloatingPointAttributeValueSyntax(new RawSyntaxText(floatingPointAttribute.LiteralText), floatingPointAttribute.LiteralText);
+            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(floatingPointAttribute.LiteralText), floatingPointAttribute.LiteralText);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive floating-point attributes require syntax to rebuild their assembly form.");

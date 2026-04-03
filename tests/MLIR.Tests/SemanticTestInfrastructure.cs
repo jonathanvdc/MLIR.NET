@@ -34,6 +34,25 @@ public sealed partial class SemanticTests
             existingSyntaxHandling: ConcreteSyntaxBuilder.ExistingSyntaxHandling.ReplaceExistingSyntax);
     }
 
+    private static DialectRegistry CreateFloatingPointConstantRegistry(AttributeDefinition valueDefinition)
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "arith",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "arith.constant",
+                        operation => operation
+                            .Result("result")
+                            .WithFactory(static context => new GeneratedConstantOperation(context))
+                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(valueDefinition)));
+                }));
+
+        return registry;
+    }
+
     private static GenericOperationBodySyntax GetGenericBody(OperationSyntax operation)
     {
         if (operation.Body is GenericOperationBodySyntax genericBody)
@@ -329,7 +348,7 @@ public sealed partial class SemanticTests
     private sealed class TestF32AttributeValue : MLIR.Semantics.Attributes.Primitives.F32AttributeValue
     {
         public TestF32AttributeValue(AttributeValueConstructionContext context)
-            : base(context, float.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, CultureInfo.InvariantCulture))
+            : base(context, MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseSingle(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText))
         {
             Name = context.Name;
             Definition = context.Definition;
@@ -348,7 +367,7 @@ public sealed partial class SemanticTests
     private sealed class TestF64AttributeValue : MLIR.Semantics.Attributes.Primitives.F64AttributeValue
     {
         public TestF64AttributeValue(AttributeValueConstructionContext context)
-            : base(context, double.Parse(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText, CultureInfo.InvariantCulture))
+            : base(context, MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseDouble(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText))
         {
             Name = context.Name;
             Definition = context.Definition;
@@ -453,7 +472,7 @@ public sealed partial class SemanticTests
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
             var body = new PrefixConstantBodySyntax(
-                valueAttr != null && valueAttr.Value.Syntax != null ? valueAttr.Value.Syntax.GetRawText() : new RawSyntaxText(string.Empty),
+                valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value).GetRawText() : new RawSyntaxText(string.Empty),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
@@ -510,8 +529,14 @@ public sealed partial class SemanticTests
         {
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
+            var valueText = valueAttr?.Value switch
+            {
+                MLIR.Semantics.Attributes.Primitives.F32AttributeValue f32Value => MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatSingle(f32Value.Value),
+                MLIR.Semantics.Attributes.Primitives.F64AttributeValue f64Value => MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatDouble(f64Value.Value),
+                _ => valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value).GetRawText().Text : string.Empty,
+            };
             var body = new PrefixConstantBodySyntax(
-                valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value).GetRawText() : new RawSyntaxText(string.Empty),
+                new RawSyntaxText(valueText),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);

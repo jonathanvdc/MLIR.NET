@@ -170,13 +170,13 @@ public static class StructuredAttributeSemanticDecoder
     private static float DecodeSinglePrecisionValue(AttributeValueSyntax syntax)
     {
         if (syntax is FloatingPointAttributeValueSyntax fpSyntax
-            && float.TryParse(fpSyntax.LiteralText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            && FloatingPointLiteralParser.TryParseSingle(fpSyntax.LiteralText, out var parsed))
         {
             return parsed;
         }
 
         if (syntax is RawAttributeValueSyntax rawSyntax
-            && float.TryParse(rawSyntax.RawText.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var rawParsed))
+            && FloatingPointLiteralParser.TryParseSingle(rawSyntax.RawText.Text, out var rawParsed))
         {
             return rawParsed;
         }
@@ -187,13 +187,13 @@ public static class StructuredAttributeSemanticDecoder
     private static double DecodeDoublePrecisionValue(AttributeValueSyntax syntax)
     {
         if (syntax is FloatingPointAttributeValueSyntax fpSyntax
-            && double.TryParse(fpSyntax.LiteralText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            && FloatingPointLiteralParser.TryParseDouble(fpSyntax.LiteralText, out var parsed))
         {
             return parsed;
         }
 
         if (syntax is RawAttributeValueSyntax rawSyntax
-            && double.TryParse(rawSyntax.RawText.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var rawParsed))
+            && FloatingPointLiteralParser.TryParseDouble(rawSyntax.RawText.Text, out var rawParsed))
         {
             return rawParsed;
         }
@@ -230,12 +230,7 @@ public static class StructuredAttributeSemanticDecoder
 
     private static bool LooksLikeFloatingPointLiteral(string text)
     {
-        if (text.IndexOf('.') < 0)
-        {
-            return false;
-        }
-
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
+        return FloatingPointLiteralParser.TryParseDouble(text, out _);
     }
 
     private sealed class DecodedBooleanAttributeValue : BooleanAttributeValue
