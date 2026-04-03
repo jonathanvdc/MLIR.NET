@@ -68,7 +68,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             "func.return",
             CreateFuncRegistry());
 
-        Assert.Null(op.Operands);
+        Assert.Empty(op.Operands);
         Assert.Null(op.TypeSignatureReference);
     }
 
@@ -84,7 +84,8 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             "func.return %x : i32",
             CreateFuncRegistry());
 
-        Assert.Equal("%x", op.Operands?.Name);
+        Assert.Single(op.Operands);
+        Assert.Equal("%x", op.Operands[0].Name);
     }
 
     /// <summary>
@@ -99,7 +100,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             out var printed);
 
         Assert.Contains("func.return", printed);
-        Assert.Null(op.Operands);
+        Assert.Empty(op.Operands);
     }
 
     /// <summary>
@@ -115,24 +116,29 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
 
         Assert.Contains("func.return", printed);
         Assert.Contains("%x", printed);
-        Assert.Equal("%x", op.Operands?.Name);
+        Assert.Single(op.Operands);
+        Assert.Equal("%x", op.Operands[0].Name);
     }
 
     /// <summary>
-    /// func.return with multiple operands is not yet supported by the declarative parser.
-    /// The generated TryParse only reads a single SSA token for the variadic operand,
-    /// so parsing 'func.return %x, %y : i32, f32' would throw a parse exception.
+    /// func.return with multiple operands — the variadic list parses correctly, but
+    /// <c>type($operands)</c> for a variadic generates only a single <c>ParseTypeSyntax()</c>
+    /// call that reads <c>i32</c> and leaves <c>, f32</c> stranded, causing a
+    /// "Expected end of operation" error.
     /// </summary>
-    [Fact(Skip = "Variadic operands in optional group: TryParse reads only one SSA token; " +
-                 "parsing multiple operands throws a parse exception. " +
-                 "Needs variadic-aware operand parsing support in the generator.")]
+    [Fact(Skip = "type($variadic) generates only one ParseTypeSyntax() call; " +
+                 "multi-operand type list (e.g. 'i32, f32') strands the remaining types " +
+                 "and causes a 'Expected end of operation' ParseException. " +
+                 "Needs variadic-aware type directive generation for type($variadic).")]
     public void BindsReturnOpWithMultipleOperands()
     {
         var op = BindSingleOperation<ReturnOp>(
             "func.return %x, %y : i32, f32",
             CreateFuncRegistry());
 
-        Assert.NotNull(op.Operands);
+        Assert.Equal(2, op.Operands.Count);
+        Assert.Equal("%x", op.Operands[0].Name);
+        Assert.Equal("%y", op.Operands[1].Name);
     }
 
     // ---------------------------------------------------------------------------
@@ -153,7 +159,8 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             CreateFuncRegistry());
 
         Assert.Equal("%callee", op.Callee.Name);
-        Assert.Equal("%arg0", op.CalleeOperands.Name);
+        Assert.Single(op.CalleeOperands);
+        Assert.Equal("%arg0", op.CalleeOperands[0].Name);
         Assert.Equal("%result", op.Results.Name);
     }
 
@@ -172,17 +179,15 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
         Assert.Contains("%callee", printed);
         Assert.Contains("%arg0", printed);
         Assert.Equal("%callee", op.Callee.Name);
-        Assert.Equal("%arg0", op.CalleeOperands.Name);
+        Assert.Single(op.CalleeOperands);
+        Assert.Equal("%arg0", op.CalleeOperands[0].Name);
     }
 
     /// <summary>
-    /// func.call_indirect with no operands is not yet supported.
-    /// The TryParse always attempts context.ParseSsaToken() for the variadic operand,
-    /// which throws a ParseException when the argument list is empty.
+    /// func.call_indirect with no operands — now supported via variadic operand parsing.
+    /// Format: $callee '(' $callee_operands ')' attr-dict ':' type($callee)
     /// </summary>
-    [Fact(Skip = "Empty variadic operand list: TryParse calls context.ParseSsaToken() " +
-                 "unconditionally and throws a ParseException when the arg list is empty. " +
-                 "Needs variadic-aware operand parsing support in the generator.")]
+    [Fact]
     public void BindsCallIndirectOpWithNoOperands()
     {
         var op = BindSingleOperation<CallIndirectOp>(
@@ -190,16 +195,14 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             CreateFuncRegistry());
 
         Assert.Equal("%callee", op.Callee.Name);
+        Assert.Empty(op.CalleeOperands);
     }
 
     /// <summary>
-    /// func.call_indirect with multiple operands is not yet supported.
-    /// The TryParse only parses one SSA token for the variadic operand field,
-    /// so the second operand and the closing paren mismatch causes a ParseException.
+    /// func.call_indirect with multiple operands — now supported via variadic operand parsing.
+    /// Format: $callee '(' $callee_operands ')' attr-dict ':' type($callee)
     /// </summary>
-    [Fact(Skip = "Variadic callee_operands: TryParse reads only one SSA token; " +
-                 "multiple operands cause a ParseException. " +
-                 "Needs variadic-aware operand parsing support in the generator.")]
+    [Fact]
     public void BindsCallIndirectOpWithMultipleOperands()
     {
         var op = BindSingleOperation<CallIndirectOp>(
@@ -207,6 +210,9 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             CreateFuncRegistry());
 
         Assert.Equal("%callee", op.Callee.Name);
+        Assert.Equal(2, op.CalleeOperands.Count);
+        Assert.Equal("%arg0", op.CalleeOperands[0].Name);
+        Assert.Equal("%arg1", op.CalleeOperands[1].Name);
     }
 
     // ---------------------------------------------------------------------------

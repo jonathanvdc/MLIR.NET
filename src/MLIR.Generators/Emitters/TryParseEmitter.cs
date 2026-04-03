@@ -310,7 +310,7 @@ internal sealed class TryParseEmitter
             // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
             // array rather than null so callers can always iterate over the result safely.
             var defaultExpr = f.CsType.Contains("IReadOnlyList", System.StringComparison.Ordinal)
-                ? "global::System.Array.Empty<global::MLIR.Text.SyntaxToken>()"
+                ? "global::System.Array.Empty<SyntaxToken>()"
                 : "default";
             builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
@@ -475,7 +475,7 @@ internal sealed class TryParseEmitter
         {
             var f = metadata.Fields[oilistStart + i];
             var defaultExpr = f.CsType.Contains("IReadOnlyList", System.StringComparison.Ordinal)
-                ? "global::System.Array.Empty<global::MLIR.Text.SyntaxToken>()"
+                ? "global::System.Array.Empty<SyntaxToken>()"
                 : "default";
             builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }

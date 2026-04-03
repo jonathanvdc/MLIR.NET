@@ -491,10 +491,10 @@ internal static class EmitterHelpers
         {
             // Variadic operands use a list of SSA tokens.  The write statement iterates over
             // the list and inserts commas between items.
-            const string csType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Text.SyntaxToken>";
+            const string csType = "global::System.Collections.Generic.IReadOnlyList<SyntaxToken>";
             var writeStmt =
                 "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
-                "if (_i > 0) writer.WriteToken(new global::MLIR.Text.SyntaxToken(\",\"), \"\"); " +
+                "if (_i > 0) writer.WriteToken(new SyntaxToken(\",\"), \"\"); " +
                 "writer.WriteToken(" + name + "[_i], _i > 0 ? \" \" : \"\"); }";
             var field = new BodySyntaxField(name, csType, writeStmt);
             metadata.AddField(field);
