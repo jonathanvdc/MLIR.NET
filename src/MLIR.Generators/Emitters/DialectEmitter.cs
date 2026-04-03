@@ -17,6 +17,18 @@ internal sealed class DialectEmitter
     {
         DialectFileEmitter.EmitHeader(builder, dialect);
 
+        foreach (var enumModel in dialect.Attributes
+            .Select(static attribute => attribute.EnumModel)
+            .Concat(dialect.AttributeConstraints.Select(static constraint => constraint.EnumModel))
+            .Where(static enumModel => enumModel != null)
+            .Cast<EnumModel>()
+            .GroupBy(static enumModel => enumModel.ClassName, System.StringComparer.Ordinal)
+            .Select(static group => group.First()))
+        {
+            EnumEmitter.EmitSharedDefinitions(builder, enumModel);
+            builder.AppendLine();
+        }
+
         foreach (var operation in dialect.Operations)
         {
             try

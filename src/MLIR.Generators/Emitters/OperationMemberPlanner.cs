@@ -7,11 +7,11 @@ using MLIR.ODS.Model;
 internal sealed class GeneratedMember
 {
     public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
-        : this(propertyName, parameterName, typeName, sourceName, AttributeConstraintKind.None, null)
+        : this(propertyName, parameterName, typeName, sourceName, AttributeConstraintKind.None, null, false)
     {
     }
 
-    public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName, AttributeConstraintKind constraintKind, string? constraintClassName)
+    public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName, AttributeConstraintKind constraintKind, string? constraintClassName, bool usesEnumWrapper)
     {
         PropertyName = propertyName;
         ParameterName = parameterName;
@@ -19,6 +19,7 @@ internal sealed class GeneratedMember
         SourceName = sourceName;
         ConstraintKind = constraintKind;
         ConstraintClassName = constraintClassName;
+        UsesEnumWrapper = usesEnumWrapper;
     }
 
     public string PropertyName { get; }
@@ -32,6 +33,8 @@ internal sealed class GeneratedMember
     public AttributeConstraintKind ConstraintKind { get; }
 
     public string? ConstraintClassName { get; }
+
+    public bool UsesEnumWrapper { get; }
 }
 
 internal sealed class OperationMemberPlan
@@ -130,18 +133,30 @@ internal static class OperationMemberPlanner
                 }
             }
 
-            var typeName = GetAttributeTypeName(constraintKind, isRequired, constraintRecordName);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintKind, constraintClassName));
+            var enumTypeName = !string.IsNullOrEmpty(constraintRecordName)
+                ? resolver.TryResolveEnumTypeName(constraintRecordName!)
+                : null;
+            var usesEnumWrapper = constraintKind == AttributeConstraintKind.EnumAttribute
+                && constraintClassName != null
+                && enumTypeName != null;
+
+            var typeName = GetAttributeTypeName(constraintKind, isRequired, constraintRecordName, enumTypeName);
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintKind, constraintClassName, usesEnumWrapper));
         }
 
         return members;
     }
 
-    private static string GetAttributeTypeName(AttributeConstraintKind kind, bool isRequired, string? constraintRecordName)
+    private static string GetAttributeTypeName(AttributeConstraintKind kind, bool isRequired, string? constraintRecordName, string? enumTypeName)
     {
         if (kind == AttributeConstraintKind.UnitAttribute)
         {
             return isRequired ? "UnitAttributeValue" : "bool";
+        }
+
+        if (kind == AttributeConstraintKind.EnumAttribute && !string.IsNullOrEmpty(enumTypeName))
+        {
+            return isRequired ? enumTypeName! : enumTypeName! + "?";
         }
 
         var baseType = kind switch

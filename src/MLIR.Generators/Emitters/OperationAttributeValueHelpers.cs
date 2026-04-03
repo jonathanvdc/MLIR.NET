@@ -8,7 +8,8 @@ internal static class OperationAttributeValueHelpers
     public static bool IsPrimitiveConstraintKind(AttributeConstraintKind kind)
     {
         return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral
-            or AttributeConstraintKind.StringLiteral or AttributeConstraintKind.FloatingPointLiteral;
+            or AttributeConstraintKind.StringLiteral or AttributeConstraintKind.FloatingPointLiteral
+            or AttributeConstraintKind.EnumAttribute;
     }
 
     public static bool IsDenseCollectionConstraintKind(AttributeConstraintKind kind)
@@ -98,6 +99,11 @@ internal static class OperationAttributeValueHelpers
                 return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + "))";
             }
 
+            if (member.ConstraintKind == AttributeConstraintKind.EnumAttribute)
+            {
+                return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ".Value)) : null";
+            }
+
             if (IsPrimitiveValueType(member.TypeName))
             {
                 return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ".Value)) : null";
@@ -148,6 +154,11 @@ internal static class OperationAttributeValueHelpers
 
     private static string GetPrimitiveValueAccess(AttributeConstraintKind kind, string typeName)
     {
+        if (kind == AttributeConstraintKind.EnumAttribute)
+        {
+            return ".TypedValue";
+        }
+
         return kind == AttributeConstraintKind.FloatingPointLiteral && string.Equals(typeName.TrimEnd('?'), "string", StringComparison.Ordinal)
             ? ".LiteralText"
             : ".Value";

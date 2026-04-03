@@ -24,55 +24,6 @@ internal static class AttributeConstraintEmitter
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
         var enumTypeName = EnumHelpers.GetCSharpEnumTypeName(enumModel);
 
-        // Emit the C# enum type
-        if (enumModel.IsBitEnum)
-        {
-            builder.AppendLine("[global::System.Flags]");
-        }
-
-        var underlyingType = GetUnderlyingCSharpType(enumModel.Bitwidth);
-        builder.AppendLine("public enum " + enumTypeName + " : " + underlyingType);
-        builder.AppendLine("{");
-        foreach (var enumCase in enumModel.Cases)
-        {
-            var memberName = EnumHelpers.GetCSharpEnumMemberName(enumCase.Symbol);
-            builder.AppendLine("    " + memberName + " = " + enumCase.Value + ",");
-        }
-
-        builder.AppendLine("}");
-        builder.AppendLine();
-
-        // Symbol-to-enum lookup dictionary (file-scoped to avoid redundancy in the generated source)
-        builder.AppendLine("internal static class " + enumTypeName + "EnumParser");
-        builder.AppendLine("{");
-        builder.AppendLine("    internal static readonly global::System.Collections.Generic.Dictionary<string, " + enumTypeName + "> SymbolToEnum =");
-        builder.AppendLine("        new global::System.Collections.Generic.Dictionary<string, " + enumTypeName + ">(global::System.StringComparer.Ordinal)");
-        builder.AppendLine("        {");
-        foreach (var enumCase in enumModel.Cases)
-        {
-            var memberName = EnumHelpers.GetCSharpEnumMemberName(enumCase.Symbol);
-            builder.AppendLine("            { " + EmitterHelpers.ToCSharpStringLiteral(enumCase.Str) + ", " + enumTypeName + "." + memberName + " },");
-        }
-
-        builder.AppendLine("        };");
-        builder.AppendLine();
-        builder.AppendLine("    internal static readonly global::System.Collections.Generic.Dictionary<" + enumTypeName + ", string> EnumToSymbol =");
-        builder.AppendLine("        new global::System.Collections.Generic.Dictionary<" + enumTypeName + ", string>()");
-        builder.AppendLine("        {");
-        var seenValues = new HashSet<long>();
-        foreach (var enumCase in enumModel.Cases)
-        {
-            if (seenValues.Add(enumCase.Value))
-            {
-                var memberName = EnumHelpers.GetCSharpEnumMemberName(enumCase.Symbol);
-                builder.AppendLine("            { " + enumTypeName + "." + memberName + ", " + EmitterHelpers.ToCSharpStringLiteral(enumCase.Str) + " },");
-            }
-        }
-
-        builder.AppendLine("        };");
-        builder.AppendLine("}");
-        builder.AppendLine();
-
         // Constraint class
         var assemblyFormatType = className + "AssemblyFormat";
         builder.AppendLine("public sealed class " + className + " : IntegerAttributeValue");
@@ -88,7 +39,14 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("        EnumValue = ParseEnumValue(context.Syntax);");
         builder.AppendLine("    }");
         builder.AppendLine();
+        builder.AppendLine("    public " + className + "(" + enumTypeName + " value)");
+        builder.AppendLine("        : base((global::System.Numerics.BigInteger)(ulong)value)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        EnumValue = value;");
+        builder.AppendLine("    }");
+        builder.AppendLine();
         builder.AppendLine("    public " + enumTypeName + " EnumValue { get; }");
+        builder.AppendLine("    public " + enumTypeName + " TypedValue => EnumValue;");
         builder.AppendLine();
         builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
         builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
@@ -99,23 +57,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    {");
         builder.AppendLine("        if (syntax == null) return default;");
         builder.AppendLine("        var raw = syntax.GetRawText().Text.Trim();");
-        if (enumModel.IsBitEnum)
-        {
-            var sep = enumModel.Separator.Contains(",") ? "," : "|";
-            builder.AppendLine("        var parts = raw.Split('" + sep + "');");
-            builder.AppendLine("        var result = (" + enumTypeName + ")0;");
-            builder.AppendLine("        foreach (var part in parts)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            var trimmed = part.Trim();");
-            builder.AppendLine("            if (" + enumTypeName + "EnumParser.SymbolToEnum.TryGetValue(trimmed, out var flag)) result |= flag;");
-            builder.AppendLine("        }");
-            builder.AppendLine("        return result;");
-        }
-        else
-        {
-            builder.AppendLine("        return " + enumTypeName + "EnumParser.SymbolToEnum.TryGetValue(raw, out var v) ? v : default;");
-        }
-
+        EnumEmitter.EmitParseExpression(builder, enumModel, enumTypeName, "raw", "        ");
         builder.AppendLine("    }");
         builder.AppendLine();
 
@@ -129,27 +71,7 @@ internal static class AttributeConstraintEmitter
         // Print helper
         builder.AppendLine("    internal string PrintEnumValue(" + enumTypeName + " value)");
         builder.AppendLine("    {");
-        if (enumModel.IsBitEnum)
-        {
-            var sep = enumModel.Separator.Contains(",") ? "\", \"" : "\" | \"";
-            builder.AppendLine("        if (" + enumTypeName + "EnumParser.EnumToSymbol.TryGetValue(value, out var directStr)) return directStr;");
-            builder.AppendLine("        var parts = new global::System.Collections.Generic.List<string>();");
-            builder.AppendLine("        foreach (var pair in " + enumTypeName + "EnumParser.EnumToSymbol)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            var flag = pair.Key;");
-            builder.AppendLine("            if ((long)(object)flag != 0 && ((long)(object)(value & flag) == (long)(object)flag))");
-            builder.AppendLine("            {");
-            builder.AppendLine("                parts.Add(pair.Value);");
-            builder.AppendLine("                value &= ~flag;");
-            builder.AppendLine("            }");
-            builder.AppendLine("        }");
-            builder.AppendLine("        return string.Join(" + sep + ", parts);");
-        }
-        else
-        {
-            builder.AppendLine("        return " + enumTypeName + "EnumParser.EnumToSymbol.TryGetValue(value, out var s) ? s : value.ToString();");
-        }
-
+        EnumEmitter.EmitFormatExpression(builder, enumModel, "value", "        ");
         builder.AppendLine("    }");
         builder.AppendLine("}");
         builder.AppendLine();
@@ -169,7 +91,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("        var rawText = firstToken.Text;");
         if (enumModel.IsBitEnum)
         {
-            var sepKind = enumModel.Separator.Contains(",") ? "TokenKind.Comma" : "TokenKind.Pipe";
+            var sepKind = EnumEmitter.GetSeparatorTokenKind(enumModel);
             builder.AppendLine("        while (context.TryMatch(MLIR.Text." + sepKind + ", out _))");
             builder.AppendLine("        {");
             builder.AppendLine("            if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
@@ -178,15 +100,12 @@ internal static class AttributeConstraintEmitter
             builder.AppendLine("                break;");
             builder.AppendLine("            }");
             builder.AppendLine();
-            var sep = enumModel.Separator.Contains(",") ? "\", \"" : "\" | \"";
-            builder.AppendLine("            rawText += " + sep + " + nextToken.Text;");
+            builder.AppendLine("            rawText += " + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator) + " + nextToken.Text;");
             builder.AppendLine("        }");
         }
 
         builder.AppendLine();
-        builder.AppendLine("        syntax = new MLIR.Syntax.Attributes.Primitives.StringAttributeValueSyntax(");
-        builder.AppendLine("            new MLIR.Text.SyntaxToken(rawText, firstToken.LeadingTrivia, firstToken.Location.Line, firstToken.Location.Column),");
-        builder.AppendLine("            rawText);");
+        builder.AppendLine("        syntax = new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(rawText));");
         builder.AppendLine("        return true;");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -199,8 +118,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    {");
         builder.AppendLine("        var enumAttr = (" + className + ")attribute;");
         builder.AppendLine("        var text = enumAttr.PrintEnumValue(enumAttr.EnumValue);");
-        builder.AppendLine("        return new MLIR.Syntax.Attributes.Primitives.StringAttributeValueSyntax(");
-        builder.AppendLine("            new MLIR.Text.SyntaxToken(text), text);");
+        builder.AppendLine("        return new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(text));");
         builder.AppendLine("    }");
         builder.AppendLine("}");
     }
@@ -369,12 +287,4 @@ internal static class AttributeConstraintEmitter
         };
     }
 
-    private static string GetUnderlyingCSharpType(int bitwidth) => bitwidth switch
-    {
-        8 => "byte",
-        16 => "ushort",
-        32 => "uint",
-        64 => "ulong",
-        _ => "ulong",
-    };
 }

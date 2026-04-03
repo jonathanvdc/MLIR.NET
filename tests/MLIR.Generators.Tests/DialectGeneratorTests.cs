@@ -986,4 +986,76 @@ public sealed class DialectGeneratorTests
         Assert.Contains("DenseF64ArrayAttributeAssemblyFormat", registrationSource);
         Assert.Contains("IReadOnlyList<double> weights,", registrationSource);
     }
+
+    [Fact]
+    public void GeneratesTypedEnumAttributesAndOperationsWithoutDuplicateEnumDeclarations()
+    {
+        const string source =
+            "include \"mlir/IR/EnumAttr.td\"\n" +
+            "\n" +
+            "class MiniEnum_Op<string mnemonic, list<Trait> traits = []> : Op<MiniEnum_Dialect, mnemonic, traits>;\n" +
+            "def MiniEnum_Dialect : Dialect {\n" +
+            "  let name = \"minienum\";\n" +
+            "  let cppNamespace = \"::mlir::minienum\";\n" +
+            "};\n" +
+            "def MINI_MODE_A : I32EnumAttrCase<\"a\", 0>;\n" +
+            "def MINI_MODE_B : I32EnumAttrCase<\"b\", 1>;\n" +
+            "def MiniEnum_Mode : I32EnumAttr<\"Mode\", \"mode summary\", [MINI_MODE_A, MINI_MODE_B]> {\n" +
+            "  let cppNamespace = \"::mlir::minienum\";\n" +
+            "  let genSpecializedAttr = 0;\n" +
+            "};\n" +
+            "def MiniEnum_ModeAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Mode, \"mode\"> {\n" +
+            "  let assemblyFormat = \"`<` $value `>`\";\n" +
+            "};\n" +
+            "def MINI_FLAG_NONE : I32BitEnumAttrCaseNone<\"none\">;\n" +
+            "def MINI_FLAG_X : I32BitEnumAttrCaseBit<\"x\", 0>;\n" +
+            "def MINI_FLAG_Y : I32BitEnumAttrCaseBit<\"y\", 1>;\n" +
+            "def MINI_FLAG_XY : I32BitEnumAttrCaseGroup<\"xy\", [MINI_FLAG_X, MINI_FLAG_Y]>;\n" +
+            "def MiniEnum_Flags : I32BitEnumAttr<\"Flags\", \"flags summary\", [MINI_FLAG_NONE, MINI_FLAG_X, MINI_FLAG_Y, MINI_FLAG_XY]> {\n" +
+            "  let separator = \",\";\n" +
+            "  let cppNamespace = \"::mlir::minienum\";\n" +
+            "  let genSpecializedAttr = 0;\n" +
+            "  let printBitEnumPrimaryGroups = 1;\n" +
+            "};\n" +
+            "def MiniEnum_FlagsAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Flags, \"flags\"> {\n" +
+            "  let assemblyFormat = \"`<` $value `>`\";\n" +
+            "};\n" +
+            "def MiniEnum_ModeOp : MiniEnum_Op<\"mode_op\", [Pure]> {\n" +
+            "  let arguments = (ins MiniEnum_ModeAttr:$mode, I32:$input);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$mode `,` $input attr-dict `:` type($result)\";\n" +
+            "};\n" +
+            "def MiniEnum_FlagsOp : MiniEnum_Op<\"flags_op\", [Pure]> {\n" +
+            "  let arguments = (ins MiniEnum_FlagsAttr:$flags, I32:$input);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"$flags $input attr-dict `:` type($result)\";\n" +
+            "};";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(new DialectGenerator(), ("minienum.td", source));
+        var registrationSource = Assert.Single(generatedSources.Where(static result => result.HintName == "MinienumDialectRegistration.g.cs")).SourceText.ToString();
+
+        Assert.Equal(1, CountOccurrences(registrationSource, "public enum Mode : uint"));
+        Assert.Equal(1, CountOccurrences(registrationSource, "public enum Flags : uint"));
+        Assert.Contains("[global::System.Flags]", registrationSource);
+        Assert.Contains("internal static class ModeInfo", registrationSource);
+        Assert.Contains("internal static class FlagsInfo", registrationSource);
+        Assert.Contains("public MLIR.Minienum.Mode Mode", registrationSource);
+        Assert.Contains("get => ((MLIR.Minienum.ModeAttr)Attributes[\"mode\"].Value).TypedValue;", registrationSource);
+        Assert.Contains("public MLIR.Minienum.Flags Flags", registrationSource);
+        Assert.Contains("new MLIR.Minienum.FlagsAttr(value)", registrationSource);
+        Assert.Contains("return string.Join(\",\", parts);", registrationSource);
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, System.StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
 }

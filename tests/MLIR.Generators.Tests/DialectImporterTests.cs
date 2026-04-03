@@ -135,4 +135,59 @@ public sealed class DialectImporterTests
         // assemblyFormat="" must be treated as absent (no custom assembly format).
         Assert.Null(op.AssemblyFormat);
     }
+
+    [Fact]
+    public void ImportsEnumAndBitEnumModelsFromUpstreamStyleRecords()
+    {
+        const string source =
+            "include \"mlir/IR/EnumAttr.td\"\n" +
+            "\n" +
+            "def MiniEnum_Dialect : Dialect {\n" +
+            "  let name = \"minienum\";\n" +
+            "  let cppNamespace = \"::mlir::minienum\";\n" +
+            "};\n" +
+            "\n" +
+            "def MINI_MODE_A : I32EnumAttrCase<\"a\", 0>;\n" +
+            "def MINI_MODE_B : I32EnumAttrCase<\"b\", 1>;\n" +
+            "def MiniEnum_Mode : I32EnumAttr<\"Mode\", \"mode summary\", [MINI_MODE_A, MINI_MODE_B]> {\n" +
+            "  let cppNamespace = \"::mlir::minienum\";\n" +
+            "  let genSpecializedAttr = 0;\n" +
+            "};\n" +
+            "def MiniEnum_ModeAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Mode, \"mode\"> {\n" +
+            "  let assemblyFormat = \"`<` $value `>`\";\n" +
+            "};\n" +
+            "\n" +
+            "def MINI_FLAG_NONE : I32BitEnumAttrCaseNone<\"none\">;\n" +
+            "def MINI_FLAG_X : I32BitEnumAttrCaseBit<\"x\", 0>;\n" +
+            "def MINI_FLAG_Y : I32BitEnumAttrCaseBit<\"y\", 1>;\n" +
+            "def MINI_FLAG_XY : I32BitEnumAttrCaseGroup<\"xy\", [MINI_FLAG_X, MINI_FLAG_Y]>;\n" +
+            "def MiniEnum_Flags : I32BitEnumAttr<\"Flags\", \"flags summary\", [MINI_FLAG_NONE, MINI_FLAG_X, MINI_FLAG_Y, MINI_FLAG_XY]> {\n" +
+            "  let separator = \",\";\n" +
+            "  let cppNamespace = \"::mlir::minienum\";\n" +
+            "  let genSpecializedAttr = 0;\n" +
+            "  let printBitEnumPrimaryGroups = 1;\n" +
+            "};\n" +
+            "def MiniEnum_FlagsAttr : EnumAttr<MiniEnum_Dialect, MiniEnum_Flags, \"flags\"> {\n" +
+            "  let assemblyFormat = \"`<` $value `>`\";\n" +
+            "};";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects);
+        var modeAttr = Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MiniEnum_ModeAttr");
+        var flagsAttr = Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MiniEnum_FlagsAttr");
+        var flagsConstraint = Assert.Single(dialect.AttributeConstraints, static attr => attr.RecordName == "MiniEnum_Flags");
+
+        Assert.Equal("Mode", modeAttr.EnumModel!.ClassName);
+        Assert.False(modeAttr.EnumModel.IsBitEnum);
+        Assert.Equal(["a", "b"], modeAttr.EnumModel.Cases.Select(static c => c.Str).ToArray());
+
+        Assert.Equal("Flags", flagsAttr.EnumModel!.ClassName);
+        Assert.True(flagsAttr.EnumModel.IsBitEnum);
+        Assert.Equal(",", flagsAttr.EnumModel.Separator);
+        Assert.Equal(new long[] { 0, 1, 2, 3 }, flagsAttr.EnumModel.Cases.Select(static c => c.Value).ToArray());
+
+        Assert.NotNull(flagsConstraint.EnumModel);
+        Assert.True(flagsConstraint.EnumModel!.IsBitEnum);
+    }
 }

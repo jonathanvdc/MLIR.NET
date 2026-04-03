@@ -3,6 +3,7 @@ namespace DialectTests;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Miniarith;
+using MLIR.Minienum;
 using MLIR.Minitest;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
@@ -851,5 +852,52 @@ public sealed class DialectIntegrationTests
         var op = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module2.Operations));
         Assert.NotNull(op.Stride);
         Assert.Null(op.Padding);
+    }
+
+    [Fact]
+    public void GeneratedEnumOperationParsesRegularEnumAttributeIntoTypedProperty()
+    {
+        const string source = "%result = minienum.mode_op b, %input : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinienumDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniEnum_ModeOp>(Assert.Single(module.Operations));
+        Assert.Equal(Mode.B, operation.Mode);
+        Assert.Equal("%input", operation.Input.Name);
+    }
+
+    [Fact]
+    public void GeneratedEnumOperationParsesBitEnumAttributeIntoTypedFlagsProperty()
+    {
+        const string source = "%result = minienum.flags_op x,y %input : i32";
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinienumDialectRegistration.Create());
+
+        var module = Binder.BindModule(Parser.ParseModule(source, registry), registry);
+
+        var operation = Assert.IsType<MiniEnum_FlagsOp>(Assert.Single(module.Operations));
+        Assert.Equal(Flags.X | Flags.Y, operation.Flags);
+        Assert.Equal("%input", operation.Input.Name);
+    }
+
+    [Fact]
+    public void GeneratedEnumOperationPrintsBitEnumsUsingConfiguredSeparatorAndAlias()
+    {
+        var operation = new MiniEnum_FlagsOp(
+            input: new UnresolvedValue(new SyntaxToken("%input")),
+            resultValue: new OperationResult(new SyntaxToken("%result")),
+            flags: Flags.X | Flags.Y,
+            typeSignatureReference: new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(MinienumDialectRegistration.Create());
+
+        var printed = new Module(new ModuleSyntax([]), [operation], []).ToText(CustomAssemblyOptions);
+
+        Assert.Contains("minienum.flags_op xy %input: i32", printed);
     }
 }

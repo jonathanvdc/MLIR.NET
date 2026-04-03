@@ -298,8 +298,6 @@ internal sealed class OdsRecordIndex
         if (isBitEnum)
         {
             separator = GetOptionalStringField(record, "separator") ?? "|";
-            // Trim trailing whitespace from separator to get the delimiter character.
-            separator = separator.TrimEnd();
         }
 
         var cases = ReadEnumCases(record);
