@@ -72,7 +72,12 @@ internal static class AssemblyFormatEmitter
         return "body." + fieldName;
     }
 
-    private static string GetOperandBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata, string operandName, int operandIndex)
+    private static string GetOperandBindExpression(
+        OperationModel operation,
+        OperationBodySyntaxConstructionPlan plan,
+        OperationBodySyntaxMetadata metadata,
+        string operandName,
+        int operandIndex)
     {
         if (plan.OperandFields.TryGetValue(operandName, out var fieldName))
         {
@@ -92,7 +97,9 @@ internal static class AssemblyFormatEmitter
             return "binder.BindValueReference(body." + plan.OperandsField + "[" + operandIndex.ToString(CultureInfo.InvariantCulture) + "])";
         }
 
-        throw new InvalidOperationException("No body field was generated for operand '" + operandName + "'.");
+        throw new InvalidOperationException(
+            "No body field was generated for operand '" + operandName + "' while generating operation '" + operation.Name +
+            "'. The assembly format and generated body syntax may be out of sync.");
     }
 
     private static string GetAttributeBindExpression(
@@ -128,7 +135,9 @@ internal static class AssemblyFormatEmitter
             return bindCall;
         }
 
-        throw new InvalidOperationException("No body field was generated for attribute '" + attributeName + "'.");
+        throw new InvalidOperationException(
+            "No body field was generated for attribute '" + attributeName + "' while generating operation '" + operation.Name +
+            "'. The assembly format and generated body syntax may be out of sync.");
     }
 
     private static string GetTypeBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata)
@@ -167,7 +176,7 @@ internal static class AssemblyFormatEmitter
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {
-            builder.AppendLine("            " + GetOperandBindExpression(syntaxDescriptor, bodySyntaxMetadata, operation.Operands[i].Name, i) + ",");
+            builder.AppendLine("            " + GetOperandBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Operands[i].Name, i) + ",");
         }
 
         for (var i = 0; i < operation.Results.Count; i++)

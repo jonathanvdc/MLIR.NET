@@ -15,18 +15,24 @@ internal static class GeneratorTestHelpers
 
     public static ImmutableArray<GeneratedSourceResult> RunGenerator(IIncrementalGenerator generator, params (string path, string text)[] additionalTexts)
     {
-        return RunGeneratorCore(generator, additionalTexts, ensureUpstreamPrelude: true);
+        return RunGeneratorDetailed(generator, ensureUpstreamPrelude: true, additionalTexts)
+            .Results
+            .Single()
+            .GeneratedSources;
     }
 
     public static ImmutableArray<GeneratedSourceResult> RunGeneratorRaw(IIncrementalGenerator generator, params (string path, string text)[] additionalTexts)
     {
-        return RunGeneratorCore(generator, additionalTexts, ensureUpstreamPrelude: false);
+        return RunGeneratorDetailed(generator, ensureUpstreamPrelude: false, additionalTexts)
+            .Results
+            .Single()
+            .GeneratedSources;
     }
 
-    private static ImmutableArray<GeneratedSourceResult> RunGeneratorCore(
+    public static GeneratorDriverRunResult RunGeneratorDetailed(
         IIncrementalGenerator generator,
-        (string path, string text)[] additionalTexts,
-        bool ensureUpstreamPrelude)
+        bool ensureUpstreamPrelude,
+        params (string path, string text)[] additionalTexts)
     {
         var compilation = CSharpCompilation.Create(
             assemblyName: "GeneratorTests",
@@ -44,7 +50,7 @@ internal static class GeneratorTestHelpers
                 .ToImmutableArray());
 
         driver = driver.RunGenerators(compilation);
-        return driver.GetRunResult().Results.Single().GeneratedSources;
+        return driver.GetRunResult();
     }
 
     private sealed class InMemoryAdditionalText : AdditionalText

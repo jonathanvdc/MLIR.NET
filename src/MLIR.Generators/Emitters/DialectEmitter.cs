@@ -19,35 +19,71 @@ internal sealed class DialectEmitter
 
         foreach (var operation in dialect.Operations)
         {
-            OperationEmitter.Emit(builder, operation, resolver);
-            builder.AppendLine();
-
-            if (operation.AssemblyFormat != null)
+            try
             {
-                var metadata = OperationBodySyntaxEmitter.Emit(builder, operation);
+                OperationEmitter.Emit(builder, operation, resolver);
                 builder.AppendLine();
 
-                AssemblyFormatEmitter.Emit(builder, operation, metadata, resolver);
-                builder.AppendLine();
+                if (operation.AssemblyFormat != null)
+                {
+                    var metadata = OperationBodySyntaxEmitter.Emit(builder, operation);
+                    builder.AppendLine();
+
+                    AssemblyFormatEmitter.Emit(builder, operation, metadata, resolver);
+                    builder.AppendLine();
+                }
+            }
+            catch (System.Exception exception)
+            {
+                throw new System.InvalidOperationException(
+                    "Failed to generate operation '" + (operation.ClassName ?? operation.Name) + "' in dialect '" + dialect.Name + "'.",
+                    exception);
             }
         }
 
         foreach (var attribute in dialect.Attributes)
         {
-            AttributeEmitter.Emit(builder, attribute);
-            builder.AppendLine();
+            try
+            {
+                AttributeEmitter.Emit(builder, attribute);
+                builder.AppendLine();
+            }
+            catch (System.Exception exception)
+            {
+                throw new System.InvalidOperationException(
+                    "Failed to generate attribute '" + attribute.RecordName + "' in dialect '" + dialect.Name + "'.",
+                    exception);
+            }
         }
 
         foreach (var attributeConstraint in dialect.AttributeConstraints)
         {
-            AttributeConstraintEmitter.Emit(builder, attributeConstraint);
-            builder.AppendLine();
+            try
+            {
+                AttributeConstraintEmitter.Emit(builder, attributeConstraint);
+                builder.AppendLine();
+            }
+            catch (System.Exception exception)
+            {
+                throw new System.InvalidOperationException(
+                    "Failed to generate attribute constraint '" + attributeConstraint.RecordName + "' in dialect '" + dialect.Name + "'.",
+                    exception);
+            }
         }
 
         foreach (var type in dialect.Types)
         {
-            TypeEmitter.Emit(builder, type);
-            builder.AppendLine();
+            try
+            {
+                TypeEmitter.Emit(builder, type);
+                builder.AppendLine();
+            }
+            catch (System.Exception exception)
+            {
+                throw new System.InvalidOperationException(
+                    "Failed to generate type '" + type.RecordName + "' in dialect '" + dialect.Name + "'.",
+                    exception);
+            }
         }
 
         DialectRegistrationEmitter.Emit(builder, dialect);

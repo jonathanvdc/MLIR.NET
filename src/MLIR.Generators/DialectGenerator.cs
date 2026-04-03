@@ -25,9 +25,21 @@ public sealed class DialectGenerator : IIncrementalGenerator
             var resolver = DialectSymbolResolver.Create(dialects);
             foreach (var dialect in dialects)
             {
-                productionContext.AddSource(
-                    DialectGeneratorNaming.GetHintName(dialect),
-                    SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect, resolver), Encoding.UTF8));
+                try
+                {
+                    productionContext.AddSource(
+                        DialectGeneratorNaming.GetHintName(dialect),
+                        SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect, resolver), Encoding.UTF8));
+                }
+                catch (Exception exception)
+                {
+                    productionContext.ReportDiagnostic(
+                        Diagnostic.Create(
+                            DialectGeneratorDiagnostics.DialectEmissionFailed,
+                            Location.None,
+                            dialect.Name,
+                            exception.ToString()));
+                }
             }
         });
     }

@@ -233,6 +233,37 @@ public sealed class DialectGeneratorTests
     }
 
     [Fact]
+    public void ReportsDiagnosticWhenEmissionFails()
+    {
+        const string source =
+            "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MiniArith_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MiniArith_Dialect : Dialect {\n" +
+            "  let name = \"miniarith\";\n" +
+            "  let cppNamespace = \"::mlir::miniarith\";\n" +
+            "};\n" +
+            "\n" +
+            "def MiniArith_BrokenOp : MiniArith_Op<\"broken\", [Pure]> {\n" +
+            "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
+            "  let results = (outs I32:$result);\n" +
+            "  let assemblyFormat = \"attr-dict\";\n" +
+            "};";
+
+        var runResult = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            true,
+            ("miniarith.td", source));
+
+        var diagnostics = runResult.Results.Single().Diagnostics;
+        var diagnostic = Assert.Single(diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN002"));
+
+        Assert.Empty(runResult.Results.Single().GeneratedSources);
+        Assert.Contains("MiniArith_BrokenOp", diagnostic.GetMessage());
+        Assert.Contains("No body field was generated for operand 'lhs'", diagnostic.GetMessage());
+    }
+
+    [Fact]
     public void AttributesPropertyHoldsDataAndNamedAttributeAccessorsAreDerived()
     {
         const string source =
