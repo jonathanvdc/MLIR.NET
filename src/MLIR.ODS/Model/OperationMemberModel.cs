@@ -5,8 +5,11 @@ namespace MLIR.ODS.Model;
 /// </summary>
 public enum OperationMemberKind
 {
+    /// <summary>An operand of the operation.</summary>
     Operand,
+    /// <summary>A result produced by the operation.</summary>
     Result,
+    /// <summary>An attribute attached to the operation.</summary>
     Attribute,
 }
 
@@ -15,6 +18,9 @@ public enum OperationMemberKind
 /// </summary>
 public abstract class OperationMemberModel
 {
+    /// <summary>
+    /// Initializes a new instance of <see cref="OperationMemberModel"/>.
+    /// </summary>
     protected OperationMemberModel(
         string name,
         string? constraintRecordName = null,
@@ -53,6 +59,9 @@ public abstract class OperationMemberModel
 /// </summary>
 public sealed class OperandModel : OperationMemberModel
 {
+    /// <summary>
+    /// Initializes a new instance of <see cref="OperandModel"/>.
+    /// </summary>
     public OperandModel(string name, string? constraintRecordName = null, bool isOptional = false)
         : base(name, constraintRecordName, isOptional, OperationMemberKind.Operand)
     {
@@ -64,6 +73,9 @@ public sealed class OperandModel : OperationMemberModel
 /// </summary>
 public sealed class ResultModel : OperationMemberModel
 {
+    /// <summary>
+    /// Initializes a new instance of <see cref="ResultModel"/>.
+    /// </summary>
     public ResultModel(string name, string? constraintRecordName = null, bool isOptional = false)
         : base(name, constraintRecordName, isOptional, OperationMemberKind.Result)
     {
@@ -75,6 +87,9 @@ public sealed class ResultModel : OperationMemberModel
 /// </summary>
 public sealed class AttributeUseModel : OperationMemberModel
 {
+    /// <summary>
+    /// Initializes a new instance of <see cref="AttributeUseModel"/>.
+    /// </summary>
     public AttributeUseModel(string name, string? constraintRecordName = null, bool isOptional = false)
         : base(name, constraintRecordName, isOptional, OperationMemberKind.Attribute)
     {

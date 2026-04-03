@@ -20,6 +20,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private readonly OperationBodySyntaxMetadata metadata;
     private readonly string className;
     private readonly DialectSymbolResolver resolver;
+    private readonly System.Collections.Generic.HashSet<string> requiredVariables;
     private int fieldIndex;
 
     private BuildCustomAssemblySyntaxEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
@@ -27,6 +28,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         this.operation = operation;
         this.metadata = metadata;
         this.resolver = resolver;
+        this.requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
         className = DialectGeneratorNaming.GetOperationClassName(operation);
     }
 
@@ -489,6 +491,14 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         var propName = DialectGeneratorNaming.ToPascalCase(anchorName);
         if (EmitterHelpers.ContainsName(operation.Attributes, anchorName, static attribute => attribute.Name))
         {
+            // Non-required UnitAttributes are represented as 'bool' (a value type).
+            // Comparing a bool to null always evaluates to true (CS0472), so emit the
+            // value directly without '!= null'.
+            if (IsUnitAttribute(anchorName) && !requiredVariables.Contains(anchorName))
+            {
+                return "op." + propName;
+            }
+
             return "op." + propName + " != null";
         }
         else
@@ -512,6 +522,12 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 var propName = DialectGeneratorNaming.ToPascalCase(variable.Name);
                 if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
                 {
+                    // Non-required UnitAttributes are 'bool': emit the value directly.
+                    if (IsUnitAttribute(variable.Name) && !requiredVariables.Contains(variable.Name))
+                    {
+                        return "op." + propName;
+                    }
+
                     return "op." + propName + " != null";
                 }
                 else
