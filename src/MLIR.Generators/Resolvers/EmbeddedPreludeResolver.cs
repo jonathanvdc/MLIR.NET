@@ -59,18 +59,22 @@ internal sealed class EmbeddedPreludeResolver : IncludeResolver
 
     private static string[] GetCandidateResourceNames(string includePath)
     {
-        if (includePath.StartsWith("mlir/Extensions/", System.StringComparison.Ordinal)
-            || includePath.StartsWith("mlir/Upstream/", System.StringComparison.Ordinal))
+        if (includePath.StartsWith("mlir/Extensions/", System.StringComparison.Ordinal))
         {
-            return [includePath];
+            return ["Extensions/mlir/" + includePath.Substring("mlir/Extensions/".Length)];
         }
 
-        // Embedded resources expose Include files at their original logical path and
-        // Upstream files under the mlir/Upstream/... namespace. Prefer Include first.
+        if (includePath.StartsWith("mlir/Upstream/", System.StringComparison.Ordinal))
+        {
+            return ["Upstream/mlir/" + includePath.Substring("mlir/Upstream/".Length)];
+        }
+
+        // Embedded resources now mirror the prelude folder split directly.
+        // Prefer Include first, then fall back to Upstream.
         return
         [
-            includePath,
-            "mlir/Upstream/" + includePath.Substring("mlir/".Length),
+            "Include/" + includePath,
+            "Upstream/" + includePath,
         ];
     }
 }

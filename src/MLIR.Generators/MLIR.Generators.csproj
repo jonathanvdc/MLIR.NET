@@ -24,31 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\OpBase.td" LogicalName="mlir/IR/OpBase.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\Utils.td" LogicalName="mlir/IR/Utils.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\Constraints.td" LogicalName="mlir/IR/Constraints.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\DialectBase.td" LogicalName="mlir/IR/DialectBase.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\CommonTypeConstraints.td" LogicalName="mlir/IR/CommonTypeConstraints.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\CommonAttrConstraints.td" LogicalName="mlir/IR/CommonAttrConstraints.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\AttrTypeBase.td" LogicalName="mlir/IR/AttrTypeBase.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\Interfaces.td" LogicalName="mlir/IR/Interfaces.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\Properties.td" LogicalName="mlir/IR/Properties.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\Traits.td" LogicalName="mlir/IR/Traits.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\BuiltinAttributeInterfaces.td" LogicalName="mlir/IR/BuiltinAttributeInterfaces.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\OpAsmInterface.td" LogicalName="mlir/IR/OpAsmInterface.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\IR\EnumAttr.td" LogicalName="mlir/IR/EnumAttr.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Interfaces\CastInterfaces.td" LogicalName="mlir/Interfaces/CastInterfaces.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Interfaces\ControlFlowInterfaces.td" LogicalName="mlir/Interfaces/ControlFlowInterfaces.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Interfaces\InferIntRangeInterface.td" LogicalName="mlir/Interfaces/InferIntRangeInterface.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Interfaces\InferTypeOpInterface.td" LogicalName="mlir/Interfaces/InferTypeOpInterface.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Interfaces\SideEffectInterfaceBase.td" LogicalName="mlir/Interfaces/SideEffectInterfaceBase.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Interfaces\SideEffectInterfaces.td" LogicalName="mlir/Interfaces/SideEffectInterfaces.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Interfaces\VectorInterfaces.td" LogicalName="mlir/Interfaces/VectorInterfaces.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Dialect\Arith\IR\ArithBase.td" LogicalName="mlir/Dialect/Arith/IR/ArithBase.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Dialect\Arith\IR\ArithOpsInterfaces.td" LogicalName="mlir/Dialect/Arith/IR/ArithOpsInterfaces.td" />
-    <EmbeddedResource Include="Prelude\Upstream\mlir\Dialect\Arith\IR\ArithOps.td" LogicalName="mlir/Upstream/Dialect/Arith/IR/ArithOps.td" />
-    <EmbeddedResource Include="Prelude\Include\mlir\Dialect\Arith\IR\ArithOps.td" LogicalName="mlir/Dialect/Arith/IR/ArithOps.td" />
-    <EmbeddedResource Include="Prelude\Extensions\mlir\IR\MLIRNetExtensions.td" LogicalName="mlir/Extensions/IR/MLIRNetExtensions.td" />
-    <EmbeddedResource Include="Prelude\Extensions\mlir\Dialect\Arith\IR\ArithOpsExtensions.td" LogicalName="mlir/Extensions/Dialect/Arith/IR/ArithOpsExtensions.td" />
+    <EmbeddedResource Include="Prelude\Include\**\*.td" LogicalName="Include/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Prelude\Upstream\**\*.td" LogicalName="Upstream/%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Prelude\Extensions\**\*.td" LogicalName="Extensions/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>
