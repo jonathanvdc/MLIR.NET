@@ -40,6 +40,21 @@ public sealed class Document(ModuleSyntax module)
     }
 
     /// <summary>
+    /// Tries to parse MLIR text into a document.
+    /// </summary>
+    public static bool TryParse(string source, out Document? document, out Diagnostic? diagnostic)
+    {
+        document = null;
+        if (!Parser.TryParseModule(source, out var module, out diagnostic))
+        {
+            return false;
+        }
+
+        document = new Document(module!);
+        return true;
+    }
+
+    /// <summary>
     /// Parses a document from MLIR source text, using registered dialects to recognize custom assembly formats.
     /// </summary>
     /// <param name="source">The MLIR source text.</param>
@@ -48,6 +63,21 @@ public sealed class Document(ModuleSyntax module)
     public static Document Parse(string source, DialectRegistry? dialectRegistry)
     {
         return new Document(Parser.ParseModule(source, dialectRegistry));
+    }
+
+    /// <summary>
+    /// Tries to parse a document from MLIR source text, using registered dialects to recognize custom assembly formats.
+    /// </summary>
+    public static bool TryParse(string source, DialectRegistry? dialectRegistry, out Document? document, out Diagnostic? diagnostic)
+    {
+        document = null;
+        if (!Parser.TryParseModule(source, dialectRegistry, out var module, out diagnostic))
+        {
+            return false;
+        }
+
+        document = new Document(module!);
+        return true;
     }
 
     /// <summary>

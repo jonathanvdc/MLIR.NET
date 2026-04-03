@@ -37,11 +37,11 @@ public sealed class Parser
     private static readonly DenseIntegerArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
 
-    private Parser(string source, DialectRegistry? dialectRegistry = null)
+    private Parser(string source, IReadOnlyList<Token> tokens, DialectRegistry? dialectRegistry = null)
     {
         this.source = source;
         this.dialectRegistry = dialectRegistry;
-        tokens = Lexer.Lex(source);
+        this.tokens = tokens;
     }
 
     /// <summary>
@@ -51,7 +51,9 @@ public sealed class Parser
     /// <returns>The parsed module syntax.</returns>
     public static ModuleSyntax ParseModule(string source)
     {
-        return new Parser(source).ParseModuleCore();
+        return TryParseModule(source, out var syntax, out var diagnostic)
+            ? syntax!
+            : throw new ParseException(diagnostic!);
     }
 
     /// <summary>
@@ -62,7 +64,36 @@ public sealed class Parser
     /// <returns>The parsed module syntax.</returns>
     public static ModuleSyntax ParseModule(string source, DialectRegistry? dialectRegistry)
     {
-        return new Parser(source, dialectRegistry).ParseModuleCore();
+        return TryParseModule(source, dialectRegistry, out var syntax, out var diagnostic)
+            ? syntax!
+            : throw new ParseException(diagnostic!);
+    }
+
+    /// <summary>
+    /// Tries to parse a module from the supplied MLIR source text.
+    /// </summary>
+    public static bool TryParseModule(string source, out ModuleSyntax? syntax, out Diagnostic? diagnostic)
+    {
+        return TryParseModule(source, null, out syntax, out diagnostic);
+    }
+
+    /// <summary>
+    /// Tries to parse a module from the supplied MLIR source text, using registered dialects to recognize custom assembly formats.
+    /// </summary>
+    public static bool TryParseModule(string source, DialectRegistry? dialectRegistry, out ModuleSyntax? syntax, out Diagnostic? diagnostic)
+    {
+        syntax = null;
+        var parserResult = TryCreateParser(source, dialectRegistry);
+        if (!parserResult.IsSuccess)
+        {
+            diagnostic = parserResult.Diagnostic;
+            return false;
+        }
+
+        var result = parserResult.Value.TryParseModuleCoreResult();
+        syntax = result.IsSuccess ? result.Value : null;
+        diagnostic = result.Diagnostic;
+        return result.IsSuccess;
     }
 
     /// <summary>
@@ -70,16 +101,57 @@ public sealed class Parser
     /// </summary>
     public static AttributeValueSyntax ParseAttributeValue(string source, DialectRegistry? dialectRegistry = null, AttributeConstraintDefinition? expectedDefinition = null)
     {
-        var parser = new Parser(source, dialectRegistry);
-        var syntax = expectedDefinition != null
-            ? parser.ParseAttributeValueSyntax(false, expectedDefinition)
-            : parser.ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null);
-        if (!parser.Is(TokenKind.EndOfFile))
+        return TryParseAttributeValue(source, dialectRegistry, expectedDefinition, out var syntax, out var diagnostic)
+            ? syntax!
+            : throw new ParseException(diagnostic!);
+    }
+
+    /// <summary>
+    /// Tries to parse a standalone attribute value from the supplied MLIR source text.
+    /// </summary>
+    public static bool TryParseAttributeValue(
+        string source,
+        out AttributeValueSyntax? syntax,
+        out Diagnostic? diagnostic)
+    {
+        return TryParseAttributeValue(source, null, null, out syntax, out diagnostic);
+    }
+
+    /// <summary>
+    /// Tries to parse a standalone attribute value from the supplied MLIR source text.
+    /// </summary>
+    public static bool TryParseAttributeValue(
+        string source,
+        DialectRegistry? dialectRegistry,
+        out AttributeValueSyntax? syntax,
+        out Diagnostic? diagnostic)
+    {
+        return TryParseAttributeValue(source, dialectRegistry, null, out syntax, out diagnostic);
+    }
+
+    /// <summary>
+    /// Tries to parse a standalone attribute value from the supplied MLIR source text.
+    /// </summary>
+    public static bool TryParseAttributeValue(
+        string source,
+        DialectRegistry? dialectRegistry,
+        AttributeConstraintDefinition? expectedDefinition,
+        out AttributeValueSyntax? syntax,
+        out Diagnostic? diagnostic)
+    {
+        syntax = null;
+        var parserResult = TryCreateParser(source, dialectRegistry);
+        if (!parserResult.IsSuccess)
         {
-            throw parser.Error("Expected the attribute value to consume the entire input.");
+            diagnostic = parserResult.Diagnostic;
+            return false;
         }
 
-        return syntax;
+        var parser = parserResult.Value;
+        var result = parser.TryParseStandaloneAttributeValueResult(expectedDefinition);
+        syntax = result.IsSuccess ? result.Value : null;
+        diagnostic = result.Diagnostic;
+        return result.IsSuccess;
     }
 
     /// <summary>
@@ -87,29 +159,84 @@ public sealed class Parser
     /// </summary>
     public static TypeSyntax ParseType(string source, DialectRegistry? dialectRegistry = null)
     {
-        var parser = new Parser(source, dialectRegistry);
-        var syntax = parser.ParseTypeSyntaxUntilOperationBoundary();
-        if (!parser.Is(TokenKind.EndOfFile))
+        return TryParseType(source, dialectRegistry, out var syntax, out var diagnostic)
+            ? syntax!
+            : throw new ParseException(diagnostic!);
+    }
+
+    /// <summary>
+    /// Tries to parse a standalone type from the supplied MLIR source text.
+    /// </summary>
+    public static bool TryParseType(string source, DialectRegistry? dialectRegistry, out TypeSyntax? syntax, out Diagnostic? diagnostic)
+    {
+        syntax = null;
+        var parserResult = TryCreateParser(source, dialectRegistry);
+        if (!parserResult.IsSuccess)
         {
-            throw parser.Error("Expected the type to consume the entire input.");
+            diagnostic = parserResult.Diagnostic;
+            return false;
         }
 
-        return syntax;
+        var parser = parserResult.Value;
+        var result = parser.TryParseStandaloneTypeResult();
+        syntax = result.IsSuccess ? result.Value : null;
+        diagnostic = result.Diagnostic;
+        return result.IsSuccess;
+    }
+
+    /// <summary>
+    /// Tries to parse a standalone type from the supplied MLIR source text.
+    /// </summary>
+    public static bool TryParseType(string source, out TypeSyntax? syntax, out Diagnostic? diagnostic)
+    {
+        return TryParseType(source, null, out syntax, out diagnostic);
     }
 
     private ModuleSyntax ParseModuleCore()
     {
+        var result = TryParseModuleCoreResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<ModuleSyntax> TryParseModuleCoreResult()
+    {
         var operations = new List<OperationSyntax>();
         while (!Is(TokenKind.EndOfFile))
         {
-            operations.Add(ParseOperation());
-            EnsureOperationBoundary(false);
+            var operationResult = TryParseOperationResult();
+            if (!operationResult.IsSuccess)
+            {
+                return ParseResult<ModuleSyntax>.Failure(operationResult.Diagnostic!);
+            }
+
+            operations.Add(operationResult.Value);
+            var boundaryResult = EnsureOperationBoundaryResult(false);
+            if (!boundaryResult.IsSuccess)
+            {
+                return ParseResult<ModuleSyntax>.Failure(boundaryResult.Diagnostic!);
+            }
         }
 
-        return new ModuleSyntax(operations, ToSyntaxToken(ConsumeToken()));
+        return ParseResult<ModuleSyntax>.Success(new ModuleSyntax(operations, ToSyntaxToken(ConsumeToken())));
     }
 
     private OperationSyntax ParseOperation()
+    {
+        var result = TryParseOperationResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<OperationSyntax> TryParseOperationResult()
     {
         var resultTokens = new List<SyntaxToken>();
         var resultCommaTokens = new List<SyntaxToken>();
@@ -117,12 +244,24 @@ public sealed class Parser
 
         if (Is(TokenKind.SsaName))
         {
-            var firstResultToken = ParseSsaToken();
+            var firstResultTokenResult = TryParseSsaTokenResult();
+            if (!firstResultTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationSyntax>.Failure(firstResultTokenResult.Diagnostic!);
+            }
+
+            var firstResultToken = firstResultTokenResult.Value;
             resultTokens.Add(firstResultToken);
 
             if (TryMatch(TokenKind.Colon, out _))
             {
-                var countToken = ExpectRawToken(TokenKind.Integer, "Expected result count after ':'.");
+                var countTokenResult = ExpectRawTokenResult(TokenKind.Integer, "Expected result count after ':'.");
+                if (!countTokenResult.IsSuccess)
+                {
+                    return ParseResult<OperationSyntax>.Failure(countTokenResult.Diagnostic!);
+                }
+
+                var countToken = countTokenResult.Value;
                 var count = int.Parse(countToken.Text, CultureInfo.InvariantCulture);
                 for (var i = 1; i < count; i++)
                 {
@@ -133,65 +272,114 @@ public sealed class Parser
             while (TryMatch(TokenKind.Comma, out var resultCommaToken))
             {
                 resultCommaTokens.Add(ToSyntaxToken(resultCommaToken));
-                resultTokens.Add(ParseSsaToken());
+                var nextResultToken = TryParseSsaTokenResult();
+                if (!nextResultToken.IsSuccess)
+                {
+                    return ParseResult<OperationSyntax>.Failure(nextResultToken.Diagnostic!);
+                }
+
+                resultTokens.Add(nextResultToken.Value);
             }
 
-            equalsToken = ExpectToken(TokenKind.Equal, "Expected '=' after operation result list.");
+            var equalsTokenResult = ExpectTokenResult(TokenKind.Equal, "Expected '=' after operation result list.");
+            if (!equalsTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationSyntax>.Failure(equalsTokenResult.Diagnostic!);
+            }
+
+            equalsToken = equalsTokenResult.Value;
         }
 
-        var nameToken = ParseOperationNameToken();
+        var nameTokenResult = TryParseOperationNameTokenResult();
+        if (!nameTokenResult.IsSuccess)
+        {
+            return ParseResult<OperationSyntax>.Failure(nameTokenResult.Diagnostic!);
+        }
+
+        var nameToken = nameTokenResult.Value;
         if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal)
             && TryParseCustomAssembly(nameToken, resultTokens, resultCommaTokens, equalsToken, out var customBody))
         {
-            return new OperationSyntax(
+            return ParseResult<OperationSyntax>.Success(new OperationSyntax(
                 resultTokens,
                 resultCommaTokens,
                 equalsToken,
                 nameToken,
-                customBody);
+                customBody));
         }
 
         if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal)
             && TryParseProjectedCustomLikeOperationBody(out var projectedBody))
         {
-            return new OperationSyntax(
+            return ParseResult<OperationSyntax>.Success(new OperationSyntax(
                 resultTokens,
                 resultCommaTokens,
                 equalsToken,
                 nameToken,
-                projectedBody!);
+                projectedBody!));
         }
 
-        var operands = ParseOperandsInternal();
-        var successors = ParseSuccessorsInternal();
+        var operandsResult = TryParseOperandsResult();
+        if (!operandsResult.IsSuccess)
+        {
+            return ParseResult<OperationSyntax>.Failure(operandsResult.Diagnostic!);
+        }
+
+        var successorsResult = TryParseSuccessorsResult();
+        if (!successorsResult.IsSuccess)
+        {
+            return ParseResult<OperationSyntax>.Failure(successorsResult.Diagnostic!);
+        }
 
         var regions = new List<RegionSyntax>();
         while (Is(TokenKind.LBrace) && IsRegionStart())
         {
-            regions.Add(ParseRegion());
+            var regionResult = TryParseRegionResult();
+            if (!regionResult.IsSuccess)
+            {
+                return ParseResult<OperationSyntax>.Failure(regionResult.Diagnostic!);
+            }
+
+            regions.Add(regionResult.Value);
         }
 
-        var attributes = ParseAttrDictInternal();
+        var attributesResult = TryParseAttrDictResult();
+        if (!attributesResult.IsSuccess)
+        {
+            return ParseResult<OperationSyntax>.Failure(attributesResult.Diagnostic!);
+        }
 
         SyntaxToken? typeSignatureColonToken = null;
         TypeSyntax? typeSignatureSyntax = null;
         if (Is(TokenKind.Colon))
         {
-            typeSignatureColonToken = ExpectToken(TokenKind.Colon, "Expected ':' before the type signature.");
-            typeSignatureSyntax = ParseTypeSyntaxUntilOperationBoundary();
+            var colonResult = ExpectTokenResult(TokenKind.Colon, "Expected ':' before the type signature.");
+            if (!colonResult.IsSuccess)
+            {
+                return ParseResult<OperationSyntax>.Failure(colonResult.Diagnostic!);
+            }
+
+            typeSignatureColonToken = colonResult.Value;
+            var typeResult = TryParseTypeSyntaxUntilOperationBoundaryResult();
+            if (!typeResult.IsSuccess)
+            {
+                return ParseResult<OperationSyntax>.Failure(typeResult.Diagnostic!);
+            }
+
+            typeSignatureSyntax = typeResult.Value;
         }
 
-        return new OperationSyntax(
+        return ParseResult<OperationSyntax>.Success(new OperationSyntax(
             resultTokens,
             resultCommaTokens,
             equalsToken,
             nameToken,
-            operands,
-            successors,
+            operandsResult.Value,
+            successorsResult.Value,
             regions,
-            attributes,
+            attributesResult.Value,
             typeSignatureColonToken,
-            typeSignatureSyntax);
+            typeSignatureSyntax));
     }
 
     private bool TryParseProjectedCustomLikeOperationBody(out OperationBodySyntax? body)
@@ -266,7 +454,24 @@ public sealed class Parser
 
     private RegionSyntax ParseRegion()
     {
-        var openBraceToken = ExpectToken(TokenKind.LBrace, "Expected '{' to start a region.");
+        var result = TryParseRegionResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<RegionSyntax> TryParseRegionResult()
+    {
+        var openBraceResult = ExpectTokenResult(TokenKind.LBrace, "Expected '{' to start a region.");
+        if (!openBraceResult.IsSuccess)
+        {
+            return ParseResult<RegionSyntax>.Failure(openBraceResult.Diagnostic!);
+        }
+
+        var openBraceToken = openBraceResult.Value;
         var blocks = new List<BlockSyntax>();
         var pendingEntryOperations = new List<OperationSyntax>();
 
@@ -286,12 +491,28 @@ public sealed class Parser
                     pendingEntryOperations.Clear();
                 }
 
-                blocks.Add(ParseBlock());
+                var blockResult = TryParseBlockResult();
+                if (!blockResult.IsSuccess)
+                {
+                    return ParseResult<RegionSyntax>.Failure(blockResult.Diagnostic!);
+                }
+
+                blocks.Add(blockResult.Value);
             }
             else
             {
-                pendingEntryOperations.Add(ParseOperation());
-                EnsureOperationBoundary(true);
+                var operationResult = TryParseOperationResult();
+                if (!operationResult.IsSuccess)
+                {
+                    return ParseResult<RegionSyntax>.Failure(operationResult.Diagnostic!);
+                }
+
+                pendingEntryOperations.Add(operationResult.Value);
+                var boundaryResult = EnsureOperationBoundaryResult(true);
+                if (!boundaryResult.IsSuccess)
+                {
+                    return ParseResult<RegionSyntax>.Failure(boundaryResult.Diagnostic!);
+                }
             }
         }
 
@@ -305,43 +526,120 @@ public sealed class Parser
                 pendingEntryOperations.ToList()));
         }
 
-        var closeBraceToken = ExpectToken(TokenKind.RBrace, "Expected '}' to close a region.");
-        return new RegionSyntax(openBraceToken, blocks, closeBraceToken);
+        var closeBraceResult = ExpectTokenResult(TokenKind.RBrace, "Expected '}' to close a region.");
+        if (!closeBraceResult.IsSuccess)
+        {
+            return ParseResult<RegionSyntax>.Failure(closeBraceResult.Diagnostic!);
+        }
+
+        return ParseResult<RegionSyntax>.Success(new RegionSyntax(openBraceToken, blocks, closeBraceResult.Value));
     }
 
     private BlockSyntax ParseBlock()
     {
-        var labelToken = ParseBlockLabelToken();
-        var arguments = ParseOptionalCommaSeparatedDelimitedList(
+        var result = TryParseBlockResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<BlockSyntax> TryParseBlockResult()
+    {
+        var labelResult = TryParseBlockLabelTokenResult();
+        if (!labelResult.IsSuccess)
+        {
+            return ParseResult<BlockSyntax>.Failure(labelResult.Diagnostic!);
+        }
+
+        var argumentsResult = TryParseOptionalCommaSeparatedDelimitedList(
             TokenKind.LParen,
             TokenKind.RParen,
-            ParseBlockArgument,
+            TryParseBlockArgumentResult,
             "Expected ')' after block argument list.");
+        if (!argumentsResult.IsSuccess)
+        {
+            return ParseResult<BlockSyntax>.Failure(argumentsResult.Diagnostic!);
+        }
 
-        var colonToken = ExpectToken(TokenKind.Colon, "Expected ':' after block label.");
+        var colonResult = ExpectTokenResult(TokenKind.Colon, "Expected ':' after block label.");
+        if (!colonResult.IsSuccess)
+        {
+            return ParseResult<BlockSyntax>.Failure(colonResult.Diagnostic!);
+        }
+
         var operations = new List<OperationSyntax>();
         while (!Is(TokenKind.RBrace) && !Is(TokenKind.BlockLabel))
         {
-            operations.Add(ParseOperation());
-            EnsureOperationBoundary(true);
+            var operationResult = TryParseOperationResult();
+            if (!operationResult.IsSuccess)
+            {
+                return ParseResult<BlockSyntax>.Failure(operationResult.Diagnostic!);
+            }
+
+            operations.Add(operationResult.Value);
+            var boundaryResult = EnsureOperationBoundaryResult(true);
+            if (!boundaryResult.IsSuccess)
+            {
+                return ParseResult<BlockSyntax>.Failure(boundaryResult.Diagnostic!);
+            }
         }
 
-        return new BlockSyntax(
-            labelToken,
-            arguments,
-            colonToken,
-            operations);
+        return ParseResult<BlockSyntax>.Success(new BlockSyntax(
+            labelResult.Value,
+            argumentsResult.Value,
+            colonResult.Value,
+            operations));
     }
 
     private BlockArgumentSyntax ParseBlockArgument()
     {
-        var nameToken = ParseSsaToken();
-        var colonToken = ExpectToken(TokenKind.Colon, "Expected ':' after block argument name.");
-        var type = ParseTypeSyntax(TokenKind.Comma, TokenKind.RParen);
-        return new BlockArgumentSyntax(nameToken, colonToken, type);
+        var result = TryParseBlockArgumentResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<BlockArgumentSyntax> TryParseBlockArgumentResult()
+    {
+        var nameResult = TryParseSsaTokenResult();
+        if (!nameResult.IsSuccess)
+        {
+            return ParseResult<BlockArgumentSyntax>.Failure(nameResult.Diagnostic!);
+        }
+
+        var colonResult = ExpectTokenResult(TokenKind.Colon, "Expected ':' after block argument name.");
+        if (!colonResult.IsSuccess)
+        {
+            return ParseResult<BlockArgumentSyntax>.Failure(colonResult.Diagnostic!);
+        }
+
+        var typeResult = TryParseTypeSyntaxResult(TokenKind.Comma, TokenKind.RParen);
+        if (!typeResult.IsSuccess)
+        {
+            return ParseResult<BlockArgumentSyntax>.Failure(typeResult.Diagnostic!);
+        }
+
+        return ParseResult<BlockArgumentSyntax>.Success(new BlockArgumentSyntax(nameResult.Value, colonResult.Value, typeResult.Value));
     }
 
     private NamedAttributeSyntax ParseAttribute()
+    {
+        var result = TryParseAttributeResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<NamedAttributeSyntax> TryParseAttributeResult()
     {
         SyntaxToken nameToken;
         if (Is(TokenKind.Identifier) || Is(TokenKind.StringLiteral))
@@ -350,7 +648,7 @@ public sealed class Parser
         }
         else
         {
-            throw Error("Expected an attribute name.");
+            return ParseResult<NamedAttributeSyntax>.Failure(CreateDiagnostic("Expected an attribute name."));
         }
 
         SyntaxToken separatorToken;
@@ -364,11 +662,16 @@ public sealed class Parser
         }
         else
         {
-            throw Error("Expected '=' or ':' after attribute name.");
+            return ParseResult<NamedAttributeSyntax>.Failure(CreateDiagnostic("Expected '=' or ':' after attribute name."));
         }
 
-        var value = ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace);
-        return new NamedAttributeSyntax(nameToken, separatorToken, value);
+        var valueResult = TryParseAttributeValueSyntaxResult(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace);
+        if (!valueResult.IsSuccess)
+        {
+            return ParseResult<NamedAttributeSyntax>.Failure(valueResult.Diagnostic!);
+        }
+
+        return ParseResult<NamedAttributeSyntax>.Success(new NamedAttributeSyntax(nameToken, separatorToken, valueResult.Value));
     }
 
     private AttributeValueSyntax ParseAttributeValueSyntax(bool stopAtOperationBoundary, string? expectedDefinitionName, params TokenKind[] stopBefore)
@@ -894,22 +1197,55 @@ public sealed class Parser
 
     private SyntaxToken ParseOperationNameToken()
     {
-        if (!Is(TokenKind.Identifier) && !Is(TokenKind.StringLiteral))
+        var result = TryParseOperationNameTokenResult();
+        if (result.IsSuccess)
         {
-            throw Error("Expected an operation name.");
+            return result.Value;
         }
 
-        return ToSyntaxToken(ConsumeToken());
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<SyntaxToken> TryParseOperationNameTokenResult()
+    {
+        if (!Is(TokenKind.Identifier) && !Is(TokenKind.StringLiteral))
+        {
+            return ParseResult<SyntaxToken>.Failure(CreateDiagnostic("Expected an operation name."));
+        }
+
+        return ParseResult<SyntaxToken>.Success(ToSyntaxToken(ConsumeToken()));
     }
 
     private SyntaxToken ParseSsaToken()
     {
-        return ExpectToken(TokenKind.SsaName, "Expected an SSA value name.");
+        var result = TryParseSsaTokenResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<SyntaxToken> TryParseSsaTokenResult()
+    {
+        return ExpectTokenResult(TokenKind.SsaName, "Expected an SSA value name.");
     }
 
     private SyntaxToken ParseBlockLabelToken()
     {
-        return ExpectToken(TokenKind.BlockLabel, "Expected a block label name.");
+        var result = TryParseBlockLabelTokenResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<SyntaxToken> TryParseBlockLabelTokenResult()
+    {
+        return ExpectTokenResult(TokenKind.BlockLabel, "Expected a block label name.");
     }
 
     private RawSyntaxText ParseRawUntilDelimiter(params TokenKind[] delimiters)
@@ -965,10 +1301,18 @@ public sealed class Parser
 
     private void EnsureOperationBoundary(bool allowBlockStart)
     {
-        if (!IsOperationBoundary(Current, allowBlockStart))
+        var result = EnsureOperationBoundaryResult(allowBlockStart);
+        if (!result.IsSuccess)
         {
-            throw Error("Expected the end of the operation.");
+            throw new ParseException(result.Diagnostic!);
         }
+    }
+
+    private ParseResult<bool> EnsureOperationBoundaryResult(bool allowBlockStart)
+    {
+        return IsOperationBoundary(Current, allowBlockStart)
+            ? ParseResult<bool>.Success(true)
+            : ParseResult<bool>.Failure(CreateDiagnostic("Expected the end of the operation."));
     }
 
     private bool IsOperationBoundary(Token token, bool allowBlockStart)
@@ -1042,17 +1386,42 @@ public sealed class Parser
 
     private SyntaxToken ExpectToken(TokenKind kind, string message)
     {
-        return ToSyntaxToken(ExpectRawToken(kind, message));
+        var result = ExpectTokenResult(kind, message);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<SyntaxToken> ExpectTokenResult(TokenKind kind, string message)
+    {
+        var rawTokenResult = ExpectRawTokenResult(kind, message);
+        return rawTokenResult.IsSuccess
+            ? ParseResult<SyntaxToken>.Success(ToSyntaxToken(rawTokenResult.Value))
+            : ParseResult<SyntaxToken>.Failure(rawTokenResult.Diagnostic!);
     }
 
     private Token ExpectRawToken(TokenKind kind, string message)
     {
-        if (!TryMatch(kind, out var token))
+        var result = ExpectRawTokenResult(kind, message);
+        if (result.IsSuccess)
         {
-            throw Error(message);
+            return result.Value;
         }
 
-        return token;
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    private ParseResult<Token> ExpectRawTokenResult(TokenKind kind, string message)
+    {
+        if (!TryMatch(kind, out var token))
+        {
+            return ParseResult<Token>.Failure(CreateDiagnostic(message));
+        }
+
+        return ParseResult<Token>.Success(token);
     }
 
     private bool Is(TokenKind kind)
@@ -1106,6 +1475,64 @@ public sealed class Parser
         }
 
         return ParseCommaSeparatedDelimitedListCore(ToSyntaxToken(openToken), closeKind, parseElement, closeMessage);
+    }
+
+    private ParseResult<DelimitedSyntaxList<T>> TryParseOptionalCommaSeparatedDelimitedList<T>(
+        TokenKind openKind,
+        TokenKind closeKind,
+        Func<ParseResult<T>> parseElement,
+        string closeMessage)
+    {
+        if (!TryMatch(openKind, out var openToken))
+        {
+            return ParseResult<DelimitedSyntaxList<T>>.Success(EmptyDelimitedSyntaxList<T>());
+        }
+
+        return TryParseCommaSeparatedDelimitedListCore(ToSyntaxToken(openToken), closeKind, parseElement, closeMessage);
+    }
+
+    private ParseResult<DelimitedSyntaxList<T>> TryParseRequiredCommaSeparatedDelimitedList<T>(
+        TokenKind openKind,
+        TokenKind closeKind,
+        Func<ParseResult<T>> parseElement,
+        string openMessage,
+        string closeMessage)
+    {
+        var openTokenResult = ExpectTokenResult(openKind, openMessage);
+        if (!openTokenResult.IsSuccess)
+        {
+            return ParseResult<DelimitedSyntaxList<T>>.Failure(openTokenResult.Diagnostic!);
+        }
+
+        return TryParseCommaSeparatedDelimitedListCore(openTokenResult.Value, closeKind, parseElement, closeMessage);
+    }
+
+    private ParseResult<DelimitedSyntaxList<T>> TryParseCommaSeparatedDelimitedListCore<T>(
+        SyntaxToken openToken,
+        TokenKind closeKind,
+        Func<ParseResult<T>> parseElement,
+        string closeMessage)
+    {
+        var items = new List<T>();
+        var separators = new List<SyntaxToken>();
+        if (!TryMatch(closeKind, out var closeToken))
+        {
+            var itemsResult = TryParseCommaSeparatedItems(items, separators, parseElement);
+            if (!itemsResult.IsSuccess)
+            {
+                return ParseResult<DelimitedSyntaxList<T>>.Failure(itemsResult.Diagnostic!);
+            }
+
+            var closeTokenResult = ExpectRawTokenResult(closeKind, closeMessage);
+            if (!closeTokenResult.IsSuccess)
+            {
+                return ParseResult<DelimitedSyntaxList<T>>.Failure(closeTokenResult.Diagnostic!);
+            }
+
+            closeToken = closeTokenResult.Value;
+        }
+
+        return ParseResult<DelimitedSyntaxList<T>>.Success(new DelimitedSyntaxList<T>(openToken, items, separators, ToSyntaxToken(closeToken)));
     }
 
     private DelimitedSyntaxList<T> ParseCommaSeparatedDelimitedListCore<T>(
@@ -1220,6 +1647,33 @@ public sealed class Parser
         return new DelimitedSyntaxList<T>(null, new List<T>(), new List<SyntaxToken>(), null);
     }
 
+    private ParseResult<bool> TryParseCommaSeparatedItems<T>(
+        List<T> items,
+        List<SyntaxToken> separators,
+        Func<ParseResult<T>> parseElement)
+    {
+        var firstItem = parseElement();
+        if (!firstItem.IsSuccess)
+        {
+            return ParseResult<bool>.Failure(firstItem.Diagnostic!);
+        }
+
+        items.Add(firstItem.Value);
+        while (TryMatch(TokenKind.Comma, out var comma))
+        {
+            separators.Add(ToSyntaxToken(comma));
+            var item = parseElement();
+            if (!item.IsSuccess)
+            {
+                return ParseResult<bool>.Failure(item.Diagnostic!);
+            }
+
+            items.Add(item.Value);
+        }
+
+        return ParseResult<bool>.Success(true);
+    }
+
     private Token ConsumeToken()
     {
         var token = Current;
@@ -1227,9 +1681,118 @@ public sealed class Parser
         return token;
     }
 
+    private static ParseResult<Parser> TryCreateParser(string source, DialectRegistry? dialectRegistry)
+    {
+        var lexResult = Lexer.TryLexCore(source);
+        if (!lexResult.IsSuccess)
+        {
+            return ParseResult<Parser>.Failure(lexResult.Diagnostic!);
+        }
+
+        return ParseResult<Parser>.Success(new Parser(source, lexResult.Value, dialectRegistry));
+    }
+
+    private ParseResult<TypeSyntax> TryParseStandaloneTypeResult()
+    {
+        var result = TryCapture(() =>
+        {
+            var parsed = ParseTypeSyntaxUntilOperationBoundary();
+            return !Is(TokenKind.EndOfFile)
+                ? ParseResult<TypeSyntax>.Failure(CreateDiagnostic("Expected the type to consume the entire input."))
+                : ParseResult<TypeSyntax>.Success(parsed);
+        });
+
+        return result;
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseStandaloneAttributeValueResult(AttributeConstraintDefinition? expectedDefinition)
+    {
+        return TryCapture(() =>
+        {
+            var parsed = expectedDefinition != null
+                ? ParseAttributeValueSyntax(false, expectedDefinition)
+                : ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null);
+            return !Is(TokenKind.EndOfFile)
+                ? ParseResult<AttributeValueSyntax>.Failure(CreateDiagnostic("Expected the attribute value to consume the entire input."))
+                : ParseResult<AttributeValueSyntax>.Success(parsed);
+        });
+    }
+
+    private ParseResult<TypeSyntax> TryParseTypeSyntaxResult(params TokenKind[] stopBefore)
+    {
+        return TryCapture(() => ParseResult<TypeSyntax>.Success(ParseTypeSyntax(stopBefore)));
+    }
+
+    private ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundaryResult()
+    {
+        return TryCapture(() => ParseResult<TypeSyntax>.Success(ParseTypeSyntaxUntilOperationBoundary()));
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxResult(bool stopAtOperationBoundary, AttributeConstraintDefinition? expectedDefinition, params TokenKind[] stopBefore)
+    {
+        return TryCapture(() => ParseResult<AttributeValueSyntax>.Success(ParseAttributeValueSyntax(stopAtOperationBoundary, expectedDefinition, stopBefore)));
+    }
+
+    private ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseOperandsResult()
+    {
+        return TryParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LParen,
+            TokenKind.RParen,
+            TryParseSsaTokenResult,
+            "Expected '(' for the operand list.",
+            "Expected ')' to close the operand list.");
+    }
+
+    private ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseSuccessorsResult()
+    {
+        if (!Is(TokenKind.LBracket))
+        {
+            return ParseResult<DelimitedSyntaxList<SyntaxToken>>.Success(EmptyDelimitedSyntaxList<SyntaxToken>());
+        }
+
+        return TryParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LBracket,
+            TokenKind.RBracket,
+            TryParseBlockLabelTokenResult,
+            "Expected '[' for the successor list.",
+            "Expected ']' to close the successor list.");
+    }
+
+    private ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictResult()
+    {
+        if (!Is(TokenKind.LBrace))
+        {
+            return ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>>.Success(EmptyDelimitedSyntaxList<NamedAttributeSyntax>());
+        }
+
+        return TryParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LBrace,
+            TokenKind.RBrace,
+            TryParseAttributeResult,
+            "Expected '{' to start the attribute dictionary.",
+            "Expected '}' to close the attribute dictionary.");
+    }
+
+    private ParseResult<T> TryCapture<T>(Func<ParseResult<T>> parse)
+    {
+        try
+        {
+            return parse();
+        }
+        catch (ParseException ex)
+        {
+            return ParseResult<T>.Failure(ex.Diagnostic);
+        }
+    }
+
     private ParseException Error(string message)
     {
-        return new ParseException(new Diagnostic(message, Current.Line, Current.Column));
+        return new ParseException(CreateDiagnostic(message));
+    }
+
+    private Diagnostic CreateDiagnostic(string message)
+    {
+        return new Diagnostic(message, Current.Line, Current.Column);
     }
 
     internal static SyntaxToken ToSyntaxToken(Token token)

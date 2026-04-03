@@ -92,4 +92,63 @@ public sealed class ErrorTests
         Assert.Equal(3, exception.Diagnostic.Line);
         Assert.Equal(14, exception.Diagnostic.Column);
     }
+
+    [Fact]
+    public void TryParseModuleReturnsLexerDiagnosticWithoutThrowing()
+    {
+        var success = Parser.TryParseModule("\"arith.addi\"(%lhs) ;", out var module, out var diagnostic);
+
+        Assert.False(success);
+        Assert.Null(module);
+        Assert.NotNull(diagnostic);
+        Assert.Equal("Unexpected character ';'.", diagnostic!.Message);
+        Assert.Equal(1, diagnostic.Line);
+        Assert.Equal(20, diagnostic.Column);
+    }
+
+    [Fact]
+    public void TryParseModuleReturnsParserDiagnosticWithoutThrowing()
+    {
+        var success = Parser.TryParseModule("%0 = (%lhs)", out var module, out var diagnostic);
+
+        Assert.False(success);
+        Assert.Null(module);
+        Assert.NotNull(diagnostic);
+        Assert.Equal("Expected an operation name.", diagnostic!.Message);
+        Assert.Equal(1, diagnostic.Line);
+        Assert.Equal(6, diagnostic.Column);
+    }
+
+    [Fact]
+    public void TryParseTypeReturnsDiagnosticWithoutThrowing()
+    {
+        var success = Parser.TryParseType("(i32", out var type, out var diagnostic);
+
+        Assert.False(success);
+        Assert.Null(type);
+        Assert.NotNull(diagnostic);
+        Assert.Contains("type list", diagnostic!.Message);
+    }
+
+    [Fact]
+    public void TryParseAttributeValueReturnsDiagnosticWithoutThrowing()
+    {
+        var success = Parser.TryParseAttributeValue("[1, ", out var attribute, out var diagnostic);
+
+        Assert.False(success);
+        Assert.Null(attribute);
+        Assert.NotNull(diagnostic);
+        Assert.Contains("raw syntax", diagnostic!.Message);
+    }
+
+    [Fact]
+    public void DocumentTryParseReturnsDiagnosticWithoutThrowing()
+    {
+        var success = Document.TryParse("\"arith.addi", out var document, out var diagnostic);
+
+        Assert.False(success);
+        Assert.Null(document);
+        Assert.NotNull(diagnostic);
+        Assert.Equal("Unterminated string literal.", diagnostic!.Message);
+    }
 }
