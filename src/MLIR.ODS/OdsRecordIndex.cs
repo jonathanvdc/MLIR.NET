@@ -165,10 +165,18 @@ internal sealed class OdsRecordIndex
         {
             if (argument.Name == null)
             {
-                // Variadic unnamed members have no well-defined cardinality in the current
-                // model; skip them so the generator does not produce incorrect fixed-count
-                // checks.  Non-variadic unnamed members get a synthetic name so they are
-                // still surfaced to the generator.
+                // Unnamed variadic results appear in upstream MLIR (for example func.call).
+                // Preserve them with a synthesized "results" name so later layers still
+                // understand that the operation can produce arbitrary result arity.
+                if (kind == OperationMemberKind.Result && IsVariadicValue(argument.Value))
+                {
+                    members.Add(new DagMemberModel("results", GetConstraintName(argument.Value), kind, isVariadic: true));
+                    continue;
+                }
+
+                // Variadic unnamed operands still have no well-defined cardinality in the
+                // current model, so skip them rather than producing incorrect fixed-count
+                // checks.
                 if (IsVariadicValue(argument.Value))
                 {
                     continue;

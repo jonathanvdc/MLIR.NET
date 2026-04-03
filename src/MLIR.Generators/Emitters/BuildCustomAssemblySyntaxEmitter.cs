@@ -103,6 +103,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             case TypeDirectiveChunk _:
             case QualifiedDirectiveChunk _:
             case ResultsDirectiveChunk _:
+            case FunctionalTypeDirectiveChunk _:
                 EmitType(builder, indent, declare);
                 break;
 
@@ -181,7 +182,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"))", declare, field.CsType) + ";");
+        builder.AppendLine(indent + DeclareOrAssign(varName, BuildTypeExpression(field), declare, field.CsType) + ";");
     }
 
     private void EmitRegions(StringBuilder builder, string indent, bool declare)
@@ -223,9 +224,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             var f = metadata.Fields[groupStart + i];
             // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
             // list so WriteTo can safely iterate when the optional group is not entered.
-            var defaultExpr = f.CsType.Contains("IReadOnlyList", StringComparison.Ordinal)
-                ? "global::System.Array.Empty<SyntaxToken>()"
-                : "default";
+            var defaultExpr = GetFieldDefaultExpression(f.CsType);
             builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
 
@@ -287,10 +286,11 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             case TypeDirectiveChunk _:
             case QualifiedDirectiveChunk _:
             case ResultsDirectiveChunk _:
+            case FunctionalTypeDirectiveChunk _:
             {
                 var field = NextField();
                 var varName = EmitterHelpers.LowerFirst(field.Name);
-                builder.AppendLine(indent + varName + " = op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"));");
+                builder.AppendLine(indent + varName + " = " + BuildTypeExpression(field) + ";");
                 break;
             }
         }
@@ -385,7 +385,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             {
                 var field = NextField();
                 var varName = EmitterHelpers.LowerFirst(field.Name);
-                builder.AppendLine(indent + varName + " = op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"));");
+                builder.AppendLine(indent + varName + " = " + BuildTypeExpression(field) + ";");
                 break;
             }
 
@@ -484,6 +484,32 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private string BuildNullableVariableExpression(string variableName)
     {
         return BuildVariableExpression(variableName, nullable: true);
+    }
+
+    private string BuildTypeExpression(BodySyntaxField field)
+    {
+        if (field.CsType == "IReadOnlyList<TypeSyntax>")
+        {
+            return "op.TypeSignatureReference?.Syntax is global::MLIR.Syntax.Types.Collections.FunctionTypeSyntax functionType ? " +
+                "(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>)functionType.InputTypes.Items.ToList() : global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
+        }
+
+        return "op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"))";
+    }
+
+    private static string GetFieldDefaultExpression(string csType)
+    {
+        if (csType.Contains("IReadOnlyList<SyntaxToken>", StringComparison.Ordinal))
+        {
+            return "global::System.Array.Empty<SyntaxToken>()";
+        }
+
+        if (csType.Contains("IReadOnlyList<TypeSyntax>", StringComparison.Ordinal))
+        {
+            return "global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
+        }
+
+        return "default";
     }
 
     /// <summary>
@@ -617,6 +643,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             case TypeDirectiveChunk _: return 1;
             case QualifiedDirectiveChunk _: return 1;
             case ResultsDirectiveChunk _: return 1;
+            case FunctionalTypeDirectiveChunk _: return 1;
             case RegionsDirectiveChunk _: return 1;
             case SuccessorsDirectiveChunk _: return 1;
             case OperandsDirectiveChunk _: return 1;

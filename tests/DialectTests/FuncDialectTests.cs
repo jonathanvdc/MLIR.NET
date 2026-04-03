@@ -19,6 +19,17 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     {
         var registry = new DialectRegistry();
         registry.RegisterDialect(FuncDialectRegistration.Create());
+        Assert.True(registry.TryGetOperation("func.func", out var funcDef));
+        registry.ReplaceOperation(new OperationDefinition(
+            funcDef!.Name,
+            funcDef.OperandDefinitions,
+            funcDef.ResultDefinitions,
+            funcDef.RegionDefinitions,
+            funcDef.SuccessorDefinitions,
+            funcDef.AttributeDefinitions,
+            funcDef.Verifier,
+            new FuncOpAssemblyFormat(),
+            funcDef.Factory));
         return registry;
     }
 
@@ -31,6 +42,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     {
         var dialect = FuncDialectRegistration.Create();
         var registry = CreateFuncRegistry();
+        var registeredFuncDef = Assert.Single(dialect.Operations, static op => op.Name == "func.func");
 
         Assert.Equal("func", dialect.Name);
         Assert.True(registry.TryGetOperation("func.call", out var callDef));
@@ -48,8 +60,11 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
         Assert.NotNull(constantDef?.AssemblyFormat);
         Assert.NotNull(returnDef?.AssemblyFormat);
 
-        // FuncOp has hasCustomAssemblyFormat = 1 (no declarative format).
-        Assert.Null(funcDef?.AssemblyFormat);
+        // Upstream FuncOp has hasCustomAssemblyFormat = 1, so the generated dialect leaves it null.
+        Assert.Null(registeredFuncDef.AssemblyFormat);
+
+        // The dialect integration tests replace it with a small handwritten format.
+        Assert.NotNull(funcDef?.AssemblyFormat);
     }
 
     // ---------------------------------------------------------------------------
@@ -126,10 +141,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// call that reads <c>i32</c> and leaves <c>, f32</c> stranded, causing a
     /// "Expected end of operation" error.
     /// </summary>
-    [Fact(Skip = "type($variadic) generates only one ParseTypeSyntax() call; " +
-                 "multi-operand type list (e.g. 'i32, f32') strands the remaining types " +
-                 "and causes a 'Expected end of operation' ParseException. " +
-                 "Needs variadic-aware type directive generation for type($variadic).")]
+    [Fact]
     public void BindsReturnOpWithMultipleOperands()
     {
         var op = BindSingleOperation<ReturnOp>(
@@ -226,11 +238,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// Example from FuncOps.td:
     ///   %result = func.call @my_add(%0, %1) : (f32, f32) -> f32
     /// </summary>
-    [Fact(Skip = "func.call uses functional-type(...) in its assembly format. " +
-                 "The generated TryParse returns false for unsupported directives, " +
-                 "so the parser falls back to generic format and binding yields " +
-                 "UninterpretedOperation instead of CallOp. " +
-                 "Would need functional-type parsing support in the generator.")]
+    [Fact]
     public void BindsCallOpFromCustomFormat()
     {
         var op = BindSingleOperation<CallOp>(
@@ -288,9 +296,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// Example from FuncOps.td:
     ///   func.func @count(%x: i64) -> (i64, i64) { return %x, %x: i64, i64 }
     /// </summary>
-    [Fact(Skip = "FuncOp uses hasCustomAssemblyFormat = 1; no declarative format is generated. " +
-                 "Parsing falls back to generic format and binding yields UninterpretedOperation. " +
-                 "Would need a hand-written assembly format extension.")]
+    [Fact]
     public void BindsFuncOp()
     {
         var op = BindSingleOperation<FuncOp>(
