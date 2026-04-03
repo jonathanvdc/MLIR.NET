@@ -28,4 +28,6 @@ internal sealed class EvaluationContext
     public IReadOnlyDictionary<string, DefSyntax> DefinitionsByName { get; }
 
     public Dictionary<string, Value> DefvarValues { get; } = new();
+
+    public Dictionary<(string ClassName, string TypeName), bool> ClassIsACache { get; } = new();
 }

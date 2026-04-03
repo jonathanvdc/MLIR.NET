@@ -1029,13 +1029,24 @@ internal sealed class ExpressionEvaluator
 
     private bool ClassIsA(string className, string typeName)
     {
-        if (className == typeName)
+        if (context.ClassIsACache.TryGetValue((className, typeName), out var cached))
         {
-            return true;
+            return cached;
         }
 
-        return context.Classes.TryGetValue(className, out var classSyntax)
-            && classSyntax.Bases.Any(@base => ClassIsA(@base.Name, typeName));
+        bool result;
+        if (className == typeName)
+        {
+            result = true;
+        }
+        else
+        {
+            result = context.Classes.TryGetValue(className, out var classSyntax)
+                && classSyntax.Bases.Any(@base => ClassIsA(@base.Name, typeName));
+        }
+
+        context.ClassIsACache[(className, typeName)] = result;
+        return result;
     }
 
     private EvaluationResult<Value> ResolveIdentifier(

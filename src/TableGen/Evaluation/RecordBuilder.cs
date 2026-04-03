@@ -12,6 +12,7 @@ internal sealed class RecordBuilder
     private readonly EvaluationContext context;
     private readonly ExpressionEvaluator expressionEvaluator;
     private readonly Dictionary<string, Record> evaluatedDefinitions = new();
+    private readonly Dictionary<(string ClassName, string ArgumentKey), Dictionary<string, Value>> instantiatedClasses = new();
 
     public RecordBuilder(EvaluationContext context)
     {
@@ -93,6 +94,7 @@ internal sealed class RecordBuilder
         Scope outerScope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue = null)
     {
+        var boundArguments = new List<Value>(classSyntax.TemplateParameters.Count);
         var scope = Scope.Empty;
 
         for (var i = 0; i < classSyntax.TemplateParameters.Count; i++)
@@ -126,6 +128,13 @@ internal sealed class RecordBuilder
             }
 
             scope = scope.With(parameter.Name, value);
+            boundArguments.Add(value);
+        }
+
+        var cacheKey = (classSyntax.Name, ValueFingerprint.Create(boundArguments));
+        if (instantiatedClasses.TryGetValue(cacheKey, out var cachedFields))
+        {
+            return EvaluationResult<Dictionary<string, Value>>.Success(CloneFields(cachedFields));
         }
 
         var state = new PendingRecordState();
@@ -141,7 +150,14 @@ internal sealed class RecordBuilder
             return EvaluationResult<Dictionary<string, Value>>.Failure(body.Error!);
         }
 
-        return ResolveFields(state);
+        var resolvedFields = ResolveFields(state);
+        if (!resolvedFields.IsSuccess)
+        {
+            return resolvedFields;
+        }
+
+        instantiatedClasses[cacheKey] = CloneFields(resolvedFields.Value);
+        return EvaluationResult<Dictionary<string, Value>>.Success(CloneFields(resolvedFields.Value));
     }
 
     private void CollectBaseClasses(
@@ -241,6 +257,17 @@ internal sealed class RecordBuilder
         }
 
         return EvaluationResult<PendingRecordState>.Success(state);
+    }
+
+    private static Dictionary<string, Value> CloneFields(IReadOnlyDictionary<string, Value> fields)
+    {
+        var clone = new Dictionary<string, Value>(fields.Count);
+        foreach (var pair in fields)
+        {
+            clone[pair.Key] = pair.Value;
+        }
+
+        return clone;
     }
 
     private EvaluationResult<bool> ApplyPendingBody(
