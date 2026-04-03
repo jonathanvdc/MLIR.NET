@@ -71,6 +71,8 @@ internal sealed class RecordBuilder
             return EvaluationResult<Record>.Failure(bases.Diagnostic!);
         }
 
+        ApplyTopLevelLets(definition.TopLevelLets, scope, state);
+
         var body = ApplyPendingBody(definition.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
@@ -143,6 +145,8 @@ internal sealed class RecordBuilder
         {
             return EvaluationResult<Dictionary<string, Value>>.Failure(bases.Diagnostic!);
         }
+
+        ApplyTopLevelLets(classSyntax.TopLevelLets, scope, state);
 
         var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
         if (!body.IsSuccess)
@@ -250,6 +254,8 @@ internal sealed class RecordBuilder
             return EvaluationResult<PendingRecordState>.Failure(bases.Diagnostic!);
         }
 
+        ApplyTopLevelLets(classSyntax.TopLevelLets, scope, state);
+
         var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
@@ -257,6 +263,17 @@ internal sealed class RecordBuilder
         }
 
         return EvaluationResult<PendingRecordState>.Success(state);
+    }
+
+    private void ApplyTopLevelLets(
+        IReadOnlyList<LetSyntax> topLevelLets,
+        Scope scope,
+        PendingRecordState state)
+    {
+        foreach (var let in topLevelLets)
+        {
+            state.ApplyTopLevelLet(let, scope);
+        }
     }
 
     private static Dictionary<string, Value> CloneFields(IReadOnlyDictionary<string, Value> fields)

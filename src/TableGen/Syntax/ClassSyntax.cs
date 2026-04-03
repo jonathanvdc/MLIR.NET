@@ -9,6 +9,7 @@ public sealed class ClassSyntax(
     string name,
     IReadOnlyList<TemplateParameterSyntax> templateParameters,
     IReadOnlyList<BaseSyntax> bases,
+    IReadOnlyList<LetSyntax> topLevelLets,
     IReadOnlyList<BodyItemSyntax> bodyItems) : TopLevelSyntax
 {
     /// <summary>
@@ -25,6 +26,11 @@ public sealed class ClassSyntax(
     /// Gets the inherited base classes.
     /// </summary>
     public IReadOnlyList<BaseSyntax> Bases { get; } = bases;
+
+    /// <summary>
+    /// Gets top-level let bindings lexically applied to this class.
+    /// </summary>
+    public IReadOnlyList<LetSyntax> TopLevelLets { get; } = topLevelLets;
 
     /// <summary>
     /// Gets the class body items.

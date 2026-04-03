@@ -18,7 +18,7 @@ internal sealed class PendingRecordState
     {
         foreach (var pair in other.Fields)
         {
-            fields[pair.Key] = pair.Value.Clone();
+            fields[pair.Key] = pair.Value.Clone(isInherited: true);
         }
     }
 
@@ -27,6 +27,7 @@ internal sealed class PendingRecordState
         if (fields.TryGetValue(field.Name, out var existingField))
         {
             existingField.DeclaredTypeName = field.TypeName;
+            existingField.IsInherited = false;
             if (field.Initializer != null)
             {
                 existingField.SetExpression(field.Initializer, lexicalScope);
@@ -35,7 +36,7 @@ internal sealed class PendingRecordState
             return;
         }
 
-        fields[field.Name] = new PendingFieldState(field.TypeName, field.Initializer, lexicalScope);
+        fields[field.Name] = new PendingFieldState(field.TypeName, field.Initializer, lexicalScope, isInherited: false);
     }
 
     public void ApplyLet(LetSyntax let, Scope lexicalScope)
@@ -48,15 +49,24 @@ internal sealed class PendingRecordState
 
         fields[let.Name] = new PendingFieldState(typeName: null, let.Value, lexicalScope);
     }
+
+    public void ApplyTopLevelLet(LetSyntax let, Scope lexicalScope)
+    {
+        if (fields.TryGetValue(let.Name, out var existingField) && existingField.IsInherited)
+        {
+            existingField.SetExpression(let.Value, lexicalScope);
+        }
+    }
 }
 
 internal sealed class PendingFieldState
 {
-    public PendingFieldState(string? typeName, ExpressionSyntax? expression, Scope lexicalScope)
+    public PendingFieldState(string? typeName, ExpressionSyntax? expression, Scope lexicalScope, bool isInherited = false)
     {
         DeclaredTypeName = typeName;
         Expression = expression;
         LexicalScope = lexicalScope;
+        IsInherited = isInherited;
     }
 
     public string? DeclaredTypeName { get; set; }
@@ -64,6 +74,8 @@ internal sealed class PendingFieldState
     public ExpressionSyntax? Expression { get; private set; }
 
     public Scope LexicalScope { get; private set; }
+
+    public bool IsInherited { get; set; }
 
     public Value? ResolvedValue { get; set; }
 
@@ -82,8 +94,8 @@ internal sealed class PendingFieldState
         IsResolving = false;
     }
 
-    public PendingFieldState Clone()
+    public PendingFieldState Clone(bool? isInherited = null)
     {
-        return new PendingFieldState(DeclaredTypeName, Expression, LexicalScope);
+        return new PendingFieldState(DeclaredTypeName, Expression, LexicalScope, isInherited ?? IsInherited);
     }
 }

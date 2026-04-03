@@ -133,7 +133,7 @@ public sealed class ParsingTests
     {
         var exception = Assert.Throws<ParseException>(() => Document.Parse("int Width = 1;"));
 
-        Assert.Contains("Expected 'class', 'def', or 'defvar'.", exception.Message);
+        Assert.Contains("Expected 'class', 'def', 'defvar', or 'let'.", exception.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
         Assert.Equal(1, exception.Diagnostic.Column);
     }

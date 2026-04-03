@@ -259,6 +259,39 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void TopLevelLetsAffectInheritedComputedFieldsBeforeInterFieldResolution()
+    {
+        const string source =
+            "class C<int x> {\n" +
+            "  int Y = x;\n" +
+            "  int Yplus1 = !add(Y, 1);\n" +
+            "  int xplus1 = !add(x, 1);\n" +
+            "}\n" +
+            "\n" +
+            "let Y = 10 in {\n" +
+            "  def Example : C<5>;\n" +
+            "}\n";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal(10, Assert.IsType<IntegerValue>(record.GetField("Y")).Value);
+        Assert.Equal(11, Assert.IsType<IntegerValue>(record.GetField("Yplus1")).Value);
+        Assert.Equal(6, Assert.IsType<IntegerValue>(record.GetField("xplus1")).Value);
+    }
+
+    [Fact]
+    public void TopLevelLetsCanWrapASingleDefinitionWithoutBraces()
+    {
+        const string source =
+            "class Base<int width> { int Width = width; };\n" +
+            "let Width = 9 in def Example : Base<4>;";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal(9, Assert.IsType<IntegerValue>(record.GetField("Width")).Value);
+    }
+
+    [Fact]
     public void CollectsBaseClassesLeftToRightAndAncestorsTopToBottom()
     {
         const string source =

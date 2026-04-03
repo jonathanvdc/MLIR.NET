@@ -27,28 +27,52 @@ internal sealed class Parser
         var declarations = new List<TopLevelSyntax>();
         while (!Is(TokenKind.EndOfFile))
         {
-            declarations.Add(ParseTopLevel());
+            declarations.AddRange(ParseTopLevelItems([]));
         }
 
         return new DocumentSyntax(declarations);
     }
 
-    private TopLevelSyntax ParseTopLevel()
+    private IReadOnlyList<TopLevelSyntax> ParseTopLevelItems(IReadOnlyList<LetSyntax> topLevelLets)
     {
         if (TryMatch(TokenKind.IncludeKeyword))
         {
             var path = Expect(TokenKind.String, "Expected a string literal after 'include'.");
-            return new IncludeDirectiveSyntax(path.Text);
+            return [new IncludeDirectiveSyntax(path.Text)];
+        }
+
+        if (TryMatch(TokenKind.LetKeyword))
+        {
+            var name = ExpectName("Expected a field name after 'let'.").Text;
+            Expect(TokenKind.Equal, "Expected '=' after the field name.");
+            var value = ParseExpression();
+            Expect(TokenKind.InKeyword, "Expected 'in' after the top-level let binding.");
+
+            var nestedLets = topLevelLets.Concat([new LetSyntax(name, value)]).ToArray();
+            var declarations = new List<TopLevelSyntax>();
+            if (TryMatch(TokenKind.LBrace))
+            {
+                while (!TryMatch(TokenKind.RBrace))
+                {
+                    declarations.AddRange(ParseTopLevelItems(nestedLets));
+                }
+            }
+            else
+            {
+                declarations.AddRange(ParseTopLevelItems(nestedLets));
+            }
+
+            return declarations;
         }
 
         if (TryMatch(TokenKind.ClassKeyword))
         {
-            return ParseClass();
+            return [ParseClass(topLevelLets)];
         }
 
         if (TryMatch(TokenKind.DefKeyword))
         {
-            return ParseDef();
+            return [ParseDef(topLevelLets)];
         }
 
         if (TryMatch(TokenKind.DefVarKeyword))
@@ -57,13 +81,13 @@ internal sealed class Parser
             Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
             var value = ParseExpression();
             Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
-            return new DefVarSyntax(name, value);
+            return [new DefVarSyntax(name, value)];
         }
 
-        throw Error("Expected 'class', 'def', or 'defvar'.");
+        throw Error("Expected 'class', 'def', 'defvar', or 'let'.");
     }
 
-    private ClassSyntax ParseClass()
+    private ClassSyntax ParseClass(IReadOnlyList<LetSyntax> topLevelLets)
     {
         var name = ExpectName("Expected a class name.").Text;
         var templateParameters = ParseOptionalTemplateParameters();
@@ -74,10 +98,10 @@ internal sealed class Parser
             Expect(TokenKind.Semicolon, "Expected ';' after the class declaration.");
         }
 
-        return new ClassSyntax(name, templateParameters, bases, bodyItems);
+        return new ClassSyntax(name, templateParameters, bases, topLevelLets, bodyItems);
     }
 
-    private DefSyntax ParseDef()
+    private DefSyntax ParseDef(IReadOnlyList<LetSyntax> topLevelLets)
     {
         var name = ExpectName("Expected a definition name.").Text;
         var bases = ParseOptionalBases();
@@ -87,7 +111,7 @@ internal sealed class Parser
             Expect(TokenKind.Semicolon, "Expected ';' after the definition.");
         }
 
-        return new DefSyntax(name, bases, bodyItems);
+        return new DefSyntax(name, bases, topLevelLets, bodyItems);
     }
 
     private IReadOnlyList<TemplateParameterSyntax> ParseOptionalTemplateParameters()
