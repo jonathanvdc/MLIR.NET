@@ -8,6 +8,7 @@ using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
+using MLIR.Syntax.Types.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;

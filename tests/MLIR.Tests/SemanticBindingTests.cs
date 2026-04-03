@@ -5,6 +5,8 @@ using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
+using MLIR.Semantics.Types.Collections;
+using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
@@ -143,8 +145,8 @@ public sealed partial class SemanticTests
         Assert.NotNull(operation.TypeSignatureReference);
         Assert.True(operation.TypeSignatureReference!.IsKnown);
         Assert.Equal("i32", operation.TypeSignatureReference.Name);
-        Assert.Equal(32, Assert.IsType<global::MLIR.Semantics.BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
-        Assert.IsType<global::MLIR.Syntax.BuiltinIntegerTypeSyntax>(operation.TypeSignatureReference.Syntax);
+        Assert.Equal(32, Assert.IsType<global::MLIR.Semantics.Types.Primitives.BuiltinIntegerTypeReference>(operation.TypeSignatureReference).Width);
+        Assert.IsType<global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax>(operation.TypeSignatureReference.Syntax);
     }
 
     [Fact]

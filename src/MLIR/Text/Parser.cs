@@ -5,6 +5,8 @@ using System.Linq;
 using MLIR.Dialects;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Collections;
+using MLIR.Syntax.Types.Collections;
+using MLIR.Syntax.Types.Primitives;
 using MLIR.Dialects.Attributes.Collections;
 using MLIR.Dialects.Attributes.Primitives;
 

@@ -5,6 +5,10 @@ using System.Collections.Generic;
 using MLIR.Dialects;
 using MLIR.Syntax;
 using MLIR.Semantics.Attributes.Collections;
+using MLIR.Semantics.Types.Collections;
+using MLIR.Semantics.Types.Primitives;
+using MLIR.Syntax.Types.Collections;
+using MLIR.Syntax.Types.Primitives;
 using MLIR.Text;
 
 /// <summary>

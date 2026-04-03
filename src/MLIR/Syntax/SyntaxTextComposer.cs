@@ -2,6 +2,7 @@ namespace MLIR.Syntax;
 
 using System.Collections;
 using System.Text;
+using MLIR.Syntax.Types.Collections;
 
 /// <summary>
 /// Combines preserved tokens and nested raw syntax fragments into a new raw syntax projection.

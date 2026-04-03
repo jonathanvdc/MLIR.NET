@@ -4,6 +4,7 @@ using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Types.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;
