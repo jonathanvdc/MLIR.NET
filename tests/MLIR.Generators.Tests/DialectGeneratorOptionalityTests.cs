@@ -129,10 +129,10 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
         AssertContainsAll(
             registrationSource,
             "public Value Lhs",
-            "get => Operands[0].Value!;",
+            "get => base.Operands[0].Value!;",
             "set => SetOperand(0, value);",
             "public Value Rhs",
-            "get => Operands[1].Value!;",
+            "get => base.Operands[1].Value!;",
             "set => SetOperand(1, value);");
         AssertDoesNotContainAny(
             registrationSource,
@@ -155,10 +155,10 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
         AssertContainsAll(
             registrationSource,
             "public Value Lhs",
-            "get => Operands[0].Value!;",
+            "get => base.Operands[0].Value!;",
             "set => SetOperand(0, value);",
             "public Value? Rhs",
-            "get => Operands[1].Value;",
+            "get => base.Operands[1].Value;",
             "set => SetOperand(1, value);");
         AssertDoesNotContainAny(
             registrationSource,

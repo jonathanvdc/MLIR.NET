@@ -135,6 +135,18 @@ internal static class AssemblyFormatEmitter
             return bindCall;
         }
 
+        // The attribute is not referenced explicitly in the assembly format, meaning it lives
+        // entirely in the attr-dict.  Extract it by name at binding time so it still ends up
+        // in the typed attribute collection.  The result is always nullable because the
+        // attribute may not appear in a given instance.
+        var attrDictFieldName = plan.AttrDictField ?? plan.AttrDictWithKeywordField ?? plan.PropDictField;
+        if (attrDictFieldName != null)
+        {
+            var quotedNameForAttrDict = EmitterHelpers.ToCSharpStringLiteral(attributeName);
+            return "body." + attrDictFieldName + ".Where(a => a.Name == " + quotedNameForAttrDict +
+                   ").Select(a => (NamedAttribute?)binder.BindNamedAttribute(a)).FirstOrDefault()";
+        }
+
         throw new InvalidOperationException(
             "No body field was generated for attribute '" + attributeName + "' while generating operation '" + operation.Name +
             "'. The assembly format and generated body syntax may be out of sync.");
@@ -190,12 +202,22 @@ internal static class AssemblyFormatEmitter
         }
         else
         {
-            // Determine whether any attribute field is optional (nullable body field).
+            // Determine whether any attribute field is optional (nullable body field) or is only
+            // present in attr-dict (which makes it implicitly optional).
             var hasOptionalAttributes = false;
             for (var i = 0; i < operation.Attributes.Count; i++)
             {
                 if (syntaxDescriptor.AttributeFields.TryGetValue(operation.Attributes[i].Name, out var fieldNameCheck) &&
                     IsNullableField(bodySyntaxMetadata, fieldNameCheck))
+                {
+                    hasOptionalAttributes = true;
+                    break;
+                }
+
+                // Attributes that live exclusively in attr-dict (no explicit body field) are
+                // always optional at bind time because they may or may not appear.
+                if (!syntaxDescriptor.AttributeFields.ContainsKey(operation.Attributes[i].Name) &&
+                    (syntaxDescriptor.AttrDictField ?? syntaxDescriptor.AttrDictWithKeywordField ?? syntaxDescriptor.PropDictField) != null)
                 {
                     hasOptionalAttributes = true;
                     break;
