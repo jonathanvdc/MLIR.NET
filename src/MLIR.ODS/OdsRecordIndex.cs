@@ -469,6 +469,9 @@ internal sealed class OdsRecordIndex
             SymbolReferenceValue symbol => symbol.SymbolName,
             RecordReferenceValue record => record.RecordName,
             StringValue str => str.Value,
+            AnonymousRecordValue anonymous when anonymous.Fields.TryGetValue("baseAttr", out var baseAttr) => GetConstraintName(baseAttr),
+            AnonymousRecordValue anonymous when anonymous.Fields.TryGetValue("baseType", out var baseType) => GetConstraintName(baseType),
+            AnonymousRecordValue anonymous => anonymous.ClassName,
             _ => null,
         };
     }

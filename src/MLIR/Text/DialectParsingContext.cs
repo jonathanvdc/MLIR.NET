@@ -55,6 +55,14 @@ public abstract class DialectParsingContext
     }
 
     /// <summary>
+    /// Parses raw syntax until one of the supplied delimiters or keywords is reached at the outermost nesting level.
+    /// </summary>
+    public RawSyntaxText ParseRawUntilDelimiterOrKeyword(string[] keywords, params TokenKind[] delimiters)
+    {
+        return Parser.ParseRawUntilDelimiterOrKeywordInternal(keywords, delimiters);
+    }
+
+    /// <summary>
     /// Parses raw syntax until an operation boundary is reached.
     /// </summary>
     public RawSyntaxText ParseRawUntilOperationBoundary()
@@ -68,6 +76,14 @@ public abstract class DialectParsingContext
     public TypeSyntax ParseTypeSyntax(params TokenKind[] stopBefore)
     {
         return Parser.ParseTypeSyntaxInternal(stopBefore);
+    }
+
+    /// <summary>
+    /// Parses a nested type syntax node, stopping before any of the supplied delimiters or keywords.
+    /// </summary>
+    public TypeSyntax ParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
+    {
+        return Parser.ParseTypeSyntaxInternal(stopBeforeKeywords, stopBefore);
     }
 
     /// <summary>

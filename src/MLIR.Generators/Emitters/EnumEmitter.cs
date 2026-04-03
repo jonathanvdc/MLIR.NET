@@ -101,6 +101,18 @@ internal static class EnumEmitter
         builder.AppendLine("        };");
         builder.AppendLine();
 
+        builder.AppendLine("    internal static readonly global::System.Collections.Generic.Dictionary<ulong, " + enumTypeName + "> IntegerToEnum =");
+        builder.AppendLine("        new global::System.Collections.Generic.Dictionary<ulong, " + enumTypeName + ">()");
+        builder.AppendLine("        {");
+        foreach (var enumCase in enumModel.Cases)
+        {
+            var memberName = EnumHelpers.GetCSharpEnumMemberName(enumCase.Symbol);
+            builder.AppendLine("            { " + unchecked((ulong)enumCase.Value).ToString() + "UL, " + enumTypeName + "." + memberName + " },");
+        }
+
+        builder.AppendLine("        };");
+        builder.AppendLine();
+
         if (enumModel.IsBitEnum)
         {
             EmitBitEnumCases(builder, enumModel, enumTypeName);
@@ -176,6 +188,17 @@ internal static class EnumEmitter
             builder.AppendLine("        return ExactValueToSymbol.TryGetValue(value, out var symbol) ? symbol : value.ToString();");
         }
 
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    internal static bool TryFromInteger(global::System.Numerics.BigInteger raw, out " + enumTypeName + " value)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        if (raw < 0)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            value = default;");
+        builder.AppendLine("            return false;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        return IntegerToEnum.TryGetValue((ulong)raw, out value);");
         builder.AppendLine("    }");
         builder.AppendLine("}");
     }

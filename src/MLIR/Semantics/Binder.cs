@@ -507,7 +507,16 @@ public sealed class Binder
     {
         if (syntax is RawTypeSyntax rawTypeSyntax)
         {
-            var reparsed = ReparseTypeSyntax(rawTypeSyntax.RawText);
+            TypeSyntax reparsed;
+            try
+            {
+                reparsed = ReparseTypeSyntax(rawTypeSyntax.RawText);
+            }
+            catch (MLIR.Text.ParseException)
+            {
+                return new UnknownTypeReference(rawTypeSyntax, TryGetTypeDefinitionName(rawTypeSyntax.RawText.Text), null, rawTypeSyntax.Location);
+            }
+
             if (reparsed is not RawTypeSyntax)
             {
                 return BindTypeReference(reparsed);

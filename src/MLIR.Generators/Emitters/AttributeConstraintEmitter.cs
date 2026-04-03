@@ -56,6 +56,10 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    private static " + enumTypeName + " ParseEnumValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("        if (syntax == null) return default;");
+        builder.AppendLine("        if (syntax is MLIR.Syntax.Attributes.Primitives.IntegerAttributeValueSyntax integerSyntax)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".TryFromInteger(integerSyntax.Value, out var integerValue) ? integerValue : default;");
+        builder.AppendLine("        }");
         builder.AppendLine("        var raw = syntax.GetRawText().Text.Trim();");
         EnumEmitter.EmitParseExpression(builder, enumModel, enumTypeName, "raw", "        ");
         builder.AppendLine("    }");

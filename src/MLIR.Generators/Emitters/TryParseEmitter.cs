@@ -720,12 +720,38 @@ internal sealed class TryParseEmitter
     private string BuildTypeParseExpr(int elementIndex, IReadOnlyList<Element> allElements)
     {
         var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
-        if (delimiters.Count > 0)
+        var keywords = FindNextKeywordDelimitersForRawParsing(elementIndex, allElements);
+        if (delimiters.Count > 0 || keywords.Count > 0)
         {
-            return "new RawTypeSyntax(context.ParseRawUntilDelimiter(" + BuildDelimiterList(delimiters) + "))";
+            var keywordArray = keywords.Count > 0
+                ? "new[] { " + BuildKeywordList(keywords) + " }"
+                : "global::System.Array.Empty<string>()";
+            var delimiterSuffix = delimiters.Count > 0 ? ", " + BuildDelimiterList(delimiters) : string.Empty;
+            return "new RawTypeSyntax(context.ParseRawUntilDelimiterOrKeyword(" + keywordArray + delimiterSuffix + "))";
         }
 
         return "context.ParseTypeSyntax()";
+    }
+
+    private static IReadOnlyList<string> FindNextKeywordDelimitersForRawParsing(int currentIndex, IReadOnlyList<Element> elements)
+    {
+        for (var i = currentIndex + 1; i < elements.Count; i++)
+        {
+            if (elements[i] is not LiteralChunk literalChunk)
+            {
+                continue;
+            }
+
+            foreach (var lit in literalChunk.Value)
+            {
+                if (lit is KeywordLiteral keyword)
+                {
+                    return new[] { keyword.Spelling };
+                }
+            }
+        }
+
+        return System.Array.Empty<string>();
     }
 
     private static string BuildDelimiterList(IReadOnlyList<TokenKind> delimiters)
@@ -734,6 +760,17 @@ internal sealed class TryParseEmitter
         foreach (var d in delimiters)
         {
             parts.Add("TokenKind." + d);
+        }
+
+        return string.Join(", ", parts);
+    }
+
+    private static string BuildKeywordList(IReadOnlyList<string> keywords)
+    {
+        var parts = new List<string>(keywords.Count);
+        foreach (var keyword in keywords)
+        {
+            parts.Add(EmitterHelpers.ToCSharpStringLiteral(keyword));
         }
 
         return string.Join(", ", parts);

@@ -43,6 +43,6 @@ public sealed class MiniEnumDialectTests : DialectIntegrationTestBase
         var registry = CreateMiniEnumRegistry();
         var printed = new Module(new ModuleSyntax([]), [operation], []).ToText(CustomAssemblyOptions);
 
-        Assert.Contains("minienum.flags_op xy %input: i32", printed);
+        Assert.Contains("minienum.flags_op <xy> %input: i32", printed);
     }
 }
