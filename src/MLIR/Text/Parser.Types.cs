@@ -2,8 +2,6 @@ namespace MLIR.Text;
 
 using System.Collections.Generic;
 using MLIR.Dialects;
-using MLIR.Dialects.Attributes.Collections;
-using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Syntax.Types.Collections;
@@ -156,5 +154,435 @@ public sealed partial class Parser
     private bool IsKeyword(string text)
     {
         return Is(TokenKind.Identifier) && Current.Text == text;
+    }
+
+        private ParseResult<TypeSyntax> TryParseCustomTypeSyntaxResult()
+    {
+        if (dialectRegistry == null)
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var canonicalName = TryPeekTypeDefinitionName();
+        if (canonicalName == null || !dialectRegistry.TryGetType(canonicalName, out var definition) || definition.AssemblyFormat == null)
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var checkpoint = Mark();
+        if (definition.AssemblyFormat.TryParse(new TypeParsingContext(this), out var syntax))
+        {
+            return ParseResult<TypeSyntax>.Success(syntax!);
+        }
+
+        Reset(checkpoint);
+        return ParseResult<TypeSyntax>.NoMatch();
+    }
+
+    private ParseResult<TypeSyntax> TryParseBuiltinTypeSyntaxResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
+    {
+        var checkpoint = Mark();
+
+        var functionResult = TryParseFunctionTypeSyntaxResult(stopBefore, stopAtOperationBoundary);
+        if (!functionResult.IsNoMatch)
+        {
+            return functionResult;
+        }
+
+        Reset(checkpoint);
+        var tupleResult = TryParseTupleTypeSyntaxResult();
+        if (!tupleResult.IsNoMatch)
+        {
+            return tupleResult;
+        }
+
+        Reset(checkpoint);
+        var tensorResult = TryParseTensorTypeSyntaxResult();
+        if (!tensorResult.IsNoMatch)
+        {
+            return tensorResult;
+        }
+
+        Reset(checkpoint);
+        var vectorResult = TryParseVectorTypeSyntaxResult();
+        if (!vectorResult.IsNoMatch)
+        {
+            return vectorResult;
+        }
+
+        Reset(checkpoint);
+        var memRefResult = TryParseMemRefTypeSyntaxResult();
+        if (!memRefResult.IsNoMatch)
+        {
+            return memRefResult;
+        }
+
+        Reset(checkpoint);
+        return TryParseBuiltinPrimitiveTypeSyntaxResult();
+    }
+
+    private ParseResult<TypeSyntax> TryParseBuiltinPrimitiveTypeSyntaxResult()
+    {
+        if (!Is(TokenKind.Identifier))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var token = ToSyntaxToken(ConsumeToken());
+        if (TryParseBuiltinIntegerName(token.Text, out var signedness, out var width))
+        {
+            return ParseResult<TypeSyntax>.Success(new BuiltinIntegerTypeSyntax(token, signedness, width));
+        }
+
+        if (IsBuiltinFloatName(token.Text))
+        {
+            return ParseResult<TypeSyntax>.Success(new BuiltinFloatTypeSyntax(token));
+        }
+
+        if (token.Text == "index")
+        {
+            return ParseResult<TypeSyntax>.Success(new BuiltinIndexTypeSyntax(token));
+        }
+
+        if (token.Text == "none")
+        {
+            return ParseResult<TypeSyntax>.Success(new BuiltinNoneTypeSyntax(token));
+        }
+
+        position--;
+        return ParseResult<TypeSyntax>.NoMatch();
+    }
+
+    private ParseResult<TypeSyntax> TryParseFunctionTypeSyntaxResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
+    {
+        if (!Is(TokenKind.LParen))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var checkpoint = Mark();
+        var inputsResult = TryParseTypeListResult(TokenKind.LParen, TokenKind.RParen, stopAtOperationBoundary: false);
+        if (!inputsResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(inputsResult.Diagnostic!);
+        }
+
+        if (!TryMatch(TokenKind.Arrow, out var arrowToken))
+        {
+            Reset(checkpoint);
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        TypeSyntax? resultType = null;
+        DelimitedSyntaxList<TypeSyntax> resultTypes;
+        if (Is(TokenKind.LParen))
+        {
+            var resultTypesResult = TryParseTypeListResult(TokenKind.LParen, TokenKind.RParen, stopAtOperationBoundary);
+            if (!resultTypesResult.IsSuccess)
+            {
+                return ParseResult<TypeSyntax>.Failure(resultTypesResult.Diagnostic!);
+            }
+
+            resultTypes = resultTypesResult.Value;
+        }
+        else
+        {
+            resultTypes = new DelimitedSyntaxList<TypeSyntax>(null, [], [], null);
+            var resultTypeResult = TryParseTypeSyntaxCoreResult(stopBefore, stopAtOperationBoundary);
+            if (!resultTypeResult.IsSuccess)
+            {
+                return ParseResult<TypeSyntax>.Failure(resultTypeResult.Diagnostic!);
+            }
+
+            resultType = resultTypeResult.Value;
+        }
+
+        return ParseResult<TypeSyntax>.Success(new FunctionTypeSyntax(inputsResult.Value, ToSyntaxToken(arrowToken), resultType, resultTypes));
+    }
+
+    private ParseResult<TypeSyntax> TryParseTupleTypeSyntaxResult()
+    {
+        if (!IsKeyword("tuple"))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var keywordResult = ExpectKeywordResult("tuple", "Expected 'tuple'.");
+        if (!keywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
+        }
+
+        var elementsResult = TryParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LessThan,
+            TokenKind.GreaterThan,
+            () => TryParseTypeSyntaxResult(TokenKind.Comma, TokenKind.GreaterThan),
+            "Expected '<' after 'tuple'.",
+            "Expected '>' to close the tuple type.");
+        if (!elementsResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(elementsResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Success(new TupleTypeSyntax(keywordResult.Value, elementsResult.Value.OpenToken!.Value, elementsResult.Value.Items, elementsResult.Value.SeparatorTokens, elementsResult.Value.CloseToken!.Value));
+    }
+
+    private ParseResult<TypeSyntax> TryParseTensorTypeSyntaxResult()
+    {
+        if (!IsKeyword("tensor"))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var keywordResult = ExpectKeywordResult("tensor", "Expected 'tensor'.");
+        if (!keywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
+        }
+
+        var lessThanResult = ExpectTokenResult(TokenKind.LessThan, "Expected '<' after 'tensor'.");
+        if (!lessThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
+        }
+
+        var prefixResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
+        if (!prefixResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
+        }
+
+        if (!TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: true, minimumDimensionCount: 0, out var dimensions, out var xTokens, out var unrankedToken, out var elementTypeText))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var elementTypeResult = TryParseType(elementTypeText, dialectRegistry, out var elementType, out var diagnostic)
+            ? ParseResult<TypeSyntax>.Success(elementType!)
+            : ParseResult<TypeSyntax>.Failure(diagnostic!);
+        if (!elementTypeResult.IsSuccess)
+        {
+            return elementTypeResult;
+        }
+
+        var trailingCommaTokens = new List<SyntaxToken>();
+        var trailingParameters = new List<RawSyntaxText>();
+        while (TryMatch(TokenKind.Comma, out var comma))
+        {
+            trailingCommaTokens.Add(ToSyntaxToken(comma));
+            var trailingResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
+            if (!trailingResult.IsSuccess)
+            {
+                return ParseResult<TypeSyntax>.Failure(trailingResult.Diagnostic!);
+            }
+
+            trailingParameters.Add(trailingResult.Value);
+        }
+
+        var greaterThanResult = ExpectTokenResult(TokenKind.GreaterThan, "Expected '>' to close the tensor type.");
+        if (!greaterThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Success(new TensorTypeSyntax(keywordResult.Value, lessThanResult.Value, dimensions, xTokens, unrankedToken, elementTypeResult.Value, trailingCommaTokens, trailingParameters, greaterThanResult.Value));
+    }
+
+    private ParseResult<TypeSyntax> TryParseVectorTypeSyntaxResult()
+    {
+        if (!IsKeyword("vector"))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var checkpoint = Mark();
+        var keywordResult = ExpectKeywordResult("vector", "Expected 'vector'.");
+        if (!keywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
+        }
+
+        var lessThanResult = ExpectTokenResult(TokenKind.LessThan, "Expected '<' after 'vector'.");
+        if (!lessThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
+        }
+
+        var prefixResult = TryParseRawUntilDelimiterResult(TokenKind.GreaterThan);
+        if (!prefixResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
+        }
+
+        if (!TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: false, minimumDimensionCount: 1, out var dimensions, out var xTokens, out _, out var elementTypeText))
+        {
+            Reset(checkpoint);
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var elementTypeParse = TryParseType(elementTypeText, dialectRegistry, out var elementType, out var diagnostic)
+            ? ParseResult<TypeSyntax>.Success(elementType!)
+            : ParseResult<TypeSyntax>.Failure(diagnostic!);
+        if (!elementTypeParse.IsSuccess)
+        {
+            return elementTypeParse;
+        }
+
+        var greaterThanResult = ExpectTokenResult(TokenKind.GreaterThan, "Expected '>' to close the vector type.");
+        if (!greaterThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Success(new VectorTypeSyntax(keywordResult.Value, lessThanResult.Value, dimensions, xTokens, elementTypeParse.Value, greaterThanResult.Value));
+    }
+
+    private ParseResult<TypeSyntax> TryParseMemRefTypeSyntaxResult()
+    {
+        if (!IsKeyword("memref"))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var keywordResult = ExpectKeywordResult("memref", "Expected 'memref'.");
+        if (!keywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
+        }
+
+        var lessThanResult = ExpectTokenResult(TokenKind.LessThan, "Expected '<' after 'memref'.");
+        if (!lessThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
+        }
+
+        var prefixResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
+        if (!prefixResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
+        }
+
+        if (!TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: true, minimumDimensionCount: 0, out var dimensions, out var xTokens, out var unrankedToken, out var elementTypeText))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var elementTypeParse = TryParseType(elementTypeText, dialectRegistry, out var elementType, out var diagnostic)
+            ? ParseResult<TypeSyntax>.Success(elementType!)
+            : ParseResult<TypeSyntax>.Failure(diagnostic!);
+        if (!elementTypeParse.IsSuccess)
+        {
+            return elementTypeParse;
+        }
+
+        var trailingCommaTokens = new List<SyntaxToken>();
+        var trailingParameters = new List<RawSyntaxText>();
+        while (TryMatch(TokenKind.Comma, out var comma))
+        {
+            trailingCommaTokens.Add(ToSyntaxToken(comma));
+            var trailingResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
+            if (!trailingResult.IsSuccess)
+            {
+                return ParseResult<TypeSyntax>.Failure(trailingResult.Diagnostic!);
+            }
+
+            trailingParameters.Add(trailingResult.Value);
+        }
+
+        var greaterThanResult = ExpectTokenResult(TokenKind.GreaterThan, "Expected '>' to close the memref type.");
+        if (!greaterThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Success(new MemRefTypeSyntax(keywordResult.Value, lessThanResult.Value, dimensions, xTokens, unrankedToken, elementTypeParse.Value, trailingCommaTokens, trailingParameters, greaterThanResult.Value));
+    }
+
+    private ParseResult<TypeSyntax> TryParseStandaloneTypeResult()
+    {
+        var parsed = TryParseTypeSyntaxUntilOperationBoundaryResult();
+        if (!parsed.IsSuccess)
+        {
+            return parsed;
+        }
+
+        return !Is(TokenKind.EndOfFile)
+            ? ParseResult<TypeSyntax>.Failure(CreateDiagnostic("Expected the type to consume the entire input."))
+            : parsed;
+    }
+
+    private ParseResult<TypeSyntax> TryParseTypeSyntaxResult(params TokenKind[] stopBefore)
+    {
+        return TryParseTypeSyntaxCoreResult(stopBefore, stopAtOperationBoundary: false);
+    }
+
+    private ParseResult<TypeSyntax> TryParseTypeSyntaxResult(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
+    {
+        return TryParseTypeSyntaxCoreResult(stopBefore, stopBeforeKeywords, stopAtOperationBoundary: false);
+    }
+
+    private ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundaryResult()
+    {
+        return TryParseTypeSyntaxCoreResult([], stopAtOperationBoundary: true);
+    }
+
+    private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
+    {
+        return TryParseTypeSyntaxCoreResult(stopBefore, [], stopAtOperationBoundary);
+    }
+
+    private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
+    {
+        var builtinTypeResult = TryParseBuiltinTypeSyntaxResult(stopBefore, stopAtOperationBoundary);
+        if (!builtinTypeResult.IsNoMatch)
+        {
+            return builtinTypeResult;
+        }
+
+        var customTypeResult = TryParseCustomTypeSyntaxResult();
+        if (!customTypeResult.IsNoMatch)
+        {
+            return customTypeResult;
+        }
+
+        var rawResult = stopAtOperationBoundary
+            ? TryParseRawUntilDelimiterOrBoundaryResult(stopBefore)
+            : TryParseRawUntilDelimiterOrKeywordResult(stopBefore, stopBeforeKeywords);
+        return rawResult.IsSuccess
+            ? ParseResult<TypeSyntax>.Success(new RawTypeSyntax(rawResult.Value))
+            : ParseResult<TypeSyntax>.Failure(rawResult.Diagnostic!);
+    }
+
+    internal TypeSyntax ParseTypeSyntaxInternal(params TokenKind[] delimiters)
+    {
+        var result = TryParseTypeSyntaxResult(delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    internal TypeSyntax ParseTypeSyntaxInternal(string[] stopBeforeKeywords, params TokenKind[] delimiters)
+    {
+        var result = TryParseTypeSyntaxResult(stopBeforeKeywords, delimiters);
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
+    }
+
+    internal TypeSyntax ParseTypeSyntaxUntilOperationBoundaryInternal()
+    {
+        var result = TryParseTypeSyntaxUntilOperationBoundaryResult();
+        if (result.IsSuccess)
+        {
+            return result.Value;
+        }
+
+        throw new ParseException(result.Diagnostic!);
     }
 }
