@@ -63,9 +63,43 @@ public static class Interpreter
             var baseClasses = new List<string>();
             var seenBaseClasses = new HashSet<string>();
             CollectBaseClasses(definition.Bases, seenBaseClasses, baseClasses);
-            ApplyBases(definition.Bases, scope, fields);
-            ApplyBody(definition.BodyItems, scope, fields);
+
+            // Collect let overrides from the definition body first so base-class fields
+            // that depend on overridden values (e.g. attrName = dialect.name # "." # mnemonic)
+            // are computed with the correct values.
+            var letOverrides = new Dictionary<string, Value>(StringComparer.Ordinal);
+            CollectLetOverrides(definition.BodyItems, letOverrides);
+
+            ApplyBases(definition.Bases, scope, fields, preOverrides: letOverrides.Count > 0 ? letOverrides : null);
+            ApplyBody(definition.BodyItems, scope, fields, letOverrides: null, preOverrides: null);
             return new Record(definition.Name, baseClasses, fields);
+        }
+
+        private void CollectLetOverrides(
+            IReadOnlyList<BodyItemSyntax> bodyItems,
+            Dictionary<string, Value> letOverrides)
+        {
+            // We need a temporary scope to evaluate the let expressions.  We use an empty scope
+            // because at this point we don't yet have field values available; simple expressions
+            // (string literals, identifier references to template parameters, etc.) will still resolve.
+            // This is a best-effort pre-pass: only lets with evaluable expressions contribute.
+            var tempScope = new Dictionary<string, Value>();
+            foreach (var item in bodyItems)
+            {
+                if (item is LetSyntax let)
+                {
+                    try
+                    {
+                        var value = EvaluateExpression(let.Value, tempScope);
+                        letOverrides[let.Name] = value;
+                        tempScope[let.Name] = value;
+                    }
+                    catch
+                    {
+                        // If the expression can't be evaluated yet, skip it.
+                    }
+                }
+            }
         }
 
         private void CollectBaseClasses(
@@ -83,27 +117,6 @@ public static class Interpreter
                 if (classes.TryGetValue(@base.Name, out var classSyntax))
                 {
                     CollectBaseClasses(classSyntax.Bases, seenBaseClasses, baseClasses);
-                }
-            }
-        }
-
-        private void ApplyBases(
-            IReadOnlyList<BaseSyntax> bases,
-            Dictionary<string, Value> scope,
-            Dictionary<string, Value> fields)
-        {
-            foreach (var @base in bases)
-            {
-                if (!classes.TryGetValue(@base.Name, out var classSyntax))
-                {
-                    throw new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'.");
-                }
-
-                var classFields = InstantiateClass(classSyntax, @base.Arguments, scope);
-                foreach (var field in classFields)
-                {
-                    fields[field.Key] = field.Value;
-                    scope[field.Key] = field.Value;
                 }
             }
         }
@@ -166,13 +179,60 @@ public static class Interpreter
                 scope[parameter.Name] = value;
             }
 
-            ApplyBases(classSyntax.Bases, scope, fields, preOverrides);
+            // Pre-scan this class's own body for `let` overrides and merge them with any incoming
+            // preOverrides before processing base classes.  This ensures that computed base-class fields
+            // (e.g. `attrName = dialect.name # "." # mnemonic` in AttrDef) see the mnemonic value set
+            // by `let mnemonic = name` in this class's body (EnumAttr).
+            var effectivePreOverrides = CollectBodyLetOverrides(classSyntax.BodyItems, scope, preOverrides);
 
-            // Apply body.  Field declarations (FieldSyntax) whose name is in preOverrides are skipped
+            ApplyBases(classSyntax.Bases, scope, fields, effectivePreOverrides);
+
+            // Apply body.  Field declarations (FieldSyntax) whose name is in effectivePreOverrides are skipped
             // because the derived class has already supplied the authoritative value.
-            ApplyBody(classSyntax.BodyItems, scope, fields, letOverrides: null, preOverrides: preOverrides);
+            ApplyBody(classSyntax.BodyItems, scope, fields, letOverrides: null, preOverrides: effectivePreOverrides);
 
             return fields;
+        }
+
+        private IReadOnlyDictionary<string, Value>? CollectBodyLetOverrides(
+            IReadOnlyList<BodyItemSyntax> bodyItems,
+            IReadOnlyDictionary<string, Value> scope,
+            IReadOnlyDictionary<string, Value>? incoming)
+        {
+            // Evaluate let statements from this body in a scratch scope and collect their values.
+            var tempScope = new Dictionary<string, Value>(StringComparer.Ordinal);
+            foreach (var pair in scope) tempScope[pair.Key] = pair.Value;
+            if (incoming != null)
+            {
+                foreach (var pair in incoming) tempScope[pair.Key] = pair.Value;
+            }
+
+            Dictionary<string, Value>? collected = null;
+            foreach (var item in bodyItems)
+            {
+                if (item is LetSyntax let)
+                {
+                    try
+                    {
+                        var value = EvaluateExpression(let.Value, tempScope);
+                        collected ??= new Dictionary<string, Value>(StringComparer.Ordinal);
+                        collected[let.Name] = value;
+                        tempScope[let.Name] = value;
+                    }
+                    catch
+                    {
+                        // Expression can't be evaluated yet (depends on fields not yet in scope).
+                    }
+                }
+            }
+
+            if (collected == null) return incoming;
+
+            // Merge: incoming overrides are the base, body lets override on top.
+            var result = new Dictionary<string, Value>(StringComparer.Ordinal);
+            if (incoming != null) foreach (var pair in incoming) result[pair.Key] = pair.Value;
+            foreach (var pair in collected) result[pair.Key] = pair.Value;
+            return result;
         }
 
         private void ApplyBases(
@@ -189,6 +249,33 @@ public static class Interpreter
             Dictionary<string, Value> fields,
             IReadOnlyDictionary<string, Value>? preOverrides)
         {
+            foreach (var @base in bases)
+            {
+                if (!classes.TryGetValue(@base.Name, out var classSyntax))
+                {
+                    throw new KeyNotFoundException($"Unknown TableGen class '{@base.Name}'.");
+                }
+
+                var classFields = InstantiateClass(classSyntax, @base.Arguments, scope, preOverrides);
+                foreach (var field in classFields)
+                {
+                    // Always write base-class fields, including pre-seeded ones — InstantiateClass
+                    // will have applied the correct type coercion (e.g. bit Enabled sees IntegerValue(1)
+                    // and stores BitValue(true)), so the outer ApplyBody can then apply CoerceExistingValue
+                    // correctly when the definition's own let statement is processed.
+                    fields[field.Key] = field.Value;
+                    scope[field.Key] = field.Value;
+                }
+            }
+        }
+
+        private void ApplyBody(
+            IReadOnlyList<BodyItemSyntax> bodyItems,
+            Dictionary<string, Value> scope,
+            Dictionary<string, Value> fields,
+            System.Collections.Generic.HashSet<string>? letOverrides,
+            IReadOnlyDictionary<string, Value>? preOverrides)
+        {
             foreach (var item in bodyItems)
             {
                 switch (item)
@@ -197,6 +284,17 @@ public static class Interpreter
                     {
                         if (field.Initializer == null)
                         {
+                            continue;
+                        }
+
+                        // When a derived-class let has already supplied a value for this field, apply
+                        // the field declaration's type coercion to it (e.g. convert IntegerValue(1) to
+                        // BitValue(true) for a `bit` field) and update scope, but don't re-evaluate.
+                        if (preOverrides != null && preOverrides.TryGetValue(field.Name, out var preValue))
+                        {
+                            var coerced = CoerceValue(field.TypeName, preValue);
+                            fields[field.Name] = coerced;
+                            scope[field.Name] = coerced;
                             continue;
                         }
 
@@ -213,7 +311,7 @@ public static class Interpreter
                             : value;
                         fields[let.Name] = finalValue;
                         scope[let.Name] = finalValue;
-                        overriddenByLet?.Add(let.Name);
+                        letOverrides?.Add(let.Name);
                         break;
                     }
                     case LocalDefVarSyntax defVar:
@@ -598,7 +696,7 @@ public static class Interpreter
                 var fields = new Dictionary<string, Value>();
                 var recScope = new Dictionary<string, Value>();
                 ApplyBases(defSyntax.Bases, recScope, fields);
-                ApplyBody(defSyntax.BodyItems, recScope, fields);
+                ApplyBody(defSyntax.BodyItems, recScope, fields, letOverrides: null, preOverrides: null);
                 return fields.TryGetValue(fieldAccess.FieldName, out var fieldVal) ? fieldVal : new UnsetValue();
             }
 
