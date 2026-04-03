@@ -10,6 +10,8 @@ This repository contains a layered MLIR tooling stack:
   Roslyn incremental source generator that turns ODS models into C#.
 - `src/MLIR`
   Runtime library for MLIR CST, parsing, printing, semantics, dialect registration, and transforms.
+- `tools/TableGenDebug`
+  Debugging utility that loads a TableGen file, evaluates it with the embedded MLIR.Generators prelude, and prints matching records.
 
 ## Architecture
 

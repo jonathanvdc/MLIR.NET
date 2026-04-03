@@ -143,6 +143,8 @@ src/
   MLIR.Generators/  Roslyn source generator
   MLIR.ODS/         ODS importer/model
   TableGen/         TableGen parser/evaluator
+tools/
+  TableGenDebug/    Debug utility for evaluating a TableGen file and printing records
 tests/
   DialectTests/             Analyzer-backed generated-dialect integration tests
   MLIR.Generators.Tests/    Importer and source-generation tests
@@ -173,10 +175,34 @@ dotnet test tests/MLIR.Tests/MLIR.Tests.csproj
 
 If you are working on `TableGen` or `MLIR.Generators`, prefer sequential `dotnet` runs. Parallel builds/tests can cause DLL lock failures in `obj/`.
 
+## TableGen Debugging Utility
+
+Use `tools/TableGenDebug` when you want to inspect the records produced by a TableGen file after evaluation.
+
+The tool loads the file, resolves includes from the embedded MLIR prelude shipped with `MLIR.Generators`, evaluates the document, and prints the resulting records.
+
+```bash
+dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- <file.td> [record-pattern]
+```
+
+The optional `record-pattern` argument is a glob-style filter over record names:
+
+- `*` matches any record name
+- `?` matches a single character
+
+Examples:
+
+```bash
+dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- samples/GeneratedDialectConsumer/Dialects/arith.td
+dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- samples/GeneratedDialectConsumer/Dialects/arith.td 'Arith_*'
+```
+
 ## Where To Look Next
 
 - [samples/GeneratedDialectConsumer/Program.cs](/Users/jonathanvdc/Code/MLIR.NET/samples/GeneratedDialectConsumer/Program.cs)
   Small consumer project using generated dialect types.
+- [tools/TableGenDebug/Program.cs](/Users/jonathanvdc/Code/MLIR.NET/tools/TableGenDebug/Program.cs)
+  Command-line utility for evaluating TableGen files and printing the resulting records.
 - [tests/DialectTests/Dialects/arith.td](/Users/jonathanvdc/Code/MLIR.NET/tests/DialectTests/Dialects/arith.td)
   Real ODS-style dialect fixture used by the analyzer-backed integration tests.
 - [AGENTS.md](/Users/jonathanvdc/Code/MLIR.NET/AGENTS.md)
