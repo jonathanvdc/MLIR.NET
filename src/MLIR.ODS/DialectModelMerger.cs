@@ -43,7 +43,10 @@ public static class DialectModelMerger
             summary,
             description,
             hasConstantMaterializer,
-            operations,
+            operations
+                .GroupBy(static operation => operation.Name, System.StringComparer.Ordinal)
+                .Select(MergeOperationGroup)
+                .ToArray(),
             attributes,
             attributeConstraints
                 .GroupBy(static constraint => constraint.RecordName, System.StringComparer.Ordinal)
@@ -54,5 +57,41 @@ public static class DialectModelMerger
                 .Select(static constraints => constraints.First())
                 .ToArray(),
             types);
+    }
+
+    private static OperationModel MergeOperationGroup(IGrouping<string, OperationModel> group)
+    {
+        OperationModel? primary = null;
+        string? assemblyExtensionKind = null;
+
+        foreach (var operation in group)
+        {
+            if (primary == null && (operation.ClassName != null
+                || operation.Operands.Count > 0
+                || operation.Results.Count > 0
+                || operation.Attributes.Count > 0
+                || operation.Summary != null
+                || operation.Description != null
+                || operation.AssemblyFormat != null
+                || operation.Traits.Count > 0))
+            {
+                primary = operation;
+            }
+
+            assemblyExtensionKind ??= operation.AssemblyExtensionKind;
+        }
+
+        primary ??= group.First();
+        return new OperationModel(
+            primary.Name,
+            primary.ClassName,
+            primary.Operands,
+            primary.Results,
+            primary.Attributes,
+            primary.Summary,
+            primary.Description,
+            primary.AssemblyFormat,
+            primary.Traits,
+            assemblyExtensionKind);
     }
 }

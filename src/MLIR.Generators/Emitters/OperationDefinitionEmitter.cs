@@ -1,6 +1,7 @@
 namespace MLIR.Generators.Emitters;
 
 using System;
+using System.Collections.Generic;
 using System.Text;
 using MLIR.ODS.Model;
 
@@ -8,7 +9,9 @@ internal static class OperationDefinitionEmitter
 {
     public static void Emit(StringBuilder builder, string className, OperationModel operation, DialectSymbolResolver resolver)
     {
-        var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
+        var requiredVariables = operation.AssemblyFormat != null
+            ? AssemblyFormatAnalyzer.GetRequiredVariables(operation)
+            : new HashSet<string>(StringComparer.Ordinal);
 
         builder.AppendLine("    public static OperationDefinition OperationDefinition { get; } = CreateOperationDefinition();");
         builder.AppendLine("    public override string Name => OperationDefinition.Name;");
@@ -48,9 +51,10 @@ internal static class OperationDefinitionEmitter
         }
 
         builder.AppendLine("        operation.WithFactory(static context => new " + className + "(context));");
-        if (operation.AssemblyFormat != null)
+        var assemblyFormatExpr = OperationAssemblyExtensionHelpers.GetAssemblyFormatInstantiationExpression(operation, className);
+        if (assemblyFormatExpr != null)
         {
-            builder.AppendLine("        operation.WithAssemblyFormat(new " + className + "AssemblyFormat());");
+            builder.AppendLine("        operation.WithAssemblyFormat(" + assemblyFormatExpr + ");");
         }
 
         builder.AppendLine("        return operation.Build();");

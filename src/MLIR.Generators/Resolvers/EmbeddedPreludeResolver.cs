@@ -26,9 +26,7 @@ internal sealed class EmbeddedPreludeResolver : IncludeResolver
         SourceFile? includingFile,
         out ResolvedInclude resolvedInclude)
     {
-        // Resource names are stored with the LogicalName set in the .csproj, which uses
-        // forward slashes (e.g. "mlir/IR/OpBase.td").
-        var resourceStream = ThisAssembly.GetManifestResourceStream(includePath);
+        var resourceStream = OpenPreludeResource(includePath);
         if (resourceStream == null)
         {
             resolvedInclude = null!;
@@ -43,5 +41,36 @@ internal sealed class EmbeddedPreludeResolver : IncludeResolver
 
         resolvedInclude = new ResolvedInclude(includePath, text);
         return true;
+    }
+
+    private static Stream? OpenPreludeResource(string includePath)
+    {
+        foreach (var candidate in GetCandidateResourceNames(includePath))
+        {
+            var stream = ThisAssembly.GetManifestResourceStream(candidate);
+            if (stream != null)
+            {
+                return stream;
+            }
+        }
+
+        return null;
+    }
+
+    private static string[] GetCandidateResourceNames(string includePath)
+    {
+        if (includePath.StartsWith("mlir/Extensions/", System.StringComparison.Ordinal)
+            || includePath.StartsWith("mlir/Upstream/", System.StringComparison.Ordinal))
+        {
+            return [includePath];
+        }
+
+        // Embedded resources expose Include files at their original logical path and
+        // Upstream files under the mlir/Upstream/... namespace. Prefer Include first.
+        return
+        [
+            includePath,
+            "mlir/Upstream/" + includePath.Substring("mlir/".Length),
+        ];
     }
 }

@@ -231,4 +231,17 @@ public sealed class DialectImporterTests
         Assert.Equal(TypeConstraintKind.None, i32Tensor.Kind);
         Assert.Null(i32Tensor.CanonicalTypeName);
     }
+
+    [Fact]
+    public void ImportsMlirNetAssemblyExtensionOverlayForUpstreamSelectOp()
+    {
+        var dialects = DialectImporter.Import(
+            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Arith/IR/ArithOps.td\"").Evaluate());
+
+        var arith = Assert.Single(dialects, static dialect => dialect.Name == "arith");
+        var select = Assert.Single(arith.Operations, static operation => operation.Name == "arith.select");
+
+        Assert.Null(select.AssemblyFormat);
+        Assert.Equal("select_like", select.AssemblyExtensionKind);
+    }
 }

@@ -60,7 +60,9 @@ internal static class OperationMemberPlanner
 {
     public static OperationMemberPlan Plan(OperationModel operation, DialectSymbolResolver resolver)
     {
-        var requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
+        var requiredVariables = operation.AssemblyFormat != null
+            ? AssemblyFormatAnalyzer.GetRequiredVariables(operation)
+            : new HashSet<string>(StringComparer.Ordinal);
         return new OperationMemberPlan(
             GetOperandMembers(operation, requiredVariables),
             GetResultMembers(operation),
