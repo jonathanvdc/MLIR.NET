@@ -69,12 +69,7 @@ internal static class OperationMemberPlanner
 
     private static string GetParameterName(string propertyName)
     {
-        if (propertyName.Length == 0)
-        {
-            return propertyName;
-        }
-
-        return char.ToLowerInvariant(propertyName[0]) + propertyName.Substring(1);
+        return EmitterHelpers.LowerFirst(propertyName);
     }
 
     private static IReadOnlyList<GeneratedMember> GetOperandMembers(OperationModel operation, HashSet<string> requiredVariables)

@@ -64,7 +64,7 @@ internal static class AttributeConstraintEmitter
         // Integer value parser (to feed IntegerAttributeValue base constructor)
         builder.AppendLine("    private static global::System.Numerics.BigInteger ParseValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return (long)(object)ParseEnumValue(syntax);");
+        builder.AppendLine("        return (global::System.Numerics.BigInteger)global::System.Convert.ToUInt64(ParseEnumValue(syntax));");
         builder.AppendLine("    }");
         builder.AppendLine();
 

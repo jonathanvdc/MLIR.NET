@@ -171,7 +171,7 @@ internal sealed class OdsRecordIndex
             var memberKind = kind;
             if (kind == OperationMemberKind.Operand
                 && constraintName != null
-                && constraintName.EndsWith("Attr", StringComparison.Ordinal))
+                && IsAttributeConstraint(constraintName))
             {
                 memberKind = OperationMemberKind.Attribute;
             }
@@ -471,6 +471,23 @@ internal sealed class OdsRecordIndex
             StringValue str => str.Value,
             _ => null,
         };
+    }
+
+    private bool IsAttributeConstraint(string constraintName)
+    {
+        if (constraintName.EndsWith("Attr", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!TryGetRecord(constraintName, out var constraintRecord))
+        {
+            return false;
+        }
+
+        return TryGetAttributeConstraintKind(constraintRecord, out _)
+            || constraintRecord.HasBaseClass("Attr")
+            || constraintRecord.HasBaseClass("AttrInterface");
     }
 
     private static AttributeConstraintKind GetDenseArrayElementKind(string recordName)

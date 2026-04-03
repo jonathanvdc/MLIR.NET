@@ -1,6 +1,7 @@
 namespace DialectTests;
 
 using MLIR;
+using MLIR.Arith;
 using MLIR.Dialects;
 using MLIR.Miniarith;
 using MLIR.Minienum;
@@ -20,6 +21,13 @@ public abstract class DialectIntegrationTestBase
         new(
             ConcreteSyntaxBuilder.OperationSyntaxPreference.PreferCustomAssembly,
             ConcreteSyntaxBuilder.ExistingSyntaxHandling.ReplaceExistingSyntax);
+
+    protected static DialectRegistry CreateArithRegistry()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(ArithDialectRegistration.Create());
+        return registry;
+    }
 
     protected static DialectRegistry CreateMiniArithRegistry()
     {
