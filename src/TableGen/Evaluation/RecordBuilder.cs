@@ -322,7 +322,7 @@ internal sealed class RecordBuilder
                         return EvaluationResult<bool>.Failure(condition.Diagnostic!);
                     }
 
-                    var truthy = ExpressionEvaluator.TryIsTruthy(condition.Value);
+                    var truthy = ValueUtilities.TryIsTruthy(condition.Value);
                     if (!truthy.IsSuccess)
                     {
                         return EvaluationResult<bool>.Failure(truthy.Diagnostic!);
@@ -363,7 +363,7 @@ internal sealed class RecordBuilder
             return string.Empty;
         }
 
-        var text = ExpressionEvaluator.TryValueToString(message.Value);
+        var text = ValueUtilities.TryValueToString(message.Value);
         error = text.Diagnostic;
         return text.IsSuccess ? text.Value : string.Empty;
     }
@@ -424,7 +424,7 @@ internal sealed class RecordBuilder
             var finalValue = resolved.Value;
             if (field.DeclaredTypeName != null)
             {
-                var coerced = ExpressionEvaluator.TryCoerceValue(field.DeclaredTypeName, finalValue);
+                var coerced = ValueUtilities.TryCoerceValue(field.DeclaredTypeName, finalValue);
                 if (!coerced.IsSuccess)
                 {
                     return EvaluationResult<Value>.Failure(coerced.Diagnostic!);
