@@ -4,7 +4,7 @@ namespace TableGen.Evaluation;
 /// Represents either a successful evaluation result or an evaluation diagnostic.
 /// </summary>
 /// <typeparam name="T">The successful result type.</typeparam>
-internal sealed class EvaluationResult<T>
+internal readonly struct EvaluationResult<T>
 {
     /// <summary>
     /// Initializes a successful result.
@@ -12,7 +12,6 @@ internal sealed class EvaluationResult<T>
     /// <param name="value">The computed value.</param>
     private EvaluationResult(T value)
     {
-        IsSuccess = true;
         Value = value;
         Diagnostic = null;
     }
@@ -23,7 +22,6 @@ internal sealed class EvaluationResult<T>
     /// <param name="diagnostic">The reason evaluation failed.</param>
     private EvaluationResult(EvaluationDiagnostic diagnostic)
     {
-        IsSuccess = false;
         Value = default!;
         Diagnostic = diagnostic;
     }
@@ -31,7 +29,7 @@ internal sealed class EvaluationResult<T>
     /// <summary>
     /// Gets a value indicating whether evaluation succeeded.
     /// </summary>
-    public bool IsSuccess { get; }
+    public bool IsSuccess => Diagnostic == null;
 
     /// <summary>
     /// Gets the computed value when <see cref="IsSuccess"/> is <see langword="true"/>.
