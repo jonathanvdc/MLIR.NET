@@ -124,6 +124,8 @@ class Concat<string pre, Pred child, string suf> :
 // Constraint definitions
 //===----------------------------------------------------------------------===//
 
+// TODO: Merge Constraints into Pred.
+
 // Base class for named constraints.
 //
 // An op's operands/attributes/results can have various requirements, e.g.,
@@ -155,6 +157,11 @@ class AttrTypeConstraint<Pred pred, string summary = "",
   string cppFunctionName = cppFunctionNameParam;
 }
 
+// Subclasses used to differentiate different constraint kinds. These are used
+// as markers for the TableGen backend to handle different constraint kinds
+// differently if needed. Constraints not deriving from the following subclasses
+// are considered as uncategorized constraints.
+
 // Subclass for constraints on a type.
 class TypeConstraint<Pred predicate, string summary = "",
                      string cppTypeParam = "::mlir::Type",
@@ -174,6 +181,8 @@ class PropConstraint<Pred predicate, string summary = "", string interfaceTypePa
     Constraint<predicate, summary> {
   // The name of the C++ type of $_self, which will be the interface type of the
   // property being constrained, or "" if it is to be inferred from context.
+  // Note, that leaving the interface type unspecified prevents the constraint from
+  // being uniqued.
   code interfaceType = interfaceTypeParam;
 }
 
@@ -184,5 +193,24 @@ class RegionConstraint<Pred predicate, string summary = ""> :
 // Subclass for constraints on a successor.
 class SuccessorConstraint<Pred predicate, string summary = ""> :
     Constraint<predicate, summary>;
+
+// How to use these constraint categories:
+//
+// * Use TypeConstraint to specify
+//   * Constraints on an op's operand/result definition
+//   * Further constraints to match an op's operand/result in source pattern
+//
+// * Use Attr (a subclass of AttrConstraint) for
+//   * Constraints on an op's attribute definitions
+// * Use AttrConstraint to specify
+//   * Further constraints to match an op's attribute in rewrite source patterns.
+//
+// * Use Prop (a subclass of PropConstraint) for
+//   * Defining an op's properties or constraining them
+// * Use Prop constraint to specify
+//   * Further constraints to match an op's property in rewrite source patterns.
+//
+// * Use uncategorized constraint to specify
+//   * Multi-entity constraints in rewrite rules
 
 #endif // CONSTRAINTS
