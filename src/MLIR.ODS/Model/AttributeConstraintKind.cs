@@ -59,4 +59,19 @@ public enum AttributeConstraintKind
     /// The constraint parses a unit attribute literal.
     /// </summary>
     UnitAttribute = 10,
+
+    /// <summary>
+    /// The constraint parses a dense array of boolean values (<c>array&lt;i1: ...&gt;</c>).
+    /// </summary>
+    DenseBooleanArrayAttribute = 11,
+
+    /// <summary>
+    /// The constraint parses a dense array of integer values (<c>array&lt;i32: ...&gt;</c>, etc.).
+    /// </summary>
+    DenseIntegerArrayAttribute = 12,
+
+    /// <summary>
+    /// The constraint parses a dense array of floating-point values (<c>array&lt;f32: ...&gt;</c>, etc.).
+    /// </summary>
+    DenseFloatingPointArrayAttribute = 13,
 }

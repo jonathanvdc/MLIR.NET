@@ -233,11 +233,10 @@ public sealed class DialectIntegrationTests
 
         var operation = Assert.IsType<MiniArith_AddArrayImmediateOp>(Assert.Single(module.Operations));
         var value = operation.Value;
-        Assert.IsType<DenseArrayAttributeValueSyntax>(value.Syntax);
-        var first = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Items[0]);
-        var second = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Items[1]);
-        Assert.Equal(new System.Numerics.BigInteger(1), first.Value);
-        Assert.Equal(new System.Numerics.BigInteger(2), second.Value);
+        Assert.IsType<DenseArrayAttributeValueSyntax>(operation.Attributes["value"].Value.Syntax);
+        Assert.Equal(2, value.Count);
+        Assert.Equal(new System.Numerics.BigInteger(1), value[0]);
+        Assert.Equal(new System.Numerics.BigInteger(2), value[1]);
     }
 
     [Fact]

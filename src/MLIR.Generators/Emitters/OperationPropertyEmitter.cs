@@ -98,6 +98,16 @@ internal static class OperationPropertyEmitter
                 builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
                 builder.AppendLine("    }");
             }
+            else if (OperationAttributeValueHelpers.IsDenseCollectionConstraintKind(member.ConstraintKind))
+            {
+                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
+                builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
+                builder.AppendLine("    }");
+            }
             else
             {
                 var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);

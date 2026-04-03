@@ -10,9 +10,10 @@ using MLIR.Text;
 using MLIR.Transforms;
 
 /// <summary>
-/// Parses dense array attribute literals such as <c>array&lt;i32: 1, 2&gt;</c>.
+/// Base class for parsing dense array attribute literals such as <c>array&lt;i32: 1, 2&gt;</c>.
+/// Subclasses specialise element parsing and synthesis for a concrete element type.
 /// </summary>
-public sealed class DenseArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
+public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
     public bool TryParse(AttributeParsingContext context, out AttributeValueSyntax? syntax)
@@ -60,7 +61,7 @@ public sealed class DenseArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is not ArrayAttributeValue arrayAttribute)
+        if (attribute is not DenseArrayAttributeValue<TElement> denseArray)
         {
             return attribute.Syntax ?? throw new System.InvalidOperationException("Dense array attributes require syntax to rebuild their assembly form.");
         }
@@ -70,10 +71,10 @@ public sealed class DenseArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
             return denseArraySyntax;
         }
 
-        var itemSyntax = new List<AttributeValueSyntax>(arrayAttribute.Items.Count);
-        for (var i = 0; i < arrayAttribute.Items.Count; i++)
+        var itemSyntax = new List<AttributeValueSyntax>(denseArray.Items.Count);
+        for (var i = 0; i < denseArray.Items.Count; i++)
         {
-            itemSyntax.Add(context.BuildAttributeValueSyntax(arrayAttribute.Items[i]));
+            itemSyntax.Add(ElementToSyntax(denseArray.Items[i]));
         }
 
         var separators = new List<SyntaxToken>(itemSyntax.Count > 0 ? itemSyntax.Count - 1 : 0);
@@ -85,11 +86,21 @@ public sealed class DenseArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
         return new DenseArrayAttributeValueSyntax(
             new SyntaxToken("array"),
             new SyntaxToken("<"),
-            InferElementTypeSyntax(arrayAttribute),
+            GetElementTypeSyntax(attribute.Definition?.Name ?? attribute.Name),
             new SyntaxToken(":"),
             new DelimitedSyntaxList<AttributeValueSyntax>(null, itemSyntax, separators, null),
             new SyntaxToken(">"));
     }
+
+    /// <summary>
+    /// Converts a single element value to its attribute-value syntax representation.
+    /// </summary>
+    protected abstract AttributeValueSyntax ElementToSyntax(TElement element);
+
+    /// <summary>
+    /// Returns the MLIR element-type syntax for the given constraint name (e.g. <c>i32</c>, <c>f32</c>).
+    /// </summary>
+    protected abstract TypeSyntax GetElementTypeSyntax(string? constraintName);
 
     private static DenseArrayAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
@@ -99,21 +110,5 @@ public sealed class DenseArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
         }
 
         return (DenseArrayAttributeValueSyntax)binder.ReparseAttributeValueSyntax(syntax.GetRawText(), definition);
-    }
-
-    private static TypeSyntax InferElementTypeSyntax(ArrayAttributeValue arrayAttribute)
-    {
-        var name = arrayAttribute.Definition?.Name ?? arrayAttribute.Name;
-        return name switch
-        {
-            "DenseBoolArrayAttr" => new RawTypeSyntax(new RawSyntaxText("i1")),
-            "DenseI8ArrayAttr" => new RawTypeSyntax(new RawSyntaxText("i8")),
-            "DenseI16ArrayAttr" => new RawTypeSyntax(new RawSyntaxText("i16")),
-            "DenseI32ArrayAttr" => new RawTypeSyntax(new RawSyntaxText("i32")),
-            "DenseI64ArrayAttr" => new RawTypeSyntax(new RawSyntaxText("i64")),
-            "DenseF32ArrayAttr" => new RawTypeSyntax(new RawSyntaxText("f32")),
-            "DenseF64ArrayAttr" => new RawTypeSyntax(new RawSyntaxText("f64")),
-            _ => new RawTypeSyntax(new RawSyntaxText("unknown")),
-        };
     }
 }

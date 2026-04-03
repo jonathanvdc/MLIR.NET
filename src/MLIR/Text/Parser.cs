@@ -21,7 +21,7 @@ public sealed class Parser
     private static readonly IntegerLiteralAttributeAssemblyFormat IntegerLiteralAttributeAssemblyFormat = new();
     private static readonly FloatingPointLiteralAttributeAssemblyFormat FloatingPointLiteralAttributeAssemblyFormat = new();
     private static readonly StringLiteralAttributeAssemblyFormat StringLiteralAttributeAssemblyFormat = new();
-    private static readonly DenseArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
+    private static readonly DenseIntegerArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
 
     private Parser(string source, DialectRegistry? dialectRegistry = null)

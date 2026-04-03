@@ -16,6 +16,13 @@ internal static class OperationAttributeValueHelpers
         return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral;
     }
 
+    public static bool IsDenseCollectionConstraintKind(AttributeConstraintKind kind)
+    {
+        return kind is AttributeConstraintKind.DenseBooleanArrayAttribute
+            or AttributeConstraintKind.DenseIntegerArrayAttribute
+            or AttributeConstraintKind.DenseFloatingPointArrayAttribute;
+    }
+
     public static string GetAttributeGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName)
     {
         var isOptional = IsOptionalMember(member);
@@ -41,14 +48,25 @@ internal static class OperationAttributeValueHelpers
             return valueAccess;
         }
 
-        var baseTypeName = isOptional ? member.TypeName.Substring(0, member.TypeName.Length - 1) : member.TypeName;
-        var castExpr = "(" + baseTypeName + ")";
-        if (isOptional)
+        if (IsDenseCollectionConstraintKind(member.ConstraintKind))
         {
-            return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + castExpr + localName + ".Value : null";
+            var castExpr = "((" + member.ConstraintClassName + ")";
+            if (isOptional)
+            {
+                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + castExpr + localName + ".Value).Items : null";
+            }
+
+            return castExpr + "Attributes[" + sourceNameLiteral + "].Value).Items";
         }
 
-        return castExpr + "Attributes[" + sourceNameLiteral + "].Value";
+        var baseTypeName = isOptional ? member.TypeName.Substring(0, member.TypeName.Length - 1) : member.TypeName;
+        var genericCastExpr = "(" + baseTypeName + ")";
+        if (isOptional)
+        {
+            return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + genericCastExpr + localName + ".Value : null";
+        }
+
+        return genericCastExpr + "Attributes[" + sourceNameLiteral + "].Value";
     }
 
     public static string GetAttributeSetterExpression(GeneratedMember member, string sourceNameLiteral, string valueExpression)
@@ -87,6 +105,17 @@ internal static class OperationAttributeValueHelpers
             if (IsValueTypeConstraintKind(member.ConstraintKind))
             {
                 return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ".Value)) : null";
+            }
+
+            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
+        }
+
+        if (IsDenseCollectionConstraintKind(member.ConstraintKind))
+        {
+            var constraintClass = member.ConstraintClassName!;
+            if (!isOptional)
+            {
+                return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + "))";
             }
 
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";

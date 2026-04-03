@@ -32,6 +32,48 @@ public static class StructuredAttributeSemanticDecoder
     }
 
     /// <summary>
+    /// Decodes a list of attribute-value syntax nodes into a list of <see cref="BigInteger"/> values.
+    /// </summary>
+    public static IReadOnlyList<BigInteger> DecodeIntegerItems(IReadOnlyList<AttributeValueSyntax> items)
+    {
+        var result = new List<BigInteger>(items.Count);
+        for (var i = 0; i < items.Count; i++)
+        {
+            result.Add(DecodeIntegerValue(items[i]));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Decodes a list of attribute-value syntax nodes into a list of <see cref="bool"/> values.
+    /// </summary>
+    public static IReadOnlyList<bool> DecodeBooleanItems(IReadOnlyList<AttributeValueSyntax> items)
+    {
+        var result = new List<bool>(items.Count);
+        for (var i = 0; i < items.Count; i++)
+        {
+            result.Add(DecodeBooleanValue(items[i]));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Decodes a list of attribute-value syntax nodes into a list of <see cref="double"/> values.
+    /// </summary>
+    public static IReadOnlyList<double> DecodeFloatingPointItems(IReadOnlyList<AttributeValueSyntax> items)
+    {
+        var result = new List<double>(items.Count);
+        for (var i = 0; i < items.Count; i++)
+        {
+            result.Add(DecodeFloatingPointValue(items[i]));
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Decodes a structured named-attribute list into a semantic attribute collection.
     /// </summary>
     public static NamedAttributeCollection DecodeAttributes(IReadOnlyList<NamedAttributeSyntax> attributes)
@@ -58,13 +100,73 @@ public static class StructuredAttributeSemanticDecoder
             StringAttributeValueSyntax stringSyntax => new DecodedStringAttributeValue(stringSyntax),
             UnitAttributeValueSyntax unitSyntax => new DecodedUnitAttributeValue(unitSyntax),
             TypeAttributeValueSyntax typeSyntax => new DecodedTypeAttributeValue(typeSyntax),
-            DenseArrayAttributeValueSyntax denseArraySyntax => new DecodedDenseArrayAttributeValue(denseArraySyntax),
+            DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
             ArrayAttributeValueSyntax arraySyntax => new DecodedArrayAttributeValue(arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DecodedDictionaryAttributeValue(dictionarySyntax),
             ElementsAttributeValueSyntax elementsSyntax => new DecodedElementsAttributeValue(elementsSyntax),
             RawAttributeValueSyntax rawSyntax => DecodeRawValue(rawSyntax),
             _ => new UnknownAttributeValue(syntax, null, null, syntax.Location),
         };
+    }
+
+    private static AttributeValue DecodeDenseArrayValue(DenseArrayAttributeValueSyntax syntax)
+    {
+        var typeText = syntax.ElementTypeSyntax.GetRawText().Text;
+        return typeText switch
+        {
+            "i1" => new DecodedDenseBooleanArrayAttributeValue(syntax),
+            "i8" or "i16" or "i32" or "i64" => new DecodedDenseIntegerArrayAttributeValue(syntax),
+            "f32" or "f64" or "bf16" => new DecodedDenseFloatingPointArrayAttributeValue(syntax),
+            _ => new DecodedDenseIntegerArrayAttributeValue(syntax),
+        };
+    }
+
+    private static BigInteger DecodeIntegerValue(AttributeValueSyntax syntax)
+    {
+        if (syntax is IntegerAttributeValueSyntax intSyntax)
+        {
+            return intSyntax.Value;
+        }
+
+        if (syntax is RawAttributeValueSyntax rawSyntax
+            && BigInteger.TryParse(rawSyntax.RawText.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        return BigInteger.Zero;
+    }
+
+    private static bool DecodeBooleanValue(AttributeValueSyntax syntax)
+    {
+        if (syntax is BooleanAttributeValueSyntax boolSyntax)
+        {
+            return boolSyntax.Value;
+        }
+
+        if (syntax is RawAttributeValueSyntax rawSyntax)
+        {
+            return rawSyntax.RawText.Text == "true";
+        }
+
+        return false;
+    }
+
+    private static double DecodeFloatingPointValue(AttributeValueSyntax syntax)
+    {
+        if (syntax is FloatingPointAttributeValueSyntax fpSyntax
+            && double.TryParse(fpSyntax.LiteralText, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+        {
+            return parsed;
+        }
+
+        if (syntax is RawAttributeValueSyntax rawSyntax
+            && double.TryParse(rawSyntax.RawText.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out var rawParsed))
+        {
+            return rawParsed;
+        }
+
+        return 0.0;
     }
 
     private static AttributeValue DecodeRawValue(RawAttributeValueSyntax syntax)
@@ -188,15 +290,36 @@ public static class StructuredAttributeSemanticDecoder
         public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
-    private sealed class DecodedDenseArrayAttributeValue : ArrayAttributeValue
+    private sealed class DecodedDenseIntegerArrayAttributeValue : DenseIntegerArrayAttributeValue
     {
-        public DecodedDenseArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeItems(syntax.Items.Items))
+        public DecodedDenseIntegerArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeIntegerItems(syntax.Items.Items))
         {
-            ElementTypeSyntax = syntax.ElementTypeSyntax;
         }
 
-        public TypeSyntax ElementTypeSyntax { get; }
+        public override string? Name => null;
+
+        public override Dialects.AttributeConstraintDefinition? Definition => null;
+    }
+
+    private sealed class DecodedDenseBooleanArrayAttributeValue : DenseBooleanArrayAttributeValue
+    {
+        public DecodedDenseBooleanArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeBooleanItems(syntax.Items.Items))
+        {
+        }
+
+        public override string? Name => null;
+
+        public override Dialects.AttributeConstraintDefinition? Definition => null;
+    }
+
+    private sealed class DecodedDenseFloatingPointArrayAttributeValue : DenseFloatingPointArrayAttributeValue
+    {
+        public DecodedDenseFloatingPointArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeFloatingPointItems(syntax.Items.Items))
+        {
+        }
 
         public override string? Name => null;
 
