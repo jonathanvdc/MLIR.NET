@@ -16,6 +16,16 @@ using MLIR.Dialects.Attributes.Primitives;
 /// </summary>
 public sealed class Parser
 {
+    private readonly struct ParseMark
+    {
+        public ParseMark(int position)
+        {
+            Position = position;
+        }
+
+        public int Position { get; }
+    }
+
     private readonly string source;
     private readonly IReadOnlyList<Token> tokens;
     private readonly DialectRegistry? dialectRegistry;
@@ -152,47 +162,8 @@ public sealed class Parser
                 projectedBody!);
         }
 
-        var openParenthesisToken = ExpectToken(TokenKind.LParen, "Expected '(' to start the operand list.");
-        var operandTokens = new List<SyntaxToken>();
-        var operandCommaTokens = new List<SyntaxToken>();
-
-        if (!TryMatch(TokenKind.RParen, out var closeParenthesisTokenValue))
-        {
-            operandTokens.Add(ParseSsaToken());
-            while (TryMatch(TokenKind.Comma, out var operandCommaToken))
-            {
-                operandCommaTokens.Add(ToSyntaxToken(operandCommaToken));
-                operandTokens.Add(ParseSsaToken());
-            }
-
-            closeParenthesisTokenValue = ExpectRawToken(TokenKind.RParen, "Expected ')' to close the operand list.");
-        }
-
-        var openSuccessorBracketToken = default(SyntaxToken);
-        var closeSuccessorBracketToken = default(SyntaxToken);
-        var hasSuccessors = false;
-        var successorTokens = new List<SyntaxToken>();
-        var successorCommaTokens = new List<SyntaxToken>();
-
-        if (TryMatch(TokenKind.LBracket, out var openSuccessorBracketValue))
-        {
-            hasSuccessors = true;
-            openSuccessorBracketToken = ToSyntaxToken(openSuccessorBracketValue);
-
-            if (!TryMatch(TokenKind.RBracket, out var closeSuccessorBracketValue))
-            {
-                successorTokens.Add(ParseBlockLabelToken());
-                while (TryMatch(TokenKind.Comma, out var successorCommaToken))
-                {
-                    successorCommaTokens.Add(ToSyntaxToken(successorCommaToken));
-                    successorTokens.Add(ParseBlockLabelToken());
-                }
-
-                closeSuccessorBracketValue = ExpectRawToken(TokenKind.RBracket, "Expected ']' to close the successor list.");
-            }
-
-            closeSuccessorBracketToken = ToSyntaxToken(closeSuccessorBracketValue);
-        }
+        var operands = ParseOperandsInternal();
+        var successors = ParseSuccessorsInternal();
 
         var regions = new List<RegionSyntax>();
         while (Is(TokenKind.LBrace) && IsRegionStart())
@@ -200,29 +171,7 @@ public sealed class Parser
             regions.Add(ParseRegion());
         }
 
-        var openAttributeBraceToken = default(SyntaxToken);
-        var closeAttributeBraceToken = default(SyntaxToken);
-        var hasAttributes = false;
-        var attributes = new List<NamedAttributeSyntax>();
-        var attributeCommaTokens = new List<SyntaxToken>();
-        if (Is(TokenKind.LBrace))
-        {
-            hasAttributes = true;
-            openAttributeBraceToken = ExpectToken(TokenKind.LBrace, "Expected '{' to start an attribute dictionary.");
-            if (!TryMatch(TokenKind.RBrace, out var closeAttributeBraceValue))
-            {
-                attributes.Add(ParseAttribute());
-                while (TryMatch(TokenKind.Comma, out var attributeCommaToken))
-                {
-                    attributeCommaTokens.Add(ToSyntaxToken(attributeCommaToken));
-                    attributes.Add(ParseAttribute());
-                }
-
-                closeAttributeBraceValue = ExpectRawToken(TokenKind.RBrace, "Expected '}' to close the attribute dictionary.");
-            }
-
-            closeAttributeBraceToken = ToSyntaxToken(closeAttributeBraceValue);
-        }
+        var attributes = ParseAttrDictInternal();
 
         SyntaxToken? typeSignatureColonToken = null;
         TypeSyntax? typeSignatureSyntax = null;
@@ -237,22 +186,10 @@ public sealed class Parser
             resultCommaTokens,
             equalsToken,
             nameToken,
-            new DelimitedSyntaxList<SyntaxToken>(
-                openParenthesisToken,
-                operandTokens,
-                operandCommaTokens,
-                ToSyntaxToken(closeParenthesisTokenValue)),
-            new DelimitedSyntaxList<SyntaxToken>(
-                hasSuccessors ? openSuccessorBracketToken : null,
-                successorTokens,
-                successorCommaTokens,
-                hasSuccessors ? closeSuccessorBracketToken : null),
+            operands,
+            successors,
             regions,
-            new DelimitedSyntaxList<NamedAttributeSyntax>(
-                hasAttributes ? openAttributeBraceToken : null,
-                attributes,
-                attributeCommaTokens,
-                hasAttributes ? closeAttributeBraceToken : null),
+            attributes,
             typeSignatureColonToken,
             typeSignatureSyntax);
     }
@@ -260,24 +197,19 @@ public sealed class Parser
     private bool TryParseProjectedCustomLikeOperationBody(out OperationBodySyntax? body)
     {
         body = null;
-        var checkpoint = position;
+        var checkpoint = Mark();
 
         var operandTokens = new List<SyntaxToken>();
         var operandCommaTokens = new List<SyntaxToken>();
         if (Is(TokenKind.SsaName))
         {
-            operandTokens.Add(ParseSsaToken());
-            while (TryMatch(TokenKind.Comma, out var operandCommaToken))
-            {
-                operandCommaTokens.Add(ToSyntaxToken(operandCommaToken));
-                operandTokens.Add(ParseSsaToken());
-            }
+            ParseCommaSeparatedItems(operandTokens, operandCommaTokens, ParseSsaToken);
         }
 
         var attributeDict = ParseAttrDictInternal();
         if (!TryMatch(TokenKind.Colon, out var colonToken))
         {
-            position = checkpoint;
+            Reset(checkpoint);
             return false;
         }
 
@@ -315,7 +247,7 @@ public sealed class Parser
             return false;
         }
 
-        var checkpoint = position;
+        var checkpoint = Mark();
         if (definition.AssemblyFormat.TryParse(
             nameToken,
             resultTokens,
@@ -328,7 +260,7 @@ public sealed class Parser
             return true;
         }
 
-        position = checkpoint;
+        Reset(checkpoint);
         return false;
     }
 
@@ -380,28 +312,11 @@ public sealed class Parser
     private BlockSyntax ParseBlock()
     {
         var labelToken = ParseBlockLabelToken();
-        SyntaxToken? openParenthesisToken = null;
-        SyntaxToken? closeParenthesisToken = null;
-        var arguments = new List<BlockArgumentSyntax>();
-        var argumentCommaTokens = new List<SyntaxToken>();
-
-        if (TryMatch(TokenKind.LParen, out var openParenthesisTokenValue))
-        {
-            openParenthesisToken = ToSyntaxToken(openParenthesisTokenValue);
-            if (!TryMatch(TokenKind.RParen, out var closeParenthesisTokenValue))
-            {
-                arguments.Add(ParseBlockArgument());
-                while (TryMatch(TokenKind.Comma, out var argumentCommaToken))
-                {
-                    argumentCommaTokens.Add(ToSyntaxToken(argumentCommaToken));
-                    arguments.Add(ParseBlockArgument());
-                }
-
-                closeParenthesisTokenValue = ExpectRawToken(TokenKind.RParen, "Expected ')' after block argument list.");
-            }
-
-            closeParenthesisToken = ToSyntaxToken(closeParenthesisTokenValue);
-        }
+        var arguments = ParseOptionalCommaSeparatedDelimitedList(
+            TokenKind.LParen,
+            TokenKind.RParen,
+            ParseBlockArgument,
+            "Expected ')' after block argument list.");
 
         var colonToken = ExpectToken(TokenKind.Colon, "Expected ':' after block label.");
         var operations = new List<OperationSyntax>();
@@ -413,7 +328,7 @@ public sealed class Parser
 
         return new BlockSyntax(
             labelToken,
-            new DelimitedSyntaxList<BlockArgumentSyntax>(openParenthesisToken, arguments, argumentCommaTokens, closeParenthesisToken),
+            arguments,
             colonToken,
             operations);
     }
@@ -591,36 +506,26 @@ public sealed class Parser
     private bool TryParseWith(AttributeConstraintDefinition? definition, IAttributeAssemblyFormat assemblyFormat, out AttributeValueSyntax syntax)
     {
         syntax = null!;
-        var checkpoint = position;
+        var checkpoint = Mark();
         if (assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var customSyntax))
         {
             syntax = customSyntax!;
             return true;
         }
 
-        position = checkpoint;
+        Reset(checkpoint);
         return false;
     }
 
     private ArrayAttributeValueSyntax ParseArrayAttributeValueSyntax()
     {
-        var openBracket = ExpectToken(TokenKind.LBracket, "Expected '[' to start the array attribute.");
-        var items = new List<AttributeValueSyntax>();
-        var commas = new List<SyntaxToken>();
-
-        if (!TryMatch(TokenKind.RBracket, out var closeBracket))
-        {
-            items.Add(ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket));
-            while (TryMatch(TokenKind.Comma, out var comma))
-            {
-                commas.Add(ToSyntaxToken(comma));
-                items.Add(ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket));
-            }
-
-            closeBracket = ExpectRawToken(TokenKind.RBracket, "Expected ']' to close the array attribute.");
-        }
-
-        return new ArrayAttributeValueSyntax(openBracket, items, commas, ToSyntaxToken(closeBracket));
+        var list = ParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LBracket,
+            TokenKind.RBracket,
+            () => ParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
+            "Expected '[' to start the array attribute.",
+            "Expected ']' to close the array attribute.");
+        return new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value);
     }
 
     private static AttributeConstraintDefinition BuiltinAttributeConstraintDefinition(string name)
@@ -636,14 +541,14 @@ public sealed class Parser
             return false;
         }
 
-        var checkpoint = position;
+        var checkpoint = Mark();
         if (definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition), out var customSyntax))
         {
             syntax = customSyntax!;
             return true;
         }
 
-        position = checkpoint;
+        Reset(checkpoint);
         return false;
     }
 
@@ -661,21 +566,21 @@ public sealed class Parser
             return false;
         }
 
-        var checkpoint = position;
+        var checkpoint = Mark();
         if (definition.AssemblyFormat.TryParse(new TypeParsingContext(this), out var customSyntax))
         {
             syntax = customSyntax!;
             return true;
         }
 
-        position = checkpoint;
+        Reset(checkpoint);
         return false;
     }
 
     private bool TryParseBuiltinTypeSyntax(TokenKind[] stopBefore, bool stopAtOperationBoundary, out TypeSyntax syntax)
     {
         syntax = null!;
-        var checkpoint = position;
+        var checkpoint = Mark();
         if (TryParseFunctionTypeSyntax(stopBefore, stopAtOperationBoundary, out syntax)
             || TryParseTupleTypeSyntax(out syntax)
             || TryParseTensorTypeSyntax(out syntax)
@@ -686,7 +591,7 @@ public sealed class Parser
             return true;
         }
 
-        position = checkpoint;
+        Reset(checkpoint);
         return false;
     }
 
@@ -735,11 +640,11 @@ public sealed class Parser
             return false;
         }
 
-        var checkpoint = position;
+        var checkpoint = Mark();
         var inputs = ParseTypeList(TokenKind.LParen, TokenKind.RParen, stopAtOperationBoundary: false);
         if (!TryMatch(TokenKind.Arrow, out var arrowToken))
         {
-            position = checkpoint;
+            Reset(checkpoint);
             return false;
         }
 
@@ -768,22 +673,14 @@ public sealed class Parser
         }
 
         var keyword = ExpectKeywordInternal("tuple", "Expected 'tuple'.");
-        var lessThan = ExpectToken(TokenKind.LessThan, "Expected '<' after 'tuple'.");
-        var elements = new List<TypeSyntax>();
-        var commas = new List<SyntaxToken>();
-        if (!TryMatch(TokenKind.GreaterThan, out var greaterThan))
-        {
-            elements.Add(ParseTypeSyntax(TokenKind.Comma, TokenKind.GreaterThan));
-            while (TryMatch(TokenKind.Comma, out var comma))
-            {
-                commas.Add(ToSyntaxToken(comma));
-                elements.Add(ParseTypeSyntax(TokenKind.Comma, TokenKind.GreaterThan));
-            }
+        var elements = ParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LessThan,
+            TokenKind.GreaterThan,
+            () => ParseTypeSyntax(TokenKind.Comma, TokenKind.GreaterThan),
+            "Expected '<' after 'tuple'.",
+            "Expected '>' to close the tuple type.");
 
-            greaterThan = ExpectRawToken(TokenKind.GreaterThan, "Expected '>' to close the tuple type.");
-        }
-
-        syntax = new TupleTypeSyntax(keyword, lessThan, elements, commas, ToSyntaxToken(greaterThan));
+        syntax = new TupleTypeSyntax(keyword, elements.OpenToken!.Value, elements.Items, elements.SeparatorTokens, elements.CloseToken!.Value);
         return true;
     }
 
@@ -825,13 +722,13 @@ public sealed class Parser
             return false;
         }
 
-        var checkpoint = position;
+        var checkpoint = Mark();
         var keyword = ExpectKeywordInternal("vector", "Expected 'vector'.");
         var lessThan = ExpectToken(TokenKind.LessThan, "Expected '<' after 'vector'.");
         var prefix = ParseRawUntilDelimiter(TokenKind.GreaterThan);
         if (!TryParseShapedTypeBody(prefix.Text, allowUnranked: false, minimumDimensionCount: 1, out var dimensions, out var xTokens, out _, out var elementTypeText))
         {
-            position = checkpoint;
+            Reset(checkpoint);
             return false;
         }
 
@@ -937,22 +834,12 @@ public sealed class Parser
 
     private DelimitedSyntaxList<TypeSyntax> ParseTypeList(TokenKind openKind, TokenKind closeKind, bool stopAtOperationBoundary)
     {
-        var openToken = ExpectToken(openKind, $"Expected '{TokenText(openKind)}' to start the type list.");
-        var items = new List<TypeSyntax>();
-        var separators = new List<SyntaxToken>();
-        if (!TryMatch(closeKind, out var closeToken))
-        {
-            items.Add(ParseTypeSyntaxCore([TokenKind.Comma, closeKind], stopAtOperationBoundary));
-            while (TryMatch(TokenKind.Comma, out var comma))
-            {
-                separators.Add(ToSyntaxToken(comma));
-                items.Add(ParseTypeSyntaxCore([TokenKind.Comma, closeKind], stopAtOperationBoundary));
-            }
-
-            closeToken = ExpectRawToken(closeKind, $"Expected '{TokenText(closeKind)}' to close the type list.");
-        }
-
-        return new DelimitedSyntaxList<TypeSyntax>(openToken, items, separators, ToSyntaxToken(closeToken));
+        return ParseRequiredCommaSeparatedDelimitedList(
+            openKind,
+            closeKind,
+            () => ParseTypeSyntaxCore([TokenKind.Comma, closeKind], stopAtOperationBoundary),
+            $"Expected '{TokenText(openKind)}' to start the type list.",
+            $"Expected '{TokenText(closeKind)}' to close the type list.");
     }
 
     private static bool TryParseBuiltinIntegerName(string text, out IntegerTypeSignedness signedness, out int width)
@@ -1032,77 +919,17 @@ public sealed class Parser
 
     private RawSyntaxText ParseRawUntilDelimiterOrKeyword(TokenKind[] delimiters, string[] keywords)
     {
-        var start = Current.FullStart;
-        var firstTokenIndex = position;
-        var depthParen = 0;
-        var depthBrace = 0;
-        var depthBracket = 0;
-        var depthAngle = 0;
-
-        // Raw syntax fragments may themselves contain nested delimiters, so only stop when
-        // we reach one of the requested delimiters at the outermost nesting level.
-        while (true)
-        {
-            if (depthParen == 0 && depthBrace == 0 && depthBracket == 0 && depthAngle == 0)
-            {
-                if (delimiters.Contains(Current.Kind))
-                {
-                    break;
-                }
-
-                if (Current.Kind == TokenKind.Identifier && keywords.Contains(Current.Text))
-                {
-                    break;
-                }
-            }
-
-            if (Is(TokenKind.EndOfFile))
-            {
-                throw Error("Unexpected end of file while parsing raw syntax.");
-            }
-
-            UpdateDepth(Current.Kind, ref depthParen, ref depthBrace, ref depthBracket, ref depthAngle);
-            ConsumeToken();
-        }
-
-        var firstToken = tokens[firstTokenIndex];
-        var end = tokens[position - 1].End;
-
-        return new RawSyntaxText(
-            CreateSyntaxTokenList(tokens, firstTokenIndex, position),
-            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart));
+        return ScanRawFragment(
+            delimiters,
+            keywords,
+            stopAtOperationBoundary: false,
+            allowEmpty: false,
+            eofMessage: "Unexpected end of file while parsing raw syntax.");
     }
 
     private RawSyntaxText ParseRawUntilOperationBoundary()
     {
-        var start = Current.FullStart;
-        var firstTokenIndex = position;
-        var depthParen = 0;
-        var depthBrace = 0;
-        var depthBracket = 0;
-        var depthAngle = 0;
-
-        while (!Is(TokenKind.EndOfFile))
-        {
-            if (depthParen == 0 &&
-                depthBrace == 0 &&
-                depthBracket == 0 &&
-                depthAngle == 0 &&
-                IsOperationBoundary(Current, false))
-            {
-                break;
-            }
-
-            UpdateDepth(Current.Kind, ref depthParen, ref depthBrace, ref depthBracket, ref depthAngle);
-            ConsumeToken();
-        }
-
-        var firstToken = tokens[firstTokenIndex];
-        var end = tokens[position - 1].End;
-
-        return new RawSyntaxText(
-            CreateSyntaxTokenList(tokens, firstTokenIndex, position),
-            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart));
+        return ScanRawFragment([], [], stopAtOperationBoundary: true, allowEmpty: false, eofMessage: null);
     }
 
     private bool IsRegionStart()
@@ -1233,6 +1060,166 @@ public sealed class Parser
         return Current.Kind == kind;
     }
 
+    private ParseMark Mark()
+    {
+        return new ParseMark(position);
+    }
+
+    private void Reset(ParseMark mark)
+    {
+        position = mark.Position;
+    }
+
+    private void ParseCommaSeparatedItems<T>(
+        List<T> items,
+        List<SyntaxToken> separators,
+        Func<T> parseElement)
+    {
+        items.Add(parseElement());
+        while (TryMatch(TokenKind.Comma, out var comma))
+        {
+            separators.Add(ToSyntaxToken(comma));
+            items.Add(parseElement());
+        }
+    }
+
+    private DelimitedSyntaxList<T> ParseRequiredCommaSeparatedDelimitedList<T>(
+        TokenKind openKind,
+        TokenKind closeKind,
+        Func<T> parseElement,
+        string openMessage,
+        string closeMessage)
+    {
+        var openToken = ExpectToken(openKind, openMessage);
+        return ParseCommaSeparatedDelimitedListCore(openToken, closeKind, parseElement, closeMessage);
+    }
+
+    private DelimitedSyntaxList<T> ParseOptionalCommaSeparatedDelimitedList<T>(
+        TokenKind openKind,
+        TokenKind closeKind,
+        Func<T> parseElement,
+        string closeMessage)
+    {
+        if (!TryMatch(openKind, out var openToken))
+        {
+            return EmptyDelimitedSyntaxList<T>();
+        }
+
+        return ParseCommaSeparatedDelimitedListCore(ToSyntaxToken(openToken), closeKind, parseElement, closeMessage);
+    }
+
+    private DelimitedSyntaxList<T> ParseCommaSeparatedDelimitedListCore<T>(
+        SyntaxToken openToken,
+        TokenKind closeKind,
+        Func<T> parseElement,
+        string closeMessage)
+    {
+        var items = new List<T>();
+        var separators = new List<SyntaxToken>();
+        if (!TryMatch(closeKind, out var closeToken))
+        {
+            ParseCommaSeparatedItems(items, separators, parseElement);
+            closeToken = ExpectRawToken(closeKind, closeMessage);
+        }
+
+        return new DelimitedSyntaxList<T>(openToken, items, separators, ToSyntaxToken(closeToken));
+    }
+
+    private RawSyntaxText ScanRawFragment(
+        TokenKind[] delimiters,
+        string[] keywords,
+        bool stopAtOperationBoundary,
+        bool allowEmpty,
+        string? eofMessage)
+    {
+        var firstTokenIndex = position;
+        var depthParen = 0;
+        var depthBrace = 0;
+        var depthBracket = 0;
+        var depthAngle = 0;
+
+        // Raw syntax fragments may themselves contain nested delimiters, so only stop when
+        // we reach a requested delimiter or operation boundary at the outermost nesting level.
+        while (true)
+        {
+            if (depthParen == 0 && depthBrace == 0 && depthBracket == 0 && depthAngle == 0)
+            {
+                if (IsAnyDelimiter(delimiters, Current.Kind))
+                {
+                    break;
+                }
+
+                if (Current.Kind == TokenKind.Identifier && IsAnyKeyword(keywords, Current.Text))
+                {
+                    break;
+                }
+
+                if (stopAtOperationBoundary && IsOperationBoundary(Current, false))
+                {
+                    break;
+                }
+            }
+
+            if (Is(TokenKind.EndOfFile))
+            {
+                if (eofMessage != null)
+                {
+                    throw Error(eofMessage);
+                }
+
+                break;
+            }
+
+            UpdateDepth(Current.Kind, ref depthParen, ref depthBrace, ref depthBracket, ref depthAngle);
+            ConsumeToken();
+        }
+
+        if (position == firstTokenIndex)
+        {
+            return allowEmpty
+                ? new RawSyntaxText(new List<SyntaxToken>(), string.Empty)
+                : throw Error("Expected raw syntax.");
+        }
+
+        var firstToken = tokens[firstTokenIndex];
+        var end = tokens[position - 1].End;
+
+        return new RawSyntaxText(
+            CreateSyntaxTokenList(tokens, firstTokenIndex, position),
+            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart));
+    }
+
+    private static bool IsAnyDelimiter(TokenKind[] delimiters, TokenKind kind)
+    {
+        for (var i = 0; i < delimiters.Length; i++)
+        {
+            if (delimiters[i] == kind)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsAnyKeyword(string[] keywords, string text)
+    {
+        for (var i = 0; i < keywords.Length; i++)
+        {
+            if (string.Equals(keywords[i], text, System.StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static DelimitedSyntaxList<T> EmptyDelimitedSyntaxList<T>()
+    {
+        return new DelimitedSyntaxList<T>(null, new List<T>(), new List<SyntaxToken>(), null);
+    }
+
     private Token ConsumeToken()
     {
         var token = Current;
@@ -1347,74 +1334,29 @@ public sealed class Parser
 
     internal RawSyntaxText ParseRawUntilDelimiterOrBoundaryInternal(params TokenKind[] delimiters)
     {
-        var firstTokenIndex = position;
-        var depthParen = 0;
-        var depthBrace = 0;
-        var depthBracket = 0;
-        var depthAngle = 0;
-
-        while (!Is(TokenKind.EndOfFile))
-        {
-            if (depthParen == 0 && depthBrace == 0 && depthBracket == 0 && depthAngle == 0)
-            {
-                if (delimiters.Length > 0 && System.Linq.Enumerable.Contains(delimiters, Current.Kind))
-                {
-                    break;
-                }
-
-                if (IsOperationBoundary(Current, false))
-                {
-                    break;
-                }
-            }
-
-            UpdateDepth(Current.Kind, ref depthParen, ref depthBrace, ref depthBracket, ref depthAngle);
-            ConsumeToken();
-        }
-
-        if (position == firstTokenIndex)
-        {
-            return new RawSyntaxText(new List<SyntaxToken>(), string.Empty);
-        }
-
-        var firstToken = tokens[firstTokenIndex];
-        var end = tokens[position - 1].End;
-        return new RawSyntaxText(
-            CreateSyntaxTokenList(tokens, firstTokenIndex, position),
-            source.Substring(firstToken.TokenStart, end - firstToken.TokenStart));
+        return ScanRawFragment(delimiters, [], stopAtOperationBoundary: true, allowEmpty: true, eofMessage: null);
     }
 
     internal DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictInternal()
     {
         if (!Is(TokenKind.LBrace))
         {
-            return new DelimitedSyntaxList<NamedAttributeSyntax>(null, new List<NamedAttributeSyntax>(), new List<SyntaxToken>(), null);
+            return EmptyDelimitedSyntaxList<NamedAttributeSyntax>();
         }
 
-        var openBrace = ExpectToken(TokenKind.LBrace, "Expected '{' to start the attribute dictionary.");
-        var attrs = new List<NamedAttributeSyntax>();
-        var commas = new List<SyntaxToken>();
-
-        if (!TryMatch(TokenKind.RBrace, out var closeBrace))
-        {
-            attrs.Add(ParseAttribute());
-            while (TryMatch(TokenKind.Comma, out var comma))
-            {
-                commas.Add(ToSyntaxToken(comma));
-                attrs.Add(ParseAttribute());
-            }
-
-            closeBrace = ExpectRawToken(TokenKind.RBrace, "Expected '}' to close the attribute dictionary.");
-        }
-
-        return new DelimitedSyntaxList<NamedAttributeSyntax>(openBrace, attrs, commas, ToSyntaxToken(closeBrace));
+        return ParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LBrace,
+            TokenKind.RBrace,
+            ParseAttribute,
+            "Expected '{' to start the attribute dictionary.",
+            "Expected '}' to close the attribute dictionary.");
     }
 
     internal DelimitedSyntaxList<NamedAttributeSyntax> ParseAttrDictWithKeywordInternal()
     {
         if (!Is(TokenKind.Identifier) || !string.Equals(Current.Text, "attributes", System.StringComparison.Ordinal))
         {
-            return new DelimitedSyntaxList<NamedAttributeSyntax>(null, new List<NamedAttributeSyntax>(), new List<SyntaxToken>(), null);
+            return EmptyDelimitedSyntaxList<NamedAttributeSyntax>();
         }
 
         ConsumeToken();
@@ -1446,47 +1388,25 @@ public sealed class Parser
     {
         if (!Is(TokenKind.LBracket))
         {
-            return new DelimitedSyntaxList<SyntaxToken>(null, new List<SyntaxToken>(), new List<SyntaxToken>(), null);
+            return EmptyDelimitedSyntaxList<SyntaxToken>();
         }
 
-        var openBracket = ExpectToken(TokenKind.LBracket, "Expected '[' for the successor list.");
-        var successors = new List<SyntaxToken>();
-        var commas = new List<SyntaxToken>();
-
-        if (!TryMatch(TokenKind.RBracket, out var closeBracket))
-        {
-            successors.Add(ParseBlockLabelToken());
-            while (TryMatch(TokenKind.Comma, out var comma))
-            {
-                commas.Add(ToSyntaxToken(comma));
-                successors.Add(ParseBlockLabelToken());
-            }
-
-            closeBracket = ExpectRawToken(TokenKind.RBracket, "Expected ']' to close the successor list.");
-        }
-
-        return new DelimitedSyntaxList<SyntaxToken>(openBracket, successors, commas, ToSyntaxToken(closeBracket));
+        return ParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LBracket,
+            TokenKind.RBracket,
+            ParseBlockLabelToken,
+            "Expected '[' for the successor list.",
+            "Expected ']' to close the successor list.");
     }
 
     internal DelimitedSyntaxList<SyntaxToken> ParseOperandsInternal()
     {
-        var openParen = ExpectToken(TokenKind.LParen, "Expected '(' for the operand list.");
-        var operands = new List<SyntaxToken>();
-        var commas = new List<SyntaxToken>();
-
-        if (!TryMatch(TokenKind.RParen, out var closeParen))
-        {
-            operands.Add(ParseSsaToken());
-            while (TryMatch(TokenKind.Comma, out var comma))
-            {
-                commas.Add(ToSyntaxToken(comma));
-                operands.Add(ParseSsaToken());
-            }
-
-            closeParen = ExpectRawToken(TokenKind.RParen, "Expected ')' to close the operand list.");
-        }
-
-        return new DelimitedSyntaxList<SyntaxToken>(openParen, operands, commas, ToSyntaxToken(closeParen));
+        return ParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LParen,
+            TokenKind.RParen,
+            ParseSsaToken,
+            "Expected '(' for the operand list.",
+            "Expected ')' to close the operand list.");
     }
 
     internal bool IsKeywordInternal(string spelling)
