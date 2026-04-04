@@ -19,6 +19,15 @@ using MLIR.Transforms;
 /// </remarks>
 public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
 {
+    private SelectLikeOperationAssemblyFormat()
+    {
+    }
+
+    /// <summary>
+    /// Gets the singleton instance of the select-like operation assembly format.
+    /// </summary>
+    public static SelectLikeOperationAssemblyFormat Instance { get; } = new();
+
     /// <inheritdoc/>
     public ParseResult<OperationBodySyntax> TryParse(
         SyntaxToken nameToken,

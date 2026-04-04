@@ -18,7 +18,7 @@ internal static class OperationAssemblyExtensionHelpers
 
         return operation.AssemblyExtensionKind switch
         {
-            "select_like" => "new global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat()",
+            "select_like" => "global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance",
             _ => null,
         };
     }
