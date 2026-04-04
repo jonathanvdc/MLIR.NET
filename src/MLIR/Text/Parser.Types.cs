@@ -509,6 +509,32 @@ public sealed partial class Parser
         return TryParseTypeSyntaxCoreResult([], stopAtOperationBoundary: true);
     }
 
+    /// <summary>
+    /// Parses a comma-separated list of types until an operation boundary is reached.
+    /// This is used by custom operation assembly formats such as <c>type($variadic)</c>,
+    /// where the list is not enclosed in parentheses but still needs depth-aware parsing.
+    /// </summary>
+    private IReadOnlyList<TypeSyntax> ParseTypeSyntaxListUntilOperationBoundary()
+    {
+        var items = new List<TypeSyntax>();
+        while (true)
+        {
+            var itemResult = TryParseTypeSyntaxCoreResult([TokenKind.Comma], stopAtOperationBoundary: true);
+            if (!itemResult.IsSuccess)
+            {
+                throw new ParseException(itemResult.Diagnostic!);
+            }
+
+            items.Add(itemResult.Value);
+            if (!TryMatch(TokenKind.Comma, out _))
+            {
+                break;
+            }
+        }
+
+        return items;
+    }
+
     private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
     {
         return TryParseTypeSyntaxCoreResult(stopBefore, [], stopAtOperationBoundary);
@@ -547,5 +573,10 @@ public sealed partial class Parser
     internal ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundaryInternal()
     {
         return TryParseTypeSyntaxUntilOperationBoundaryResult();
+    }
+
+    internal IReadOnlyList<TypeSyntax> ParseTypeSyntaxListUntilOperationBoundaryInternal()
+    {
+        return ParseTypeSyntaxListUntilOperationBoundary();
     }
 }

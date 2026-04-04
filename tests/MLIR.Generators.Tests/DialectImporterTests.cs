@@ -244,4 +244,18 @@ public sealed class DialectImporterTests
         Assert.Null(select.AssemblyFormat);
         Assert.Equal("select_like", select.AssemblyExtensionKind);
     }
+
+    [Fact]
+    public void ImportsUnnamedVariadicResultsFromUpstreamFuncCall()
+    {
+        var dialects = DialectImporter.Import(
+            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Func/IR/FuncOps.td\"").Evaluate());
+
+        var func = Assert.Single(dialects, static dialect => dialect.Name == "func");
+        var call = Assert.Single(func.Operations, static operation => operation.Name == "func.call");
+        var result = Assert.Single(call.Results);
+
+        Assert.Equal("results", result.Name);
+        Assert.True(result.IsVariadic);
+    }
 }

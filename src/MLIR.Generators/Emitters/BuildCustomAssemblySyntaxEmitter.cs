@@ -1,6 +1,8 @@
 namespace MLIR.Generators.Emitters;
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using MLIR.ODS.Model;
 using MLIR.ODS.Model.AssemblyFormat;
@@ -101,6 +103,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             case TypeDirectiveChunk _:
             case QualifiedDirectiveChunk _:
             case ResultsDirectiveChunk _:
+            case FunctionalTypeDirectiveChunk _:
                 EmitType(builder, indent, declare);
                 break;
 
@@ -179,7 +182,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     {
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"))", declare, field.CsType) + ";");
+        builder.AppendLine(indent + DeclareOrAssign(varName, BuildTypeExpression(field), declare, field.CsType) + ";");
     }
 
     private void EmitRegions(StringBuilder builder, string indent, bool declare)
@@ -219,7 +222,10 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         for (var i = 0; i < thenFieldCount + elseFieldCount; i++)
         {
             var f = metadata.Fields[groupStart + i];
-            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = default;");
+            // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
+            // list so WriteTo can safely iterate when the optional group is not entered.
+            var defaultExpr = GetFieldDefaultExpression(f.CsType);
+            builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
         }
 
         if (thenFieldCount == 0)
@@ -280,10 +286,11 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             case TypeDirectiveChunk _:
             case QualifiedDirectiveChunk _:
             case ResultsDirectiveChunk _:
+            case FunctionalTypeDirectiveChunk _:
             {
                 var field = NextField();
                 var varName = EmitterHelpers.LowerFirst(field.Name);
-                builder.AppendLine(indent + varName + " = op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"));");
+                builder.AppendLine(indent + varName + " = " + BuildTypeExpression(field) + ";");
                 break;
             }
         }
@@ -378,7 +385,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             {
                 var field = NextField();
                 var varName = EmitterHelpers.LowerFirst(field.Name);
-                builder.AppendLine(indent + varName + " = op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"));");
+                builder.AppendLine(indent + varName + " = " + BuildTypeExpression(field) + ";");
                 break;
             }
 
@@ -437,11 +444,37 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             // independent of the narrowed property type.
             return "context.BuildAttributeValueSyntax(op.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(variableName) + "].Value)";
         }
+
+        // Check if this is a variadic operand (the generated property returns IReadOnlyList<Value>).
+        if (IsVariadicOperand(variableName))
+        {
+            // Produce a List<SyntaxToken> from the variadic value list.
+            return "op." + propName + ".Select(v => v.Token ?? new SyntaxToken(v.Name)).ToList()";
+        }
+
+        if (nullable)
+        {
+            // Nullable operand: op.Rhs is Value?
+            return "op." + propName + "!.Token ?? new SyntaxToken(op." + propName + "!.Name)";
+        }
         else
         {
             // Required operand/result: op.Lhs is Value (non-nullable)
             return "op." + propName + ".Token ?? new SyntaxToken(op." + propName + ".Name)";
         }
+    }
+
+    private bool IsVariadicOperand(string variableName)
+    {
+        foreach (var operand in operation.Operands)
+        {
+            if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
+            {
+                return operand.IsVariadic;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -450,19 +483,33 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     /// </summary>
     private string BuildNullableVariableExpression(string variableName)
     {
-        var propName = DialectGeneratorNaming.ToPascalCase(variableName);
-        if (EmitterHelpers.ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
+        return BuildVariableExpression(variableName, nullable: true);
+    }
+
+    private string BuildTypeExpression(BodySyntaxField field)
+    {
+        if (field.CsType == "IReadOnlyList<TypeSyntax>")
         {
-            // Nullable attribute: inside the trigger check, we know it's non-null.
-            // Access via Attributes collection to get the AttributeValue,
-            // independent of the narrowed property type.
-            return "context.BuildAttributeValueSyntax(op.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(variableName) + "].Value)";
+            return "op.TypeSignatureReference?.Syntax is global::MLIR.Syntax.Types.Collections.FunctionTypeSyntax functionType ? " +
+                "(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>)functionType.InputTypes.Items.ToList() : global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
         }
-        else
+
+        return "op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"))";
+    }
+
+    private static string GetFieldDefaultExpression(string csType)
+    {
+        if (csType.Contains("IReadOnlyList<SyntaxToken>", StringComparison.Ordinal))
         {
-            // Nullable operand: op.Rhs is Value?
-            return "op." + propName + "!.Token ?? new SyntaxToken(op." + propName + "!.Name)";
+            return "global::System.Array.Empty<SyntaxToken>()";
         }
+
+        if (csType.Contains("IReadOnlyList<TypeSyntax>", StringComparison.Ordinal))
+        {
+            return "global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
+        }
+
+        return "default";
     }
 
     /// <summary>
@@ -500,6 +547,12 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             }
 
             return "op." + propName + " != null";
+        }
+        else if (IsVariadicOperand(anchorName))
+        {
+            // Variadic operands are always present as a list; the anchor is true when there is
+            // at least one element (the optional group should only be emitted when non-empty).
+            return "op." + propName + ".Count > 0";
         }
         else
         {
@@ -590,6 +643,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             case TypeDirectiveChunk _: return 1;
             case QualifiedDirectiveChunk _: return 1;
             case ResultsDirectiveChunk _: return 1;
+            case FunctionalTypeDirectiveChunk _: return 1;
             case RegionsDirectiveChunk _: return 1;
             case SuccessorsDirectiveChunk _: return 1;
             case OperandsDirectiveChunk _: return 1;

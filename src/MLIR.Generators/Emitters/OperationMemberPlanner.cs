@@ -7,11 +7,11 @@ using MLIR.ODS.Model;
 internal sealed class GeneratedMember
 {
     public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
-        : this(propertyName, parameterName, typeName, sourceName, AttributeConstraintKind.None, null, false)
+        : this(propertyName, parameterName, typeName, sourceName, AttributeConstraintKind.None, null, false, false)
     {
     }
 
-    public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName, AttributeConstraintKind constraintKind, string? constraintClassName, bool usesEnumWrapper)
+    public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName, AttributeConstraintKind constraintKind, string? constraintClassName, bool usesEnumWrapper, bool isVariadic = false)
     {
         PropertyName = propertyName;
         ParameterName = parameterName;
@@ -20,6 +20,7 @@ internal sealed class GeneratedMember
         ConstraintKind = constraintKind;
         ConstraintClassName = constraintClassName;
         UsesEnumWrapper = usesEnumWrapper;
+        IsVariadic = isVariadic;
     }
 
     public string PropertyName { get; }
@@ -35,6 +36,11 @@ internal sealed class GeneratedMember
     public string? ConstraintClassName { get; }
 
     public bool UsesEnumWrapper { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether this member is variadic (zero or more values).
+    /// </summary>
+    public bool IsVariadic { get; }
 }
 
 internal sealed class OperationMemberPlan
@@ -81,8 +87,18 @@ internal static class OperationMemberPlanner
         {
             var operand = operation.Operands[i];
             var propertyName = DialectGeneratorNaming.ToPascalCase(operand.Name);
-            var typeName = requiredVariables.Contains(operand.Name) ? "Value" : "Value?";
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name));
+            string typeName;
+            if (operand.IsVariadic)
+            {
+                // Variadic operands hold zero or more values; the list is always present.
+                typeName = "global::System.Collections.Generic.IReadOnlyList<Value>";
+            }
+            else
+            {
+                typeName = requiredVariables.Contains(operand.Name) ? "Value" : "Value?";
+            }
+
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, AttributeConstraintKind.None, null, false, operand.IsVariadic));
         }
 
         return members;

@@ -3,6 +3,7 @@ namespace MLIR.Generators.Emitters;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using MLIR.ODS.Model;
 
@@ -14,32 +15,61 @@ internal static class OperationPropertyEmitter
         EmitAttributeProperties(builder, plan.Attributes);
     }
 
+    // Base-class member names in Operation that an operand or result property might shadow.
+    private static readonly System.Collections.Generic.HashSet<string> BaseClassMemberNames =
+        new(System.StringComparer.Ordinal) { "Operands", "Results", "Attributes", "Regions", "Successors" };
+
+    private static string MemberModifier(string propertyName) =>
+        BaseClassMemberNames.Contains(propertyName) ? "new " : string.Empty;
+
     private static void EmitOperandAndResultProperties(
         StringBuilder builder,
         IReadOnlyList<GeneratedMember> operandMembers,
         IReadOnlyList<GeneratedMember> resultMembers,
         OperationModel operation)
     {
+        var slotIndex = 0;
         for (var i = 0; i < operandMembers.Count; i++)
         {
             var member = operandMembers[i];
-            var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
-            builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
-            builder.AppendLine("    {");
-            builder.AppendLine("        get => Operands[" + i.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
-            builder.AppendLine("        set => SetOperand(" + i.ToString(CultureInfo.InvariantCulture) + ", value);");
-            builder.AppendLine("    }");
+            if (member.IsVariadic)
+            {
+                // Emit a read-only list property that returns all operands from the variadic slot onward.
+                // Use base.Operands to avoid shadowing issues.
+                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => base.Operands.Skip(" + slotIndex.ToString(CultureInfo.InvariantCulture) + ").Select(static o => o.Value!).ToList();");
+                builder.AppendLine("        set { var start = " + slotIndex.ToString(CultureInfo.InvariantCulture) + "; for (var _i = 0; _i < value.Count; _i++) SetOperand(start + _i, value[_i]); }");
+                builder.AppendLine("    }");
+                // A variadic consumes all remaining slots; stop indexing.
+                slotIndex = -1;
+            }
+            else
+            {
+                var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
+                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                // Use base.Operands to guard against a generated property that shadows the inherited
+                // Operands list when an operand happens to be named "Operands".
+                builder.AppendLine("        get => base.Operands[" + slotIndex.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
+                builder.AppendLine("        set => SetOperand(" + slotIndex.ToString(CultureInfo.InvariantCulture) + ", value);");
+                builder.AppendLine("    }");
+                slotIndex++;
+            }
         }
 
         for (var i = 0; i < resultMembers.Count; i++)
         {
             var member = resultMembers[i];
-            builder.AppendLine("    public OperationResult " + member.PropertyName + " => Results[" + i.ToString(CultureInfo.InvariantCulture) + "];");
+            // Use base.Results to guard against a generated property that shadows the inherited
+            // Results list when a result happens to be named "Results".
+            builder.AppendLine("    public " + MemberModifier(member.PropertyName) + "OperationResult " + member.PropertyName + " => base.Results[" + i.ToString(CultureInfo.InvariantCulture) + "];");
         }
 
         if (operation.Results.Count == 1 && operation.Results[0].Name != "result")
         {
-            builder.AppendLine("    public OperationResult " + DialectGeneratorNaming.ToPascalCase(operation.Results[0].Name) + " => ResultValue;");
+            var aliasName = DialectGeneratorNaming.ToPascalCase(operation.Results[0].Name);
+            builder.AppendLine("    public " + MemberModifier(aliasName) + "OperationResult " + aliasName + " => ResultValue;");
         }
 
         builder.AppendLine();

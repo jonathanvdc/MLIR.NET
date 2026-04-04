@@ -344,7 +344,7 @@ internal static class EmitterHelpers
             }
 
             case TypeDirectiveChunk typeDir:
-                AppendTypeField(usedNames, GetTypeBaseName(typeDir.Operand), GetDirectiveOperandName(typeDir.Operand), metadata, nullable);
+                AppendTypeField(usedNames, GetTypeBaseName(typeDir.Operand), GetDirectiveOperandName(typeDir.Operand), operation, metadata, nullable);
                 break;
 
             case SuccessorsDirectiveChunk _:
@@ -370,11 +370,15 @@ internal static class EmitterHelpers
             case QualifiedDirectiveChunk qualified:
                 // qualified(...) does not change parsing behaviour, so represent the inner
                 // type as a plain TypeSyntax field just like TypeDirectiveChunk does.
-                AppendTypeField(usedNames, GetQualifiedTypeBaseName(qualified.Operand), GetDirectiveOperandName(qualified.Operand), metadata, nullable);
+                AppendTypeField(usedNames, GetQualifiedTypeBaseName(qualified.Operand), GetDirectiveOperandName(qualified.Operand), operation, metadata, nullable);
                 break;
 
             case ResultsDirectiveChunk _:
-                AppendTypeField(usedNames, "ResultsType", "Results", metadata, nullable);
+                AppendTypeField(usedNames, "ResultsType", "Results", operation, metadata, nullable);
+                break;
+
+            case FunctionalTypeDirectiveChunk _:
+                AppendTypeField(usedNames, "FunctionalType", "Type", operation, metadata, nullable);
                 break;
 
             case OptionalGroup optionalGroup:
@@ -413,7 +417,7 @@ internal static class EmitterHelpers
                 break;
             }
 
-            // CustomDirectiveChunk, FunctionalTypeDirectiveChunk, RefDirectiveChunk → not stored in this CST class
+            // CustomDirectiveChunk, RefDirectiveChunk → not stored in this CST class
         }
     }
 
@@ -430,7 +434,7 @@ internal static class EmitterHelpers
                 break;
 
             case OilistTypeDirectiveElement typeDir:
-                AppendTypeField(usedNames, GetTypeBaseName(typeDir.Operand), GetDirectiveOperandName(typeDir.Operand), metadata, nullable: true);
+                AppendTypeField(usedNames, GetTypeBaseName(typeDir.Operand), GetDirectiveOperandName(typeDir.Operand), operation, metadata, nullable: true);
                 break;
 
             case OilistLiteralElement literal:
@@ -487,6 +491,22 @@ internal static class EmitterHelpers
             metadata.AddField(field);
             metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variableName, field.Name));
         }
+        else if (IsVariadicOperand(operation, variableName))
+        {
+            // Variadic operands use a list of SSA tokens.  The write statement iterates over
+            // the list and inserts commas between items.
+            const string csType = "global::System.Collections.Generic.IReadOnlyList<SyntaxToken>";
+            var writeStmt =
+                "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
+                "if (_i > 0) writer.WriteToken(new SyntaxToken(\",\"), \"\"); " +
+                "writer.WriteToken(" + name + "[_i], _i > 0 ? \" \" : \"\"); }";
+            var field = new BodySyntaxField(name, csType, writeStmt);
+            metadata.AddField(field);
+            metadata.AddComponentField(new BodyComponentField(
+                GetComponentKindForVariable(operation, variableName),
+                variableName,
+                field.Name));
+        }
         else
         {
             var (csType, writeStmt) = nullable
@@ -501,12 +521,46 @@ internal static class EmitterHelpers
         }
     }
 
-    private static void AppendTypeField(HashSet<string> usedNames, string baseName, string operandName, OperationBodySyntaxMetadata metadata, bool nullable)
+    /// <summary>Returns true when <paramref name="variableName"/> names a variadic operand of <paramref name="operation"/>.</summary>
+    private static bool IsVariadicOperand(OperationModel operation, string variableName)
+    {
+        foreach (var operand in operation.Operands)
+        {
+            if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
+            {
+                return operand.IsVariadic;
+            }
+        }
+
+        return false;
+    }
+
+    private static void AppendTypeField(HashSet<string> usedNames, string baseName, string operandName, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
     {
         var name = MakeUnique(baseName, usedNames);
-        var (csType, writeStmt) = nullable
-            ? ("TypeSyntax?", name + "?.WriteTo(writer, \" \");")
-            : ("TypeSyntax", name + ".WriteTo(writer, \" \");");
+        string csType;
+        string writeStmt;
+        if (IsVariadicOperand(operation, operandName))
+        {
+            csType = "IReadOnlyList<TypeSyntax>";
+            writeStmt =
+                "for (var i = 0; i < " + name + ".Count; i++)\n" +
+                "{\n" +
+                "    if (i > 0)\n" +
+                "    {\n" +
+                "        writer.WriteToken(new SyntaxToken(\",\"), string.Empty);\n" +
+                "    }\n" +
+                "\n" +
+                "    " + name + "[i].WriteTo(writer, i > 0 ? \" \" : \" \");\n" +
+                "}";
+        }
+        else
+        {
+            (csType, writeStmt) = nullable
+                ? ("TypeSyntax?", name + "?.WriteTo(writer, \" \");")
+                : ("TypeSyntax", name + ".WriteTo(writer, \" \");");
+        }
+
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Type, operandName, field.Name));

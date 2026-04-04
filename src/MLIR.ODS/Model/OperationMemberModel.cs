@@ -62,10 +62,16 @@ public sealed class OperandModel : OperationMemberModel
     /// <summary>
     /// Initializes a new instance of <see cref="OperandModel"/>.
     /// </summary>
-    public OperandModel(string name, string? constraintRecordName = null, bool isOptional = false)
+    public OperandModel(string name, string? constraintRecordName = null, bool isOptional = false, bool isVariadic = false)
         : base(name, constraintRecordName, isOptional, OperationMemberKind.Operand)
     {
+        IsVariadic = isVariadic;
     }
+
+    /// <summary>
+    /// Gets a value indicating whether this operand accepts zero or more values (variadic).
+    /// </summary>
+    public bool IsVariadic { get; }
 }
 
 /// <summary>
@@ -76,10 +82,16 @@ public sealed class ResultModel : OperationMemberModel
     /// <summary>
     /// Initializes a new instance of <see cref="ResultModel"/>.
     /// </summary>
-    public ResultModel(string name, string? constraintRecordName = null, bool isOptional = false)
+    public ResultModel(string name, string? constraintRecordName = null, bool isOptional = false, bool isVariadic = false)
         : base(name, constraintRecordName, isOptional, OperationMemberKind.Result)
     {
+        IsVariadic = isVariadic;
     }
+
+    /// <summary>
+    /// Gets a value indicating whether this result may produce zero or more values (variadic).
+    /// </summary>
+    public bool IsVariadic { get; }
 }
 
 /// <summary>
