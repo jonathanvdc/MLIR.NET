@@ -42,7 +42,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
             CreateMiniTestRegistry());
 
         Assert.Equal("minitest.cast", operation.Name);
-        Assert.Equal("%input", operation.Input.Name);
+        Assert.Equal("%input", operation.Input.Value!.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 
@@ -70,9 +70,9 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         var operation = BindSingleOperation<MiniTest_BinaryOp>(source, CreateMiniTestRegistry());
 
         Assert.Equal("minitest.binary", operation.Name);
-        Assert.Equal("%lhs", operation.Lhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
-        Assert.Equal(rhsName, operation.Rhs?.Name);
+        Assert.Equal(rhsName, operation.Rhs.Value?.Name);
     }
 
     [Theory]
@@ -117,14 +117,14 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         var rhsValue = module.Operations[1].Results[0];
         var operation = Assert.IsType<MiniTest_BinaryOp>(module.Operations[2]);
 
-        operation.Rhs = rhsValue;
+        operation.Rhs.Value = rhsValue;
 
-        Assert.Same(rhsValue, operation.Rhs);
+        Assert.Same(rhsValue, operation.Rhs.Value);
 
         var rebound = ParseAndBind(module.ToText(CustomAssemblyOptions), registry);
         var reboundOperation = Assert.IsType<MiniTest_BinaryOp>(rebound.Operations[2]);
-        Assert.NotNull(reboundOperation.Rhs);
-        Assert.Equal("%rhs", reboundOperation.Rhs!.Name);
+        Assert.NotNull(reboundOperation.Rhs.Value);
+        Assert.Equal("%rhs", reboundOperation.Rhs.Value!.Name);
     }
 
     [Fact]

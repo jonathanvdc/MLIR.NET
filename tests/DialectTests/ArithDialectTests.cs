@@ -48,8 +48,8 @@ public sealed class ArithDialectTests : DialectIntegrationTestBase
             "%sum = arith.addi %lhs, %rhs : i32",
             CreateArithRegistry());
 
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
         Assert.Equal("%sum", operation.ResultValue.Name);
     }
 
@@ -60,8 +60,8 @@ public sealed class ArithDialectTests : DialectIntegrationTestBase
             "%sum = arith.addf %lhs, %rhs : f32",
             CreateArithRegistry());
 
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
         Assert.Equal("%sum", operation.ResultValue.Name);
     }
 
@@ -72,8 +72,8 @@ public sealed class ArithDialectTests : DialectIntegrationTestBase
             "%cmp = arith.cmpi slt, %lhs, %rhs : i32",
             CreateArithRegistry());
 
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
         Assert.Equal("%cmp", operation.ResultValue.Name);
     }
 
@@ -87,8 +87,8 @@ public sealed class ArithDialectTests : DialectIntegrationTestBase
 
         Assert.DoesNotContain("\"arith.addi\"", printed);
         Assert.Contains("arith.addi", printed);
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
     }
 
     [Fact]
@@ -105,8 +105,8 @@ public sealed class ArithDialectTests : DialectIntegrationTestBase
         Assert.Contains("%lhs", printed);
         Assert.Contains("%rhs", printed);
         Assert.Contains(": i32", printed.Replace("%rhs:", "%rhs :", StringComparison.Ordinal));
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
     }
 
     [Theory]

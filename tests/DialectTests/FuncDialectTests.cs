@@ -86,7 +86,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             CreateFuncRegistry());
 
         Assert.Single(op.Operands);
-        Assert.Equal("%x", op.Operands[0].Name);
+        Assert.Equal("%x", op.Operands[0].Value!.Name);
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
         Assert.Contains("func.return", printed);
         Assert.Contains("%x", printed);
         Assert.Single(op.Operands);
-        Assert.Equal("%x", op.Operands[0].Name);
+        Assert.Equal("%x", op.Operands[0].Value!.Name);
     }
 
     /// <summary>
@@ -135,8 +135,8 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             CreateFuncRegistry());
 
         Assert.Equal(2, op.Operands.Count);
-        Assert.Equal("%x", op.Operands[0].Name);
-        Assert.Equal("%y", op.Operands[1].Name);
+        Assert.Equal("%x", op.Operands[0].Value!.Name);
+        Assert.Equal("%y", op.Operands[1].Value!.Name);
     }
 
     // ---------------------------------------------------------------------------
@@ -156,9 +156,9 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             "%result = func.call_indirect %callee(%arg0) : (i32) -> i32",
             CreateFuncRegistry());
 
-        Assert.Equal("%callee", op.Callee.Name);
+        Assert.Equal("%callee", op.Callee.Value!.Name);
         Assert.Single(op.CalleeOperands);
-        Assert.Equal("%arg0", op.CalleeOperands[0].Name);
+        Assert.Equal("%arg0", op.CalleeOperands[0].Value!.Name);
         Assert.Equal("%result", Assert.Single(op.Results).Name);
     }
 
@@ -176,9 +176,9 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
         Assert.Contains("func.call_indirect", printed);
         Assert.Contains("%callee", printed);
         Assert.Contains("%arg0", printed);
-        Assert.Equal("%callee", op.Callee.Name);
+        Assert.Equal("%callee", op.Callee.Value!.Name);
         Assert.Single(op.CalleeOperands);
-        Assert.Equal("%arg0", op.CalleeOperands[0].Name);
+        Assert.Equal("%arg0", op.CalleeOperands[0].Value!.Name);
     }
 
     /// <summary>
@@ -192,7 +192,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             "%result = func.call_indirect %callee() : () -> i32",
             CreateFuncRegistry());
 
-        Assert.Equal("%callee", op.Callee.Name);
+        Assert.Equal("%callee", op.Callee.Value!.Name);
         Assert.Empty(op.CalleeOperands);
     }
 
@@ -207,10 +207,10 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             "%result = func.call_indirect %callee(%arg0, %arg1) : (i32, i32) -> i32",
             CreateFuncRegistry());
 
-        Assert.Equal("%callee", op.Callee.Name);
+        Assert.Equal("%callee", op.Callee.Value!.Name);
         Assert.Equal(2, op.CalleeOperands.Count);
-        Assert.Equal("%arg0", op.CalleeOperands[0].Name);
-        Assert.Equal("%arg1", op.CalleeOperands[1].Name);
+        Assert.Equal("%arg0", op.CalleeOperands[0].Value!.Name);
+        Assert.Equal("%arg1", op.CalleeOperands[1].Value!.Name);
     }
 
     // ---------------------------------------------------------------------------

@@ -17,8 +17,8 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
 
         Assert.DoesNotContain("\"miniarith.addi\"", printed);
         Assert.Contains("miniarith.addi", printed);
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 
@@ -46,7 +46,7 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
 
         Assert.DoesNotContain("\"minitest.cast\"", printed);
         Assert.Contains("minitest.cast", printed);
-        Assert.Equal("%input", operation.Input.Name);
+        Assert.Equal("%input", operation.Input.Value!.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 
@@ -61,8 +61,8 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
             out var printed);
 
         Assert.Contains("minitest.binary", printed);
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal(rhsName, operation.Rhs?.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal(rhsName, operation.Rhs.Value?.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 

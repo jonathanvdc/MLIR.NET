@@ -149,8 +149,8 @@ public sealed partial class SemanticTests
             registry);
 
         var operation = Assert.IsType<GeneratedAddIOperation>(module.Operations[0]);
-        Assert.Equal("%lhs", operation.LeftOperand.Name);
-        Assert.Equal("%rhs", operation.RightOperand.Name);
+        Assert.Equal("%lhs", operation.LeftOperand.Value!.Name);
+        Assert.Equal("%rhs", operation.RightOperand.Value!.Name);
         Assert.Equal("%sum", operation.ResultValue.Name);
     }
 

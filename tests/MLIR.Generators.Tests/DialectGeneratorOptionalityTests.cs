@@ -115,7 +115,7 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
     }
 
     [Fact]
-    public void RequiredOperandInAssemblyFormatGeneratesNonNullableProperty()
+    public void RequiredOperandInAssemblyFormatGeneratesOpOperandProperty()
     {
         var registrationSource = GenerateMiniArithRegistrationSource(
             [
@@ -126,22 +126,22 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
                 "};",
             ]);
 
+        // Non-variadic operands are now exposed as OpOperand (the owning slot), with no setter.
+        // The slot always exists; callers access .Value to read or write the SSA value.
         AssertContainsAll(
             registrationSource,
-            "public Value Lhs",
-            "get => base.Operands[0].Value!;",
-            "set => SetOperand(0, value);",
-            "public Value Rhs",
-            "get => base.Operands[1].Value!;",
-            "set => SetOperand(1, value);");
+            "public OpOperand Lhs => base.Operands[0];",
+            "public OpOperand Rhs => base.Operands[1];");
         AssertDoesNotContainAny(
             registrationSource,
+            "public Value Lhs",
             "public Value? Lhs",
+            "public Value Rhs",
             "public Value? Rhs");
     }
 
     [Fact]
-    public void OptionalOperandInOptionalGroupGeneratesNullableProperty()
+    public void OptionalOperandInOptionalGroupAlsoGeneratesOpOperandProperty()
     {
         var registrationSource = GenerateMyDialectRegistrationSource(
             [
@@ -152,18 +152,18 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
                 "};",
             ]);
 
+        // Optional operands still produce an OpOperand property—the slot always exists.
+        // Whether the value is present is indicated by OpOperand.Value being non-null.
         AssertContainsAll(
             registrationSource,
-            "public Value Lhs",
-            "get => base.Operands[0].Value!;",
-            "set => SetOperand(0, value);",
-            "public Value? Rhs",
-            "get => base.Operands[1].Value;",
-            "set => SetOperand(1, value);");
+            "public OpOperand Lhs => base.Operands[0];",
+            "public OpOperand Rhs => base.Operands[1];");
         AssertDoesNotContainAny(
             registrationSource,
             "public Value? Lhs",
-            "public Value Rhs { get; }");
+            "public Value Rhs { get; }",
+            "public Value Lhs",
+            "public Value Rhs");
     }
 
     [Fact]

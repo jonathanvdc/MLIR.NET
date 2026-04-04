@@ -431,8 +431,10 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// Builds an expression to reconstruct a required (non-nullable) variable field.
-    /// For operands/results: produces a <c>SyntaxToken</c> from the value reference.
+    /// Builds an expression to reconstruct a variable field.
+    /// For variadic operands: produces a <c>List&lt;SyntaxToken&gt;</c> by accessing each slot's <c>Value</c>.
+    /// For non-variadic operands: produces a <c>SyntaxToken</c> from the <c>OpOperand.Value</c>.
+    /// For regions: produces a transformed <c>Region</c> or a <c>null</c>-guarded transform when nullable.
     /// For attributes: produces an <c>AttributeValueSyntax</c> by building the attribute value.
     /// </summary>
     private string BuildVariableExpression(string variableName, bool nullable)
@@ -460,23 +462,16 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             return "context.TransformRegion(op." + propName + ")";
         }
 
-        // Check if this is a variadic operand (the generated property returns IReadOnlyList<Value>).
+        // Check if this is a variadic operand (the generated property returns IReadOnlyList<OpOperand>).
         if (IsVariadicOperand(variableName))
         {
-            // Produce a List<SyntaxToken> from the variadic value list.
-            return "op." + propName + ".Select(v => v.Token ?? new SyntaxToken(v.Name)).ToList()";
+            // Produce a List<SyntaxToken> from the variadic operand slot list.
+            return "op." + propName + ".Select(v => v.Value!.Token ?? new SyntaxToken(v.Value!.Name)).ToList()";
         }
 
-        if (nullable)
-        {
-            // Nullable operand: op.Rhs is Value?
-            return "op." + propName + "!.Token ?? new SyntaxToken(op." + propName + "!.Name)";
-        }
-        else
-        {
-            // Required operand/result: op.Lhs is Value (non-nullable)
-            return "op." + propName + ".Token ?? new SyntaxToken(op." + propName + ".Name)";
-        }
+        // Non-variadic operand: the property returns OpOperand; access its Value to get the SSA value.
+        var valueExpr = "op." + propName + ".Value!";
+        return valueExpr + ".Token ?? new SyntaxToken(" + valueExpr + ".Name)";
     }
 
     private bool IsVariadicOperand(string variableName)
@@ -486,6 +481,19 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
             {
                 return operand.IsVariadic;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsNonVariadicOperand(string variableName)
+    {
+        foreach (var operand in operation.Operands)
+        {
+            if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
+            {
+                return !operand.IsVariadic;
             }
         }
 
@@ -596,9 +604,15 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             // at least one element (the optional group should only be emitted when non-empty).
             return "op." + propName + ".Count > 0";
         }
+        else if (IsNonVariadicOperand(anchorName))
+        {
+            // Non-variadic operands now expose the OpOperand slot (always non-null).
+            // The anchor is true when the slot holds a value.
+            return "op." + propName + ".Value != null";
+        }
         else
         {
-            // Operand or result: Value?
+            // Result or other: check for null directly.
             return "op." + propName + " != null";
         }
     }
@@ -624,6 +638,15 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                     }
 
                     return "op." + propName + " != null";
+                }
+                else if (IsVariadicOperand(variable.Name))
+                {
+                    return "op." + propName + ".Count > 0";
+                }
+                else if (IsNonVariadicOperand(variable.Name))
+                {
+                    // Non-variadic operands expose OpOperand (always non-null); check the value.
+                    return "op." + propName + ".Value != null";
                 }
                 else
                 {

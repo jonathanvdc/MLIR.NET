@@ -35,26 +35,32 @@ internal static class OperationPropertyEmitter
             var member = operandMembers[i];
             if (member.IsVariadic)
             {
-                // Emit a read-only list property that returns all operands from the variadic slot onward.
-                // Use base.Operands to avoid shadowing issues.
+                // Skip generating a redundant shadowing property: when the variadic operand starts at slot 0
+                // (covering all operands) and its name shadows a base-class member, the generated property
+                // returns the same collection as base.Operands—same type (IReadOnlyList<OpOperand>), same
+                // values—and adds no value.
+                if (slotIndex == 0 && MemberModifier(member.PropertyName).Length > 0)
+                {
+                    slotIndex = -1;
+                    continue;
+                }
+
+                // Emit a read-only list property that returns all operand slots from the variadic position
+                // onward. Use base.Operands to avoid shadowing issues.
                 builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
                 builder.AppendLine("    {");
-                builder.AppendLine("        get => base.Operands.Skip(" + slotIndex.ToString(CultureInfo.InvariantCulture) + ").Select(static o => o.Value!).ToList();");
-                builder.AppendLine("        set { var start = " + slotIndex.ToString(CultureInfo.InvariantCulture) + "; for (var _i = 0; _i < value.Count; _i++) SetOperand(start + _i, value[_i]); }");
+                builder.AppendLine("        get => base.Operands.Skip(" + slotIndex.ToString(CultureInfo.InvariantCulture) + ").ToList();");
                 builder.AppendLine("    }");
                 // A variadic consumes all remaining slots; stop indexing.
                 slotIndex = -1;
             }
             else
             {
-                var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
-                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
-                builder.AppendLine("    {");
-                // Use base.Operands to guard against a generated property that shadows the inherited
-                // Operands list when an operand happens to be named "Operands".
-                builder.AppendLine("        get => base.Operands[" + slotIndex.ToString(CultureInfo.InvariantCulture) + "].Value" + suffix + ";");
-                builder.AppendLine("        set => SetOperand(" + slotIndex.ToString(CultureInfo.InvariantCulture) + ", value);");
-                builder.AppendLine("    }");
+                // Emit a read-only property exposing the OpOperand slot directly.
+                // The slot always exists; callers access its Value to read/write the SSA value.
+                // Use base.Operands to guard against a generated property shadowing the inherited list
+                // when an operand happens to be named "Operands".
+                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + "OpOperand " + member.PropertyName + " => base.Operands[" + slotIndex.ToString(CultureInfo.InvariantCulture) + "];");
                 slotIndex++;
             }
         }

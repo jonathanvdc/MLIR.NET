@@ -35,8 +35,8 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
 
         var operation = Assert.IsType<MiniArith_AddIOp>(Assert.Single(module.Operations));
         Assert.Equal("miniarith.addi", operation.Name);
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
         Assert.NotNull(operation.TypeSignatureReference);
     }
@@ -89,8 +89,8 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         Assert.Empty(module.AssemblyDiagnostics);
         var operation = Assert.IsType<MiniArith_AddIOp>(Assert.Single(module.Operations));
         Assert.Equal("miniarith.addi", operation.Name);
-        Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal("%rhs", operation.Rhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
+        Assert.Equal("%rhs", operation.Rhs.Value!.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
         Assert.NotNull(operation.TypeSignatureReference);
     }
@@ -167,7 +167,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             "%result = miniarith.add_immediate 1, %lhs : i32",
             CreateMiniArithRegistry());
 
-        Assert.Equal("%lhs", operation.Lhs.Name);
+        Assert.Equal("%lhs", operation.Lhs.Value!.Name);
         Assert.Equal((BigInteger)1, operation.Value);
     }
 

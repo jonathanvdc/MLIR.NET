@@ -185,9 +185,9 @@ public sealed partial class SemanticTests
 
         public override OperationDefinition? Definition => definition;
 
-        public Value LeftOperand => Operands[0].Value!;
+        public OpOperand LeftOperand => Operands[0];
 
-        public Value RightOperand => Operands[1].Value!;
+        public OpOperand RightOperand => Operands[1];
 
         public OperationResult ResultValue => Results[0];
     }

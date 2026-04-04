@@ -26,6 +26,23 @@ internal static class OperationConstructorEmitter
         }
     }
 
+    /// <summary>
+    /// Emits constructor parameters for operand members.
+    /// Operand parameters always use the base construction types (<c>Value?</c> for scalar,
+    /// <c>IReadOnlyList&lt;Value&gt;</c> for variadic) regardless of the convenience-property type.
+    /// </summary>
+    private static void AppendOperandConstructorParameters(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
+    {
+        for (var i = 0; i < members.Count; i++)
+        {
+            var member = members[i];
+            var paramType = member.IsVariadic
+                ? "global::System.Collections.Generic.IReadOnlyList<Value>"
+                : "Value?";
+            builder.AppendLine("        " + paramType + " " + member.ParameterName + ",");
+        }
+    }
+
     private static void AppendNamedArguments(
         StringBuilder builder,
         IReadOnlyList<GeneratedMember> members,
@@ -71,8 +88,8 @@ internal static class OperationConstructorEmitter
             }
             else
             {
-                var suffix = member.TypeName.EndsWith("?", System.StringComparison.Ordinal) ? string.Empty : "!";
-                builder.AppendLine("            " + member.ParameterName + ": context.OperandValues[" + slotIndex.ToString(CultureInfo.InvariantCulture) + "]" + suffix + ",");
+                // context.OperandValues[i] is Value?; pass it directly as the Value? parameter.
+                builder.AppendLine("            " + member.ParameterName + ": context.OperandValues[" + slotIndex.ToString(CultureInfo.InvariantCulture) + "],");
                 slotIndex++;
             }
         }
@@ -116,7 +133,7 @@ internal static class OperationConstructorEmitter
         {
             builder.AppendLine("        global::System.Collections.Generic.IReadOnlyList<Region> regions,");
         }
-        AppendConstructorParameters(builder, operandMembers);
+        AppendOperandConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
@@ -245,7 +262,7 @@ internal static class OperationConstructorEmitter
         {
             builder.AppendLine("        global::System.Collections.Generic.IReadOnlyList<Region> regions,");
         }
-        AppendConstructorParameters(builder, operandMembers);
+        AppendOperandConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
@@ -282,7 +299,7 @@ internal static class OperationConstructorEmitter
         {
             builder.AppendLine("        global::System.Collections.Generic.IReadOnlyList<Region> regions,");
         }
-        AppendConstructorParameters(builder, operandMembers);
+        AppendOperandConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         AppendConstructorParameters(builder, attributeMembers);
         builder.AppendLine("        TypeReference? typeSignatureReference)");

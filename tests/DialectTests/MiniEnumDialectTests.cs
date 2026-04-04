@@ -17,7 +17,7 @@ public sealed class MiniEnumDialectTests : DialectIntegrationTestBase
             CreateMiniEnumRegistry());
 
         Assert.Equal(Mode.B, operation.Mode);
-        Assert.Equal("%input", operation.Input.Name);
+        Assert.Equal("%input", operation.Input.Value!.Name);
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public sealed class MiniEnumDialectTests : DialectIntegrationTestBase
             CreateMiniEnumRegistry());
 
         Assert.Equal(Flags.X | Flags.Y, operation.Flags);
-        Assert.Equal("%input", operation.Input.Name);
+        Assert.Equal("%input", operation.Input.Value!.Name);
     }
 
     [Fact]

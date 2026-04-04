@@ -106,12 +106,14 @@ internal static class OperationMemberPlanner
             string typeName;
             if (operand.IsVariadic)
             {
-                // Variadic operands hold zero or more values; the list is always present.
-                typeName = "global::System.Collections.Generic.IReadOnlyList<Value>";
+                // Variadic operands hold zero or more operand slots; expose as a read-only list of OpOperand.
+                typeName = "global::System.Collections.Generic.IReadOnlyList<OpOperand>";
             }
             else
             {
-                typeName = requiredVariables.Contains(operand.Name) ? "Value" : "Value?";
+                // Non-variadic operands expose the owning OpOperand slot directly.
+                // The slot always exists; whether its Value is non-null depends on the assembly format.
+                typeName = "OpOperand";
             }
 
             members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, null, AttributeConstraintKind.None, null, false, operand.IsVariadic));

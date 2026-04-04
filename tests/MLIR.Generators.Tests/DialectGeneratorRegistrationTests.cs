@@ -236,7 +236,7 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
     }
 
     [Fact]
-    public void KeepsShadowingOperandsPropertyBecauseItChangesType()
+    public void DoesNotGenerateRedundantShadowingOperandsProperty()
     {
         var registrationSource = GenerateMiniArithRegistrationSource(
             [
@@ -245,11 +245,46 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
                 "};",
             ]);
 
-        // A variadic operand named "operands" changes the return type from IReadOnlyList<OpOperand>
-        // (base) to IReadOnlyList<Value> (generated), which is a meaningful type transformation that
-        // downstream assembly-format code may depend on. The shadowing property is retained in this case.
-        Assert.Contains("public new", registrationSource);
-        Assert.Contains("base.Operands.Skip(", registrationSource);
+        // A variadic operand named "operands" now returns IReadOnlyList<OpOperand>, which is the same
+        // type as base.Operands. The shadowing property at slot 0 is therefore redundant and must not
+        // be generated. Callers use base.Operands directly.
+        Assert.DoesNotContain("public new", registrationSource);
+        Assert.DoesNotContain("base.Operands.Skip(", registrationSource);
+    }
+
+    [Fact]
+    public void GeneratesListPropertyForVariadicOperand()
+    {
+        // Use a non-shadowing name so the variadic list property is always emitted.
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_CallOp : MiniArith_Op<\"call\", []> {",
+                "  let arguments = (ins Variadic<AnyType>:$myArgs);",
+                "};",
+            ]);
+
+        // A variadic operand with a non-shadowing name should be exposed as IReadOnlyList<OpOperand>.
+        AssertContainsAll(
+            registrationSource,
+            "global::System.Collections.Generic.IReadOnlyList<OpOperand>",
+            "base.Operands.Skip(");
+    }
+
+    [Fact]
+    public void GeneratesOpOperandPropertyForNonVariadicOperand()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_AddIOp : MiniArith_Op<\"addi\", []> {",
+                "  let arguments = (ins AnyType:$lhs, AnyType:$rhs);",
+                "};",
+            ]);
+
+        // Non-variadic operands should be exposed as OpOperand (the owning slot), not Value.
+        Assert.Contains("OpOperand Lhs", registrationSource);
+        Assert.Contains("OpOperand Rhs", registrationSource);
+        Assert.Contains("base.Operands[0]", registrationSource);
+        Assert.Contains("base.Operands[1]", registrationSource);
     }
 
     [Fact]
