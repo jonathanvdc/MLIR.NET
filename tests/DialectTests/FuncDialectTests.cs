@@ -159,7 +159,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
         Assert.Equal("%callee", op.Callee.Name);
         Assert.Single(op.CalleeOperands);
         Assert.Equal("%arg0", op.CalleeOperands[0].Name);
-        Assert.Equal("%result", op.Results.Name);
+        Assert.Equal("%result", Assert.Single(op.Results).Name);
     }
 
     /// <summary>

@@ -272,9 +272,22 @@ internal static class AssemblyFormatEmitter
             builder.AppendLine("            " + GetOperandBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Operands[i].Name, i) + ",");
         }
 
+        var resultSlotIndex = 0;
         for (var i = 0; i < operation.Results.Count; i++)
         {
-            builder.AppendLine("            new OperationResult(syntax.ResultList[" + i.ToString(CultureInfo.InvariantCulture) + "]),");
+            var result = operation.Results[i];
+            if (result.IsVariadic)
+            {
+                // Variadic result: collect all remaining result tokens as a list.
+                var skip = resultSlotIndex.ToString(CultureInfo.InvariantCulture);
+                builder.AppendLine("            syntax.ResultList.Skip(" + skip + ").Select(static t => new OperationResult(t)).ToList(),");
+                resultSlotIndex = -1;
+            }
+            else
+            {
+                builder.AppendLine("            new OperationResult(syntax.ResultList[" + resultSlotIndex.ToString(CultureInfo.InvariantCulture) + "]),");
+                resultSlotIndex++;
+            }
         }
 
         if (operation.Attributes.Count == 0)
