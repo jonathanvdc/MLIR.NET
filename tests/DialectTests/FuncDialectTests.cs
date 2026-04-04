@@ -276,27 +276,27 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     // ---------------------------------------------------------------------------
 
     /// <summary>
-    /// FuncOp sets 'hasCustomAssemblyFormat = 1' and has no declarative assembly format.
-    /// Accordingly, the generator does not emit an IOperationAssemblyFormat for FuncOp.
-    /// Parsing a func.func definition falls through to the generic format.
-    /// Example from FuncOps.td:
-    ///   func.func @count(%x: i64) -> (i64, i64) { return %x, %x: i64, i64 }
+    /// Binding the custom func.func syntax should populate the generated symbol
+    /// and function-type accessors.
     /// </summary>
     [Fact]
-    public void BindsFuncOp()
+    public void BindsFuncOpWithSignatureAndVisibility()
     {
         var op = BindSingleOperation<FuncOp>(
-            "func.func private @abort()",
+            "func.func public @count(%x: i64, %y: i32) -> (i64, i32)",
             CreateFuncRegistry());
 
-        Assert.NotNull(op);
+        Assert.Equal("count", op.SymName);
+        Assert.Equal("public", op.SymVisibility);
+        Assert.NotNull(op.TypeSignatureReference);
     }
 
     /// <summary>
-    /// Round-trip for func.func with the registered custom assembly format.
+    /// Regression test for the synthetic function_type operand slot required by
+    /// the generated FuncOp constructor.
     /// </summary>
     [Fact]
-    public void ReprintsFuncOp()
+    public void ReprintsFuncOpPrivateAbort()
     {
         var op = ReprintAndRebindSingleOperation<FuncOp>(
             "func.func private @abort()",
@@ -304,6 +304,62 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             out var printed);
 
         Assert.Contains("func.func private @abort()", printed);
-        Assert.NotNull(op);
+        Assert.Equal("abort", op.SymName);
+        Assert.Equal("private", op.SymVisibility);
+    }
+
+    /// <summary>
+    /// Argument attribute dictionaries should be preserved by the custom
+    /// func.func assembly format.
+    /// </summary>
+    [Fact]
+    public void ReprintsFuncOpWithArgumentAttributes()
+    {
+        var op = ReprintAndRebindSingleOperation<FuncOp>(
+            "func.func private @example_fn_arg(%x: i32 {swift.self = unit})",
+            CreateFuncRegistry(),
+            out var printed);
+
+        Assert.Contains("example_fn_arg", printed);
+        Assert.Contains("swift.self = unit", printed);
+        Assert.Equal("example_fn_arg", op.SymName);
+        Assert.NotNull(op.TypeSignatureReference);
+    }
+
+    /// <summary>
+    /// Result attribute dictionaries should be preserved by the custom func.func
+    /// assembly format.
+    /// </summary>
+    [Fact]
+    public void ReprintsFuncOpWithResultAttributes()
+    {
+        var op = ReprintAndRebindSingleOperation<FuncOp>(
+            "func.func private @example_fn_result() -> (f64 {dialectName.attrName = 0 : i64})",
+            CreateFuncRegistry(),
+            out var printed);
+
+        Assert.Contains("example_fn_result", printed);
+        Assert.Contains("dialectName.attrName = 0 : i64", printed);
+        Assert.Contains("->", printed);
+        Assert.Equal("example_fn_result", op.SymName);
+        Assert.NotNull(op.TypeSignatureReference);
+    }
+
+    /// <summary>
+    /// Function-level attributes and nested regions should round-trip through the
+    /// custom func.func formatter.
+    /// </summary>
+    [Fact]
+    public void ReprintsFuncOpWithAttributesAndBody()
+    {
+        var op = ReprintAndRebindSingleOperation<FuncOp>(
+            "func.func @count() attributes {fruit = \"banana\"} {\n  func.return\n}",
+            CreateFuncRegistry(),
+            out var printed);
+
+        Assert.Contains("fruit = \"banana\"", printed);
+        Assert.Contains("func.return", printed);
+        Assert.Equal("count", op.SymName);
+        Assert.NotNull(op.TypeSignatureReference);
     }
 }
