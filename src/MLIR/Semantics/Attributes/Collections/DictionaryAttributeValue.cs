@@ -17,6 +17,16 @@ public abstract class DictionaryAttributeValue : AttributeValue
     }
 
     /// <summary>
+    /// Initializes a new synthetic instance of the <see cref="DictionaryAttributeValue"/> class
+    /// with no associated source syntax.
+    /// </summary>
+    protected DictionaryAttributeValue(NamedAttributeCollection attributes)
+        : base(null, SourceLocation.Unknown)
+    {
+        Attributes = attributes;
+    }
+
+    /// <summary>
     /// Gets the decoded entries.
     /// </summary>
     public NamedAttributeCollection Attributes { get; }

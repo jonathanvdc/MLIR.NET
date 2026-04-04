@@ -227,6 +227,12 @@ internal sealed class OdsRecordIndex
             return true;
         }
 
+        if (record.HasBaseClass("TypedArrayAttrBase"))
+        {
+            kind = AttributeConstraintKind.TypedArrayAttribute;
+            return true;
+        }
+
         if (record.Name == "ElementsAttr"
             || record.Name == "AnyIntElementsAttr"
             || record.Name == "AnyI32ElementsAttr"

@@ -20,6 +20,11 @@ internal static class OperationAttributeValueHelpers
             or AttributeConstraintKind.DenseF64ArrayAttribute;
     }
 
+    public static bool IsTypedArrayConstraintKind(AttributeConstraintKind kind)
+    {
+        return kind == AttributeConstraintKind.TypedArrayAttribute;
+    }
+
     public static string GetAttributeGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName)
     {
         var isOptional = IsOptionalMember(member);
@@ -45,7 +50,7 @@ internal static class OperationAttributeValueHelpers
             return valueAccess;
         }
 
-        if (IsDenseCollectionConstraintKind(member.ConstraintKind))
+        if (IsDenseCollectionConstraintKind(member.ConstraintKind) || IsTypedArrayConstraintKind(member.ConstraintKind))
         {
             var denseCollectionCastExpr = "((" + member.ConstraintClassName + ")";
             if (isOptional)
@@ -112,7 +117,7 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
         }
 
-        if (IsDenseCollectionConstraintKind(member.ConstraintKind))
+        if (IsDenseCollectionConstraintKind(member.ConstraintKind) || IsTypedArrayConstraintKind(member.ConstraintKind))
         {
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)

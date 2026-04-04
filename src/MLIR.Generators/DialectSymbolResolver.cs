@@ -9,6 +9,7 @@ internal sealed class DialectSymbolResolver
     private readonly Dictionary<string, string> attributeTypesByRecordName;
     private readonly Dictionary<string, string> attributeConstraintTypesByRecordName;
     private readonly Dictionary<string, AttributeConstraintKind> attributeConstraintKindsByRecordName;
+    private readonly Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName;
     private readonly Dictionary<string, string> enumTypesByRecordName;
     private readonly Dictionary<string, string> typeConstraintTypesByRecordName;
     private readonly Dictionary<string, string> typeTypesByRecordName;
@@ -17,6 +18,7 @@ internal sealed class DialectSymbolResolver
         Dictionary<string, string> attributeTypesByRecordName,
         Dictionary<string, string> attributeConstraintTypesByRecordName,
         Dictionary<string, AttributeConstraintKind> attributeConstraintKindsByRecordName,
+        Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName,
         Dictionary<string, string> enumTypesByRecordName,
         Dictionary<string, string> typeConstraintTypesByRecordName,
         Dictionary<string, string> typeTypesByRecordName)
@@ -24,6 +26,7 @@ internal sealed class DialectSymbolResolver
         this.attributeTypesByRecordName = attributeTypesByRecordName;
         this.attributeConstraintTypesByRecordName = attributeConstraintTypesByRecordName;
         this.attributeConstraintKindsByRecordName = attributeConstraintKindsByRecordName;
+        this.attributeConstraintElementRecordNamesByRecordName = attributeConstraintElementRecordNamesByRecordName;
         this.enumTypesByRecordName = enumTypesByRecordName;
         this.typeConstraintTypesByRecordName = typeConstraintTypesByRecordName;
         this.typeTypesByRecordName = typeTypesByRecordName;
@@ -34,6 +37,7 @@ internal sealed class DialectSymbolResolver
         var attributeTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var attributeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var attributeConstraintKindsByRecordName = new Dictionary<string, AttributeConstraintKind>(StringComparer.Ordinal);
+        var attributeConstraintElementRecordNamesByRecordName = new Dictionary<string, string?>(StringComparer.Ordinal);
         var enumTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -56,6 +60,7 @@ internal sealed class DialectSymbolResolver
                 var className = generatedNamespace + "." + DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
                 attributeConstraintTypesByRecordName[attributeConstraint.RecordName] = className;
                 attributeConstraintKindsByRecordName[attributeConstraint.RecordName] = attributeConstraint.Kind;
+                attributeConstraintElementRecordNamesByRecordName[attributeConstraint.RecordName] = attributeConstraint.ElementConstraintRecordName;
                 if (attributeConstraint.EnumModel != null)
                 {
                     enumTypesByRecordName[attributeConstraint.RecordName] = generatedNamespace + "." + EnumHelpers.GetCSharpEnumTypeName(attributeConstraint.EnumModel);
@@ -73,7 +78,14 @@ internal sealed class DialectSymbolResolver
             }
         }
 
-        return new DialectSymbolResolver(attributeTypesByRecordName, attributeConstraintTypesByRecordName, attributeConstraintKindsByRecordName, enumTypesByRecordName, typeConstraintTypesByRecordName, typeTypesByRecordName);
+        return new DialectSymbolResolver(
+            attributeTypesByRecordName,
+            attributeConstraintTypesByRecordName,
+            attributeConstraintKindsByRecordName,
+            attributeConstraintElementRecordNamesByRecordName,
+            enumTypesByRecordName,
+            typeConstraintTypesByRecordName,
+            typeTypesByRecordName);
     }
 
     public string? TryResolveAttributeDefinitionExpression(string recordName)
@@ -108,6 +120,13 @@ internal sealed class DialectSymbolResolver
         }
 
         return attributeConstraintTypesByRecordName.TryGetValue(recordName, out var className) ? className : null;
+    }
+
+    public string? TryResolveAttributeConstraintElementRecordName(string recordName)
+    {
+        return attributeConstraintElementRecordNamesByRecordName.TryGetValue(recordName, out var elementRecordName)
+            ? elementRecordName
+            : null;
     }
 
     public string? TryResolveEnumTypeName(string recordName)

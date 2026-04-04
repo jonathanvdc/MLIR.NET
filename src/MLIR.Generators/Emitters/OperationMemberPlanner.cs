@@ -7,16 +7,26 @@ using MLIR.ODS.Model;
 internal sealed class GeneratedMember
 {
     public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
-        : this(propertyName, parameterName, typeName, sourceName, AttributeConstraintKind.None, null, false, false)
+        : this(propertyName, parameterName, typeName, sourceName, null, AttributeConstraintKind.None, null, false, false)
     {
     }
 
-    public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName, AttributeConstraintKind constraintKind, string? constraintClassName, bool usesEnumWrapper, bool isVariadic = false)
+    public GeneratedMember(
+        string propertyName,
+        string parameterName,
+        string typeName,
+        string sourceName,
+        string? constraintRecordName,
+        AttributeConstraintKind constraintKind,
+        string? constraintClassName,
+        bool usesEnumWrapper,
+        bool isVariadic = false)
     {
         PropertyName = propertyName;
         ParameterName = parameterName;
         TypeName = typeName;
         SourceName = sourceName;
+        ConstraintRecordName = constraintRecordName;
         ConstraintKind = constraintKind;
         ConstraintClassName = constraintClassName;
         UsesEnumWrapper = usesEnumWrapper;
@@ -30,6 +40,8 @@ internal sealed class GeneratedMember
     public string TypeName { get; }
 
     public string SourceName { get; }
+
+    public string? ConstraintRecordName { get; }
 
     public AttributeConstraintKind ConstraintKind { get; }
 
@@ -98,7 +110,7 @@ internal static class OperationMemberPlanner
                 typeName = requiredVariables.Contains(operand.Name) ? "Value" : "Value?";
             }
 
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, AttributeConstraintKind.None, null, false, operand.IsVariadic));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, null, AttributeConstraintKind.None, null, false, operand.IsVariadic));
         }
 
         return members;
@@ -135,10 +147,11 @@ internal static class OperationMemberPlanner
 
             if (!string.IsNullOrEmpty(constraintRecordName))
             {
-                constraintKind = resolver.TryResolveAttributeConstraintKind(constraintRecordName!);
+                var nonNullConstraintRecordName = constraintRecordName!;
+                constraintKind = resolver.TryResolveAttributeConstraintKind(nonNullConstraintRecordName);
                 if (constraintKind != AttributeConstraintKind.None)
                 {
-                    constraintClassName = resolver.TryResolveAttributeConstraintClassName(constraintRecordName!);
+                    constraintClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
                     if (constraintClassName == null)
                     {
                         constraintKind = AttributeConstraintKind.None;
@@ -153,47 +166,56 @@ internal static class OperationMemberPlanner
                 && constraintClassName != null
                 && enumTypeName != null;
 
-            var typeName = GetAttributeTypeName(constraintKind, isRequired, constraintRecordName, enumTypeName);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintKind, constraintClassName, usesEnumWrapper));
+            var typeName = GetAttributeTypeName(constraintRecordName, isRequired, resolver);
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintRecordName, constraintKind, constraintClassName, usesEnumWrapper));
         }
 
         return members;
     }
 
-    private static string GetAttributeTypeName(AttributeConstraintKind kind, bool isRequired, string? constraintRecordName, string? enumTypeName)
+    private static string GetAttributeTypeName(string? constraintRecordName, bool isRequired, DialectSymbolResolver resolver)
     {
+        if (string.IsNullOrEmpty(constraintRecordName))
+        {
+            return isRequired ? "NamedAttribute" : "NamedAttribute?";
+        }
+
+        var nonNullConstraintRecordName = constraintRecordName!;
+        var kind = resolver.TryResolveAttributeConstraintKind(nonNullConstraintRecordName);
         if (kind == AttributeConstraintKind.UnitAttribute)
         {
             return isRequired ? "UnitAttributeValue" : "bool";
         }
 
-        if (kind == AttributeConstraintKind.EnumAttribute && !string.IsNullOrEmpty(enumTypeName))
+        if (kind == AttributeConstraintKind.TypeAttribute)
         {
-            return isRequired ? enumTypeName! : enumTypeName! + "?";
+            return isRequired ? "TypeAttributeValue" : "TypeAttributeValue?";
         }
 
-        var baseType = kind switch
+        if (kind == AttributeConstraintKind.DictionaryAttribute)
         {
-            AttributeConstraintKind.IntegerLiteral => "BigInteger",
-            AttributeConstraintKind.BooleanLiteral => "bool",
-            AttributeConstraintKind.StringLiteral => "string",
-            AttributeConstraintKind.FloatingPointLiteral => constraintRecordName switch
-            {
-                "F32Attr" => "float",
-                "F64Attr" => "double",
-                _ => "string",
-            },
-            AttributeConstraintKind.DenseBooleanArrayAttribute => "IReadOnlyList<bool>",
-            AttributeConstraintKind.DenseIntegerArrayAttribute => "IReadOnlyList<BigInteger>",
-            AttributeConstraintKind.DenseF32ArrayAttribute => "IReadOnlyList<float>",
-            AttributeConstraintKind.DenseF64ArrayAttribute => "IReadOnlyList<double>",
-            AttributeConstraintKind.ElementsAttribute => "ElementsAttributeValue",
-            AttributeConstraintKind.DictionaryAttribute => "DictionaryAttributeValue",
-            AttributeConstraintKind.TypeAttribute => "TypeAttributeValue",
-            AttributeConstraintKind.OpaqueAttribute => "OpaqueAttributeValue",
-            _ => null,
-        };
+            return isRequired ? "DictionaryAttributeValue" : "DictionaryAttributeValue?";
+        }
 
+        if (kind == AttributeConstraintKind.ElementsAttribute)
+        {
+            return isRequired ? "ElementsAttributeValue" : "ElementsAttributeValue?";
+        }
+
+        if (kind == AttributeConstraintKind.OpaqueAttribute)
+        {
+            return isRequired ? "OpaqueAttributeValue" : "OpaqueAttributeValue?";
+        }
+
+        if (kind == AttributeConstraintKind.TypedArrayAttribute)
+        {
+            var typedArrayType = AttributeTypeResolver.GetAttributeValueTypeName(constraintRecordName, resolver);
+            return typedArrayType != null
+                ? (isRequired ? typedArrayType : typedArrayType + "?")
+                : (isRequired ? "NamedAttribute" : "NamedAttribute?");
+        }
+
+        var baseType = AttributeTypeResolver.GetAttributeValueTypeName(constraintRecordName, resolver);
         if (baseType == null)
         {
             return isRequired ? "NamedAttribute" : "NamedAttribute?";

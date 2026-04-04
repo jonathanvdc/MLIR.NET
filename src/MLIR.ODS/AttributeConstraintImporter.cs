@@ -20,7 +20,12 @@ internal static class AttributeConstraintImporter
                 index.TryGetEnumModel(record, out enumModel);
             }
 
-            builder.AddSharedAttributeConstraint(new AttributeConstraintModel(record.Name, record.Name, constraintKind, enumModel));
+            var elementConstraintRecordName = constraintKind == AttributeConstraintKind.TypedArrayAttribute
+                ? index.GetOptionalStringField(record, "elementAttr")
+                : null;
+
+            builder.AddSharedAttributeConstraint(
+                new AttributeConstraintModel(record.Name, record.Name, constraintKind, elementConstraintRecordName, enumModel));
         }
     }
 }

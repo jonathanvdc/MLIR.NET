@@ -18,6 +18,16 @@ public abstract class TypeAttributeValue : AttributeValue
     }
 
     /// <summary>
+    /// Initializes a new synthetic instance of the <see cref="TypeAttributeValue"/> class
+    /// with no associated source syntax.
+    /// </summary>
+    protected TypeAttributeValue(TypeSyntax typeSyntax)
+        : base(null, SourceLocation.Unknown)
+    {
+        TypeSyntax = typeSyntax;
+    }
+
+    /// <summary>
     /// Gets the referenced type syntax.
     /// </summary>
     public TypeSyntax TypeSyntax { get; }

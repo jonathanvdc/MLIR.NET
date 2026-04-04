@@ -74,6 +74,40 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Fact]
+    public void GeneratesTypedArrayAttributePropertyWithRecursiveItemTypes()
+    {
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_TypedArrayOp : MyDialect_Op<\"typed_array\", []> {",
+                "  let arguments = (ins StrArrayAttr:$strings, TypeArrayAttr:$types, DictArrayAttr:$dicts, IndexListArrayAttr:$indexLists, I32:$input);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$strings `,` $types `,` $dicts `,` $indexLists `,` $input attr-dict `:` type($result)\";",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            "public IReadOnlyList<string> Strings",
+            "public IReadOnlyList<TypeSyntax> Types",
+            "public IReadOnlyList<NamedAttributeCollection> Dicts",
+            "public IReadOnlyList<IReadOnlyList<BigInteger>> IndexLists",
+            "IReadOnlyList<string> strings,",
+            "IReadOnlyList<TypeSyntax> types,",
+            "IReadOnlyList<NamedAttributeCollection> dicts,",
+            "IReadOnlyList<IReadOnlyList<BigInteger>> indexLists,",
+            "StrArrayAttrConstraintAttributeValue",
+            "TypeArrayAttrConstraintAttributeValue",
+            "DictArrayAttrConstraintAttributeValue",
+            "IndexListArrayAttrConstraintAttributeValue");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public NamedAttribute Strings",
+            "public NamedAttribute Types",
+            "public NamedAttribute Dicts",
+            "public NamedAttribute IndexLists");
+    }
+
+    [Fact]
     public void GeneratesTypedEnumAttributesAndOperationsWithoutDuplicateEnumDeclarations()
     {
         var registrationSource = GenerateRegistrationSource(

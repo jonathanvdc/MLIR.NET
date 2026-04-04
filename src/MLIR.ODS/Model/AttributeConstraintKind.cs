@@ -84,4 +84,9 @@ public enum AttributeConstraintKind
     /// The constraint parses an enum keyword (or a combination of enum keywords for bit enums).
     /// </summary>
     EnumAttribute = 15,
+
+    /// <summary>
+    /// The constraint parses an array of typed attribute values.
+    /// </summary>
+    TypedArrayAttribute = 16,
 }

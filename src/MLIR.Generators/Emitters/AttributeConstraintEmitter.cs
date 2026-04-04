@@ -6,12 +6,16 @@ using MLIR.ODS.Model;
 
 internal static class AttributeConstraintEmitter
 {
-    public static void Emit(StringBuilder builder, AttributeConstraintModel attributeConstraint)
+    public static void Emit(StringBuilder builder, AttributeConstraintModel attributeConstraint, DialectSymbolResolver resolver)
     {
         if (attributeConstraint.Kind == AttributeConstraintKind.EnumAttribute
             && attributeConstraint.EnumModel != null)
         {
             EmitEnumConstraint(builder, attributeConstraint, attributeConstraint.EnumModel);
+        }
+        else if (attributeConstraint.Kind == AttributeConstraintKind.TypedArrayAttribute)
+        {
+            EmitTypedArrayConstraint(builder, attributeConstraint, resolver);
         }
         else
         {
@@ -125,6 +129,161 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("}");
     }
 
+    private static void EmitTypedArrayConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, DialectSymbolResolver resolver)
+    {
+        var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
+        var elementRecordName = attributeConstraint.ElementConstraintRecordName;
+        var elementKind = string.IsNullOrEmpty(elementRecordName)
+            ? AttributeConstraintKind.None
+            : resolver.TryResolveAttributeConstraintKind(elementRecordName!);
+        var elementTypeName = GetTypedArrayElementTypeName(elementRecordName, resolver);
+        var elementUsesPayload = UsesTypedArrayElementPayload(elementKind);
+        var assemblyFormatType = className + "AssemblyFormat";
+
+        builder.AppendLine("public sealed class " + className + " : TypedArrayAttributeValue<" + elementTypeName + ">");
+        builder.AppendLine("{");
+        builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
+        builder.AppendLine("        new AttributeConstraintDefinition(");
+        builder.Append("            " + EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
+        builder.AppendLine(", new " + assemblyFormatType + "(), factory: static context => new " + className + "(context));");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
+        builder.AppendLine("        : base(context, DecodeItems(context.Syntax))");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> items)");
+        builder.AppendLine("        : base(items)");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
+        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
+        builder.AppendLine();
+        builder.AppendLine("    private static global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> DecodeItems(MLIR.Syntax.AttributeValueSyntax? syntax)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        if (syntax is not MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax arraySyntax)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return global::System.Array.Empty<" + elementTypeName + ">();");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        var items = new global::System.Collections.Generic.List<" + elementTypeName + ">(arraySyntax.Items.Count);");
+        builder.AppendLine("        for (var i = 0; i < arraySyntax.Items.Count; i++)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            var itemSyntax = arraySyntax.Items[i];");
+        if (elementUsesPayload)
+        {
+            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
+            var elementPayloadProperty = GetTypedArrayElementPayloadPropertyName(elementRecordName, resolver);
+            builder.AppendLine("            var itemValue = new " + elementClassName + "(new MLIR.Semantics.AttributeValueConstructionContext(itemSyntax, " + elementClassName + ".AttributeConstraintDefinition.Name, " + elementClassName + ".AttributeConstraintDefinition, itemSyntax.Location));");
+            builder.AppendLine("            items.Add(itemValue." + elementPayloadProperty + ");");
+        }
+        else
+        {
+            builder.AppendLine("            items.Add(MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue(itemSyntax));");
+        }
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        return items;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        builder.AppendLine();
+
+        builder.AppendLine("internal sealed class " + assemblyFormatType + " : TypedArrayAttributeAssemblyFormat<" + elementTypeName + ">");
+        builder.AppendLine("{");
+        builder.AppendLine("    protected override MLIR.Syntax.AttributeValueSyntax ElementToSyntax(" + elementTypeName + " element, MLIR.Transforms.ConcreteSyntaxBuilderContext context)");
+        builder.AppendLine("    {");
+        if (elementUsesPayload)
+        {
+            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
+            builder.AppendLine("        return context.BuildAttributeValueSyntax(new " + elementClassName + "(element));");
+        }
+        else
+        {
+            builder.AppendLine("        return context.BuildAttributeValueSyntax(element);");
+        }
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
+
+    private static string GetTypedArrayElementTypeName(string? elementRecordName, DialectSymbolResolver resolver)
+    {
+        if (string.IsNullOrEmpty(elementRecordName))
+        {
+            return "global::MLIR.Semantics.AttributeValue";
+        }
+
+        var kind = resolver.TryResolveAttributeConstraintKind(elementRecordName!);
+        if (IsGenericTypedArrayElementKind(kind))
+        {
+            return "global::MLIR.Semantics.AttributeValue";
+        }
+
+        return AttributeTypeResolver.GetAttributeValueTypeName(elementRecordName, resolver)
+            ?? "global::MLIR.Semantics.AttributeValue";
+    }
+
+    private static string GetTypedArrayElementClassName(string? elementRecordName, DialectSymbolResolver resolver)
+    {
+        if (string.IsNullOrEmpty(elementRecordName))
+        {
+            return "global::MLIR.Semantics.AttributeValue";
+        }
+
+        return resolver.TryResolveAttributeConstraintClassName(elementRecordName!)
+            ?? "global::MLIR.Semantics.AttributeValue";
+    }
+
+    private static string GetTypedArrayElementPayloadPropertyName(string? elementRecordName, DialectSymbolResolver resolver)
+    {
+        if (string.IsNullOrEmpty(elementRecordName))
+        {
+            return "Syntax";
+        }
+
+        return resolver.TryResolveAttributeConstraintKind(elementRecordName!) switch
+        {
+            AttributeConstraintKind.BooleanLiteral => "Value",
+            AttributeConstraintKind.IntegerLiteral => "Value",
+            AttributeConstraintKind.FloatingPointLiteral => "Value",
+            AttributeConstraintKind.StringLiteral => "Value",
+            AttributeConstraintKind.EnumAttribute => "TypedValue",
+            AttributeConstraintKind.TypeAttribute => "TypeSyntax",
+            AttributeConstraintKind.DictionaryAttribute => "Attributes",
+            AttributeConstraintKind.DenseBooleanArrayAttribute => "Items",
+            AttributeConstraintKind.DenseIntegerArrayAttribute => "Items",
+            AttributeConstraintKind.DenseF32ArrayAttribute => "Items",
+            AttributeConstraintKind.DenseF64ArrayAttribute => "Items",
+            AttributeConstraintKind.TypedArrayAttribute => "Items",
+            AttributeConstraintKind.ElementsAttribute => "Payload",
+            _ => "Value",
+        };
+    }
+
+    private static bool IsGenericTypedArrayElementKind(AttributeConstraintKind kind)
+    {
+        return kind is AttributeConstraintKind.OpaqueAttribute
+            or AttributeConstraintKind.ElementsAttribute
+            or AttributeConstraintKind.UnitAttribute
+            or AttributeConstraintKind.None;
+    }
+
+    private static bool UsesTypedArrayElementPayload(AttributeConstraintKind kind)
+    {
+        return kind is AttributeConstraintKind.BooleanLiteral
+            or AttributeConstraintKind.IntegerLiteral
+            or AttributeConstraintKind.FloatingPointLiteral
+            or AttributeConstraintKind.StringLiteral
+            or AttributeConstraintKind.EnumAttribute
+            or AttributeConstraintKind.TypeAttribute
+            or AttributeConstraintKind.DictionaryAttribute
+            or AttributeConstraintKind.DenseBooleanArrayAttribute
+            or AttributeConstraintKind.DenseIntegerArrayAttribute
+            or AttributeConstraintKind.DenseF32ArrayAttribute
+            or AttributeConstraintKind.DenseF64ArrayAttribute
+            or AttributeConstraintKind.TypedArrayAttribute;
+    }
+
     private static void EmitStandardConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint)
     {
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
@@ -162,6 +321,27 @@ internal static class AttributeConstraintEmitter
             builder.AppendLine("    public " + className + "(" + valueConstructorParam + " value)");
             builder.AppendLine("        : base(value)");
             builder.AppendLine("    {");
+            builder.AppendLine("    }");
+        }
+
+        if (attributeConstraint.Kind == AttributeConstraintKind.TypeAttribute)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    private static global::MLIR.Syntax.TypeSyntax DecodeTypeSyntax(MLIR.Syntax.AttributeValueSyntax? syntax)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        return syntax is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax");
+            builder.AppendLine("            ? typeSyntax.TypeSyntax");
+            builder.AppendLine("            : new global::MLIR.Syntax.RawTypeSyntax(syntax?.GetRawText() ?? new global::MLIR.Syntax.RawSyntaxText(string.Empty));");
+            builder.AppendLine("    }");
+        }
+        else if (attributeConstraint.Kind == AttributeConstraintKind.DictionaryAttribute)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    private static global::MLIR.Semantics.NamedAttributeCollection DecodeAttributes(MLIR.Syntax.AttributeValueSyntax? syntax)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        return syntax is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax");
+            builder.AppendLine("            ? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items)");
+            builder.AppendLine("            : global::MLIR.Semantics.NamedAttributeCollection.Empty;");
             builder.AppendLine("    }");
         }
 
@@ -245,9 +425,9 @@ internal static class AttributeConstraintEmitter
             AttributeConstraintKind.DenseF32ArrayAttribute => "context, StructuredAttributeSemanticDecoder.DecodeSinglePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
             AttributeConstraintKind.DenseF64ArrayAttribute => "context, StructuredAttributeSemanticDecoder.DecodeDoublePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
             AttributeConstraintKind.ElementsAttribute => "context, StructuredAttributeSemanticDecoder.DecodeValue(((ElementsAttributeValueSyntax)context.Syntax).Payload), ((ElementsAttributeValueSyntax)context.Syntax).TypeSyntax",
-            AttributeConstraintKind.DictionaryAttribute => "context, StructuredAttributeSemanticDecoder.DecodeAttributes(((DictionaryAttributeValueSyntax)context.Syntax).Attributes.Items)",
+            AttributeConstraintKind.DictionaryAttribute => "context, DecodeAttributes(context.Syntax)",
             AttributeConstraintKind.OpaqueAttribute => "context",
-            AttributeConstraintKind.TypeAttribute => "context, ((TypeAttributeValueSyntax)context.Syntax).TypeSyntax",
+            AttributeConstraintKind.TypeAttribute => "context, DecodeTypeSyntax(context.Syntax)",
             AttributeConstraintKind.UnitAttribute => "context",
             _ => null,
         };
@@ -275,6 +455,8 @@ internal static class AttributeConstraintEmitter
             AttributeConstraintKind.DenseIntegerArrayAttribute => "global::System.Collections.Generic.IReadOnlyList<global::System.Numerics.BigInteger>",
             AttributeConstraintKind.DenseF32ArrayAttribute => "global::System.Collections.Generic.IReadOnlyList<float>",
             AttributeConstraintKind.DenseF64ArrayAttribute => "global::System.Collections.Generic.IReadOnlyList<double>",
+            AttributeConstraintKind.DictionaryAttribute => "global::MLIR.Semantics.NamedAttributeCollection",
+            AttributeConstraintKind.TypeAttribute => "global::MLIR.Syntax.TypeSyntax",
             _ => null,
         };
     }

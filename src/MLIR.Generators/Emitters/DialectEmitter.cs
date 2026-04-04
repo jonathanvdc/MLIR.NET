@@ -68,15 +68,15 @@ internal sealed class DialectEmitter
             }
         }
 
-        foreach (var attributeConstraint in dialect.AttributeConstraints)
-        {
-            try
+            foreach (var attributeConstraint in dialect.AttributeConstraints)
             {
-                AttributeConstraintEmitter.Emit(builder, attributeConstraint);
-                builder.AppendLine();
-            }
-            catch (System.Exception exception)
-            {
+                try
+                {
+                    AttributeConstraintEmitter.Emit(builder, attributeConstraint, resolver);
+                    builder.AppendLine();
+                }
+                catch (System.Exception exception)
+                {
                 throw new System.InvalidOperationException(
                     "Failed to generate attribute constraint '" + attributeConstraint.RecordName + "' in dialect '" + dialect.Name + "'.",
                     exception);
