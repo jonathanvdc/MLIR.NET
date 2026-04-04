@@ -56,12 +56,14 @@ public sealed class DialectImporterTests
 
         var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
 
-        var dialect = Assert.Single(dialects);
+        Assert.Equal(2, dialects.Count);
+        var prelude = dialects[0];
+        var dialect = dialects[1];
         var constantOp = Assert.Single(dialect.Operations, static op => op.Name == "miniarith.constant");
         var addiOp = Assert.Single(dialect.Operations, static op => op.Name == "miniarith.addi");
         var attribute = Assert.Single(dialect.Attributes, static attr => attr.Name == "miniarith.i32");
         var type = Assert.Single(dialect.Types, static typeModel => typeModel.Name == "miniarith.i32");
-        var constraint = Assert.Single(dialect.AttributeConstraints, static attrConstraint => attrConstraint.Name == "MiniArith_I32ConstraintAttr");
+        var constraint = Assert.Single(prelude.AttributeConstraints, static attrConstraint => attrConstraint.Name == "MiniArith_I32ConstraintAttr");
 
         Assert.Equal("miniarith", dialect.Name);
         Assert.Equal("::mlir::miniarith", dialect.CppNamespace);
@@ -125,7 +127,8 @@ public sealed class DialectImporterTests
 
         var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
 
-        var dialect = Assert.Single(dialects);
+        Assert.Equal(2, dialects.Count);
+        var dialect = dialects[1];
         var op = Assert.Single(dialect.Operations);
 
         // cppClassName="" must fall back to the record name, not produce an empty class name.
@@ -173,10 +176,12 @@ public sealed class DialectImporterTests
 
         var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
 
-        var dialect = Assert.Single(dialects);
+        Assert.Equal(2, dialects.Count);
+        var prelude = dialects[0];
+        var dialect = dialects[1];
         var modeAttr = Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MiniEnum_ModeAttr");
         var flagsAttr = Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MiniEnum_FlagsAttr");
-        var flagsConstraint = Assert.Single(dialect.AttributeConstraints, static attr => attr.RecordName == "MiniEnum_Flags");
+        var flagsConstraint = Assert.Single(prelude.AttributeConstraints, static attr => attr.RecordName == "MiniEnum_Flags");
 
         Assert.Equal("Mode", modeAttr.EnumModel!.ClassName);
         Assert.False(modeAttr.EnumModel.IsBitEnum);
@@ -198,17 +203,18 @@ public sealed class DialectImporterTests
             GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(
                 "def MiniArith_Dialect : Dialect { let name = \"miniarith\"; let cppNamespace = \"::mlir::miniarith\"; }\n").Evaluate());
 
-        var dialect = Assert.Single(dialects);
-        var i32 = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "I32");
-        var f32 = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "F32");
-        var index = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "Index");
-        var noneType = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "NoneType");
-        var tuple = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyTuple");
-        var function = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "FunctionType");
-        var tensor = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyTensor");
-        var vector = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyVectorOfAnyRank");
-        var memRef = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "AnyMemRef");
-        var i32Tensor = Assert.Single(dialect.TypeConstraints, static constraint => constraint.RecordName == "I32Tensor");
+        Assert.Equal(2, dialects.Count);
+        var prelude = dialects[0];
+        var i32 = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "I32");
+        var f32 = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "F32");
+        var index = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "Index");
+        var noneType = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "NoneType");
+        var tuple = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "AnyTuple");
+        var function = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "FunctionType");
+        var tensor = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "AnyTensor");
+        var vector = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "AnyVectorOfAnyRank");
+        var memRef = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "AnyMemRef");
+        var i32Tensor = Assert.Single(prelude.TypeConstraints, static constraint => constraint.RecordName == "I32Tensor");
 
         Assert.Equal(TypeConstraintKind.ExactInteger, i32.Kind);
         Assert.Equal("i32", i32.CanonicalTypeName);

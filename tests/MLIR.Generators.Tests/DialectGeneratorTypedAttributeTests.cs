@@ -56,21 +56,32 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         string assemblyFormatType,
         string propertyName)
     {
-        var registrationSource = GenerateMyDialectRegistrationSource(
-            [
-                "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {",
-                $"  let arguments = (ins {constraintType}:${attributeName}, I32:$lhs);",
-                "  let results = (outs I32:$result);",
-                $"  let assemblyFormat = \"${attributeName} `,` $lhs attr-dict `:` type($result)\";",
-                "};",
-            ]);
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new MLIR.Generators.DialectGenerator(),
+            (
+                "mydialect.td",
+                ComposeMyDialectSource(
+                    [
+                        "def MyDialect_TestOp : MyDialect_Op<\"test\", []> {",
+                        $"  let arguments = (ins {constraintType}:${attributeName}, I32:$lhs);",
+                        "  let results = (outs I32:$result);",
+                        $"  let assemblyFormat = \"${attributeName} `,` $lhs attr-dict `:` type($result)\";",
+                        "};",
+                    ])));
+
+        var preludeSource = Assert.Single(
+            generatedSources.Where(static result => result.HintName == "PreludeDialectRegistration.g.cs")).SourceText.ToString();
+        var registrationSource = Assert.Single(
+            generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
         AssertContainsAll(
             registrationSource,
-            attributeValueType,
             $"public IReadOnlyList<{elementType}> {propertyName}",
-            assemblyFormatType,
             $"IReadOnlyList<{elementType}> {attributeName},");
+        AssertContainsAll(
+            preludeSource,
+            attributeValueType,
+            assemblyFormatType);
     }
 
     [Fact]
