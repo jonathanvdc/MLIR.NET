@@ -470,6 +470,21 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
+    public void BindsFuncOpBlockArgumentNames()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule(
+                "\"func.func\"() {\n" +
+                "^entry(%lhs: i64, %rhs: i32):\n" +
+                "  \"func.return\"() : () -> ()\n" +
+                "} : () -> ()"));
+
+        var block = module.Operations[0].Regions[0].Blocks[0];
+
+        Assert.Equal(["%lhs", "%rhs"], block.Arguments.Select(static argument => argument.Name).ToArray());
+    }
+
+    [Fact]
     public void BlockTracksItsSuccessorUses()
     {
         var module = Binder.BindModule(
