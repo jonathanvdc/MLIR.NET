@@ -59,15 +59,33 @@ internal static class OperationPropertyEmitter
             }
         }
 
+        var resultSlotIndex = 0;
         for (var i = 0; i < resultMembers.Count; i++)
         {
             var member = resultMembers[i];
-            // Use base.Results to guard against a generated property that shadows the inherited
-            // Results list when a result happens to be named "Results".
-            builder.AppendLine("    public " + MemberModifier(member.PropertyName) + "OperationResult " + member.PropertyName + " => base.Results[" + i.ToString(CultureInfo.InvariantCulture) + "];");
+            if (member.IsVariadic)
+            {
+                // Variadic results: expose all results from the current slot onward as a list.
+                // Use base.Results to guard against a generated property that shadows the inherited
+                // Results list when a result happens to be named "Results".
+                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => base.Results.Skip(" + resultSlotIndex.ToString(CultureInfo.InvariantCulture) + ").ToList();");
+                builder.AppendLine("    }");
+                // A variadic result consumes all remaining slots; stop indexing.
+                resultSlotIndex = -1;
+            }
+            else
+            {
+                // Use base.Results to guard against a generated property that shadows the inherited
+                // Results list when a result happens to be named "Results".
+                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + "OperationResult " + member.PropertyName + " => base.Results[" + resultSlotIndex.ToString(CultureInfo.InvariantCulture) + "];");
+                resultSlotIndex++;
+            }
         }
 
-        if (operation.Results.Count == 1 && operation.Results[0].Name != "result")
+        // Emit a convenience alias only for a single non-variadic result with a non-default name.
+        if (operation.Results.Count == 1 && !operation.Results[0].IsVariadic && operation.Results[0].Name != "result")
         {
             var aliasName = DialectGeneratorNaming.ToPascalCase(operation.Results[0].Name);
             builder.AppendLine("    public " + MemberModifier(aliasName) + "OperationResult " + aliasName + " => ResultValue;");

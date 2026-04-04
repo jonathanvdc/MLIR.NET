@@ -123,13 +123,28 @@ internal static class OperationMemberPlanner
     private static IReadOnlyList<GeneratedMember> GetResultMembers(OperationModel operation)
     {
         var members = new List<GeneratedMember>(operation.Results.Count);
+        // Use "ResultValue" as the property name only when there is exactly one non-variadic result.
+        var singleNonVariadicResult = operation.Results.Count == 1 && !operation.Results[0].IsVariadic;
         for (var i = 0; i < operation.Results.Count; i++)
         {
             var result = operation.Results[i];
-            var propertyName = operation.Results.Count == 1
-                ? "ResultValue"
-                : DialectGeneratorNaming.ToPascalCase(result.Name);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), "OperationResult", result.Name));
+            string propertyName;
+            string typeName;
+            if (result.IsVariadic)
+            {
+                // Variadic results hold zero or more values; expose them as a read-only list.
+                propertyName = DialectGeneratorNaming.ToPascalCase(result.Name);
+                typeName = "global::System.Collections.Generic.IReadOnlyList<OperationResult>";
+            }
+            else
+            {
+                propertyName = singleNonVariadicResult
+                    ? "ResultValue"
+                    : DialectGeneratorNaming.ToPascalCase(result.Name);
+                typeName = "OperationResult";
+            }
+
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, result.Name, null, AttributeConstraintKind.None, null, false, result.IsVariadic));
         }
 
         return members;

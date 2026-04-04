@@ -77,10 +77,23 @@ internal static class OperationConstructorEmitter
             }
         }
 
+        var resultSlotIndex = 0;
         for (var i = 0; i < resultMembers.Count; i++)
         {
             var member = resultMembers[i];
-            builder.AppendLine("            " + member.ParameterName + ": context.ResultValues[" + i.ToString(CultureInfo.InvariantCulture) + "],");
+            if (member.IsVariadic)
+            {
+                // Collect all remaining results from resultSlotIndex onward as a list.
+                var skip = resultSlotIndex.ToString(CultureInfo.InvariantCulture);
+                builder.AppendLine("            " + member.ParameterName + ": context.ResultValues.Skip(" + skip + ").ToList(),");
+                // A variadic result slot consumes all remaining entries.
+                resultSlotIndex = -1;
+            }
+            else
+            {
+                builder.AppendLine("            " + member.ParameterName + ": context.ResultValues[" + resultSlotIndex.ToString(CultureInfo.InvariantCulture) + "],");
+                resultSlotIndex++;
+            }
         }
 
         builder.AppendLine("            attributes: context.Attributes,");
@@ -119,18 +132,52 @@ internal static class OperationConstructorEmitter
         }
         builder.AppendLine("            attributes,");
         builder.AppendLine("            typeSignatureReference,");
-        builder.Append("            new OperationResult[] { ");
-        for (var i = 0; i < resultMembers.Count; i++)
+        if (!resultMembers.Any(static m => m.IsVariadic))
         {
-            if (i > 0)
+            builder.Append("            new OperationResult[] { ");
+            for (var i = 0; i < resultMembers.Count; i++)
             {
-                builder.Append(", ");
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                builder.Append(resultMembers[i].ParameterName);
             }
 
-            builder.Append(resultMembers[i].ParameterName);
+            builder.AppendLine(" },");
         }
+        else
+        {
+            // Mix of fixed and variadic results: build via Concat.
+            builder.Append("            ");
+            var firstResult = true;
+            foreach (var member in resultMembers)
+            {
+                if (!firstResult)
+                {
+                    builder.Append(".Concat(");
+                }
 
-        builder.AppendLine(" },");
+                if (member.IsVariadic)
+                {
+                    builder.Append(member.ParameterName);
+                }
+                else
+                {
+                    builder.Append("new OperationResult[] { " + member.ParameterName + " }");
+                }
+
+                if (!firstResult)
+                {
+                    builder.Append(")");
+                }
+
+                firstResult = false;
+            }
+
+            builder.AppendLine(".ToArray(),");
+        }
 
         // Build the operand array, spreading variadic list members.
         if (!operandMembers.Any(static m => m.IsVariadic))

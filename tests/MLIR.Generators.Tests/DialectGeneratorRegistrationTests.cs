@@ -181,4 +181,53 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             "global::MLIR.Prelude.PreludeDialectRegistration.Create");
         Assert.DoesNotContain("I32ConstraintTypeReference", registrationSource);
     }
+
+    [Fact]
+    public void GeneratesListPropertyForVariadicResult()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_CallOp : MiniArith_Op<\"call\", []> {",
+                "  let results = (outs Variadic<AnyType>:$results);",
+                "};",
+            ]);
+
+        // A variadic result should be exposed as a read-only list, not as a single OperationResult.
+        AssertContainsAll(
+            registrationSource,
+            "global::System.Collections.Generic.IReadOnlyList<OperationResult>",
+            "base.Results.Skip(");
+
+        // A variadic result must not produce a single-value ResultValue property.
+        Assert.DoesNotContain("public OperationResult ResultValue", registrationSource);
+    }
+
+    [Fact]
+    public void DoesNotGenerateConvenienceAliasForVariadicResult()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_CallOp : MiniArith_Op<\"call\", []> {",
+                "  let results = (outs Variadic<AnyType>:$myResults);",
+                "};",
+            ]);
+
+        // No single-value alias should be emitted for a variadic result.
+        Assert.DoesNotContain("public OperationResult ResultValue", registrationSource);
+        Assert.DoesNotContain("=> ResultValue;", registrationSource);
+    }
+
+    [Fact]
+    public void GeneratesResultValuePropertyForSingleNonVariadicResult()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                "  let results = (outs I32:$result);",
+                "};",
+            ]);
+
+        // A single non-variadic result should still produce a ResultValue convenience property.
+        Assert.Contains("public OperationResult ResultValue", registrationSource);
+    }
 }
