@@ -24,11 +24,13 @@ public sealed class OperationParsingContext : DialectParsingContext
 
     /// <summary>
     /// Parses a comma-separated list of SSA value tokens, consuming as many as are present.
-    /// Returns an empty list when the current token is not an SSA name.
+    /// Returns a successful result with an empty list when the current token is not an SSA name.
+    /// Stops as soon as a non-SSA, non-comma token is encountered.
+    /// Returns a failed result with a diagnostic if an SSA token that was expected to parse fails.
     /// </summary>
-    public SeparatedSyntaxList<SyntaxToken> ParseSsaTokenList()
+    public ParseResult<SeparatedSyntaxList<SyntaxToken>> TryParseSsaTokenList()
     {
-        return Parser.ParseSsaTokenListInternal();
+        return Parser.TryParseSsaTokenListInternal();
     }
 
     /// <summary>
