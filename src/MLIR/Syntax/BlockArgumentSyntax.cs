@@ -44,19 +44,6 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     public TypeSyntax TypeSyntax { get; } = typeSyntax;
 
     /// <summary>
-    /// Attempts to get the declared type as raw syntax text.
-    /// </summary>
-    public bool TryGetRawType(out RawSyntaxText? rawType)
-    {
-        return TypeSyntax.TryGetRawText(out rawType);
-    }
-
-    /// <summary>
-    /// Gets the declared type as raw syntax text.
-    /// </summary>
-    public RawSyntaxText RawType => TypeSyntax.GetRawText();
-
-    /// <summary>
     /// Writes this block argument to the supplied syntax writer.
     /// </summary>
     /// <param name="writer">The syntax writer to write to.</param>
