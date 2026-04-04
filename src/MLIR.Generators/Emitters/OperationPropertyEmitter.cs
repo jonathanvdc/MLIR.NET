@@ -65,6 +65,15 @@ internal static class OperationPropertyEmitter
             var member = resultMembers[i];
             if (member.IsVariadic)
             {
+                // Skip generating a redundant shadowing property: when the variadic result starts at slot 0
+                // (covering all results) and its name shadows a base-class member, the generated property
+                // is equivalent to the base Results property—same type, same values—and adds no value.
+                if (resultSlotIndex == 0 && MemberModifier(member.PropertyName).Length > 0)
+                {
+                    resultSlotIndex = -1;
+                    continue;
+                }
+
                 // Variadic results: expose all results from the current slot onward as a list.
                 // Use base.Results to guard against a generated property that shadows the inherited
                 // Results list when a result happens to be named "Results".

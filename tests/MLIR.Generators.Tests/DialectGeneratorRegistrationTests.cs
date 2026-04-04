@@ -185,10 +185,11 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
     [Fact]
     public void GeneratesListPropertyForVariadicResult()
     {
+        // Use a non-shadowing name so the variadic list property is always emitted.
         var registrationSource = GenerateMiniArithRegistrationSource(
             [
                 "def MiniArith_CallOp : MiniArith_Op<\"call\", []> {",
-                "  let results = (outs Variadic<AnyType>:$results);",
+                "  let results = (outs Variadic<AnyType>:$myResults);",
                 "};",
             ]);
 
@@ -215,6 +216,40 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
         // No single-value alias should be emitted for a variadic result.
         Assert.DoesNotContain("public OperationResult ResultValue", registrationSource);
         Assert.DoesNotContain("=> ResultValue;", registrationSource);
+    }
+
+    [Fact]
+    public void DoesNotGenerateRedundantShadowingResultsProperty()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_CallOp : MiniArith_Op<\"call\", []> {",
+                "  let results = (outs Variadic<AnyType>:$results);",
+                "};",
+            ]);
+
+        // A variadic result named "results" whose property name would shadow the inherited base.Results
+        // must not be emitted—it produces the same collection as the base property and adds no value.
+        Assert.DoesNotContain("public new", registrationSource);
+        Assert.DoesNotContain("base.Results.Skip(", registrationSource);
+        Assert.DoesNotContain("public OperationResult ResultValue", registrationSource);
+    }
+
+    [Fact]
+    public void KeepsShadowingOperandsPropertyBecauseItChangesType()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_CallOp : MiniArith_Op<\"call\", []> {",
+                "  let arguments = (ins Variadic<AnyType>:$operands);",
+                "};",
+            ]);
+
+        // A variadic operand named "operands" changes the return type from IReadOnlyList<OpOperand>
+        // (base) to IReadOnlyList<Value> (generated), which is a meaningful type transformation that
+        // downstream assembly-format code may depend on. The shadowing property is retained in this case.
+        Assert.Contains("public new", registrationSource);
+        Assert.Contains("base.Operands.Skip(", registrationSource);
     }
 
     [Fact]
