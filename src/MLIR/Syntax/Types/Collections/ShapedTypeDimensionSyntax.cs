@@ -29,9 +29,4 @@ public abstract class ShapedTypeDimensionSyntax
     /// Writes this dimension to the supplied syntax writer.
     /// </summary>
     public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
-
-    /// <summary>
-    /// Gets the source location of this dimension, if known.
-    /// </summary>
-    public virtual SourceLocation Location => GetRawText().Location;
 }
