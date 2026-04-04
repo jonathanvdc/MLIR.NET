@@ -1,7 +1,6 @@
 namespace MLIR.Dialects.Extensions;
 
 using System.Collections.Generic;
-using System.Linq;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Types.Collections;

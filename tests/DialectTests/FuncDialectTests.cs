@@ -19,17 +19,6 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     {
         var registry = new DialectRegistry();
         registry.RegisterDialect(FuncDialectRegistration.Create());
-        Assert.True(registry.TryGetOperation("func.func", out var funcDef));
-        registry.ReplaceOperation(new OperationDefinition(
-            funcDef!.Name,
-            funcDef.OperandDefinitions,
-            funcDef.ResultDefinitions,
-            funcDef.RegionDefinitions,
-            funcDef.SuccessorDefinitions,
-            funcDef.AttributeDefinitions,
-            funcDef.Verifier,
-            new FuncOpAssemblyFormat(),
-            funcDef.Factory));
         return registry;
     }
 
@@ -60,10 +49,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
         Assert.NotNull(constantDef?.AssemblyFormat);
         Assert.NotNull(returnDef?.AssemblyFormat);
 
-        // Upstream FuncOp has hasCustomAssemblyFormat = 1, so the generated dialect leaves it null.
-        Assert.Null(registeredFuncDef.AssemblyFormat);
-
-        // The dialect integration tests replace it with a small handwritten format.
+        Assert.NotNull(registeredFuncDef.AssemblyFormat);
         Assert.NotNull(funcDef?.AssemblyFormat);
     }
 
@@ -303,6 +289,21 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             "func.func private @abort()",
             CreateFuncRegistry());
 
+        Assert.NotNull(op);
+    }
+
+    /// <summary>
+    /// Round-trip for func.func with the registered custom assembly format.
+    /// </summary>
+    [Fact]
+    public void ReprintsFuncOp()
+    {
+        var op = ReprintAndRebindSingleOperation<FuncOp>(
+            "func.func private @abort()",
+            CreateFuncRegistry(),
+            out var printed);
+
+        Assert.Contains("func.func private @abort()", printed);
         Assert.NotNull(op);
     }
 }
