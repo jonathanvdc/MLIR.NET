@@ -21,6 +21,11 @@ public sealed class DelimitedSyntaxList<T>(
     SyntaxToken? closeToken) : IReadOnlyList<T>
 {
     /// <summary>
+    /// Gets an empty list instance with no opening or closing delimiters.
+    /// </summary>
+    public static DelimitedSyntaxList<T> Empty { get; } = new(null, Array.Empty<T>(), Array.Empty<SyntaxToken>(), null);
+
+    /// <summary>
     /// Gets the opening delimiter token.
     /// </summary>
     public SyntaxToken? OpenToken { get; } = openToken;
