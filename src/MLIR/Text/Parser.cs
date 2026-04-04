@@ -205,8 +205,8 @@ public sealed partial class Parser
 
     private ParseResult<OperationSyntax> TryParseOperationResult()
     {
-        var resultTokens = new List<SyntaxToken>();
-        var resultCommaTokens = new List<SyntaxToken>();
+        var resultItems = new List<SyntaxToken>();
+        var resultSeparators = new List<SyntaxToken>();
         SyntaxToken? equalsToken = null;
 
         if (Is(TokenKind.SsaName))
@@ -218,7 +218,7 @@ public sealed partial class Parser
             }
 
             var firstResultToken = firstResultTokenResult.Value;
-            resultTokens.Add(firstResultToken);
+            resultItems.Add(firstResultToken);
 
             if (TryMatch(TokenKind.Colon, out _))
             {
@@ -232,20 +232,20 @@ public sealed partial class Parser
                 var count = int.Parse(countToken.Text, CultureInfo.InvariantCulture);
                 for (var i = 1; i < count; i++)
                 {
-                    resultTokens.Add(new SyntaxToken(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
+                    resultItems.Add(new SyntaxToken(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
                 }
             }
 
             while (TryMatch(TokenKind.Comma, out var resultCommaToken))
             {
-                resultCommaTokens.Add(ToSyntaxToken(resultCommaToken));
+                resultSeparators.Add(ToSyntaxToken(resultCommaToken));
                 var nextResultToken = TryParseSsaTokenResult();
                 if (!nextResultToken.IsSuccess)
                 {
                     return ParseResult<OperationSyntax>.Failure(nextResultToken.Diagnostic!);
                 }
 
-                resultTokens.Add(nextResultToken.Value);
+                resultItems.Add(nextResultToken.Value);
             }
 
             var equalsTokenResult = ExpectTokenResult(TokenKind.Equal, "Expected '=' after operation result list.");
@@ -257,6 +257,8 @@ public sealed partial class Parser
             equalsToken = equalsTokenResult.Value;
         }
 
+        var resultList = new SeparatedSyntaxList<SyntaxToken>(resultItems, resultSeparators);
+
         var nameTokenResult = TryParseOperationNameTokenResult();
         if (!nameTokenResult.IsSuccess)
         {
@@ -266,12 +268,11 @@ public sealed partial class Parser
         var nameToken = nameTokenResult.Value;
         if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
         {
-            var customBodyResult = TryParseCustomAssemblyResult(nameToken, resultTokens, resultCommaTokens, equalsToken);
+            var customBodyResult = TryParseCustomAssemblyResult(nameToken, resultList, equalsToken);
             if (customBodyResult.IsSuccess)
             {
                 return ParseResult<OperationSyntax>.Success(new OperationSyntax(
-                    resultTokens,
-                    resultCommaTokens,
+                    resultList,
                     equalsToken,
                     nameToken,
                     customBodyResult.Value));
@@ -289,8 +290,7 @@ public sealed partial class Parser
             if (projectedBodyResult.IsSuccess)
             {
                 return ParseResult<OperationSyntax>.Success(new OperationSyntax(
-                    resultTokens,
-                    resultCommaTokens,
+                    resultList,
                     equalsToken,
                     nameToken,
                     projectedBodyResult.Value));
@@ -348,8 +348,7 @@ public sealed partial class Parser
         }
 
         return ParseResult<OperationSyntax>.Success(new OperationSyntax(
-            resultTokens,
-            resultCommaTokens,
+            resultList,
             equalsToken,
             nameToken,
             operandsResult.Value,
@@ -421,8 +420,7 @@ public sealed partial class Parser
 
     private ParseResult<OperationBodySyntax> TryParseCustomAssemblyResult(
         SyntaxToken nameToken,
-        IReadOnlyList<SyntaxToken> resultTokens,
-        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SeparatedSyntaxList<SyntaxToken> resultList,
         SyntaxToken? equalsToken)
     {
         if (dialectRegistry == null)
@@ -439,8 +437,7 @@ public sealed partial class Parser
         var checkpoint = Mark();
         var result = definition.AssemblyFormat.TryParse(
             nameToken,
-            resultTokens,
-            resultCommaTokens,
+            resultList,
             equalsToken,
             new OperationParsingContext(this));
         if (result.IsSuccess || result.IsError)

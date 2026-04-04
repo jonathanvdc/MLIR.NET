@@ -28,8 +28,9 @@ public sealed class OperationSyntax
         IReadOnlyList<NamedAttributeSyntax> attributes,
         TypeSyntax? typeSignature)
         : this(
-            CreateValueTokens(results),
-            CreateDefaultCommaTokens(results.Count),
+            new SeparatedSyntaxList<SyntaxToken>(
+                CreateValueTokens(results),
+                CreateDefaultCommaTokens(results.Count)),
             results.Count > 0 ? new SyntaxToken("=") : null,
             new SyntaxToken(name),
             new GenericOperationBodySyntax(
@@ -57,20 +58,17 @@ public sealed class OperationSyntax
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationSyntax"/> class.
     /// </summary>
-    /// <param name="resultTokens">The SSA result tokens produced by the operation.</param>
-    /// <param name="resultCommaTokens">The comma tokens between results.</param>
+    /// <param name="resultList">The SSA result tokens produced by the operation, with their separator tokens.</param>
     /// <param name="equalsToken">The equals token, if present.</param>
     /// <param name="nameToken">The operation name token.</param>
     /// <param name="body">The operation body.</param>
     public OperationSyntax(
-        IReadOnlyList<SyntaxToken> resultTokens,
-        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SeparatedSyntaxList<SyntaxToken> resultList,
         SyntaxToken? equalsToken,
         SyntaxToken nameToken,
         OperationBodySyntax body)
     {
-        ResultTokens = resultTokens;
-        ResultCommaTokens = resultCommaTokens;
+        ResultList = resultList;
         EqualsToken = equalsToken;
         NameToken = nameToken;
         Body = body;
@@ -79,8 +77,7 @@ public sealed class OperationSyntax
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationSyntax"/> class.
     /// </summary>
-    /// <param name="resultTokens">The SSA result tokens produced by the operation.</param>
-    /// <param name="resultCommaTokens">The comma tokens between results.</param>
+    /// <param name="resultList">The SSA result tokens produced by the operation, with their separator tokens.</param>
     /// <param name="equalsToken">The equals token, if present.</param>
     /// <param name="nameToken">The operation name token.</param>
     /// <param name="operandList">The delimited operand list.</param>
@@ -90,8 +87,7 @@ public sealed class OperationSyntax
     /// <param name="typeSignatureColonToken">The colon token that introduces the type signature, if present.</param>
     /// <param name="typeSignature">The raw trailing type signature, if present.</param>
     public OperationSyntax(
-        IReadOnlyList<SyntaxToken> resultTokens,
-        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SeparatedSyntaxList<SyntaxToken> resultList,
         SyntaxToken? equalsToken,
         SyntaxToken nameToken,
         DelimitedSyntaxList<SyntaxToken> operandList,
@@ -101,8 +97,7 @@ public sealed class OperationSyntax
         SyntaxToken? typeSignatureColonToken,
         TypeSyntax? typeSignature)
         : this(
-            resultTokens,
-            resultCommaTokens,
+            resultList,
             equalsToken,
             nameToken,
             new GenericOperationBodySyntax(
@@ -116,14 +111,9 @@ public sealed class OperationSyntax
     }
 
     /// <summary>
-    /// Gets the SSA result tokens.
+    /// Gets the SSA result list, containing both the result tokens and the comma tokens between them.
     /// </summary>
-    public IReadOnlyList<SyntaxToken> ResultTokens { get; }
-
-    /// <summary>
-    /// Gets the comma tokens between results.
-    /// </summary>
-    public IReadOnlyList<SyntaxToken> ResultCommaTokens { get; }
+    public SeparatedSyntaxList<SyntaxToken> ResultList { get; }
 
     /// <summary>
     /// Gets the equals token, if present.
@@ -143,7 +133,7 @@ public sealed class OperationSyntax
     /// <summary>
     /// Gets the SSA results produced by the operation.
     /// </summary>
-    public IReadOnlyList<string> Results => GetTexts(ResultTokens);
+    public IReadOnlyList<string> Results => GetTexts(ResultList);
 
     /// <summary>
     /// Gets the operation name as written in the source.
@@ -171,16 +161,16 @@ public sealed class OperationSyntax
         int indentLevel,
         string defaultLeadingTrivia)
     {
-        if (ResultTokens.Count > 0)
+        if (ResultList.Count > 0)
         {
-            for (var i = 0; i < ResultTokens.Count; i++)
+            for (var i = 0; i < ResultList.Count; i++)
             {
                 if (i > 0)
                 {
-                    writer.WriteToken(ResultCommaTokens[i - 1], string.Empty);
+                    writer.WriteToken(ResultList.SeparatorTokens[i - 1], string.Empty);
                 }
 
-                writer.WriteToken(ResultTokens[i], i > 0 ? " " : defaultLeadingTrivia, i == 0 ? indentLevel : null);
+                writer.WriteToken(ResultList[i], i > 0 ? " " : defaultLeadingTrivia, i == 0 ? indentLevel : null);
             }
 
             writer.WriteToken(EqualsToken!.Value, " ");
@@ -216,7 +206,7 @@ public sealed class OperationSyntax
         return separators;
     }
 
-    private static IReadOnlyList<string> GetTexts(IReadOnlyList<SyntaxToken> tokens)
+    private static IReadOnlyList<string> GetTexts(SeparatedSyntaxList<SyntaxToken> tokens)
     {
         var values = new List<string>();
         foreach (var token in tokens)

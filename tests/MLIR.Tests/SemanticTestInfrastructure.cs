@@ -430,8 +430,7 @@ public sealed partial class SemanticTests
     {
         public ParseResult<OperationBodySyntax> TryParse(
             SyntaxToken nameToken,
-            IReadOnlyList<SyntaxToken> resultTokens,
-            IReadOnlyList<SyntaxToken> resultCommaTokens,
+            SeparatedSyntaxList<SyntaxToken> resultList,
             SyntaxToken? equalsToken,
             OperationParsingContext context)
         {
@@ -469,7 +468,7 @@ public sealed partial class SemanticTests
             return new GeneratedConstantOperation(
                 syntax,
                 definition,
-                new OperationResult(syntax.ResultTokens.Single()),
+                new OperationResult(syntax.ResultList.Single()),
                 binder.BindAttributeValue(body.Value),
                 binder.BindTypeReference(body.TypeSignature));
         }
@@ -500,8 +499,7 @@ public sealed partial class SemanticTests
 
         public ParseResult<OperationBodySyntax> TryParse(
             SyntaxToken nameToken,
-            IReadOnlyList<SyntaxToken> resultTokens,
-            IReadOnlyList<SyntaxToken> resultCommaTokens,
+            SeparatedSyntaxList<SyntaxToken> resultList,
             SyntaxToken? equalsToken,
             OperationParsingContext context)
         {
@@ -539,7 +537,7 @@ public sealed partial class SemanticTests
             return new GeneratedConstantOperation(
                 syntax,
                 definition,
-                new OperationResult(syntax.ResultTokens.Single()),
+                new OperationResult(syntax.ResultList.Single()),
                 binder.BindAttributeValue(body.Attributes[0].ValueSyntax, expectedAttributeDefinition),
                 binder.BindTypeReference(body.TypeSignature));
         }

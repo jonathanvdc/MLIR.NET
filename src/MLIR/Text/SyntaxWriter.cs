@@ -127,6 +127,28 @@ public sealed class SyntaxWriter
     }
 
     /// <summary>
+    /// Writes a separated list of syntax tokens.
+    /// Does nothing when <paramref name="list"/> is empty.
+    /// </summary>
+    /// <param name="list">The separated token list to write.</param>
+    /// <param name="firstLeadingTrivia">The fallback leading trivia for the first element.</param>
+    public void WriteSeparatedList(SeparatedSyntaxList<SyntaxToken> list, string firstLeadingTrivia)
+    {
+        list.WriteTo(this, firstLeadingTrivia, static (token, writer, trivia) => writer.WriteToken(token, trivia));
+    }
+
+    /// <summary>
+    /// Writes a separated list of attribute value syntax nodes.
+    /// Does nothing when <paramref name="list"/> is empty.
+    /// </summary>
+    /// <param name="list">The separated attribute value list to write.</param>
+    /// <param name="firstLeadingTrivia">The fallback leading trivia for the first element.</param>
+    public void WriteSeparatedList(SeparatedSyntaxList<AttributeValueSyntax> list, string firstLeadingTrivia)
+    {
+        list.WriteTo(this, firstLeadingTrivia, static (attr, writer, trivia) => attr.WriteTo(writer, trivia));
+    }
+
+    /// <summary>
     /// Writes a type syntax node.
     /// </summary>
     /// <param name="type">The type to write.</param>

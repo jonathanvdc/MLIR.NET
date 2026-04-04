@@ -19,15 +19,13 @@ public interface IOperationAssemblyFormat
     /// Attempts to parse a dialect-specific custom assembly form for the supplied operation.
     /// </summary>
     /// <param name="nameToken">The parsed operation name token.</param>
-    /// <param name="resultTokens">The parsed SSA result tokens.</param>
-    /// <param name="resultCommaTokens">The parsed comma tokens between results.</param>
+    /// <param name="resultList">The parsed SSA result tokens with their separator tokens.</param>
     /// <param name="equalsToken">The parsed equals token, if present.</param>
     /// <param name="context">The parsing context.</param>
     /// <returns>The parsed operation body, a no-match result, or a diagnostic-producing failure.</returns>
     ParseResult<OperationBodySyntax> TryParse(
         SyntaxToken nameToken,
-        IReadOnlyList<SyntaxToken> resultTokens,
-        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SeparatedSyntaxList<SyntaxToken> resultList,
         SyntaxToken? equalsToken,
         OperationParsingContext context);
 

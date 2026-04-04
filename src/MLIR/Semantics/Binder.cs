@@ -115,7 +115,7 @@ public sealed class Binder
             typeSignatureReference = BindTypeReference(body.TypeSignatureSyntax);
         }
 
-        var resultValues = BindOperationResults(syntax.ResultTokens);
+        var resultValues = BindOperationResults(syntax.ResultList);
         var operandValues = BindValueUses(body.OperandList.Items);
         var successorTokens = body.SuccessorList.Items;
 

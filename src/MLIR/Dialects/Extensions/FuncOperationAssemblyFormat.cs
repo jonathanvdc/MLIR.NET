@@ -28,12 +28,11 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<OperationBodySyntax> TryParse(
         SyntaxToken nameToken,
-        IReadOnlyList<SyntaxToken> resultTokens,
-        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SeparatedSyntaxList<SyntaxToken> resultList,
         SyntaxToken? equalsToken,
         OperationParsingContext context)
     {
-        if (resultTokens.Count != 0 || equalsToken.HasValue)
+        if (resultList.Count != 0 || equalsToken.HasValue)
         {
             return ParseResult<OperationBodySyntax>.Failure(
                 new Diagnostic("func.func cannot have SSA results.", SourceLocation.FromToken(nameToken).Line, SourceLocation.FromToken(nameToken).Column));

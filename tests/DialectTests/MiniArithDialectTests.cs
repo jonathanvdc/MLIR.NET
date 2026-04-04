@@ -79,8 +79,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             new RawTypeSyntax(new RawSyntaxText("i32")));
 
         var syntax = new OperationSyntax(
-            resultTokens: [new SyntaxToken("%result")],
-            resultCommaTokens: [],
+            resultList: new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%result")], []),
             equalsToken: new SyntaxToken("="),
             nameToken: new SyntaxToken("miniarith.addi"),
             body: body);
@@ -104,8 +103,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
         var syntax = new OperationSyntax(
-            resultTokens: [new SyntaxToken("%result")],
-            resultCommaTokens: [],
+            resultList: new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%result")], []),
             equalsToken: new SyntaxToken("="),
             nameToken: new SyntaxToken("miniarith.constant"),
             body: body);
@@ -128,8 +126,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
         var syntax = new OperationSyntax(
-            resultTokens: [new SyntaxToken("%result")],
-            resultCommaTokens: [],
+            resultList: new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%result")], []),
             equalsToken: new SyntaxToken("="),
             nameToken: new SyntaxToken("miniarith.addi"),
             body: body);
@@ -152,8 +149,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             new RawTypeSyntax(new RawSyntaxText("i32")));
 
         var syntax = new OperationSyntax(
-            resultTokens: [],
-            resultCommaTokens: [],
+            resultList: SeparatedSyntaxList<SyntaxToken>.Empty,
             equalsToken: null,
             nameToken: new SyntaxToken("miniarith.addi"),
             body: body);

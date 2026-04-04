@@ -47,8 +47,7 @@ public sealed class ParsingTests
     {
         public ParseResult<OperationBodySyntax> TryParse(
             SyntaxToken nameToken,
-            IReadOnlyList<SyntaxToken> resultTokens,
-            IReadOnlyList<SyntaxToken> resultCommaTokens,
+            SeparatedSyntaxList<SyntaxToken> resultList,
             SyntaxToken? equalsToken,
             OperationParsingContext context)
         {
