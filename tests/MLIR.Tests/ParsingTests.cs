@@ -129,7 +129,7 @@ public sealed class ParsingTests
 
         var module = Parser.ParseModule(source);
 
-        Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", ((GenericOperationBodySyntax)module.Operations[0].Body).RawTypeSignature!.Text);
+        Assert.Equal("(memref<2x?xf32, #map>) -> memref<*xf32>", ((GenericOperationBodySyntax)module.Operations[0].Body).TypeSignatureSyntax!.ToString());
     }
 
     [Fact]

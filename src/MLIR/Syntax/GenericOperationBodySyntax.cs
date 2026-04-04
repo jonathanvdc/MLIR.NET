@@ -50,25 +50,6 @@ public sealed class GenericOperationBodySyntax(
     /// </summary>
     public TypeSyntax? TypeSignatureSyntax { get; } = typeSignatureSyntax;
 
-    /// <summary>
-    /// Attempts to get the trailing type signature as raw syntax text.
-    /// </summary>
-    public bool TryGetRawTypeSignature(out RawSyntaxText? rawTypeSignature)
-    {
-        if (TypeSignatureSyntax != null)
-        {
-            return TypeSignatureSyntax.TryGetRawText(out rawTypeSignature);
-        }
-
-        rawTypeSignature = null;
-        return false;
-    }
-
-    /// <summary>
-    /// Gets the trailing type signature as raw syntax text.
-    /// </summary>
-    public RawSyntaxText? RawTypeSignature => TypeSignatureSyntax?.GetRawText();
-
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
     {
@@ -88,5 +69,13 @@ public sealed class GenericOperationBodySyntax(
             writer.WriteToken(TypeSignatureColonToken.Value, " ");
             TypeSignatureSyntax.WriteTo(writer, " ");
         }
+    }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        var writer = new Text.SyntaxWriter();
+        WriteTo(writer, indentLevel: 0);
+        return writer.ToString().Trim();
     }
 }

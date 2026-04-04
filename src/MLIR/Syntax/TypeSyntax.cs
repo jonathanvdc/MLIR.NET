@@ -47,4 +47,12 @@ public abstract class TypeSyntax
             }
         }
     }
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        var writer = new Text.SyntaxWriter();
+        WriteTo(writer, defaultLeadingTrivia: string.Empty);
+        return writer.ToString().Trim();
+    }
 }
