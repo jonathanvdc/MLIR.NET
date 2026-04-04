@@ -317,7 +317,7 @@ public static class ConcreteSyntaxBuilder
                 var arguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
                 foreach (var argument in block.Arguments)
                 {
-                    arguments.Add(new BlockArgumentSyntax(argument.Syntax.NameToken, argument.Syntax.ColonToken, BuildTypeReference(argument.TypeReference)));
+                    arguments.Add(new BlockArgumentSyntax(argument.Syntax.NameToken, argument.Syntax.ColonToken, BuildTypeReference(argument.Type)));
                 }
 
                 return new BlockSyntax(
@@ -334,7 +334,7 @@ public static class ConcreteSyntaxBuilder
             var syntheticArguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
             foreach (var argument in block.Arguments)
             {
-                syntheticArguments.Add(new BlockArgumentSyntax(argument.Name, BuildTypeReference(argument.TypeReference).GetRawText()));
+                syntheticArguments.Add(new BlockArgumentSyntax(argument.Name, BuildTypeReference(argument.Type).GetRawText()));
             }
 
             return new BlockSyntax(block.Label, syntheticArguments, operations);

@@ -172,11 +172,10 @@ public sealed partial class SemanticTests
         Assert.Equal("^bb0", block.Label);
         Assert.Single(block.Arguments);
         Assert.Equal("%arg0", block.Arguments[0].Name);
-        Assert.Equal("i32", block.Arguments[0].Type.Text);
         Assert.Single(nestedOperation.Attributes);
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
         Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax!.GetRawText().Text);
-        Assert.Equal("i32", block.Arguments[0].TypeReference.Name);
+        Assert.Equal("i32", block.Arguments[0].Type.Name);
     }
 
     [Fact]

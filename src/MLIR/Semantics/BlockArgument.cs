@@ -5,22 +5,15 @@ using MLIR.Syntax;
 /// <summary>
 /// Represents a semantic block argument.
 /// </summary>
-public sealed class BlockArgument : Value
+/// <remarks>
+/// Initializes a new instance of the <see cref="BlockArgument"/> class.
+/// </remarks>
+public sealed class BlockArgument(BlockArgumentSyntax syntax, TypeReference typeReference) : Value(syntax.NameToken)
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="BlockArgument"/> class.
-    /// </summary>
-    public BlockArgument(BlockArgumentSyntax syntax, TypeReference typeReference)
-        : base(syntax.NameToken)
-    {
-        Syntax = syntax;
-        TypeReference = typeReference;
-    }
-
     /// <summary>
     /// Gets the concrete syntax node for the block argument.
     /// </summary>
-    public BlockArgumentSyntax Syntax { get; }
+    public BlockArgumentSyntax Syntax { get; } = syntax;
 
     /// <summary>
     /// Gets the block that owns this argument.
@@ -32,23 +25,19 @@ public sealed class BlockArgument : Value
     /// </summary>
     public int Index { get; private set; } = -1;
 
-    /// <summary>
-    /// Gets the declared type text for the block argument.
-    /// </summary>
-    public RawSyntaxText Type => Syntax.RawType;
+    private TypeReference type = typeReference;
 
     /// <summary>
     /// Gets the semantic type reference for the argument type.
     /// </summary>
-    public TypeReference TypeReference { get; private set; }
-
-    /// <summary>
-    /// Updates the semantic type reference for the argument type.
-    /// </summary>
-    public void SetTypeReference(TypeReference typeReference)
+    public TypeReference Type
     {
-        TypeReference = typeReference;
-        Owner?.InvalidateSyntax();
+        get => type;
+        set
+        {
+            type = value;
+            Owner?.InvalidateSyntax();
+        }
     }
 
     internal void Bind(Block owner, int index)
