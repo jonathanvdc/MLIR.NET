@@ -89,6 +89,66 @@ public sealed class ParsingTests
         }
     }
 
+    /// <summary>
+    /// An operation body that captures the SSA token list parsed by <see cref="SsaListCapturingAssemblyFormat"/>.
+    /// </summary>
+    private sealed class SsaListCapturingBodySyntax : OperationBodySyntax
+    {
+        public SsaListCapturingBodySyntax(SeparatedSyntaxList<SyntaxToken> inputs)
+        {
+            Inputs = inputs;
+        }
+
+        /// <summary>Gets the SSA tokens that were parsed by <see cref="OperationParsingContext.TryParseSsaTokenList"/>.</summary>
+        public SeparatedSyntaxList<SyntaxToken> Inputs { get; }
+
+        public override void WriteTo(SyntaxWriter writer, int indentLevel)
+        {
+            for (var i = 0; i < Inputs.Count; i++)
+            {
+                if (i > 0)
+                {
+                    writer.WriteToken(new SyntaxToken(","), string.Empty);
+                }
+
+                writer.WriteToken(Inputs[i], i > 0 ? " " : " ");
+            }
+        }
+    }
+
+    /// <summary>
+    /// A custom assembly format that uses <see cref="OperationParsingContext.TryParseSsaTokenList"/>
+    /// to parse a variadic SSA operand list and stores the result in a
+    /// <see cref="SsaListCapturingBodySyntax"/>.
+    /// </summary>
+    private sealed class SsaListCapturingAssemblyFormat : IOperationAssemblyFormat
+    {
+        public ParseResult<OperationBodySyntax> TryParse(
+            SyntaxToken nameToken,
+            SeparatedSyntaxList<SyntaxToken> resultList,
+            SyntaxToken? equalsToken,
+            OperationParsingContext context)
+        {
+            var listResult = context.TryParseSsaTokenList();
+            if (!listResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(listResult.Diagnostic!);
+            }
+
+            return ParseResult<OperationBodySyntax>.Success(new SsaListCapturingBodySyntax(listResult.Value));
+        }
+
+        public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
+        {
+            return context.RewriteOperation(operation, context.TransformGenericBody(operation));
+        }
+
+        public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+        {
+            throw new NotImplementedException("This assembly format is only intended for testing SSA list parsing.");
+        }
+    }
+
     private static GenericOperationBodySyntax GetGenericBody(OperationSyntax operation)
     {
         if (operation.Body is GenericOperationBodySyntax genericBody)
@@ -366,4 +426,53 @@ public sealed class ParsingTests
     //         "} : (i1) -> ()",
     //         Printer.Print(genericModule));
     // }
+
+    private static DialectRegistry CreateSsaListCapturingRegistry()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(
+            Dialect.Create(
+                "test",
+                dialect =>
+                {
+                    dialect.AddOperation(
+                        "test.variadic",
+                        operation => operation.WithAssemblyFormat(new SsaListCapturingAssemblyFormat()));
+                }));
+        return registry;
+    }
+
+    [Fact]
+    public void TryParseSsaTokenListReturnsEmptyListWhenCurrentTokenIsNotSsaName()
+    {
+        // The operation body contains no SSA name token, so TryParseSsaTokenList should
+        // return a successful empty list rather than failing or throwing.
+        var module = Parser.ParseModule("test.variadic", CreateSsaListCapturingRegistry());
+
+        var body = Assert.IsType<SsaListCapturingBodySyntax>(module.Operations[0].Body);
+        Assert.Empty(body.Inputs);
+    }
+
+    [Fact]
+    public void TryParseSsaTokenListReturnsSingleToken()
+    {
+        var module = Parser.ParseModule("test.variadic %a", CreateSsaListCapturingRegistry());
+
+        var body = Assert.IsType<SsaListCapturingBodySyntax>(module.Operations[0].Body);
+        Assert.Single(body.Inputs);
+        Assert.Equal("%a", body.Inputs[0].Text);
+    }
+
+    [Fact]
+    public void TryParseSsaTokenListStopsAtFirstNonSsaCommaToken()
+    {
+        // The list should stop at the second operand after which there is no comma,
+        // and must not consume any token that follows a complete comma-separated sequence.
+        var module = Parser.ParseModule("test.variadic %a, %b", CreateSsaListCapturingRegistry());
+
+        var body = Assert.IsType<SsaListCapturingBodySyntax>(module.Operations[0].Body);
+        Assert.Equal(2, body.Inputs.Count);
+        Assert.Equal("%a", body.Inputs[0].Text);
+        Assert.Equal("%b", body.Inputs[1].Text);
+    }
 }

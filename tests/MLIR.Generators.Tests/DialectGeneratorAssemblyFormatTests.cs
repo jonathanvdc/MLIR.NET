@@ -240,4 +240,28 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             "context.IsKeyword(\"padding\")",
             "return ParseResult<OperationBodySyntax>.Success(");
     }
+
+    [Fact]
+    public void TryParseGeneratesTryParseSsaTokenListForVariadicOperand()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_SumOp : MiniArith_Op<\"sum\", []> {",
+                "  let summary = \"sums a variadic number of integers\";",
+                "  let arguments = (ins Variadic<I32>:$inputs);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$inputs attr-dict `:` type($result)\";",
+                "};",
+            ]);
+
+        // The variadic operand must use TryParseSsaTokenList (not ParseSsaTokenList) so
+        // that parse failures are propagated as ParseResult instead of thrown.
+        AssertContainsAll(
+            registrationSource,
+            "var inputsResult = context.TryParseSsaTokenList();",
+            "if (!inputsResult.IsSuccess)",
+            "return ParseResult<OperationBodySyntax>.Failure(inputsResult.Diagnostic!);",
+            "var inputs = inputsResult.Value;");
+        Assert.DoesNotContain("context.ParseSsaTokenList()", registrationSource);
+    }
 }

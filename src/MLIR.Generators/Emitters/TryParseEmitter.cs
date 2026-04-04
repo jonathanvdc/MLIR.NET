@@ -246,7 +246,7 @@ internal sealed class TryParseEmitter
 
             if (isVariadic)
             {
-                builder.AppendLine(indent + DeclareOrAssign(varName, "context.ParseSsaTokenList()", declare, field.CsType) + ";");
+                EmitParseResultAssignment(builder, indent, varName, "context.TryParseSsaTokenList()", declare, field.CsType);
             }
             else
             {

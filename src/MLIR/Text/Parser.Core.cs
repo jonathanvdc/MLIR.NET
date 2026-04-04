@@ -377,10 +377,11 @@ public sealed partial class Parser
 
     /// <summary>
     /// Parses a comma-separated list of SSA value tokens, consuming as many as are present.
-    /// Returns an empty list when the current token is not an SSA name.
+    /// Returns a successful result with an empty list when the current token is not an SSA name.
     /// Stops as soon as a non-SSA, non-comma token is encountered.
+    /// Returns a failed result with a diagnostic if an SSA token that was expected to parse fails.
     /// </summary>
-    internal SeparatedSyntaxList<SyntaxToken> ParseSsaTokenListInternal()
+    internal ParseResult<SeparatedSyntaxList<SyntaxToken>> TryParseSsaTokenListInternal()
     {
         var items = new List<SyntaxToken>();
         var separators = new List<SyntaxToken>();
@@ -389,7 +390,7 @@ public sealed partial class Parser
             var tokenResult = TryParseSsaTokenResult();
             if (!tokenResult.IsSuccess)
             {
-                throw new ParseException(tokenResult.Diagnostic!);
+                return ParseResult<SeparatedSyntaxList<SyntaxToken>>.Failure(tokenResult.Diagnostic!);
             }
 
             items.Add(tokenResult.Value);
@@ -401,7 +402,7 @@ public sealed partial class Parser
             separators.Add(ToSyntaxToken(comma));
         }
 
-        return new SeparatedSyntaxList<SyntaxToken>(items, separators);
+        return ParseResult<SeparatedSyntaxList<SyntaxToken>>.Success(new SeparatedSyntaxList<SyntaxToken>(items, separators));
     }
 
     internal ParseResult<SyntaxToken> TryParseBlockLabelTokenInternal()
