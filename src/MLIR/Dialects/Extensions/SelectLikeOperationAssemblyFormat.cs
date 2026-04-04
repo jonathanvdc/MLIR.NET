@@ -158,8 +158,8 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        var operands = operation.OperandValues;
-        if (operands.Count < 3)
+        var operands = operation.NonNullOperandValues.ToArray();
+        if (operands.Length < 3)
         {
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }

@@ -2,7 +2,6 @@ namespace MLIR.Semantics;
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using MLIR.Dialects;
 using MLIR.Syntax;
 
@@ -14,6 +13,7 @@ public abstract class Operation
     private readonly List<Region> regions;
     private readonly List<OperationResult> results;
     private readonly List<OpOperand> operands;
+    private readonly OperandValueList operandValues;
     private readonly List<OpSuccessor> successors;
 
     /// <summary>
@@ -34,6 +34,7 @@ public abstract class Operation
         this.regions = new List<Region>(regions?.Count ?? 0);
         this.results = new List<OperationResult>(resultValues?.Count ?? 0);
         operands = new List<OpOperand>(operandValues?.Count ?? 0);
+        this.operandValues = new OperandValueList(operands);
         this.successors = new List<OpSuccessor>(successors?.Count ?? 0);
 
         if (regions != null)
@@ -117,9 +118,27 @@ public abstract class Operation
     public IReadOnlyList<OpOperand> Operands => operands;
 
     /// <summary>
-    /// Gets the typed SSA operand values that are currently present.
+    /// Gets the typed SSA operand values for each operand slot.
     /// </summary>
-    public IReadOnlyList<Value> OperandValues => operands.Where(static operand => operand.Value is not null).Select(static operand => operand.Value!).ToArray();
+    public IReadOnlyList<Value?> OperandValues => operandValues;
+
+    /// <summary>
+    /// Enumerates only the non-null operand values.
+    /// </summary>
+    public IEnumerable<Value> NonNullOperandValues
+    {
+        get
+        {
+            for (var i = 0; i < operands.Count; i++)
+            {
+                var value = operands[i].Value;
+                if (value is not null)
+                {
+                    yield return value;
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the successor slots owned by the operation.
@@ -282,5 +301,29 @@ public abstract class Operation
     internal void Bind(Block parentBlock)
     {
         ParentBlock = parentBlock;
+    }
+
+    private sealed class OperandValueList : IReadOnlyList<Value?>
+    {
+        private readonly IReadOnlyList<OpOperand> operands;
+
+        public OperandValueList(IReadOnlyList<OpOperand> operands)
+        {
+            this.operands = operands;
+        }
+
+        public int Count => operands.Count;
+
+        public Value? this[int index] => operands[index].Value;
+
+        public IEnumerator<Value?> GetEnumerator()
+        {
+            for (var i = 0; i < operands.Count; i++)
+            {
+                yield return operands[i].Value;
+            }
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

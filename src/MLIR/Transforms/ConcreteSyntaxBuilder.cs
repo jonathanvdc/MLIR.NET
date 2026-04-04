@@ -196,7 +196,7 @@ public static class ConcreteSyntaxBuilder
             return (GenericOperationBodySyntax)Factory.Op(
                 operation.Name,
                 operation.Results.Select(static result => result.Name).ToList(),
-                operation.OperandValues.Select(static operand => operand.Name).ToList(),
+                operation.NonNullOperandValues.Select(static operand => operand.Name).ToList(),
                 operation.Successors.Select(static successor => successor.Label).ToList(),
                 operation.Regions.Select(BuildRegion).ToList(),
                 operation.Attributes.Select(BuildNamedAttribute).ToList(),

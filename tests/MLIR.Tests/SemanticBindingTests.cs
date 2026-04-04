@@ -32,7 +32,7 @@ public sealed partial class SemanticTests
         Assert.Equal("arith", operation.DialectName);
         Assert.NotNull(operation.Definition);
         Assert.Equal("%0", operation.Results[0].Name);
-        Assert.Equal("%lhs", operation.OperandValues[0].Name);
+        Assert.Equal("%lhs", operation.OperandValues[0]?.Name);
     }
 
     [Fact]
@@ -580,8 +580,8 @@ public sealed partial class SemanticTests
         Assert.Equal(6, operation.Location.Column);
         Assert.Equal(1, operation.Results[0].Location.Line);
         Assert.Equal(1, operation.Results[0].Location.Column);
-        Assert.Equal(1, operation.OperandValues[0].Location.Line);
-        Assert.Equal(19, operation.OperandValues[0].Location.Column);
+        Assert.Equal(1, operation.OperandValues[0]?.Location.Line);
+        Assert.Equal(19, operation.OperandValues[0]?.Location.Column);
         Assert.Equal(1, operation.Successors[0].Location.Line);
         Assert.Equal(32, operation.Successors[0].Location.Column);
     }
