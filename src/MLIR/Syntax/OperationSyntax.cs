@@ -163,15 +163,12 @@ public sealed class OperationSyntax
     {
         if (ResultList.Count > 0)
         {
-            for (var i = 0; i < ResultList.Count; i++)
+            var isFirst = true;
+            ResultList.WriteTo(writer, defaultLeadingTrivia, (token, w, trivia) =>
             {
-                if (i > 0)
-                {
-                    writer.WriteToken(ResultList.SeparatorTokens[i - 1], string.Empty);
-                }
-
-                writer.WriteToken(ResultList[i], i > 0 ? " " : defaultLeadingTrivia, i == 0 ? indentLevel : null);
-            }
+                w.WriteToken(token, trivia, isFirst ? indentLevel : null);
+                isFirst = false;
+            });
 
             writer.WriteToken(EqualsToken!.Value, " ");
             writer.WriteToken(NameToken, " ");
