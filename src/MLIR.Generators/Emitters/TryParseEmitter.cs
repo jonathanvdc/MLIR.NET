@@ -257,7 +257,7 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
-        EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
+        EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitQualifiedType(StringBuilder builder, QualifiedDirectiveChunk qualified, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
@@ -266,7 +266,7 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
-        EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
+        EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitResultsType(StringBuilder builder, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
@@ -274,7 +274,7 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
-        EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
+        EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitFunctionalType(StringBuilder builder, FunctionalTypeDirectiveChunk functionalType, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
@@ -282,7 +282,7 @@ internal sealed class TryParseEmitter
         var field = NextField();
         var varName = EmitterHelpers.LowerFirst(field.Name);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
-        builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
+        EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitRegions(StringBuilder builder, string indent, bool declare)
@@ -775,6 +775,17 @@ internal sealed class TryParseEmitter
         }
 
         return "context.TryParseTypeSyntax()";
+    }
+
+    private void EmitTypeAssignment(StringBuilder builder, string indent, string varName, string expr, bool declare, string csType)
+    {
+        if (csType == "IReadOnlyList<TypeSyntax>")
+        {
+            builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, csType) + ";");
+            return;
+        }
+
+        EmitParseResultAssignment(builder, indent, varName, expr, declare, csType);
     }
 
     private static string GetFieldDefaultExpression(string csType)

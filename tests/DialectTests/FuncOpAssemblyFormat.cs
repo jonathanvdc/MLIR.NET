@@ -22,48 +22,104 @@ using MLIR.Transforms;
 /// </remarks>
 internal sealed class FuncOpAssemblyFormat : IOperationAssemblyFormat
 {
-    public bool TryParse(
+    public ParseResult<OperationBodySyntax> TryParse(
         SyntaxToken nameToken,
         IReadOnlyList<SyntaxToken> resultTokens,
         IReadOnlyList<SyntaxToken> resultCommaTokens,
         SyntaxToken? equalsToken,
-        OperationParsingContext context,
-        out OperationBodySyntax? body)
+        OperationParsingContext context)
     {
         SyntaxToken? visibilityKeyword = null;
         if (context.IsKeyword("public"))
         {
-            visibilityKeyword = context.ExpectKeyword("public", "Expected 'public'.");
+            var visibilityResult = context.ExpectKeyword("public", "Expected 'public'.");
+            if (!visibilityResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(visibilityResult.Diagnostic!);
+            }
+
+            visibilityKeyword = visibilityResult.Value;
         }
         else if (context.IsKeyword("private"))
         {
-            visibilityKeyword = context.ExpectKeyword("private", "Expected 'private'.");
+            var visibilityResult = context.ExpectKeyword("private", "Expected 'private'.");
+            if (!visibilityResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(visibilityResult.Diagnostic!);
+            }
+
+            visibilityKeyword = visibilityResult.Value;
         }
         else if (context.IsKeyword("nested"))
         {
-            visibilityKeyword = context.ExpectKeyword("nested", "Expected 'nested'.");
+            var visibilityResult = context.ExpectKeyword("nested", "Expected 'nested'.");
+            if (!visibilityResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(visibilityResult.Diagnostic!);
+            }
+
+            visibilityKeyword = visibilityResult.Value;
         }
 
-        var symbolName = context.ParseRawUntilDelimiter(TokenKind.LParen);
-        var lParenToken = context.Expect(TokenKind.LParen, "Expected '(' after the function symbol name.");
-        RawSyntaxText inputTypes = context.Is(TokenKind.RParen)
-            ? new RawSyntaxText(string.Empty)
-            : context.ParseRawUntilDelimiter(TokenKind.RParen);
-        var rParenToken = context.Expect(TokenKind.RParen, "Expected ')' to close the function signature.");
+        var symbolNameResult = context.TryParseRawUntilDelimiter(TokenKind.LParen);
+        if (!symbolNameResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(symbolNameResult.Diagnostic!);
+        }
+
+        var lParenResult = context.Expect(TokenKind.LParen, "Expected '(' after the function symbol name.");
+        if (!lParenResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(lParenResult.Diagnostic!);
+        }
+
+        var symbolName = symbolNameResult.Value;
+        var lParenToken = lParenResult.Value;
+        RawSyntaxText inputTypes;
+        if (context.Is(TokenKind.RParen))
+        {
+            inputTypes = new RawSyntaxText(string.Empty);
+        }
+        else
+        {
+            var inputTypesResult = context.TryParseRawUntilDelimiter(TokenKind.RParen);
+            if (!inputTypesResult.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(inputTypesResult.Diagnostic!);
+            }
+
+            inputTypes = inputTypesResult.Value;
+        }
+
+        var rParenResult = context.Expect(TokenKind.RParen, "Expected ')' to close the function signature.");
+        if (!rParenResult.IsSuccess)
+        {
+            return ParseResult<OperationBodySyntax>.Failure(rParenResult.Diagnostic!);
+        }
+
+        var rParenToken = rParenResult.Value;
 
         SyntaxToken? arrowToken = null;
         RawSyntaxText? resultTypes = null;
         if (context.TryMatch(TokenKind.Arrow, out var parsedArrow))
         {
             arrowToken = parsedArrow;
-            resultTypes = context.ParseRawUntilDelimiterOrKeyword(["attributes"], TokenKind.LBrace);
+            var resultTypesParse = context.TryParseRawUntilDelimiterOrKeyword(["attributes"], TokenKind.LBrace);
+            if (!resultTypesParse.IsSuccess)
+            {
+                return ParseResult<OperationBodySyntax>.Failure(resultTypesParse.Diagnostic!);
+            }
+
+            resultTypes = resultTypesParse.Value;
         }
 
-        var trailingSyntax = context.ParseRawUntilOperationBoundary();
+        var trailingSyntax = context.Is(TokenKind.EndOfFile) || context.Is(TokenKind.RBrace)
+            ? new RawSyntaxText(string.Empty)
+            : context.TryParseRawUntilOperationBoundary().Value;
         var functionTypeSyntax = Parser.ParseType(
             "(" + inputTypes.Text + ") -> " + (resultTypes?.Text ?? "()"));
 
-        body = new FuncOpBodySyntax(
+        return ParseResult<OperationBodySyntax>.Success(new FuncOpBodySyntax(
             visibilityKeyword,
             symbolName,
             lParenToken,
@@ -72,8 +128,7 @@ internal sealed class FuncOpAssemblyFormat : IOperationAssemblyFormat
             arrowToken,
             resultTypes,
             trailingSyntax,
-            functionTypeSyntax);
-        return true;
+            functionTypeSyntax));
     }
 
     public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
