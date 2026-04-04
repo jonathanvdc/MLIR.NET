@@ -309,6 +309,34 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     }
 
     /// <summary>
+    /// Round-tripping should preserve a func.func body and its function-level
+    /// attributes through the custom assembly formatter.
+    /// </summary>
+    [Fact]
+    public void RoundTripsFuncOpWithBodyAndAttributes()
+    {
+        var module = ParseAndBind(
+            "func.func @count() attributes {fruit = \"banana\"} {\n" +
+            "  func.return\n" +
+            "}",
+            CreateFuncRegistry());
+
+        var printed = module.ToText(CustomAssemblyOptions);
+        var rebound = ParseAndBind(printed, CreateFuncRegistry());
+
+        Assert.Contains("func.func @count()", printed);
+        Assert.Contains("fruit = \"banana\"", printed);
+        Assert.Contains("func.return", printed);
+        Assert.Empty(rebound.AssemblyDiagnostics);
+
+        var reboundFunc = Assert.Single(rebound.Operations);
+        var reboundFuncOp = Assert.IsType<FuncOp>(reboundFunc);
+        Assert.Equal("count", reboundFuncOp.SymName);
+        Assert.Equal("fruit", reboundFuncOp.Attributes["fruit"].Name);
+        Assert.NotNull(reboundFuncOp.Attributes["fruit"].Value.Syntax);
+    }
+
+    /// <summary>
     /// Argument attribute dictionaries should be preserved by the custom
     /// func.func assembly format.
     /// </summary>
