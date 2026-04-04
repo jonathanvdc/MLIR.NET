@@ -27,9 +27,24 @@ public sealed class DialectRegistry
     /// <exception cref="ArgumentException">Thrown when a dialect or definition name is registered more than once.</exception>
     public void RegisterDialect(Dialect dialect)
     {
+        RegisterDialect(dialect, isDependency: false);
+    }
+
+    private void RegisterDialect(Dialect dialect, bool isDependency)
+    {
         if (dialectsByName.ContainsKey(dialect.Name))
         {
+            if (isDependency)
+            {
+                return;
+            }
+
             throw new ArgumentException($"The dialect '{dialect.Name}' is already registered.", nameof(dialect));
+        }
+
+        foreach (var dependency in dialect.Dependencies)
+        {
+            RegisterDialect(dependency(), isDependency: true);
         }
 
         foreach (var operation in dialect.Operations)

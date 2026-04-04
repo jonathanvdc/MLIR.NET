@@ -13,6 +13,7 @@ public sealed class DialectBuilder
     private readonly List<AttributeDefinition> attributes = new List<AttributeDefinition>();
     private readonly List<AttributeConstraintDefinition> attributeConstraints = new List<AttributeConstraintDefinition>();
     private readonly List<TypeDefinition> types = new List<TypeDefinition>();
+    private readonly List<Func<Dialect>> dependencies = new List<Func<Dialect>>();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DialectBuilder"/> class.
@@ -71,10 +72,19 @@ public sealed class DialectBuilder
     }
 
     /// <summary>
+    /// Adds a dialect registration dependency.
+    /// </summary>
+    public DialectBuilder AddDependency(Func<Dialect> dependency)
+    {
+        dependencies.Add(dependency);
+        return this;
+    }
+
+    /// <summary>
     /// Builds the dialect.
     /// </summary>
-    public Dialect Build()
+    public Dialect Build(IReadOnlyList<Func<Dialect>>? dependencies = null)
     {
-        return new Dialect(name, operations, attributes, types, attributeConstraints);
+        return new Dialect(name, operations, attributes, types, attributeConstraints, dependencies ?? this.dependencies);
     }
 }

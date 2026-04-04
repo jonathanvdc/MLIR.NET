@@ -33,10 +33,22 @@ internal sealed class DialectModelBuilder
 
     public IReadOnlyList<DialectModel> Build()
     {
-        return dialectsByName.Values
-            .Select(dialect => dialect.ToImmutable(sharedAttributeConstraints, sharedTypeConstraints))
+        var dialects = dialectsByName.Values
+            .Select(static dialect => dialect.ToImmutable())
             .OrderBy(static dialect => dialect.Name, System.StringComparer.Ordinal)
             .ToArray();
+
+        if (dialects.Length == 0)
+        {
+            return dialects;
+        }
+
+        var result = new List<DialectModel>(dialects.Length + 1)
+        {
+            DialectModel.CreatePrelude(sharedAttributeConstraints.ToArray(), sharedTypeConstraints.ToArray()),
+        };
+        result.AddRange(dialects);
+        return result;
     }
 
     internal sealed class MutableDialectModel
@@ -56,9 +68,9 @@ internal sealed class DialectModelBuilder
         public List<TypeModel> Types { get; } = new();
         public List<TypeConstraintModel> TypeConstraints { get; } = new();
 
-        public DialectModel ToImmutable(IReadOnlyList<AttributeConstraintModel> sharedAttributeConstraints, IReadOnlyList<TypeConstraintModel> sharedTypeConstraints)
+        public DialectModel ToImmutable()
         {
-            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, sharedAttributeConstraints, sharedTypeConstraints, Types);
+            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, typeConstraints: TypeConstraints, types: Types);
         }
     }
 }

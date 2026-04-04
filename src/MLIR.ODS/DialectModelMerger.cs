@@ -23,6 +23,7 @@ public static class DialectModelMerger
         string? summary = null;
         string? description = null;
         var hasConstantMaterializer = false;
+        var isPrelude = false;
 
         foreach (var dialect in group)
         {
@@ -30,6 +31,7 @@ public static class DialectModelMerger
             summary ??= dialect.Summary;
             description ??= dialect.Description;
             hasConstantMaterializer |= dialect.HasConstantMaterializer;
+            isPrelude |= dialect.IsPrelude;
             operations.AddRange(dialect.Operations);
             attributes.AddRange(dialect.Attributes);
             attributeConstraints.AddRange(dialect.AttributeConstraints);
@@ -56,7 +58,8 @@ public static class DialectModelMerger
                 .GroupBy(static constraint => constraint.RecordName, System.StringComparer.Ordinal)
                 .Select(static constraints => constraints.First())
                 .ToArray(),
-            types);
+            types,
+            isPrelude);
     }
 
     private static OperationModel MergeOperationGroup(IGrouping<string, OperationModel> group)

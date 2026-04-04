@@ -20,7 +20,8 @@ public sealed class DialectModel
         IReadOnlyList<AttributeModel>? attributes = null,
         IReadOnlyList<AttributeConstraintModel>? attributeConstraints = null,
         IReadOnlyList<TypeConstraintModel>? typeConstraints = null,
-        IReadOnlyList<TypeModel>? types = null)
+        IReadOnlyList<TypeModel>? types = null,
+        bool isPrelude = false)
     {
         Name = name;
         CppNamespace = cppNamespace;
@@ -32,6 +33,22 @@ public sealed class DialectModel
         AttributeConstraints = attributeConstraints ?? EmptyAttributeConstraints;
         TypeConstraints = typeConstraints ?? EmptyTypeConstraints;
         Types = types ?? EmptyTypes;
+        IsPrelude = isPrelude;
+    }
+
+    /// <summary>
+    /// Creates the shared prelude dialect model that owns builtin constraints and types.
+    /// </summary>
+    public static DialectModel CreatePrelude(
+        IReadOnlyList<AttributeConstraintModel> attributeConstraints,
+        IReadOnlyList<TypeConstraintModel> typeConstraints)
+    {
+        return new DialectModel(
+            "prelude",
+            "::mlir::prelude",
+            attributeConstraints: attributeConstraints,
+            typeConstraints: typeConstraints,
+            isPrelude: true);
     }
 
     /// <summary>
@@ -83,6 +100,11 @@ public sealed class DialectModel
     /// Gets the type descriptions defined by the dialect.
     /// </summary>
     public IReadOnlyList<TypeModel> Types { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether this model represents the generated shared prelude.
+    /// </summary>
+    public bool IsPrelude { get; }
 
     private static readonly IReadOnlyList<OperationModel> EmptyOperations = new OperationModel[0];
     private static readonly IReadOnlyList<AttributeModel> EmptyAttributes = new AttributeModel[0];

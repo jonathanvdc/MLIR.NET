@@ -212,6 +212,31 @@ public sealed class IncludeResolutionTests
     }
 
     [Fact]
+    public void GeneratorEmitsSharedPreludeOnlyOnceAcrossMultipleDialectFiles()
+    {
+        const string fileA =
+            "include \"mlir/IR/OpBase.td\"\n" +
+            "class Aaa_Op<string mnemonic, list<Trait> traits = []> : Op<Aaa_Dialect, mnemonic, traits>;\n" +
+            "def Aaa_Dialect : Dialect { let name = \"aaa\"; let cppNamespace = \"::mlir::aaa\"; };\n" +
+            "def Aaa_AddOp : Aaa_Op<\"add\", [Pure]> { let arguments = (ins I32:$lhs, I32:$rhs); let results = (outs I32:$result); };\n";
+
+        const string fileB =
+            "include \"mlir/IR/OpBase.td\"\n" +
+            "class Bbb_Op<string mnemonic, list<Trait> traits = []> : Op<Bbb_Dialect, mnemonic, traits>;\n" +
+            "def Bbb_Dialect : Dialect { let name = \"bbb\"; let cppNamespace = \"::mlir::bbb\"; };\n" +
+            "def Bbb_AddOp : Bbb_Op<\"add\", [Pure]> { let arguments = (ins I32:$lhs, I32:$rhs); let results = (outs I32:$result); };\n";
+
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("a.td", fileA),
+            ("b.td", fileB));
+
+        Assert.Single(generatedSources.Where(static r => r.HintName == "PreludeDialectRegistration.g.cs"));
+        Assert.Single(generatedSources.Where(static r => r.HintName == "AaaDialectRegistration.g.cs"));
+        Assert.Single(generatedSources.Where(static r => r.HintName == "BbbDialectRegistration.g.cs"));
+    }
+
+    [Fact]
     public void GeneratorReportsDiagnosticForUnresolvableInclude()
     {
         const string source = "include \"does_not_exist.td\"";

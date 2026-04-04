@@ -123,7 +123,8 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
         var result = Assert.Single(runResult.Results);
         var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN002"));
 
-        Assert.Empty(result.GeneratedSources);
+        Assert.Contains(result.GeneratedSources, static source => source.HintName == "PreludeDialectRegistration.g.cs");
+        Assert.DoesNotContain(result.GeneratedSources, static source => source.HintName == "MiniarithDialectRegistration.g.cs");
         Assert.Contains("MiniArith_BrokenOp", diagnostic.GetMessage());
         Assert.Contains("No body field was generated for operand 'lhs'", diagnostic.GetMessage());
     }
@@ -131,17 +132,28 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
     [Fact]
     public void GeneratesBuiltinTypeConstraintWrappersAndRegistersSelfIdentifyingOnes()
     {
-        var registrationSource = GenerateMiniArithRegistrationSource(
-            [
-                "def MiniArith_IdOp : MiniArith_Op<\"id\", [Pure]> {",
-                "  let arguments = (ins AnyTensor:$input, AnyVectorOfAnyRank:$vector, AnyMemRef:$memory, FunctionType:$callee);",
-                "  let results = (outs AnyTuple:$result);",
-                "  let assemblyFormat = \"$input `,` $vector `,` $memory `,` $callee attr-dict `:` type($result)\";",
-                "};",
-            ]);
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            (
+                "miniarith.td",
+                ComposeMiniArithSource(
+                    [
+                        "def MiniArith_IdOp : MiniArith_Op<\"id\", [Pure]> {",
+                        "  let arguments = (ins AnyTensor:$input, AnyVectorOfAnyRank:$vector, AnyMemRef:$memory, FunctionType:$callee);",
+                        "  let results = (outs AnyTuple:$result);",
+                        "  let assemblyFormat = \"$input `,` $vector `,` $memory `,` $callee attr-dict `:` type($result)\";",
+                        "};",
+                    ])));
+
+        var preludeSource = Assert.Single(
+            generatedSources.Where(static r => r.HintName == "PreludeDialectRegistration.g.cs")).SourceText.ToString();
+        var registrationSource = Assert.Single(
+            generatedSources.Where(static r => r.HintName == "MiniarithDialectRegistration.g.cs")).SourceText.ToString();
 
         AssertContainsAll(
-            registrationSource,
+            preludeSource,
+            "namespace MLIR.Prelude;",
+            "public static class PreludeDialectRegistration",
             "public sealed class I32ConstraintTypeReference : IntegerTypeReference",
             "public sealed class F32ConstraintTypeReference : FloatTypeReference",
             "public sealed class IndexConstraintTypeReference : IndexTypeReference",
@@ -160,5 +172,13 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             "dialect.AddType(AnyTensorConstraintTypeReference.TypeDefinition);",
             "dialect.AddType(AnyVectorOfAnyRankConstraintTypeReference.TypeDefinition);",
             "dialect.AddType(AnyMemRefConstraintTypeReference.TypeDefinition);");
+        Assert.DoesNotContain("global::MLIR.Prelude.PreludeDialectRegistration.Create", preludeSource);
+
+        AssertContainsAll(
+            registrationSource,
+            "public static class MiniarithDialectRegistration",
+            "Dialect.Create(\"miniarith\", dialect =>",
+            "global::MLIR.Prelude.PreludeDialectRegistration.Create");
+        Assert.DoesNotContain("I32ConstraintTypeReference", registrationSource);
     }
 }
