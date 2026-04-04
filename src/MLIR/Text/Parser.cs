@@ -9,8 +9,155 @@ using MLIR.Syntax;
 /// <summary>
 /// Parses generic MLIR syntax into a concrete syntax tree.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <see cref="Parser"/> is a hand-written, single-pass recursive-descent parser that converts MLIR text into a
+/// <em>Concrete Syntax Tree</em> (CST). The CST is the source of truth for both parsing and round-trip printing:
+/// no information is discarded, and the original whitespace and comments are preserved as leading trivia on each token.
+/// </para>
+///
+/// <para><strong>Layered architecture</strong></para>
+/// <para>
+/// The intended flow through the runtime stack is:
+/// <list type="number">
+///   <item><description><c>MLIR text</c> → <see cref="Lexer"/> → flat token list</description></item>
+///   <item><description>flat token list → <see cref="Parser"/> → CST (<see cref="ModuleSyntax"/> and friends)</description></item>
+///   <item><description>CST → <c>Binder</c> → typed semantic objects (<c>Module</c>, <c>Operation</c>, etc.)</description></item>
+///   <item><description>typed semantic objects → <c>ConcreteSyntaxBuilder</c> → CST → <see cref="Printer"/> → MLIR text</description></item>
+/// </list>
+/// The parser deliberately produces only CST. If you need typed values (e.g., <c>Value</c>, <c>Region</c>), pass
+/// the <see cref="ModuleSyntax"/> to the binder rather than extending the parser to perform semantic work.
+/// </para>
+///
+/// <para><strong>Three-valued parse results</strong></para>
+/// <para>
+/// Every internal parsing step returns a <see cref="ParseResult{T}"/> with one of three outcomes:
+/// <list type="bullet">
+///   <item><description><see cref="ParseOutcome.Success"/> – the production matched and a value was produced.</description></item>
+///   <item><description><see cref="ParseOutcome.NoMatch"/> – the production did not apply; no tokens were consumed and the
+///     parser can safely try an alternative.</description></item>
+///   <item><description><see cref="ParseOutcome.Error"/> – the production started to match but encountered malformed syntax;
+///     a <see cref="Diagnostic"/> is attached and propagation stops.</description></item>
+/// </list>
+/// The distinction between <c>NoMatch</c> and <c>Error</c> is critical for correct backtracking: only <c>NoMatch</c>
+/// results should cause the parser to reset its position via <see cref="Mark"/> / <see cref="Reset"/>.
+/// </para>
+///
+/// <para><strong>Backtracking</strong></para>
+/// <para>
+/// The parser supports bounded backtracking through <see cref="Mark"/> and <see cref="Reset"/>. A <see cref="ParseMark"/>
+/// records the current token index. When a speculative parse fails with <c>NoMatch</c>, the parser resets to the recorded
+/// mark and tries the next alternative. This pattern is used for ambiguous constructs such as the
+/// <c>{</c> token, which may start either a region or an attribute dictionary, and for custom assembly format dispatch.
+/// </para>
+///
+/// <para><strong>Operation boundary detection</strong></para>
+/// <para>
+/// MLIR does not require a terminator token between consecutive operations. Instead, the parser treats a newline
+/// in the leading trivia of the current token as an <em>operation boundary</em>. The method
+/// <see cref="IsOperationBoundary"/> implements this rule, and <see cref="EnsureOperationBoundaryResult"/> enforces it
+/// after each top-level or block-level operation. This matches the upstream MLIR parser's whitespace-sensitivity for
+/// operation separation.
+/// </para>
+///
+/// <para><strong>Custom assembly format integration</strong></para>
+/// <para>
+/// When a <see cref="DialectRegistry"/> is supplied, the parser attempts to dispatch each operation, type, or attribute
+/// to the corresponding dialect-registered assembly-format handler before falling back to generic or raw parsing:
+/// <list type="bullet">
+///   <item><description>Operations: the registry is queried by normalized operation name; if a matching
+///     <c>IOperationAssemblyFormat</c> is found its <c>TryParse</c> method is called with an
+///     <see cref="OperationParsingContext"/>.</description></item>
+///   <item><description>Types: the registry is queried by type name and dispatched to an
+///     <c>ITypeAssemblyFormat</c> through a <see cref="TypeParsingContext"/>.</description></item>
+///   <item><description>Attributes: self-identifying attributes (prefixed with <c>#identifier</c>) are looked up first;
+///     caller-supplied <c>AttributeConstraintDefinition</c> hints are tried next; built-in structured forms
+///     (arrays, dictionaries, dense arrays, elements) are checked last before falling back to raw syntax.</description></item>
+/// </list>
+/// All custom format handlers receive a context object derived from <see cref="DialectParsingContext"/> rather than the
+/// parser itself, keeping the parser's internals private and ensuring that dialect code can only advance the token
+/// stream through well-defined primitives.
+/// </para>
+///
+/// <para><strong>Raw syntax fallback</strong></para>
+/// <para>
+/// When no structured match is found for a type or attribute, the parser captures the remaining tokens as a
+/// <c>RawSyntaxText</c> node using <see cref="TryScanRawFragment"/>. The scan is bracket-aware (it tracks
+/// <c>()</c>, <c>{}</c>, <c>[]</c>, and <c>&lt;&gt;</c> depth) and stops at the first unbalanced delimiter,
+/// operation boundary, or explicit stop token, whichever comes first.
+/// </para>
+///
+/// <para><strong>Error handling</strong></para>
+/// <para>
+/// On parse failure the public API surface follows one of two contracts:
+/// <list type="bullet">
+///   <item><description>Throwing: <see cref="ParseModule(string)"/>, <see cref="ParseAttributeValue"/>, and
+///     <see cref="ParseType(string,DialectRegistry?)"/> throw a <see cref="ParseException"/> whose
+///     <see cref="ParseException.Diagnostic"/> carries the error location.</description></item>
+///   <item><description>Non-throwing: <see cref="TryParseModule(string,out ModuleSyntax?,out Diagnostic?)"/>,
+///     <see cref="TryParseAttributeValue(string,out AttributeValueSyntax?,out Diagnostic?)"/>, and
+///     <see cref="TryParseType(string,out TypeSyntax?,out Diagnostic?)"/> return <see langword="false"/> and
+///     populate the <c>diagnostic</c> out-parameter.</description></item>
+/// </list>
+/// </para>
+///
+/// <para><strong>Usage example – parsing a module</strong></para>
+/// <example>
+/// <code>
+/// // Throwing form — suitable when the source is trusted to be valid MLIR.
+/// ModuleSyntax module = Parser.ParseModule("""
+///     func.func @add(%a: i32, %b: i32) -> i32 {
+///       %sum = arith.addi %a, %b : i32
+///       return %sum : i32
+///     }
+///     """);
+///
+/// // Non-throwing form — preferred when the source may be user-supplied.
+/// if (!Parser.TryParseModule(source, out ModuleSyntax? module, out Diagnostic? diagnostic))
+/// {
+///     Console.Error.WriteLine(diagnostic);
+/// }
+/// </code>
+/// </example>
+///
+/// <para><strong>Usage example – dialect-aware parsing</strong></para>
+/// <example>
+/// <code>
+/// // Register dialects so that custom assembly formats are recognized during parsing.
+/// var registry = new DialectRegistry();
+/// registry.RegisterDialect(new ArithDialect());
+///
+/// ModuleSyntax module = Parser.ParseModule(source, registry);
+/// </code>
+/// </example>
+///
+/// <para><strong>Extension pattern – implementing a custom assembly format</strong></para>
+/// <example>
+/// <code>
+/// // Custom operation assembly formats receive an OperationParsingContext that exposes
+/// // safe, composable parser primitives without exposing the parser internals.
+/// public bool TryParse(
+///     SyntaxToken nameToken,
+///     SeparatedSyntaxList&lt;SyntaxToken&gt; resultList,
+///     SyntaxToken? equalsToken,
+///     OperationParsingContext ctx,
+///     out OperationBodySyntax? body)
+/// {
+///     // Parse `%operand : type`
+///     if (!ctx.TryParseSsaToken().TryGetValue(out var operand))  return false;
+///     if (!ctx.Expect(TokenKind.Colon, "Expected ':'.").TryGetValue(out var colon)) return false;
+///     if (!ctx.TryParseTypeSyntax().TryGetValue(out var type)) return false;
+///     // ... build and return the body ...
+/// }
+/// </code>
+/// </example>
+/// </remarks>
 public sealed partial class Parser
 {
+    /// <summary>
+    /// Records a token-stream position so that the parser can reset to it if a speculative
+    /// production fails with <see cref="ParseOutcome.NoMatch"/>.
+    /// </summary>
     private readonly struct ParseMark
     {
         public ParseMark(int position)
@@ -18,14 +165,40 @@ public sealed partial class Parser
             Position = position;
         }
 
+        /// <summary>Gets the token index captured when the mark was created.</summary>
         public int Position { get; }
     }
 
+    /// <summary>The raw MLIR source text, used to reconstruct span text for raw syntax nodes.</summary>
     private readonly string source;
+
+    /// <summary>
+    /// The flat, immutable token list produced by the <see cref="Lexer"/>.
+    /// The last element is always an <see cref="TokenKind.EndOfFile"/> sentinel so that
+    /// <see cref="Current"/> never reads past the end of the array.
+    /// </summary>
     private readonly IReadOnlyList<Token> tokens;
+
+    /// <summary>
+    /// Optional registry of dialect-specific assembly format handlers.
+    /// When <see langword="null"/>, all operations, types, and attributes fall through to
+    /// generic or raw parsing.
+    /// </summary>
     private readonly DialectRegistry? dialectRegistry;
+
+    /// <summary>
+    /// Current read position in <see cref="tokens"/>. Advanced by <see cref="ConsumeToken"/>
+    /// and restored by <see cref="Reset"/> during backtracking.
+    /// </summary>
     private int position;
 
+    /// <summary>
+    /// Initializes a new <see cref="Parser"/> instance backed by the supplied token list.
+    /// Use the static factory <see cref="TryCreateParser"/> rather than constructing directly.
+    /// </summary>
+    /// <param name="source">The original MLIR source text.</param>
+    /// <param name="tokens">Flat token list produced by the lexer; must end with an EOF token.</param>
+    /// <param name="dialectRegistry">Optional registry for dialect-specific assembly formats.</param>
     private Parser(string source, IReadOnlyList<Token> tokens, DialectRegistry? dialectRegistry = null)
     {
         this.source = source;
@@ -181,6 +354,10 @@ public sealed partial class Parser
         return TryParseType(source, null, out syntax, out diagnostic);
     }
 
+    /// <summary>
+    /// Parses a top-level sequence of operations that forms an implicit module.
+    /// Stops at <see cref="TokenKind.EndOfFile"/> and enforces operation boundaries between consecutive items.
+    /// </summary>
     private ParseResult<ModuleSyntax> TryParseModuleCoreResult()
     {
         var operations = new List<OperationSyntax>();
@@ -203,6 +380,23 @@ public sealed partial class Parser
         return ParseResult<ModuleSyntax>.Success(new ModuleSyntax(operations, ToSyntaxToken(ConsumeToken())));
     }
 
+    /// <summary>
+    /// Parses a single MLIR operation, including its optional result list, operation name,
+    /// operands, successors, regions, attribute dictionary, and type signature.
+    /// </summary>
+    /// <remarks>
+    /// The parse strategy follows the MLIR generic operation grammar and then tries custom formats:
+    /// <list type="number">
+    ///   <item><description>If the current token is an SSA name (<c>%</c>), parse the result list and the
+    ///     mandatory <c>=</c> that follows it.</description></item>
+    ///   <item><description>Parse the operation name (bare identifier or quoted string).</description></item>
+    ///   <item><description>For unquoted names, attempt a registered custom assembly format via
+    ///     <see cref="TryParseCustomAssemblyResult"/>. If that returns <c>NoMatch</c>, attempt a
+    ///     "projected custom-like" form (bare operands + <c>:</c> + raw type).</description></item>
+    ///   <item><description>If no custom form matches, fall through to the full generic format:
+    ///     <c>(operands) [successors] { regions } {attrs} : type</c>.</description></item>
+    /// </list>
+    /// </remarks>
     private ParseResult<OperationSyntax> TryParseOperationResult()
     {
         var resultItems = new List<SyntaxToken>();
@@ -359,6 +553,18 @@ public sealed partial class Parser
             typeSignatureSyntax));
     }
 
+    /// <summary>
+    /// Attempts to parse an operation body using a "projected" format that resembles custom assembly:
+    /// bare operand names, an optional attribute dictionary, a <c>:</c> separator, and a raw type signature.
+    /// </summary>
+    /// <remarks>
+    /// This production handles non-generic operations whose assembly format is not registered in the dialect
+    /// registry but still follows the common pattern <c>%a, %b {attrs} : type</c>. The result is wrapped in a
+    /// <see cref="GenericOperationBodySyntax"/> with synthetic parentheses around the operands so the CST
+    /// has a uniform shape regardless of which parse path was taken.
+    /// Returns <see cref="ParseOutcome.NoMatch"/> if no <c>:</c> is found, resetting the parser to the
+    /// checkpoint so the caller can fall through to the full generic format.
+    /// </remarks>
     private ParseResult<OperationBodySyntax> TryParseProjectedCustomLikeOperationBodyResult()
     {
         var checkpoint = Mark();
@@ -418,6 +624,18 @@ public sealed partial class Parser
             new RawTypeSyntax(typeSignatureResult.Value)));
     }
 
+    /// <summary>
+    /// Attempts to dispatch parsing of an operation body to a dialect-registered custom assembly format.
+    /// </summary>
+    /// <param name="nameToken">The already-consumed operation name token.</param>
+    /// <param name="resultList">The already-parsed result list (may be empty).</param>
+    /// <param name="equalsToken">The <c>=</c> token that followed the result list, or <see langword="null"/> when there are no results.</param>
+    /// <returns>
+    /// A successful result when the dialect handler accepted and parsed the body;
+    /// <see cref="ParseOutcome.Error"/> when the handler committed to the format but found malformed syntax;
+    /// <see cref="ParseOutcome.NoMatch"/> when no handler is registered for the operation name.
+    /// The parser position is reset to the pre-call checkpoint on <c>NoMatch</c>.
+    /// </returns>
     private ParseResult<OperationBodySyntax> TryParseCustomAssemblyResult(
         SyntaxToken nameToken,
         SeparatedSyntaxList<SyntaxToken> resultList,
@@ -449,6 +667,15 @@ public sealed partial class Parser
         return ParseResult<OperationBodySyntax>.NoMatch();
     }
 
+    /// <summary>
+    /// Parses a single MLIR region: <c>{ block* }</c>.
+    /// </summary>
+    /// <remarks>
+    /// MLIR regions may contain an implicit entry block with no label. Such unlabeled leading
+    /// operations are collected and then wrapped in a synthetic <c>^entry</c> block so the CST
+    /// always has a uniform block-based structure, regardless of whether the source used explicit
+    /// block labels. Empty regions also receive a synthetic empty entry block.
+    /// </remarks>
     private ParseResult<RegionSyntax> TryParseRegionResult()
     {
         var openBraceResult = ExpectTokenResult(TokenKind.LBrace, "Expected '{' to start a region.");
@@ -521,6 +748,10 @@ public sealed partial class Parser
         return ParseResult<RegionSyntax>.Success(new RegionSyntax(openBraceToken, blocks, closeBraceResult.Value));
     }
 
+    /// <summary>
+    /// Parses a labeled MLIR block: <c>^label(args): op*</c>.
+    /// Stops when the next token is <c>}</c> (region close) or a new <c>^block_label</c>.
+    /// </summary>
     private ParseResult<BlockSyntax> TryParseBlockResult()
     {
         var labelResult = TryParseBlockLabelTokenResult();
@@ -569,6 +800,9 @@ public sealed partial class Parser
             operations));
     }
 
+    /// <summary>
+    /// Parses a single block argument: <c>%name : type</c>.
+    /// </summary>
     private ParseResult<BlockArgumentSyntax> TryParseBlockArgumentResult()
     {
         var nameResult = TryParseSsaTokenResult();
@@ -592,6 +826,9 @@ public sealed partial class Parser
         return ParseResult<BlockArgumentSyntax>.Success(new BlockArgumentSyntax(nameResult.Value, colonResult.Value, typeResult.Value));
     }
 
+    /// <summary>
+    /// Returns a human-readable spelling of the supplied token kind, used in error messages.
+    /// </summary>
     private static string TokenText(TokenKind kind)
     {
         return kind switch
@@ -604,6 +841,10 @@ public sealed partial class Parser
         };
     }
 
+    /// <summary>
+    /// Parses the operation name token, which is either a bare identifier (<c>dialect.op</c>)
+    /// or a quoted string (<c>"dialect.op"</c>).
+    /// </summary>
     private ParseResult<SyntaxToken> TryParseOperationNameTokenResult()
     {
         if (!Is(TokenKind.Identifier) && !Is(TokenKind.StringLiteral))
@@ -614,21 +855,35 @@ public sealed partial class Parser
         return ParseResult<SyntaxToken>.Success(ToSyntaxToken(ConsumeToken()));
     }
 
+    /// <summary>
+    /// Expects and consumes the current token as an SSA value name (<c>%name</c>).
+    /// </summary>
     private ParseResult<SyntaxToken> TryParseSsaTokenResult()
     {
         return ExpectTokenResult(TokenKind.SsaName, "Expected an SSA value name.");
     }
 
+    /// <summary>
+    /// Expects and consumes the current token as a block label name (<c>^label</c>).
+    /// </summary>
     private ParseResult<SyntaxToken> TryParseBlockLabelTokenResult()
     {
         return ExpectTokenResult(TokenKind.BlockLabel, "Expected a block label name.");
     }
 
+    /// <summary>
+    /// Scans raw tokens until one of the supplied delimiter token kinds is reached at depth zero,
+    /// without stopping at operation boundaries.
+    /// </summary>
     private ParseResult<RawSyntaxText> TryParseRawUntilDelimiterResult(params TokenKind[] delimiters)
     {
         return TryParseRawUntilDelimiterOrKeywordResult(delimiters, []);
     }
 
+    /// <summary>
+    /// Scans raw tokens until one of the supplied delimiter token kinds or keyword spellings is reached
+    /// at depth zero, without stopping at operation boundaries.
+    /// </summary>
     private ParseResult<RawSyntaxText> TryParseRawUntilDelimiterOrKeywordResult(TokenKind[] delimiters, string[] keywords)
     {
         return TryScanRawFragment(
@@ -639,6 +894,9 @@ public sealed partial class Parser
             eofMessage: "Unexpected end of file while parsing raw syntax.");
     }
 
+    /// <summary>
+    /// Parses a required operand list of the form <c>( %a, %b, ... )</c>.
+    /// </summary>
     private ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseOperandsResult()
     {
         return TryParseRequiredCommaSeparatedDelimitedList(
@@ -649,6 +907,10 @@ public sealed partial class Parser
             "Expected ')' to close the operand list.");
     }
 
+    /// <summary>
+    /// Parses an optional successor list of the form <c>[ ^bb1, ^bb2, ... ]</c>.
+    /// Returns an empty list when no <c>[</c> is present.
+    /// </summary>
     private ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseSuccessorsResult()
     {
         if (!Is(TokenKind.LBracket))
