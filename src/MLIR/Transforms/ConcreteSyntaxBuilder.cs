@@ -134,30 +134,28 @@ public static class ConcreteSyntaxBuilder
             if (preserveOuterTokens && operation.Syntax != null)
             {
                 return new OperationSyntax(
-                    operation.Syntax.ResultTokens,
-                    operation.Syntax.ResultCommaTokens,
+                    operation.Syntax.ResultList,
                     operation.Syntax.EqualsToken,
                     nameToken ?? operation.Syntax.NameToken,
                     body);
             }
 
             var results = operation.Results;
-            var resultTokens = new List<SyntaxToken>(results.Count);
+            var resultItems = new List<SyntaxToken>(results.Count);
             foreach (var result in results)
             {
-                resultTokens.Add(new SyntaxToken(result.Name));
+                resultItems.Add(new SyntaxToken(result.Name));
             }
 
-            var resultCommaTokens = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
+            var resultSeparators = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
             for (var i = 1; i < results.Count; i++)
             {
-                resultCommaTokens.Add(new SyntaxToken(","));
+                resultSeparators.Add(new SyntaxToken(","));
             }
 
             var equalsToken = results.Count > 0 ? (SyntaxToken?)new SyntaxToken("=") : null;
             return new OperationSyntax(
-                resultTokens,
-                resultCommaTokens,
+                new SeparatedSyntaxList<SyntaxToken>(resultItems, resultSeparators),
                 equalsToken,
                 nameToken ?? new SyntaxToken(QuoteIfNeeded(operation.Name)),
                 body);

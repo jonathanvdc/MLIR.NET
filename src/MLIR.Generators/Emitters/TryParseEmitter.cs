@@ -73,7 +73,7 @@ internal sealed class TryParseEmitter
 
     private void EmitMethod(StringBuilder builder)
     {
-        builder.AppendLine("    public ParseResult<OperationBodySyntax> TryParse(SyntaxToken nameToken, IReadOnlyList<SyntaxToken> resultTokens, IReadOnlyList<SyntaxToken> resultCommaTokens, SyntaxToken? equalsToken, OperationParsingContext context)");
+        builder.AppendLine("    public ParseResult<OperationBodySyntax> TryParse(SyntaxToken nameToken, SeparatedSyntaxList<SyntaxToken> resultList, SyntaxToken? equalsToken, OperationParsingContext context)");
         builder.AppendLine("    {");
 
         var format = operation.AssemblyFormat!;

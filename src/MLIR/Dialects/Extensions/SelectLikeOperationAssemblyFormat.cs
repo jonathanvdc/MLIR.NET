@@ -30,8 +30,7 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<OperationBodySyntax> TryParse(
         SyntaxToken nameToken,
-        IReadOnlyList<SyntaxToken> resultTokens,
-        IReadOnlyList<SyntaxToken> resultCommaTokens,
+        SeparatedSyntaxList<SyntaxToken> resultList,
         SyntaxToken? equalsToken,
         OperationParsingContext context)
     {
@@ -119,9 +118,9 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             return new UninterpretedOperation(syntax, definition.Name);
         }
 
-        if (syntax.ResultTokens.Count != definition.ResultCount.GetValueOrDefault(1))
+        if (syntax.ResultList.Count != definition.ResultCount.GetValueOrDefault(1))
         {
-            binder.Report(new AssemblyDiagnostic(syntax.Location, "Expected exactly 1 result(s) but found " + syntax.ResultTokens.Count + "."));
+            binder.Report(new AssemblyDiagnostic(syntax.Location, "Expected exactly 1 result(s) but found " + syntax.ResultList.Count + "."));
             return new UninterpretedOperation(syntax, definition.Name);
         }
 
@@ -146,7 +145,7 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             new List<Region>(),
             new NamedAttributeCollection(attributes),
             typeSignature,
-            binder.BindOperationResults(syntax.ResultTokens),
+            binder.BindOperationResults(syntax.ResultList),
             binder.BindValueUses([body.Condition, body.TrueValue, body.FalseValue]),
             new Block?[] { }));
     }

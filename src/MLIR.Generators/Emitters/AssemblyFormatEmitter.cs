@@ -249,11 +249,11 @@ internal static class AssemblyFormatEmitter
         }
 
         var resultCountCondition = hasVariadicResults
-            ? "syntax.ResultTokens.Count < " + minimumResultCount.ToString(CultureInfo.InvariantCulture)
-            : "syntax.ResultTokens.Count != " + operation.Results.Count.ToString(CultureInfo.InvariantCulture);
+            ? "syntax.ResultList.Count < " + minimumResultCount.ToString(CultureInfo.InvariantCulture)
+            : "syntax.ResultList.Count != " + operation.Results.Count.ToString(CultureInfo.InvariantCulture);
         var resultCountMessage = hasVariadicResults
-            ? "\"Expected at least " + minimumResultCount.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultTokens.Count + \".\""
-            : "\"Expected exactly " + operation.Results.Count.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultTokens.Count + \".\"";
+            ? "\"Expected at least " + minimumResultCount.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultList.Count + \".\""
+            : "\"Expected exactly " + operation.Results.Count.ToString(CultureInfo.InvariantCulture) + " result(s) but found \" + syntax.ResultList.Count + \".\"";
         builder.AppendLine("        if (" + resultCountCondition + ")");
         builder.AppendLine("        {");
         builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, " + resultCountMessage + "));");
@@ -274,7 +274,7 @@ internal static class AssemblyFormatEmitter
 
         for (var i = 0; i < operation.Results.Count; i++)
         {
-            builder.AppendLine("            new OperationResult(syntax.ResultTokens[" + i.ToString(CultureInfo.InvariantCulture) + "]),");
+            builder.AppendLine("            new OperationResult(syntax.ResultList[" + i.ToString(CultureInfo.InvariantCulture) + "]),");
         }
 
         if (operation.Attributes.Count == 0)

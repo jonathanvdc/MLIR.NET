@@ -380,9 +380,10 @@ public sealed partial class Parser
     /// Returns an empty list when the current token is not an SSA name.
     /// Stops as soon as a non-SSA, non-comma token is encountered.
     /// </summary>
-    internal IReadOnlyList<SyntaxToken> ParseSsaTokenListInternal()
+    internal SeparatedSyntaxList<SyntaxToken> ParseSsaTokenListInternal()
     {
-        var list = new List<SyntaxToken>();
+        var items = new List<SyntaxToken>();
+        var separators = new List<SyntaxToken>();
         while (Is(TokenKind.SsaName))
         {
             var tokenResult = TryParseSsaTokenResult();
@@ -391,14 +392,16 @@ public sealed partial class Parser
                 throw new ParseException(tokenResult.Diagnostic!);
             }
 
-            list.Add(tokenResult.Value);
-            if (!TryMatch(TokenKind.Comma, out _))
+            items.Add(tokenResult.Value);
+            if (!TryMatch(TokenKind.Comma, out var comma))
             {
                 break;
             }
+
+            separators.Add(ToSyntaxToken(comma));
         }
 
-        return list;
+        return new SeparatedSyntaxList<SyntaxToken>(items, separators);
     }
 
     internal ParseResult<SyntaxToken> TryParseBlockLabelTokenInternal()

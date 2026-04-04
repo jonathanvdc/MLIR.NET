@@ -11,7 +11,7 @@ public sealed class DenseArrayAttributeValueSyntax(
     SyntaxToken lessThanToken,
     TypeSyntax elementTypeSyntax,
     SyntaxToken colonToken,
-    DelimitedSyntaxList<AttributeValueSyntax> items,
+    SeparatedSyntaxList<AttributeValueSyntax> items,
     SyntaxToken greaterThanToken) : AttributeValueSyntax
 {
     /// <summary>
@@ -37,7 +37,7 @@ public sealed class DenseArrayAttributeValueSyntax(
     /// <summary>
     /// Gets the dense array items.
     /// </summary>
-    public DelimitedSyntaxList<AttributeValueSyntax> Items { get; } = items;
+    public SeparatedSyntaxList<AttributeValueSyntax> Items { get; } = items;
 
     /// <summary>
     /// Gets the closing angle token.
@@ -74,16 +74,7 @@ public sealed class DenseArrayAttributeValueSyntax(
         writer.WriteToken(LessThanToken, string.Empty);
         ElementTypeSyntax.WriteTo(writer, string.Empty);
         writer.WriteToken(ColonToken, string.Empty);
-
-        for (var i = 0; i < Items.Count; i++)
-        {
-            Items[i].WriteTo(writer, i == 0 ? " " : string.Empty);
-            if (i < Items.SeparatorTokens.Count)
-            {
-                writer.WriteToken(Items.SeparatorTokens[i], string.Empty);
-            }
-        }
-
+        writer.WriteSeparatedList(Items, " ");
         writer.WriteToken(GreaterThanToken, string.Empty);
     }
 }

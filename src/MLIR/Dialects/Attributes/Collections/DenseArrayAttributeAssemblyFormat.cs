@@ -76,7 +76,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             lessThanTokenResult.Value,
             elementTypeSyntaxResult.Value,
             colonTokenResult.Value,
-            new DelimitedSyntaxList<AttributeValueSyntax>(null, items, separators, null),
+            new SeparatedSyntaxList<AttributeValueSyntax>(items, separators),
             greaterThanTokenResult.Value));
     }
 
@@ -117,7 +117,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             new SyntaxToken("<"),
             GetElementTypeSyntax(attribute.Definition?.Name ?? attribute.Name),
             new SyntaxToken(":"),
-            new DelimitedSyntaxList<AttributeValueSyntax>(null, itemSyntax, separators, null),
+            new SeparatedSyntaxList<AttributeValueSyntax>(itemSyntax, separators),
             new SyntaxToken(">"));
     }
 

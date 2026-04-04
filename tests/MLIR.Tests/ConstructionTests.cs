@@ -62,9 +62,9 @@ public sealed class ConstructionTests
         var module = Parser.ParseModule(source);
         var operation = module.Operations[0];
 
-        Assert.Equal("// leading comment\n", operation.ResultTokens[0].LeadingTrivia);
-        Assert.Equal(",", operation.ResultCommaTokens[0].Text);
-        Assert.Equal("  ", operation.ResultTokens[1].LeadingTrivia);
+        Assert.Equal("// leading comment\n", operation.ResultList[0].LeadingTrivia);
+        Assert.Equal(",", operation.ResultList.SeparatorTokens[0].Text);
+        Assert.Equal("  ", operation.ResultList[1].LeadingTrivia);
         Assert.Equal(" ", GetGenericBody(operation).SuccessorList.OpenToken!.Value.LeadingTrivia);
         Assert.Equal(" ", GetGenericBody(operation).SuccessorList[0].LeadingTrivia);
         Assert.Equal(" ", GetGenericBody(operation).SuccessorList.CloseToken!.Value.LeadingTrivia);
@@ -179,8 +179,7 @@ public sealed class ConstructionTests
         var module = new ModuleSyntax(
             [
                 new OperationSyntax(
-                    [new SyntaxToken("%0")],
-                    [],
+                    new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%0")], []),
                     new SyntaxToken("="),
                     new SyntaxToken("arith.constant"),
                     new PrefixConstantBodySyntax(
@@ -233,5 +232,44 @@ public sealed class ConstructionTests
         writer.WriteDelimitedList(list, string.Empty);
 
         Assert.Equal(string.Empty, writer.ToString());
+    }
+
+    [Fact]
+    public void SeparatedSyntaxListWritesToWritesAllTokensAndSeparators()
+    {
+        var list = new SeparatedSyntaxList<SyntaxToken>(
+            [new SyntaxToken("%a"), new SyntaxToken("%b"), new SyntaxToken("%c")],
+            [new SyntaxToken(","), new SyntaxToken(",")]);
+
+        var writer = new SyntaxWriter();
+        writer.WriteSeparatedList(list, string.Empty);
+
+        Assert.Equal("%a, %b, %c", writer.ToString());
+    }
+
+    [Fact]
+    public void SeparatedSyntaxListWriteToDoesNothingWhenEmpty()
+    {
+        var list = SeparatedSyntaxList<SyntaxToken>.Empty;
+
+        var writer = new SyntaxWriter();
+        writer.WriteSeparatedList(list, string.Empty);
+
+        Assert.Equal(string.Empty, writer.ToString());
+        Assert.Empty(list);
+    }
+
+    [Fact]
+    public void SeparatedSyntaxListPreservesLeadingTriviaOnSeparators()
+    {
+        // Separator tokens with stored leading trivia override the default spacing.
+        var list = new SeparatedSyntaxList<SyntaxToken>(
+            [new SyntaxToken("%a", string.Empty), new SyntaxToken("%b", string.Empty)],
+            [new SyntaxToken(",", string.Empty)]);
+
+        Assert.Equal(2, list.Count);
+        Assert.Equal(",", list.SeparatorTokens[0].Text);
+        Assert.Equal("%a", list[0].Text);
+        Assert.Equal("%b", list[1].Text);
     }
 }
