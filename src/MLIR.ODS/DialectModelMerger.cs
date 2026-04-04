@@ -78,7 +78,7 @@ public static class DialectModelMerger
                 primary = operation;
             }
 
-            assemblyExtensionKind ??= operation.AssemblyExtensionKind;
+            assemblyExtensionKind ??= operation.AssemblyFormatCode;
         }
 
         primary ??= group.First();

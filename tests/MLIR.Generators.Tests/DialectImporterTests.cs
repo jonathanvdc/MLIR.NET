@@ -242,7 +242,7 @@ public sealed class DialectImporterTests
         var select = Assert.Single(arith.Operations, static operation => operation.Name == "arith.select");
 
         Assert.Null(select.AssemblyFormat);
-        Assert.Equal("select_like", select.AssemblyExtensionKind);
+        Assert.Equal("global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance", select.AssemblyFormatCode);
     }
 
     [Fact]

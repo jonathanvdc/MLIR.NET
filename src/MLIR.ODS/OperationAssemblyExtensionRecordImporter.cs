@@ -12,7 +12,7 @@ internal static class OperationAssemblyExtensionRecordImporter
         foreach (var record in index.GetRecordsWithBaseClass("MLIRNet_OpAsmExtension"))
         {
             if (!index.TryGetStringField(record, "opName", out var operationName)
-                || !index.TryGetStringField(record, "strategy", out var strategy))
+                || !index.TryGetStringField(record, "csharpAsmFormatCode", out var strategy))
             {
                 continue;
             }

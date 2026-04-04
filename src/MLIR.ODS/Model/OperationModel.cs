@@ -31,7 +31,7 @@ public sealed class OperationModel
         Description = description;
         AssemblyFormat = assemblyFormat;
         Traits = traits ?? EmptyTraits;
-        AssemblyExtensionKind = assemblyExtensionKind;
+        AssemblyFormatCode = assemblyExtensionKind;
     }
 
     /// <summary>
@@ -80,9 +80,9 @@ public sealed class OperationModel
     public IReadOnlyList<string> Traits { get; }
 
     /// <summary>
-    /// Gets the MLIR.NET-specific custom assembly extension strategy, if one is attached.
+    /// Gets C# code for any custom assembly format, if specified.
     /// </summary>
-    public string? AssemblyExtensionKind { get; }
+    public string? AssemblyFormatCode { get; }
 
     private static readonly IReadOnlyList<string> EmptyTraits = new string[0];
     private static readonly IReadOnlyList<OperandModel> EmptyOperands = new OperandModel[0];

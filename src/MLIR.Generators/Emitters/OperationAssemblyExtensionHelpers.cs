@@ -6,7 +6,7 @@ internal static class OperationAssemblyExtensionHelpers
 {
     public static bool HasCustomAssembly(OperationModel operation)
     {
-        return operation.AssemblyFormat != null || operation.AssemblyExtensionKind != null;
+        return operation.AssemblyFormat != null || operation.AssemblyFormatCode != null;
     }
 
     public static string? GetAssemblyFormatInstantiationExpression(OperationModel operation, string operationClassName)
@@ -16,10 +16,6 @@ internal static class OperationAssemblyExtensionHelpers
             return "new " + operationClassName + "AssemblyFormat()";
         }
 
-        return operation.AssemblyExtensionKind switch
-        {
-            "select_like" => "global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance",
-            _ => null,
-        };
+        return operation.AssemblyFormatCode;
     }
 }
