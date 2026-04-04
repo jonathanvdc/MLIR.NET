@@ -9,7 +9,7 @@ internal static class OperationAssemblyExtensionRecordImporter
 {
     public static void Import(OdsRecordIndex index, DialectModelBuilder builder)
     {
-        foreach (var record in index.GetRecordsWithBaseClass("MLIRNet_OpAsmExtension"))
+        foreach (var record in index.GetRecordsWithBaseClass("MLIRNet_OpExtension"))
         {
             if (!index.TryGetStringField(record, "opName", out var operationName)
                 || !index.TryGetStringField(record, "csharpAsmFormatCode", out var strategy))
