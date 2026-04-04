@@ -475,6 +475,18 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
 /// </summary>
 public sealed class FuncOperationBodySyntax : OperationBodySyntax
 {
+    /// <summary>
+    /// Initializes a new <see cref="FuncOperationBodySyntax"/> instance.
+    /// </summary>
+    /// <param name="visibilityToken">The optional visibility keyword.</param>
+    /// <param name="symbolName">The function symbol name as written in source.</param>
+    /// <param name="lParenToken">The opening parenthesis token for the argument list.</param>
+    /// <param name="arguments">The parsed function arguments.</param>
+    /// <param name="arrowToken">The optional arrow token before the result list.</param>
+    /// <param name="resultTypes">The optional result type list.</param>
+    /// <param name="attributesKeyword">The optional <c>attributes</c> keyword.</param>
+    /// <param name="attributes">The parsed attribute dictionary.</param>
+    /// <param name="bodyRegion">The optional function body region.</param>
     public FuncOperationBodySyntax(
         SyntaxToken? visibilityToken,
         RawSyntaxText symbolName,
@@ -497,24 +509,52 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
         BodyRegion = bodyRegion;
     }
 
+    /// <summary>
+    /// Gets the optional visibility keyword token.
+    /// </summary>
     public SyntaxToken? VisibilityToken { get; }
 
+    /// <summary>
+    /// Gets the raw symbol name token sequence.
+    /// </summary>
     public RawSyntaxText SymbolName { get; }
 
+    /// <summary>
+    /// Gets the opening parenthesis token for the argument list.
+    /// </summary>
     public SyntaxToken LParenToken { get; }
 
+    /// <summary>
+    /// Gets the parsed function arguments.
+    /// </summary>
     public DelimitedSyntaxList<FuncFunctionArgumentSyntax> Arguments { get; }
 
+    /// <summary>
+    /// Gets the optional arrow token introducing the result list.
+    /// </summary>
     public SyntaxToken? ArrowToken { get; }
 
+    /// <summary>
+    /// Gets the optional function result list.
+    /// </summary>
     public DelimitedSyntaxList<FuncFunctionResultSyntax>? ResultTypes { get; }
 
+    /// <summary>
+    /// Gets the optional <c>attributes</c> keyword token.
+    /// </summary>
     public SyntaxToken? AttributesKeyword { get; }
 
+    /// <summary>
+    /// Gets the parsed attribute dictionary.
+    /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; }
 
+    /// <summary>
+    /// Gets the optional function body region.
+    /// </summary>
     public RegionSyntax? BodyRegion { get; }
 
+    /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer, int indentLevel)
     {
         if (VisibilityToken.HasValue)
@@ -589,6 +629,13 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
 /// </summary>
 public sealed class FuncFunctionArgumentSyntax
 {
+    /// <summary>
+    /// Initializes a new <see cref="FuncFunctionArgumentSyntax"/> instance.
+    /// </summary>
+    /// <param name="name">The argument name token.</param>
+    /// <param name="colonToken">The colon token separating the name and type.</param>
+    /// <param name="type">The argument type syntax.</param>
+    /// <param name="attrDict">The optional argument attribute dictionary.</param>
     public FuncFunctionArgumentSyntax(
         SyntaxToken name,
         SyntaxToken colonToken,
@@ -601,14 +648,31 @@ public sealed class FuncFunctionArgumentSyntax
         AttrDict = attrDict;
     }
 
+    /// <summary>
+    /// Gets the argument name token.
+    /// </summary>
     public SyntaxToken Name { get; }
 
+    /// <summary>
+    /// Gets the colon token separating the argument name from the type.
+    /// </summary>
     public SyntaxToken ColonToken { get; }
 
+    /// <summary>
+    /// Gets the argument type syntax.
+    /// </summary>
     public TypeSyntax Type { get; }
 
+    /// <summary>
+    /// Gets the optional attribute dictionary attached to the argument.
+    /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }
 
+    /// <summary>
+    /// Writes the argument syntax to the provided writer.
+    /// </summary>
+    /// <param name="writer">The writer to receive the rendered syntax.</param>
+    /// <param name="defaultLeadingTrivia">The leading trivia to use when the argument begins a list.</param>
     public void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
     {
         writer.WriteToken(Name, defaultLeadingTrivia);
@@ -627,6 +691,11 @@ public sealed class FuncFunctionArgumentSyntax
 /// </summary>
 public sealed class FuncFunctionResultSyntax
 {
+    /// <summary>
+    /// Initializes a new <see cref="FuncFunctionResultSyntax"/> instance.
+    /// </summary>
+    /// <param name="type">The result type syntax.</param>
+    /// <param name="attrDict">The optional result attribute dictionary.</param>
     public FuncFunctionResultSyntax(
         TypeSyntax type,
         DelimitedSyntaxList<NamedAttributeSyntax> attrDict)
@@ -635,10 +704,21 @@ public sealed class FuncFunctionResultSyntax
         AttrDict = attrDict;
     }
 
+    /// <summary>
+    /// Gets the result type syntax.
+    /// </summary>
     public TypeSyntax Type { get; }
 
+    /// <summary>
+    /// Gets the optional attribute dictionary attached to the result.
+    /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }
 
+    /// <summary>
+    /// Writes the result syntax to the provided writer.
+    /// </summary>
+    /// <param name="writer">The writer to receive the rendered syntax.</param>
+    /// <param name="defaultLeadingTrivia">The leading trivia to use when the result begins a list.</param>
     public void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
     {
         Type.WriteTo(writer, defaultLeadingTrivia);
