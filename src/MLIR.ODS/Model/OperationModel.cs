@@ -13,6 +13,7 @@ public sealed class OperationModel
     public OperationModel(
         string name,
         string? className = null,
+        IReadOnlyList<RegionModel>? regions = null,
         IReadOnlyList<OperandModel>? operands = null,
         IReadOnlyList<ResultModel>? results = null,
         IReadOnlyList<AttributeUseModel>? attributes = null,
@@ -24,6 +25,7 @@ public sealed class OperationModel
     {
         Name = name;
         ClassName = className;
+        Regions = regions ?? EmptyRegions;
         Operands = operands ?? EmptyOperands;
         Results = results ?? EmptyResults;
         Attributes = attributes ?? EmptyAttributes;
@@ -43,6 +45,11 @@ public sealed class OperationModel
     /// Gets the generated C# class name, if one was specified explicitly.
     /// </summary>
     public string? ClassName { get; }
+
+    /// <summary>
+    /// Gets the declared regions.
+    /// </summary>
+    public IReadOnlyList<RegionModel> Regions { get; }
 
     /// <summary>
     /// Gets the declared operands.
@@ -85,6 +92,7 @@ public sealed class OperationModel
     public string? AssemblyFormatCode { get; }
 
     private static readonly IReadOnlyList<string> EmptyTraits = new string[0];
+    private static readonly IReadOnlyList<RegionModel> EmptyRegions = new RegionModel[0];
     private static readonly IReadOnlyList<OperandModel> EmptyOperands = new OperandModel[0];
     private static readonly IReadOnlyList<ResultModel> EmptyResults = new ResultModel[0];
     private static readonly IReadOnlyList<AttributeUseModel> EmptyAttributes = new AttributeUseModel[0];

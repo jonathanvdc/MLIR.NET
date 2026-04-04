@@ -11,6 +11,8 @@ public enum OperationMemberKind
     Result,
     /// <summary>An attribute attached to the operation.</summary>
     Attribute,
+    /// <summary>A region attached to the operation.</summary>
+    Region,
 }
 
 /// <summary>
@@ -106,4 +108,24 @@ public sealed class AttributeUseModel : OperationMemberModel
         : base(name, constraintRecordName, isOptional, OperationMemberKind.Attribute)
     {
     }
+}
+
+/// <summary>
+/// Represents a region imported from ODS.
+/// </summary>
+public sealed class RegionModel : OperationMemberModel
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RegionModel"/> class.
+    /// </summary>
+    public RegionModel(string name, string? constraintRecordName = null, bool isOptional = false, bool isVariadic = false)
+        : base(name, constraintRecordName, isOptional, OperationMemberKind.Region)
+    {
+        IsVariadic = isVariadic;
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether this region accepts zero or more regions.
+    /// </summary>
+    public bool IsVariadic { get; }
 }

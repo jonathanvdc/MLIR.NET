@@ -75,7 +75,7 @@ public sealed class Binder
         OperationDefinition? definition = null;
         if (dialectRegistry != null)
         {
-            dialectRegistry.TryGetOperation(name, out definition);
+            dialectRegistry.TryGetOperationForParsing(name, out definition);
         }
 
         if (syntax.Body is GenericOperationBodySyntax genericBody)

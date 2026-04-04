@@ -271,4 +271,17 @@ public sealed class DialectImporterTests
         Assert.Null(funcOp.AssemblyFormat);
         Assert.Equal("global::MLIR.Dialects.Extensions.FuncOperationAssemblyFormat.Instance", funcOp.AssemblyFormatCode);
     }
+
+    [Fact]
+    public void ImportsBuiltinModuleOpFromPrelude()
+    {
+        var dialects = DialectImporter.Import(
+            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/IR/BuiltinOps.td\"").Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "builtin");
+        var moduleOp = Assert.Single(dialect.Operations, static op => op.Name == "builtin.module");
+
+        Assert.NotNull(moduleOp.AssemblyFormat);
+        Assert.Equal("builtin.module", moduleOp.Name);
+    }
 }

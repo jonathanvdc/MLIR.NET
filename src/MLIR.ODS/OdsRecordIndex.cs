@@ -156,6 +156,7 @@ internal sealed class OdsRecordIndex
         {
             "ins" => OperationMemberKind.Operand,
             "outs" => OperationMemberKind.Result,
+            "region" or "regions" => OperationMemberKind.Region,
             _ => OperationMemberKind.Operand,
         };
 

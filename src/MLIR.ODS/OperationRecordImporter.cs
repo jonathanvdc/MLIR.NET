@@ -18,6 +18,7 @@ internal static class OperationRecordImporter
             var dialect = builder.GetOrCreateDialect(opDialectName);
             var argumentMembers = index.GetDagMembers(record, "arguments");
             var resultMembers = index.GetDagMembers(record, "results");
+            var regionMembers = index.GetDagMembers(record, "regions");
             var assemblyFormatString = index.GetOptionalStringField(record, "assemblyFormat");
             var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
                 ? AssemblyFormatParser.Parse(assemblyFormatString!)
@@ -27,6 +28,9 @@ internal static class OperationRecordImporter
                 new OperationModel(
                     opDialectName + "." + mnemonic,
                     index.GetOptionalStringField(record, "cppClassName") ?? record.Name,
+                    regionMembers.Where(static member => member.Kind == OperationMemberKind.Region)
+                        .Select(static member => new RegionModel(member.Name, member.ConstraintRecordName, isVariadic: member.IsVariadic))
+                        .ToArray(),
                     argumentMembers.Where(static member => member.Kind == OperationMemberKind.Operand)
                         .Select(static member => new OperandModel(member.Name, member.ConstraintRecordName, isVariadic: member.IsVariadic))
                         .ToArray(),

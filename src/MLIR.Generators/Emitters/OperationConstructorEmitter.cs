@@ -11,10 +11,10 @@ internal static class OperationConstructorEmitter
 {
     public static void Emit(StringBuilder builder, string className, OperationMemberPlan plan)
     {
-        EmitContextConstructor(builder, className, plan.Operands, plan.Results);
-        EmitPrimaryConstructor(builder, className, plan.Operands, plan.Results);
-        EmitConvenienceConstructor(builder, className, plan.Operands, plan.Results);
-        EmitPerAttributeConvenienceConstructor(builder, className, plan.Operands, plan.Results, plan.Attributes);
+        EmitContextConstructor(builder, className, plan.Regions, plan.Operands, plan.Results);
+        EmitPrimaryConstructor(builder, className, plan.Regions, plan.Operands, plan.Results);
+        EmitConvenienceConstructor(builder, className, plan.Regions, plan.Operands, plan.Results);
+        EmitPerAttributeConvenienceConstructor(builder, className, plan.Regions, plan.Operands, plan.Results, plan.Attributes);
     }
 
     private static void AppendConstructorParameters(StringBuilder builder, IReadOnlyList<GeneratedMember> members)
@@ -41,12 +41,18 @@ internal static class OperationConstructorEmitter
     private static void EmitContextConstructor(
         StringBuilder builder,
         string className,
+        IReadOnlyList<GeneratedMember> regionMembers,
         IReadOnlyList<GeneratedMember> operandMembers,
         IReadOnlyList<GeneratedMember> resultMembers)
     {
         builder.AppendLine("    public " + className + "(OperationConstructionContext context)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: context.Syntax,");
+
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine("            regions: context.Regions,");
+        }
 
         // Track how many individual Value? slots have been consumed so far so we know
         // the correct starting index when building the variadic slice.
@@ -87,18 +93,30 @@ internal static class OperationConstructorEmitter
     private static void EmitPrimaryConstructor(
         StringBuilder builder,
         string className,
+        IReadOnlyList<GeneratedMember> regionMembers,
         IReadOnlyList<GeneratedMember> operandMembers,
         IReadOnlyList<GeneratedMember> resultMembers)
     {
         builder.AppendLine("    public " + className + "(");
         builder.AppendLine("        OperationSyntax? syntax,");
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine("        global::System.Collections.Generic.IReadOnlyList<Region> regions,");
+        }
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : base(");
         builder.AppendLine("            syntax,");
-        builder.AppendLine("            global::System.Array.Empty<Region>(),");
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine("            regions,");
+        }
+        else
+        {
+            builder.AppendLine("            global::System.Array.Empty<Region>(),");
+        }
         builder.AppendLine("            attributes,");
         builder.AppendLine("            typeSignatureReference,");
         builder.Append("            new OperationResult[] { ");
@@ -171,16 +189,25 @@ internal static class OperationConstructorEmitter
     private static void EmitConvenienceConstructor(
         StringBuilder builder,
         string className,
+        IReadOnlyList<GeneratedMember> regionMembers,
         IReadOnlyList<GeneratedMember> operandMembers,
         IReadOnlyList<GeneratedMember> resultMembers)
     {
         builder.AppendLine("    public " + className + "(");
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine("        global::System.Collections.Generic.IReadOnlyList<Region> regions,");
+        }
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         builder.AppendLine("        NamedAttributeCollection attributes,");
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: null,");
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine("            regions: regions,");
+        }
         AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
         AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
         builder.AppendLine("            attributes: attributes,");
@@ -193,6 +220,7 @@ internal static class OperationConstructorEmitter
     private static void EmitPerAttributeConvenienceConstructor(
         StringBuilder builder,
         string className,
+        IReadOnlyList<GeneratedMember> regionMembers,
         IReadOnlyList<GeneratedMember> operandMembers,
         IReadOnlyList<GeneratedMember> resultMembers,
         IReadOnlyList<GeneratedMember> attributeMembers)
@@ -203,12 +231,20 @@ internal static class OperationConstructorEmitter
         }
 
         builder.AppendLine("    public " + className + "(");
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine("        global::System.Collections.Generic.IReadOnlyList<Region> regions,");
+        }
         AppendConstructorParameters(builder, operandMembers);
         AppendConstructorParameters(builder, resultMembers);
         AppendConstructorParameters(builder, attributeMembers);
         builder.AppendLine("        TypeReference? typeSignatureReference)");
         builder.AppendLine("        : this(");
         builder.AppendLine("            syntax: null,");
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine("            regions: regions,");
+        }
         AppendNamedArguments(builder, operandMembers, static member => member.ParameterName);
         AppendNamedArguments(builder, resultMembers, static member => member.ParameterName);
 

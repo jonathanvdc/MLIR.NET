@@ -188,6 +188,38 @@ internal static class AssemblyFormatEmitter
         return "binder.BindTypeReference(body." + plan.TypeField + ")";
     }
 
+    private static string GetRegionBindExpression(OperationBodySyntaxMetadata metadata, string fieldName, bool isVariadic)
+    {
+        if (isVariadic)
+        {
+            return "body." + fieldName + ".Select(region => binder.BindRegion(region)).ToList()";
+        }
+
+        if (IsNullableField(metadata, fieldName))
+        {
+            return "body." + fieldName + " is not null ? (Region?)binder.BindRegion(body." + fieldName + "!) : null";
+        }
+
+        return "binder.BindRegion(body." + fieldName + ")";
+    }
+
+    private static string GetRegionsBindExpression(OperationModel operation, OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata)
+    {
+        var parts = new List<string>();
+        for (var i = 0; i < operation.Regions.Count; i++)
+        {
+            var fieldName = plan.RegionFields[i];
+            parts.Add(GetRegionBindExpression(metadata, fieldName, operation.Regions[i].IsVariadic));
+        }
+
+        if (parts.Count == 1)
+        {
+            return "new global::System.Collections.Generic.List<Region> { " + parts[0] + " }";
+        }
+
+        return "new global::System.Collections.Generic.List<Region>(" + parts.Count.ToString(CultureInfo.InvariantCulture) + ") { " + string.Join(", ", parts) + " }";
+    }
+
     public static void Emit(StringBuilder builder, OperationModel operation, OperationBodySyntaxMetadata bodySyntaxMetadata, DialectSymbolResolver resolver)
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
@@ -229,6 +261,11 @@ internal static class AssemblyFormatEmitter
         builder.AppendLine("        }");
         builder.AppendLine("        return new " + className + "(");
         builder.AppendLine("            syntax,");
+
+        if (operation.Regions.Count > 0)
+        {
+            builder.AppendLine("            " + GetRegionsBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata) + ",");
+        }
 
         for (var i = 0; i < operation.Operands.Count; i++)
         {

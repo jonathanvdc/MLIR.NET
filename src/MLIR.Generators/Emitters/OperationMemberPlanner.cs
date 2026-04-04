@@ -58,15 +58,18 @@ internal sealed class GeneratedMember
 internal sealed class OperationMemberPlan
 {
     public OperationMemberPlan(
+        IReadOnlyList<GeneratedMember> regions,
         IReadOnlyList<GeneratedMember> operands,
         IReadOnlyList<GeneratedMember> results,
         IReadOnlyList<GeneratedMember> attributes)
     {
+        Regions = regions;
         Operands = operands;
         Results = results;
         Attributes = attributes;
     }
 
+    public IReadOnlyList<GeneratedMember> Regions { get; }
     public IReadOnlyList<GeneratedMember> Operands { get; }
 
     public IReadOnlyList<GeneratedMember> Results { get; }
@@ -82,6 +85,7 @@ internal static class OperationMemberPlanner
             ? AssemblyFormatAnalyzer.GetRequiredVariables(operation)
             : new HashSet<string>(StringComparer.Ordinal);
         return new OperationMemberPlan(
+            GetRegionMembers(operation, requiredVariables),
             GetOperandMembers(operation, requiredVariables),
             GetResultMembers(operation),
             GetAttributeMembers(operation, requiredVariables, resolver));
@@ -222,5 +226,28 @@ internal static class OperationMemberPlanner
         }
 
         return isRequired ? baseType : baseType + "?";
+    }
+
+    private static IReadOnlyList<GeneratedMember> GetRegionMembers(OperationModel operation, HashSet<string> requiredVariables)
+    {
+        var members = new List<GeneratedMember>(operation.Regions.Count);
+        for (var i = 0; i < operation.Regions.Count; i++)
+        {
+            var region = operation.Regions[i];
+            var propertyName = DialectGeneratorNaming.ToPascalCase(region.Name);
+            string typeName;
+            if (region.IsVariadic)
+            {
+                typeName = "global::System.Collections.Generic.IReadOnlyList<Region>";
+            }
+            else
+            {
+                typeName = requiredVariables.Contains(region.Name) ? "Region" : "Region?";
+            }
+
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, region.Name, null, AttributeConstraintKind.None, null, false, region.IsVariadic));
+        }
+
+        return members;
     }
 }

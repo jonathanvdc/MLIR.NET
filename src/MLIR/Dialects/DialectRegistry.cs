@@ -150,6 +150,21 @@ public sealed class DialectRegistry
     }
 
     /// <summary>
+    /// Tries to resolve an operation definition by its parser-facing name.
+    /// Unqualified builtin operations such as <c>module</c> are resolved against
+    /// the builtin dialect automatically.
+    /// </summary>
+    public bool TryGetOperationForParsing(string name, out OperationDefinition operation)
+    {
+        if (TryGetOperation(name, out operation))
+        {
+            return true;
+        }
+
+        return name.IndexOf('.') < 0 && TryGetOperation("builtin." + name, out operation);
+    }
+
+    /// <summary>
     /// Tries to resolve an attribute definition by its canonical name.
     /// </summary>
     public bool TryGetAttribute(string name, out AttributeDefinition attribute)

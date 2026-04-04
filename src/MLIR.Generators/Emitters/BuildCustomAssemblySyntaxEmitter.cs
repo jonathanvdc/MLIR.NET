@@ -445,6 +445,21 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             return "context.BuildAttributeValueSyntax(op.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(variableName) + "].Value)";
         }
 
+        if (EmitterHelpers.ContainsName(operation.Regions, variableName, static region => region.Name))
+        {
+            if (IsVariadicRegion(variableName))
+            {
+                return "op." + propName + ".Select(region => context.TransformRegion(region)).ToList()";
+            }
+
+            if (nullable)
+            {
+                return "op." + propName + " is not null ? context.TransformRegion(op." + propName + ") : null";
+            }
+
+            return "context.TransformRegion(op." + propName + ")";
+        }
+
         // Check if this is a variadic operand (the generated property returns IReadOnlyList<Value>).
         if (IsVariadicOperand(variableName))
         {
@@ -471,6 +486,19 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
             {
                 return operand.IsVariadic;
+            }
+        }
+
+        return false;
+    }
+
+    private bool IsVariadicRegion(string variableName)
+    {
+        foreach (var region in operation.Regions)
+        {
+            if (string.Equals(region.Name, variableName, StringComparison.Ordinal))
+            {
+                return region.IsVariadic;
             }
         }
 
@@ -509,6 +537,11 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             return "global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
         }
 
+        if (csType.Contains("IReadOnlyList<RegionSyntax>", StringComparison.Ordinal))
+        {
+            return "global::System.Array.Empty<global::MLIR.Syntax.RegionSyntax>()";
+        }
+
         return "default";
     }
 
@@ -544,6 +577,15 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             if (IsUnitAttribute(anchorName) && !requiredVariables.Contains(anchorName))
             {
                 return "op." + propName;
+            }
+
+            return "op." + propName + " != null";
+        }
+        else if (EmitterHelpers.ContainsName(operation.Regions, anchorName, static region => region.Name))
+        {
+            if (IsVariadicRegion(anchorName))
+            {
+                return "op." + propName + ".Count > 0";
             }
 
             return "op." + propName + " != null";

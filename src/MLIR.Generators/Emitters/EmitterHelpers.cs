@@ -238,6 +238,11 @@ internal static class EmitterHelpers
 
     public static BodyComponentKind GetComponentKindForVariable(OperationModel operation, string variableName)
     {
+        if (ContainsName(operation.Regions, variableName, static region => region.Name))
+        {
+            return BodyComponentKind.Regions;
+        }
+
         if (ContainsName(operation.Results, variableName, static result => result.Name))
         {
             return BodyComponentKind.Result;
@@ -491,6 +496,31 @@ internal static class EmitterHelpers
             metadata.AddField(field);
             metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variableName, field.Name));
         }
+        else if (ContainsName(operation.Regions, variableName, static region => region.Name))
+        {
+            var isVariadic = IsVariadicRegion(operation, variableName);
+            string csType;
+            string writeStmt;
+            if (isVariadic)
+            {
+                csType = "global::System.Collections.Generic.IReadOnlyList<RegionSyntax>";
+                writeStmt = "foreach (var region in " + name + ") { writer.WriteRegion(region, indentLevel); }";
+            }
+            else
+            {
+                csType = nullable ? "RegionSyntax?" : "RegionSyntax";
+                writeStmt = nullable
+                    ? "if (" + name + ".HasValue) writer.WriteRegion(" + name + ".Value, indentLevel);"
+                    : "writer.WriteRegion(" + name + ", indentLevel);";
+            }
+
+            var field = new BodySyntaxField(name, csType, writeStmt);
+            metadata.AddField(field);
+            metadata.AddComponentField(new BodyComponentField(
+                GetComponentKindForVariable(operation, variableName),
+                variableName,
+                field.Name));
+        }
         else if (IsVariadicOperand(operation, variableName))
         {
             // Variadic operands use a list of SSA tokens.  The write statement iterates over
@@ -529,6 +559,19 @@ internal static class EmitterHelpers
             if (string.Equals(operand.Name, variableName, StringComparison.Ordinal))
             {
                 return operand.IsVariadic;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsVariadicRegion(OperationModel operation, string variableName)
+    {
+        foreach (var region in operation.Regions)
+        {
+            if (string.Equals(region.Name, variableName, StringComparison.Ordinal))
+            {
+                return region.IsVariadic;
             }
         }
 

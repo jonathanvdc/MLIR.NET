@@ -31,6 +31,7 @@ internal static class OperationAssemblyExtensionRecordImporter
                 dialect.Operations[existingIndex] = new OperationModel(
                     existing.Name,
                     existing.ClassName,
+                    existing.Regions,
                     existing.Operands,
                     existing.Results,
                     existing.Attributes,

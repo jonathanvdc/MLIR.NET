@@ -20,24 +20,29 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
         "func.func public @kernel(%arg0: i32) -> i32";
 
     private const string ScaleModuleSource =
-        "func.func @scale(%x: i32) -> i32 {\n" +
-        "  %c10 = arith.constant 10 : i32\n" +
-        "  %res = arith.muli %x, %c10 : i32\n" +
-        "  func.return %res : i32\n" +
+        "module {\n" +
+        "  func.func @scale(%x: i32) -> i32 {\n" +
+        "    %c10 = arith.constant 10 : i32\n" +
+        "    %res = arith.muli %x, %c10 : i32\n" +
+        "    func.return %res : i32\n" +
+        "  }\n" +
         "}";
 
     private const string LinearModuleSource =
-        "func.func @linear(%x: i32) -> i32 {\n" +
-        "  %c2 = arith.constant 2 : i32\n" +
-        "  %c3 = arith.constant 3 : i32\n" +
-        "  %t0 = arith.muli %x, %c2 : i32\n" +
-        "  %t1 = arith.addi %t0, %c3 : i32\n" +
-        "  func.return %t1 : i32\n" +
+        "module {\n" +
+        "  func.func @linear(%x: i32) -> i32 {\n" +
+        "    %c2 = arith.constant 2 : i32\n" +
+        "    %c3 = arith.constant 3 : i32\n" +
+        "    %t0 = arith.muli %x, %c2 : i32\n" +
+        "    %t1 = arith.addi %t0, %c3 : i32\n" +
+        "    func.return %t1 : i32\n" +
+        "  }\n" +
         "}";
 
     private static DialectRegistry CreateMixedPreludeRegistry()
     {
         var registry = new DialectRegistry();
+        registry.RegisterDialect(BuiltinDialectRegistration.Create());
         registry.RegisterDialect(ArithDialectRegistration.Create());
         registry.RegisterDialect(FuncDialectRegistration.Create());
         return registry;
@@ -116,9 +121,14 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
     {
         var document = Document.Parse(ScaleModuleSource, CreateMixedPreludeRegistry());
         var moduleSyntax = document.Module;
-        var funcSyntax = Assert.Single(moduleSyntax.Operations);
+        var moduleSyntaxOp = Assert.Single(moduleSyntax.Operations);
+        var moduleBody = Assert.IsType<ModuleOpBodySyntax>(moduleSyntaxOp.Body);
+        var moduleRegion = moduleBody.BodyRegion;
+        var moduleBlock = Assert.Single(moduleRegion.Blocks);
+        var funcSyntax = Assert.IsType<OperationSyntax>(moduleBlock.Operations[0]);
         var funcBody = Assert.IsType<FuncOperationBodySyntax>(funcSyntax.Body);
 
+        Assert.Equal("module", moduleSyntaxOp.Name);
         Assert.Equal("func.func", funcSyntax.Name);
         Assert.Equal("@scale", funcBody.SymbolName.Text);
         Assert.Single(funcBody.Arguments);
@@ -126,14 +136,21 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
         Assert.Equal(3, funcBody.BodyRegion.Blocks[0].Operations.Count);
 
         var module = ParseAndBind(ScaleModuleSource, CreateMixedPreludeRegistry());
-        var boundFunc = Assert.IsType<FuncOp>(Assert.Single(module.Operations));
+        var boundModule = Assert.IsType<ModuleOp>(Assert.Single(module.Operations));
+        var boundModuleRegion = Assert.Single(boundModule.Regions);
+        var boundModuleBlock = Assert.Single(boundModuleRegion.Blocks);
+        var boundFunc = Assert.IsType<FuncOp>(boundModuleBlock.Operations[0]);
+        var boundFuncSyntax = Assert.IsType<FuncOperationBodySyntax>(boundFunc.Syntax!.Body);
 
         Assert.Equal("scale", boundFunc.SymName);
         Assert.NotNull(boundFunc.TypeSignatureReference);
+        Assert.Single(boundFuncSyntax.BodyRegion!.Blocks);
+        Assert.Equal(3, boundFuncSyntax.BodyRegion.Blocks[0].Operations.Count);
 
         var printed = module.ToText(CustomAssemblyOptions);
         var rebound = ParseAndBind(printed, CreateMixedPreludeRegistry());
 
+        Assert.Contains("module {", printed);
         Assert.Contains("func.func @scale(%x : i32) -> i32", printed);
         Assert.Contains("%c10 = arith.constant 10 : i32", printed);
         Assert.Contains("%res = arith.muli %x, %c10 : i32", printed);
@@ -147,9 +164,14 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
     {
         var document = Document.Parse(LinearModuleSource, CreateMixedPreludeRegistry());
         var moduleSyntax = document.Module;
-        var funcSyntax = Assert.Single(moduleSyntax.Operations);
+        var moduleSyntaxOp = Assert.Single(moduleSyntax.Operations);
+        var moduleBody = Assert.IsType<ModuleOpBodySyntax>(moduleSyntaxOp.Body);
+        var moduleRegion = moduleBody.BodyRegion;
+        var moduleBlock = Assert.Single(moduleRegion.Blocks);
+        var funcSyntax = Assert.IsType<OperationSyntax>(moduleBlock.Operations[0]);
         var funcBody = Assert.IsType<FuncOperationBodySyntax>(funcSyntax.Body);
 
+        Assert.Equal("module", moduleSyntaxOp.Name);
         Assert.Equal("func.func", funcSyntax.Name);
         Assert.Equal("@linear", funcBody.SymbolName.Text);
         Assert.Single(funcBody.Arguments);
@@ -157,14 +179,21 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
         Assert.Equal(5, funcBody.BodyRegion.Blocks[0].Operations.Count);
 
         var module = ParseAndBind(LinearModuleSource, CreateMixedPreludeRegistry());
-        var boundFunc = Assert.IsType<FuncOp>(Assert.Single(module.Operations));
+        var boundModule = Assert.IsType<ModuleOp>(Assert.Single(module.Operations));
+        var boundModuleRegion = Assert.Single(boundModule.Regions);
+        var boundModuleBlock = Assert.Single(boundModuleRegion.Blocks);
+        var boundFunc = Assert.IsType<FuncOp>(boundModuleBlock.Operations[0]);
+        var boundFuncSyntax = Assert.IsType<FuncOperationBodySyntax>(boundFunc.Syntax!.Body);
 
         Assert.Equal("linear", boundFunc.SymName);
         Assert.NotNull(boundFunc.TypeSignatureReference);
+        Assert.Single(boundFuncSyntax.BodyRegion!.Blocks);
+        Assert.Equal(5, boundFuncSyntax.BodyRegion.Blocks[0].Operations.Count);
 
         var printed = module.ToText(CustomAssemblyOptions);
         var rebound = ParseAndBind(printed, CreateMixedPreludeRegistry());
 
+        Assert.Contains("module {", printed);
         Assert.Contains("func.func @linear(%x : i32) -> i32", printed);
         Assert.Contains("%c2 = arith.constant 2 : i32", printed);
         Assert.Contains("%c3 = arith.constant 3 : i32", printed);

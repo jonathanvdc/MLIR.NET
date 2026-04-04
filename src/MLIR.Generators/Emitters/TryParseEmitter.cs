@@ -210,6 +210,30 @@ internal sealed class TryParseEmitter
         }
         else
         {
+            if (EmitterHelpers.ContainsName(operation.Regions, variable.Name, static region => region.Name))
+            {
+                var isVariadicRegion = false;
+                foreach (var region in operation.Regions)
+                {
+                    if (string.Equals(region.Name, variable.Name, System.StringComparison.Ordinal))
+                    {
+                        isVariadicRegion = region.IsVariadic;
+                        break;
+                    }
+                }
+
+                if (isVariadicRegion)
+                {
+                    EmitParseResultAssignment(builder, indent, varName, "context.TryParseRegions()", declare, field.CsType);
+                }
+                else
+                {
+                    EmitParseResultAssignment(builder, indent, varName, "context.TryParseRegion()", declare, field.CsType);
+                }
+
+                return;
+            }
+
             var isVariadic = false;
             foreach (var operand in operation.Operands)
             {

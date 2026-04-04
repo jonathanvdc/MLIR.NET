@@ -11,6 +11,7 @@ internal static class OperationPropertyEmitter
 {
     public static void Emit(StringBuilder builder, string className, OperationModel operation, OperationMemberPlan plan)
     {
+        EmitRegionProperties(builder, plan.Regions);
         EmitOperandAndResultProperties(builder, plan.Operands, plan.Results, operation);
         EmitAttributeProperties(builder, plan.Attributes);
     }
@@ -73,6 +74,36 @@ internal static class OperationPropertyEmitter
         }
 
         builder.AppendLine();
+    }
+
+    private static void EmitRegionProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> regionMembers)
+    {
+        var slotIndex = 0;
+        for (var i = 0; i < regionMembers.Count; i++)
+        {
+            var member = regionMembers[i];
+            if (member.IsVariadic)
+            {
+                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => base.Regions.Skip(" + slotIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + ").ToList();");
+                builder.AppendLine("    }");
+                slotIndex = -1;
+            }
+            else
+            {
+                builder.AppendLine("    public " + MemberModifier(member.PropertyName) + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => base.Regions[" + slotIndex.ToString(System.Globalization.CultureInfo.InvariantCulture) + "];");
+                builder.AppendLine("    }");
+                slotIndex++;
+            }
+        }
+
+        if (regionMembers.Count > 0)
+        {
+            builder.AppendLine();
+        }
     }
 
     private static void EmitAttributeProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> attributeMembers)

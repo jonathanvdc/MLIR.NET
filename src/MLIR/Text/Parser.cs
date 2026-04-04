@@ -431,7 +431,7 @@ public sealed partial class Parser
         }
 
         var normalizedName = NormalizeOperationName(nameToken.Text);
-        if (!dialectRegistry.TryGetOperation(normalizedName, out var definition) || definition.AssemblyFormat == null)
+        if (!dialectRegistry.TryGetOperationForParsing(normalizedName, out var definition) || definition.AssemblyFormat == null)
         {
             return ParseResult<OperationBodySyntax>.NoMatch();
         }

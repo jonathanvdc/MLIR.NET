@@ -70,6 +70,7 @@ public static class DialectModelMerger
         foreach (var operation in group)
         {
             if (primary == null && (operation.ClassName != null
+                || operation.Regions.Count > 0
                 || operation.Operands.Count > 0
                 || operation.Results.Count > 0
                 || operation.Attributes.Count > 0
@@ -88,6 +89,7 @@ public static class DialectModelMerger
         return new OperationModel(
             primary.Name,
             primary.ClassName,
+            primary.Regions,
             primary.Operands,
             primary.Results,
             primary.Attributes,
