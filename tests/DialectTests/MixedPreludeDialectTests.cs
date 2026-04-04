@@ -4,8 +4,10 @@ using System.Linq;
 using MLIR;
 using MLIR.Arith;
 using MLIR.Dialects;
+using MLIR.Dialects.Extensions;
 using MLIR.Func;
 using MLIR.Semantics;
+using MLIR.Syntax;
 using Xunit;
 
 /// <summary>
@@ -13,6 +15,26 @@ using Xunit;
 /// </summary>
 public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
 {
+    private const string MixedPreludeModuleSource =
+        "%c0 = arith.constant 7 : i32\n" +
+        "func.func public @kernel(%arg0: i32) -> i32";
+
+    private const string ScaleModuleSource =
+        "func.func @scale(%x: i32) -> i32 {\n" +
+        "  %c10 = arith.constant 10 : i32\n" +
+        "  %res = arith.muli %x, %c10 : i32\n" +
+        "  func.return %res : i32\n" +
+        "}";
+
+    private const string LinearModuleSource =
+        "func.func @linear(%x: i32) -> i32 {\n" +
+        "  %c2 = arith.constant 2 : i32\n" +
+        "  %c3 = arith.constant 3 : i32\n" +
+        "  %t0 = arith.muli %x, %c2 : i32\n" +
+        "  %t1 = arith.addi %t0, %c3 : i32\n" +
+        "  func.return %t1 : i32\n" +
+        "}";
+
     private static DialectRegistry CreateMixedPreludeRegistry()
     {
         var registry = new DialectRegistry();
@@ -22,62 +44,134 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
     }
 
     [Fact]
-    public void BindsMixedPreludeDialectOperationsFromTheSameModule()
+    public void ParsesMixedPreludeModuleWithCustomFuncSyntax()
     {
-        var module = ParseAndBind(
-            "%c0 = arith.constant 7 : i32\n" +
-            "func.func public @compute(%arg0: i32) -> i32\n" +
-            "%sum = arith.addi %c0, %c0 : i32",
-            CreateMixedPreludeRegistry());
+        var document = Document.Parse(MixedPreludeModuleSource, CreateMixedPreludeRegistry());
 
-        Assert.Equal(3, module.Operations.Count);
+        var syntax = document.Module.Operations[1];
+        var body = Assert.IsType<FuncOperationBodySyntax>(syntax.Body);
+
+        Assert.Equal("func.func", syntax.Name);
+        Assert.True(syntax.HasCustomAssemblyBody);
+        Assert.Equal("public", body.VisibilityToken?.Text);
+        Assert.Equal("@kernel", body.SymbolName.Text);
+        Assert.Single(body.Arguments);
+        Assert.Equal("%arg0", body.Arguments[0].Name.Text);
+        Assert.Null(body.BodyRegion);
+    }
+
+    [Fact]
+    public void BindsMixedPreludeModuleAndInspectsTheNestedAst()
+    {
+        var module = ParseAndBind(MixedPreludeModuleSource, CreateMixedPreludeRegistry());
+
+        Assert.Collection(
+            module.Operations,
+            static op => Assert.IsType<Arith_ConstantOp>(op),
+            static op => Assert.IsType<FuncOp>(op));
 
         var constant = Assert.IsType<Arith_ConstantOp>(module.Operations[0]);
         var func = Assert.IsType<FuncOp>(module.Operations[1]);
-        var addi = Assert.IsType<Arith_AddIOp>(module.Operations[2]);
 
         Assert.Equal("%c0", constant.ResultValue.Name);
-        Assert.Equal("compute", func.SymName);
+        Assert.Equal("kernel", func.SymName);
         Assert.Equal("public", func.SymVisibility);
-        Assert.Equal("%sum", addi.ResultValue.Name);
-        Assert.Equal("%c0", addi.Lhs.Name);
-        Assert.Equal("%c0", addi.Rhs.Name);
+        Assert.NotNull(func.TypeSignatureReference);
     }
 
     [Fact]
-    public void MixedPreludeDialectsRoundTripAsCustomAssembly()
+    public void PrintsMixedPreludeModuleAsCustomAssembly()
     {
-        var module = ParseAndBind(
-            "%c0 = arith.constant 7 : i32\n" +
-            "func.func private @helper()\n" +
-            "%sum = arith.addi %c0, %c0 : i32",
-            CreateMixedPreludeRegistry());
+        var module = ParseAndBind(MixedPreludeModuleSource, CreateMixedPreludeRegistry());
+
+        var printed = module.ToText(CustomAssemblyOptions);
+
+        Assert.Contains("func.func public @kernel(%arg0 : i32) -> i32", printed);
+        Assert.Contains("arith.constant 7 : i32", printed);
+    }
+
+    [Fact]
+    public void RoundTripsMixedPreludeModuleThroughCustomAssembly()
+    {
+        var module = ParseAndBind(MixedPreludeModuleSource, CreateMixedPreludeRegistry());
 
         var printed = module.ToText(CustomAssemblyOptions);
         var rebound = ParseAndBind(printed, CreateMixedPreludeRegistry());
 
-        Assert.Contains("arith.constant", printed);
-        Assert.Contains("arith.addi", printed);
-        Assert.Contains("func.func private @helper()", printed);
         Assert.Empty(rebound.AssemblyDiagnostics);
-        Assert.Equal(3, rebound.Operations.Count);
-        Assert.Equal(["arith.constant", "func.func", "arith.addi"], rebound.Operations.Select(static op => op.Name).ToArray());
+        Assert.Collection(
+            rebound.Operations,
+            static op => Assert.IsType<Arith_ConstantOp>(op),
+            static op => Assert.IsType<FuncOp>(op));
+        Assert.Equal(printed, rebound.ToText(CustomAssemblyOptions));
+        Assert.All(rebound.Operations, static op => Assert.True(op.IsKnown, op.Name));
+        var reboundFunc = Assert.IsType<FuncOp>(rebound.Operations[1]);
+        Assert.Equal("kernel", reboundFunc.SymName);
+        Assert.Equal("public", reboundFunc.SymVisibility);
+        Assert.NotNull(reboundFunc.TypeSignatureReference);
     }
 
     [Fact]
-    public void MixedPreludeDialectsStayKnownAfterRoundTrip()
+    public void ScaleModuleParsesBindsPrintsAndRoundsTrip()
     {
-        var module = ParseAndBind(
-            "%c0 = arith.constant 42 : i32\n" +
-            "func.func @identity(%arg0: i32) -> i32\n" +
-            "%sum = arith.addi %c0, %c0 : i32",
-            CreateMixedPreludeRegistry());
+        var document = Document.Parse(ScaleModuleSource, CreateMixedPreludeRegistry());
+        var moduleSyntax = document.Module;
+        var funcSyntax = Assert.Single(moduleSyntax.Operations);
+        var funcBody = Assert.IsType<FuncOperationBodySyntax>(funcSyntax.Body);
+
+        Assert.Equal("func.func", funcSyntax.Name);
+        Assert.Equal("@scale", funcBody.SymbolName.Text);
+        Assert.Single(funcBody.Arguments);
+        Assert.Single(funcBody.BodyRegion!.Blocks);
+        Assert.Equal(3, funcBody.BodyRegion.Blocks[0].Operations.Count);
+
+        var module = ParseAndBind(ScaleModuleSource, CreateMixedPreludeRegistry());
+        var boundFunc = Assert.IsType<FuncOp>(Assert.Single(module.Operations));
+
+        Assert.Equal("scale", boundFunc.SymName);
+        Assert.NotNull(boundFunc.TypeSignatureReference);
 
         var printed = module.ToText(CustomAssemblyOptions);
         var rebound = ParseAndBind(printed, CreateMixedPreludeRegistry());
 
-        Assert.All(rebound.Operations, static op => Assert.True(op.IsKnown, op.Name));
-        Assert.Equal("identity", Assert.IsType<FuncOp>(rebound.Operations[1]).SymName);
-        Assert.Equal("%sum", Assert.IsType<Arith_AddIOp>(rebound.Operations[2]).ResultValue.Name);
+        Assert.Contains("func.func @scale(%x : i32) -> i32", printed);
+        Assert.Contains("%c10 = arith.constant 10 : i32", printed);
+        Assert.Contains("%res = arith.muli %x, %c10 : i32", printed);
+        Assert.Contains("func.return %res : i32", printed);
+        Assert.Empty(rebound.AssemblyDiagnostics);
+        Assert.Equal(printed, rebound.ToText(CustomAssemblyOptions));
+    }
+
+    [Fact]
+    public void LinearModuleParsesBindsPrintsAndRoundsTrip()
+    {
+        var document = Document.Parse(LinearModuleSource, CreateMixedPreludeRegistry());
+        var moduleSyntax = document.Module;
+        var funcSyntax = Assert.Single(moduleSyntax.Operations);
+        var funcBody = Assert.IsType<FuncOperationBodySyntax>(funcSyntax.Body);
+
+        Assert.Equal("func.func", funcSyntax.Name);
+        Assert.Equal("@linear", funcBody.SymbolName.Text);
+        Assert.Single(funcBody.Arguments);
+        Assert.Single(funcBody.BodyRegion!.Blocks);
+        Assert.Equal(5, funcBody.BodyRegion.Blocks[0].Operations.Count);
+
+        var module = ParseAndBind(LinearModuleSource, CreateMixedPreludeRegistry());
+        var boundFunc = Assert.IsType<FuncOp>(Assert.Single(module.Operations));
+
+        Assert.Equal("linear", boundFunc.SymName);
+        Assert.NotNull(boundFunc.TypeSignatureReference);
+
+        var printed = module.ToText(CustomAssemblyOptions);
+        var rebound = ParseAndBind(printed, CreateMixedPreludeRegistry());
+
+        Assert.Contains("func.func @linear(%x : i32) -> i32", printed);
+        Assert.Contains("%c2 = arith.constant 2 : i32", printed);
+        Assert.Contains("%c3 = arith.constant 3 : i32", printed);
+        Assert.Contains("%t0 = arith.muli %x, %c2 : i32", printed);
+        Assert.Contains("%t1 = arith.addi %t0, %c3 : i32", printed);
+        Assert.Contains("func.return %t1 : i32", printed);
+        Assert.Empty(rebound.AssemblyDiagnostics);
+        Assert.Equal(printed, rebound.ToText(CustomAssemblyOptions));
     }
 }

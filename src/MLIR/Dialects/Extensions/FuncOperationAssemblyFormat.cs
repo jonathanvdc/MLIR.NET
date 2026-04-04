@@ -580,7 +580,6 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
 
         if (BodyRegion != null)
         {
-            writer.Write(" ");
             BodyRegion.WriteTo(writer, indentLevel);
         }
     }
