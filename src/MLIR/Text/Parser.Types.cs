@@ -21,7 +21,7 @@ public sealed partial class Parser
             () => TryParseAttributeValueSyntaxResult(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
             "Expected '[' to start the array attribute.",
             "Expected ']' to close the array attribute.")
-            .Map(list => new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value));
+            .Map(static list => new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value));
     }
 
     /// <summary>
