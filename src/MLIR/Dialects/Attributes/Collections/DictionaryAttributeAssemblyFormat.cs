@@ -63,6 +63,6 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
             return dictionarySyntax;
         }
 
-        return (DictionaryAttributeValueSyntax)binder.ReparseAttributeValueSyntax(syntax.GetRawText(), definition);
+        throw new InvalidOperationException("Unexpected syntax for dictionary attribute. Expected a dictionary attribute literal such as '{value = 1}'.");
     }
 }
