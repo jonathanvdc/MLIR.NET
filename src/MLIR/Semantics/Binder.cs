@@ -571,11 +571,6 @@ public sealed class Binder
                     BindTypeReference(memRefSyntax.ElementType),
                     memRefSyntax.TrailingParameters);
             default:
-                if (syntax.TryGetRawText(out var rawTypeSyntax))
-                {
-                    return BindTypeReferenceCore(syntax, rawTypeSyntax!);
-                }
-
                 Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported type syntax '{syntax.GetType().Name}'."));
                 return new UnknownTypeReference(syntax, null, null, syntax.Location);
         }
