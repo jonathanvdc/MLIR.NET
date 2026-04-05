@@ -1,45 +1,16 @@
 namespace MLIR.Generators.Emitters;
 
 using System;
-using MLIR.ODS.Model;
 
 internal static class OperationAttributeValueHelpers
 {
-    public static bool IsPrimitiveConstraintKind(AttributeConstraintKind kind)
-    {
-        return kind is AttributeConstraintKind.IntegerLiteral or AttributeConstraintKind.BooleanLiteral
-            or AttributeConstraintKind.StringLiteral or AttributeConstraintKind.FloatingPointLiteral
-            or AttributeConstraintKind.EnumAttribute;
-    }
-
-    public static bool IsDenseCollectionConstraintKind(AttributeConstraintKind kind)
-    {
-        return kind is AttributeConstraintKind.DenseBooleanArrayAttribute
-            or AttributeConstraintKind.DenseIntegerArrayAttribute
-            or AttributeConstraintKind.DenseF32ArrayAttribute
-            or AttributeConstraintKind.DenseF64ArrayAttribute;
-    }
-
-    public static bool IsTypedArrayConstraintKind(AttributeConstraintKind kind)
-    {
-        return kind == AttributeConstraintKind.TypedArrayAttribute;
-    }
-
     public static string GetAttributeGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName)
     {
         var isOptional = IsOptionalMember(member);
+        // ConstraintStrategy is always non-null for attribute members.
+        var strategy = member.ConstraintStrategy!;
 
-        if (member.ConstraintKind == AttributeConstraintKind.None)
-        {
-            if (isOptional)
-            {
-                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + localName + " : null";
-            }
-
-            return "Attributes[" + sourceNameLiteral + "]";
-        }
-
-        if (IsPrimitiveConstraintKind(member.ConstraintKind))
+        if (strategy.IsPrimitive)
         {
             var valueAccess = GetPrimitiveValueAccessExpression(member, localName, sourceNameLiteral, isOptional);
             if (isOptional)
@@ -50,7 +21,7 @@ internal static class OperationAttributeValueHelpers
             return valueAccess;
         }
 
-        if (IsDenseCollectionConstraintKind(member.ConstraintKind) || IsTypedArrayConstraintKind(member.ConstraintKind))
+        if (strategy.IsDenseCollection || strategy.IsTypedArray)
         {
             var denseCollectionCastExpr = "((" + member.ConstraintClassName + ")";
             if (isOptional)
@@ -80,8 +51,10 @@ internal static class OperationAttributeValueHelpers
     {
         var sourceName = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
         var isOptional = IsOptionalMember(member);
+        // ConstraintStrategy is always non-null for attribute members.
+        var strategy = member.ConstraintStrategy!;
 
-        if (member.ConstraintKind == AttributeConstraintKind.UnitAttribute)
+        if (strategy.IsUnit)
         {
             if (string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
             {
@@ -91,12 +64,7 @@ internal static class OperationAttributeValueHelpers
             return "new NamedAttribute(" + sourceName + ", " + valueExpression + ")";
         }
 
-        if (member.ConstraintKind == AttributeConstraintKind.None)
-        {
-            return valueExpression;
-        }
-
-        if (IsPrimitiveConstraintKind(member.ConstraintKind))
+        if (strategy.IsPrimitive)
         {
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
@@ -104,7 +72,7 @@ internal static class OperationAttributeValueHelpers
                 return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + "))";
             }
 
-            if (member.ConstraintKind == AttributeConstraintKind.EnumAttribute)
+            if (strategy.IsEnum)
             {
                 return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ".Value)) : null";
             }
@@ -117,7 +85,7 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
         }
 
-        if (IsDenseCollectionConstraintKind(member.ConstraintKind) || IsTypedArrayConstraintKind(member.ConstraintKind))
+        if (strategy.IsDenseCollection || strategy.IsTypedArray)
         {
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
@@ -151,22 +119,15 @@ internal static class OperationAttributeValueHelpers
         var castExpr = "((" + member.ConstraintClassName + ")";
         if (isOptional)
         {
-            return castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member.ConstraintKind, member.TypeName);
+            return castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member.ConstraintStrategy!, member.TypeName);
         }
 
-        return castExpr + "Attributes[" + sourceNameLiteral + "].Value)" + GetPrimitiveValueAccess(member.ConstraintKind, member.TypeName);
+        return castExpr + "Attributes[" + sourceNameLiteral + "].Value)" + GetPrimitiveValueAccess(member.ConstraintStrategy!, member.TypeName);
     }
 
-    private static string GetPrimitiveValueAccess(AttributeConstraintKind kind, string typeName)
+    private static string GetPrimitiveValueAccess(AttributeConstraintCodeStrategy strategy, string typeName)
     {
-        if (kind == AttributeConstraintKind.EnumAttribute)
-        {
-            return ".TypedValue";
-        }
-
-        return kind == AttributeConstraintKind.FloatingPointLiteral && string.Equals(typeName.TrimEnd('?'), "string", StringComparison.Ordinal)
-            ? ".LiteralText"
-            : ".Value";
+        return strategy.GetPrimitiveValueAccess(typeName);
     }
 
     private static bool IsPrimitiveValueType(string typeName)

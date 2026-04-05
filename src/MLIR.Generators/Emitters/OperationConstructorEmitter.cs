@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using MLIR.ODS.Model;
 
 internal static class OperationConstructorEmitter
 {
@@ -299,7 +298,7 @@ internal static class OperationConstructorEmitter
         for (var i = 0; i < attributeMembers.Count; i++)
         {
             if (attributeMembers[i].TypeName.EndsWith("?", StringComparison.Ordinal)
-                || (attributeMembers[i].ConstraintKind == AttributeConstraintKind.UnitAttribute
+                || (attributeMembers[i].ConstraintStrategy!.IsUnit
                     && string.Equals(attributeMembers[i].TypeName, "bool", StringComparison.Ordinal)))
             {
                 hasOptionalAttributes = true;

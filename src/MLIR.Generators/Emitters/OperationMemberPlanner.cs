@@ -7,7 +7,7 @@ using MLIR.ODS.Model;
 internal sealed class GeneratedMember
 {
     public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
-        : this(propertyName, parameterName, typeName, sourceName, null, AttributeConstraintKind.None, null, false, false)
+        : this(propertyName, parameterName, typeName, sourceName, null, null, null, false)
     {
     }
 
@@ -17,9 +17,8 @@ internal sealed class GeneratedMember
         string typeName,
         string sourceName,
         string? constraintRecordName,
-        AttributeConstraintKind constraintKind,
+        AttributeConstraintCodeStrategy? constraintStrategy,
         string? constraintClassName,
-        bool usesEnumWrapper,
         bool isVariadic = false)
     {
         PropertyName = propertyName;
@@ -27,9 +26,8 @@ internal sealed class GeneratedMember
         TypeName = typeName;
         SourceName = sourceName;
         ConstraintRecordName = constraintRecordName;
-        ConstraintKind = constraintKind;
+        ConstraintStrategy = constraintStrategy;
         ConstraintClassName = constraintClassName;
-        UsesEnumWrapper = usesEnumWrapper;
         IsVariadic = isVariadic;
     }
 
@@ -43,11 +41,14 @@ internal sealed class GeneratedMember
 
     public string? ConstraintRecordName { get; }
 
-    public AttributeConstraintKind ConstraintKind { get; }
+    /// <summary>
+    /// Gets the code-generation strategy for the attribute constraint associated with this
+    /// member, or <see langword="null"/> when no specialised constraint handling is
+    /// available.
+    /// </summary>
+    public AttributeConstraintCodeStrategy? ConstraintStrategy { get; }
 
     public string? ConstraintClassName { get; }
-
-    public bool UsesEnumWrapper { get; }
 
     /// <summary>
     /// Gets a value indicating whether this member is variadic (zero or more values).
@@ -114,7 +115,7 @@ internal static class OperationMemberPlanner
                 typeName = requiredVariables.Contains(operand.Name) ? "Value" : "Value?";
             }
 
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, null, AttributeConstraintKind.None, null, false, operand.IsVariadic));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, null, null, null, operand.IsVariadic));
         }
 
         return members;
@@ -144,7 +145,7 @@ internal static class OperationMemberPlanner
                 typeName = "OperationResult";
             }
 
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, result.Name, null, AttributeConstraintKind.None, null, false, result.IsVariadic));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, result.Name, null, null, null, result.IsVariadic));
         }
 
         return members;
@@ -161,86 +162,34 @@ internal static class OperationMemberPlanner
             var isRequired = requiredVariables.Contains(attributeName);
 
             var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
-            var constraintKind = AttributeConstraintKind.None;
+            // Start with the fallback strategy so that attributes without a recognised
+            // constraint kind always produce AttributeValue-typed properties.
+            AttributeConstraintCodeStrategy constraintStrategy = FallbackAttributeConstraintCodeStrategy.Instance;
             string? constraintClassName = null;
 
             if (!string.IsNullOrEmpty(constraintRecordName))
             {
                 var nonNullConstraintRecordName = constraintRecordName!;
-                constraintKind = resolver.TryResolveAttributeConstraintKind(nonNullConstraintRecordName);
-                if (constraintKind != AttributeConstraintKind.None)
+                // Only upgrade from the fallback when a generated class exists for the
+                // constraint, because the emitter needs the class name to produce casts.
+                var resolvedClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
+                if (resolvedClassName != null)
                 {
-                    constraintClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
-                    if (constraintClassName == null)
-                    {
-                        constraintKind = AttributeConstraintKind.None;
-                    }
+                    constraintStrategy = resolver.TryResolveAttributeConstraintStrategy(nonNullConstraintRecordName);
+                    constraintClassName = resolvedClassName;
                 }
             }
 
-            var enumTypeName = !string.IsNullOrEmpty(constraintRecordName)
-                ? resolver.TryResolveEnumTypeName(constraintRecordName!)
-                : null;
-            var usesEnumWrapper = constraintKind == AttributeConstraintKind.EnumAttribute
-                && constraintClassName != null
-                && enumTypeName != null;
-
-            var typeName = GetAttributeTypeName(constraintRecordName, isRequired, resolver);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintRecordName, constraintKind, constraintClassName, usesEnumWrapper));
+            var typeName = GetAttributeTypeName(constraintRecordName, constraintStrategy, isRequired, resolver);
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintRecordName, constraintStrategy, constraintClassName));
         }
 
         return members;
     }
 
-    private static string GetAttributeTypeName(string? constraintRecordName, bool isRequired, DialectSymbolResolver resolver)
+    private static string GetAttributeTypeName(string? constraintRecordName, AttributeConstraintCodeStrategy strategy, bool isRequired, DialectSymbolResolver resolver)
     {
-        if (string.IsNullOrEmpty(constraintRecordName))
-        {
-            return isRequired ? "NamedAttribute" : "NamedAttribute?";
-        }
-
-        var nonNullConstraintRecordName = constraintRecordName!;
-        var kind = resolver.TryResolveAttributeConstraintKind(nonNullConstraintRecordName);
-        if (kind == AttributeConstraintKind.UnitAttribute)
-        {
-            return isRequired ? "UnitAttributeValue" : "bool";
-        }
-
-        if (kind == AttributeConstraintKind.TypeAttribute)
-        {
-            return isRequired ? "TypeAttributeValue" : "TypeAttributeValue?";
-        }
-
-        if (kind == AttributeConstraintKind.DictionaryAttribute)
-        {
-            return isRequired ? "DictionaryAttributeValue" : "DictionaryAttributeValue?";
-        }
-
-        if (kind == AttributeConstraintKind.ElementsAttribute)
-        {
-            return isRequired ? "ElementsAttributeValue" : "ElementsAttributeValue?";
-        }
-
-        if (kind == AttributeConstraintKind.OpaqueAttribute)
-        {
-            return isRequired ? "OpaqueAttributeValue" : "OpaqueAttributeValue?";
-        }
-
-        if (kind == AttributeConstraintKind.TypedArrayAttribute)
-        {
-            var typedArrayType = AttributeTypeResolver.GetAttributeValueTypeName(constraintRecordName, resolver);
-            return typedArrayType != null
-                ? (isRequired ? typedArrayType : typedArrayType + "?")
-                : (isRequired ? "NamedAttribute" : "NamedAttribute?");
-        }
-
-        var baseType = AttributeTypeResolver.GetAttributeValueTypeName(constraintRecordName, resolver);
-        if (baseType == null)
-        {
-            return isRequired ? "NamedAttribute" : "NamedAttribute?";
-        }
-
-        return isRequired ? baseType : baseType + "?";
+        return strategy.GetOperationPropertyTypeName(constraintRecordName ?? string.Empty, isRequired, resolver);
     }
 
     private static IReadOnlyList<GeneratedMember> GetRegionMembers(OperationModel operation, HashSet<string> requiredVariables)
@@ -260,7 +209,7 @@ internal static class OperationMemberPlanner
                 typeName = requiredVariables.Contains(region.Name) ? "Region" : "Region?";
             }
 
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, region.Name, null, AttributeConstraintKind.None, null, false, region.IsVariadic));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, region.Name, null, null, null, region.IsVariadic));
         }
 
         return members;
