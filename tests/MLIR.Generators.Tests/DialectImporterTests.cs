@@ -78,7 +78,7 @@ public sealed class DialectImporterTests
         Assert.Equal("I32Attr", constantOp.Attributes[0].ConstraintRecordName);
         Assert.Equal("BoolAttr", constantOp.Attributes[1].ConstraintRecordName);
         Assert.Empty(constantOp.Operands);
-        Assert.Equal(["Pure"], constantOp.Traits);
+        Assert.Equal(["Pure"], constantOp.Traits.Select(static t => t.RecordName).ToArray());
         Assert.NotNull(constantOp.AssemblyFormat);
         Assert.Collection(
             constantOp.AssemblyFormat!.Elements,
@@ -92,7 +92,11 @@ public sealed class DialectImporterTests
         Assert.Equal(["lhs", "rhs"], addiOp.Operands.Select(static operand => operand.Name).ToArray());
         Assert.Equal(["result"], addiOp.Results.Select(static result => result.Name).ToArray());
         Assert.Empty(addiOp.Attributes);
-        Assert.Equal(["Pure", "Commutative"], addiOp.Traits);
+        Assert.Equal(["Pure", "Commutative"], addiOp.Traits.Select(static t => t.RecordName).ToArray());
+        // Commutative is a NativeTrait (NativeOpTrait) with C++ trait info.
+        var commutativeTrait = Assert.IsType<NativeTraitModel>(addiOp.Traits[1]);
+        Assert.Equal("IsCommutative", commutativeTrait.Trait);
+        Assert.Equal("::mlir::OpTrait", commutativeTrait.CppNamespace);
         Assert.NotNull(addiOp.AssemblyFormat);
         Assert.Collection(
             addiOp.AssemblyFormat!.Elements,
@@ -105,6 +109,65 @@ public sealed class DialectImporterTests
 
         Assert.Equal("MiniArith_I32Attr", attribute.RecordName);
         Assert.Equal("MiniArith_I32Type", type.RecordName);
+    }
+
+    [Fact]
+    public void ImportsNativeTraitListAndGenInternalTraitModels()
+    {
+        // Verify that the importer produces the correct TraitModel subclass for each
+        // trait category: NativeTrait (and NativeOpTrait), TraitList, GenInternalTrait,
+        // and plain Trait (SimpleTraitModel).
+        const string source =
+            "class MyTest_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<MyTest_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def MyTest_Dialect : Dialect {\n" +
+            "  let name = \"mytest\";\n" +
+            "};\n" +
+            "\n" +
+            // A plain Trait subclass with no further classification.
+            "class SimpleTrait : Trait;\n" +
+            "def MySimpleTrait : SimpleTrait;\n" +
+            "\n" +
+            // A NativeOpTrait (which extends NativeTrait) - should produce NativeTraitModel.
+            "def MyNativeTrait : NativeOpTrait<\"MyNativeOp\">;\n" +
+            "\n" +
+            // A TraitList - should produce TraitListModel with constituent traits.
+            "def MyTraitList : TraitList<[MyNativeTrait, MySimpleTrait]>;\n" +
+            "\n" +
+            // A GenInternalTrait - should produce GenInternalTraitModel.
+            "def MyGenInternal : GenInternalTrait<\"MyInternal\", \"Op\">;\n" +
+            "\n" +
+            "def MyTest_AllTraitsOp : MyTest_Op<\"alltraits\",\n" +
+            "    [MySimpleTrait, MyNativeTrait, MyTraitList, MyGenInternal]>;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "mytest");
+        var op = Assert.Single(dialect.Operations);
+
+        Assert.Equal(4, op.Traits.Count);
+        Assert.Equal(
+            ["MySimpleTrait", "MyNativeTrait", "MyTraitList", "MyGenInternal"],
+            op.Traits.Select(static t => t.RecordName).ToArray());
+
+        // Plain Trait subclass → SimpleTraitModel.
+        Assert.IsType<SimpleTraitModel>(op.Traits[0]);
+
+        // NativeOpTrait → NativeTraitModel with trait and cppNamespace.
+        var nativeTrait = Assert.IsType<NativeTraitModel>(op.Traits[1]);
+        Assert.Equal("MyNativeOp", nativeTrait.Trait);
+        Assert.Equal("::mlir::OpTrait", nativeTrait.CppNamespace);
+
+        // TraitList → TraitListModel with constituent trait models.
+        var traitList = Assert.IsType<TraitListModel>(op.Traits[2]);
+        Assert.Equal(2, traitList.Traits.Count);
+        Assert.IsType<NativeTraitModel>(traitList.Traits[0]);
+        Assert.IsType<SimpleTraitModel>(traitList.Traits[1]);
+
+        // GenInternalTrait → GenInternalTraitModel with the trait identifier.
+        var genInternal = Assert.IsType<GenInternalTraitModel>(op.Traits[3]);
+        Assert.Equal("::mlir::OpTrait::MyInternal", genInternal.Trait);
     }
 
     [Fact]

@@ -113,6 +113,100 @@ internal sealed class OdsRecordIndex
         return values;
     }
 
+    /// <summary>
+    /// Extracts the trait list stored in <paramref name="fieldName"/> on <paramref name="record"/>
+    /// and returns a typed model for each trait item. Items that are record references are
+    /// resolved to determine whether they are <see cref="Model.NativeTraitModel"/>,
+    /// <see cref="Model.TraitListModel"/>, <see cref="Model.GenInternalTraitModel"/>, or
+    /// <see cref="Model.SimpleTraitModel"/> based on the base classes of the referenced record.
+    /// Items that cannot be resolved to a known trait shape are silently skipped.
+    /// </summary>
+    public IReadOnlyList<Model.TraitModel> GetTraitListField(Record record, string fieldName)
+    {
+        if (!record.Fields.TryGetValue(fieldName, out var field) || field is not ListValue list)
+        {
+            return EmptyTraitModels;
+        }
+
+        var traits = new List<Model.TraitModel>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            var traitModel = TryBuildTraitModel(item);
+            if (traitModel != null)
+            {
+                traits.Add(traitModel);
+            }
+        }
+
+        return traits;
+    }
+
+    /// <summary>
+    /// Attempts to construct a <see cref="Model.TraitModel"/> from a single list-item value.
+    /// Returns <see langword="null"/> for value kinds that do not carry enough information to
+    /// identify a trait (e.g., plain string values in a trait list are unusual and skipped).
+    /// </summary>
+    private Model.TraitModel? TryBuildTraitModel(Value item)
+    {
+        string? recordName = null;
+        Record? traitRecord = null;
+
+        switch (item)
+        {
+            case RecordReferenceValue recordRef:
+                recordName = recordRef.RecordName;
+                TryGetRecord(recordName, out traitRecord);
+                break;
+            case SymbolReferenceValue symbol:
+                recordName = symbol.SymbolName;
+                TryGetRecord(recordName, out traitRecord);
+                break;
+            default:
+                // Plain strings or other value kinds are not expected in a trait list.
+                return null;
+        }
+
+        if (recordName == null)
+        {
+            return null;
+        }
+
+        if (traitRecord != null)
+        {
+            // NativeTrait (and its subclass NativeOpTrait) carries a C++ trait name and
+            // namespace. Check this before GenInternalTrait because NativeTrait is more
+            // specific in the class hierarchy.
+            if (traitRecord.HasBaseClass("NativeTrait"))
+            {
+                TryGetStringField(traitRecord, "trait", out var trait);
+                var cppNamespace = GetOptionalStringField(traitRecord, "cppNamespace");
+                return new Model.NativeTraitModel(
+                    recordName,
+                    string.IsNullOrEmpty(trait) ? null : trait,
+                    cppNamespace);
+            }
+
+            // TraitList groups multiple traits under a single name (e.g., Pure).
+            if (traitRecord.HasBaseClass("TraitList"))
+            {
+                var innerTraits = GetTraitListField(traitRecord, "traits");
+                return new Model.TraitListModel(recordName, innerTraits);
+            }
+
+            // GenInternalTrait affects code generation rather than mapping to a C++ trait.
+            if (traitRecord.HasBaseClass("GenInternalTrait"))
+            {
+                TryGetStringField(traitRecord, "trait", out var trait);
+                return new Model.GenInternalTraitModel(
+                    recordName,
+                    string.IsNullOrEmpty(trait) ? null : trait);
+            }
+        }
+
+        // Fall back to a simple trait wrapper that preserves the record name for inspection.
+        return new Model.SimpleTraitModel(recordName);
+    }
+
     public bool TryGetDialectName(Record record, out string dialectName)
     {
         if (!record.Fields.TryGetValue("dialect", out var dialectField)
@@ -635,6 +729,7 @@ internal sealed class OdsRecordIndex
     }
 
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];
+    private static readonly IReadOnlyList<Model.TraitModel> EmptyTraitModels = new Model.TraitModel[0];
     private static readonly IReadOnlyList<DagMemberModel> EmptyDagMembers = new DagMemberModel[0];
     private static readonly IReadOnlyList<Model.EnumCaseModel> EmptyEnumCases = new Model.EnumCaseModel[0];
 }
