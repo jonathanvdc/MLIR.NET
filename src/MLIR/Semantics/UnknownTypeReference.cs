@@ -18,7 +18,7 @@ public sealed class UnknownTypeReference : TypeReference
     {
         Name = name;
         Definition = definition;
-        rawText = syntax != null && syntax.TryGetRawText(out var syntaxText) ? syntaxText!.Text : null;
+        rawText = syntax?.ToString();
     }
 
     /// <inheritdoc/>
