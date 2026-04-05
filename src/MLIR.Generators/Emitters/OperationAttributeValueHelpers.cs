@@ -7,17 +7,8 @@ internal static class OperationAttributeValueHelpers
     public static string GetAttributeGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName)
     {
         var isOptional = IsOptionalMember(member);
-        var strategy = member.ConstraintStrategy;
-
-        if (strategy is null)
-        {
-            if (isOptional)
-            {
-                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + localName + " : null";
-            }
-
-            return "Attributes[" + sourceNameLiteral + "]";
-        }
+        // ConstraintStrategy is always non-null for attribute members.
+        var strategy = member.ConstraintStrategy!;
 
         if (strategy.IsPrimitive)
         {
@@ -60,9 +51,10 @@ internal static class OperationAttributeValueHelpers
     {
         var sourceName = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
         var isOptional = IsOptionalMember(member);
-        var strategy = member.ConstraintStrategy;
+        // ConstraintStrategy is always non-null for attribute members.
+        var strategy = member.ConstraintStrategy!;
 
-        if (strategy?.IsUnit == true)
+        if (strategy.IsUnit)
         {
             if (string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
             {
@@ -70,11 +62,6 @@ internal static class OperationAttributeValueHelpers
             }
 
             return "new NamedAttribute(" + sourceName + ", " + valueExpression + ")";
-        }
-
-        if (strategy is null)
-        {
-            return valueExpression;
         }
 
         if (strategy.IsPrimitive)
@@ -132,15 +119,15 @@ internal static class OperationAttributeValueHelpers
         var castExpr = "((" + member.ConstraintClassName + ")";
         if (isOptional)
         {
-            return castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member);
+            return castExpr + localName + ".Value)" + GetPrimitiveValueAccess(member.ConstraintStrategy!, member.TypeName);
         }
 
-        return castExpr + "Attributes[" + sourceNameLiteral + "].Value)" + GetPrimitiveValueAccess(member);
+        return castExpr + "Attributes[" + sourceNameLiteral + "].Value)" + GetPrimitiveValueAccess(member.ConstraintStrategy!, member.TypeName);
     }
 
-    private static string GetPrimitiveValueAccess(GeneratedMember member)
+    private static string GetPrimitiveValueAccess(AttributeConstraintCodeStrategy strategy, string typeName)
     {
-        return member.ConstraintStrategy?.GetPrimitiveValueAccess(member.TypeName) ?? ".Value";
+        return strategy.GetPrimitiveValueAccess(typeName);
     }
 
     private static bool IsPrimitiveValueType(string typeName)

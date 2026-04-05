@@ -162,20 +162,21 @@ internal static class OperationMemberPlanner
             var isRequired = requiredVariables.Contains(attributeName);
 
             var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
-            AttributeConstraintCodeStrategy? constraintStrategy = null;
+            // Start with the fallback strategy so that attributes without a recognised
+            // constraint kind always produce AttributeValue-typed properties.
+            AttributeConstraintCodeStrategy constraintStrategy = FallbackAttributeConstraintCodeStrategy.Instance;
             string? constraintClassName = null;
 
             if (!string.IsNullOrEmpty(constraintRecordName))
             {
                 var nonNullConstraintRecordName = constraintRecordName!;
-                constraintStrategy = resolver.TryResolveAttributeConstraintStrategy(nonNullConstraintRecordName);
-                if (constraintStrategy != null)
+                // Only upgrade from the fallback when a generated class exists for the
+                // constraint, because the emitter needs the class name to produce casts.
+                var resolvedClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
+                if (resolvedClassName != null)
                 {
-                    constraintClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
-                    if (constraintClassName == null)
-                    {
-                        constraintStrategy = null;
-                    }
+                    constraintStrategy = resolver.TryResolveAttributeConstraintStrategy(nonNullConstraintRecordName);
+                    constraintClassName = resolvedClassName;
                 }
             }
 
@@ -186,14 +187,9 @@ internal static class OperationMemberPlanner
         return members;
     }
 
-    private static string GetAttributeTypeName(string? constraintRecordName, AttributeConstraintCodeStrategy? strategy, bool isRequired, DialectSymbolResolver resolver)
+    private static string GetAttributeTypeName(string? constraintRecordName, AttributeConstraintCodeStrategy strategy, bool isRequired, DialectSymbolResolver resolver)
     {
-        if (strategy is null || string.IsNullOrEmpty(constraintRecordName))
-        {
-            return isRequired ? "NamedAttribute" : "NamedAttribute?";
-        }
-
-        return strategy.GetOperationPropertyTypeName(constraintRecordName!, isRequired, resolver);
+        return strategy.GetOperationPropertyTypeName(constraintRecordName ?? string.Empty, isRequired, resolver);
     }
 
     private static IReadOnlyList<GeneratedMember> GetRegionMembers(OperationModel operation, HashSet<string> requiredVariables)

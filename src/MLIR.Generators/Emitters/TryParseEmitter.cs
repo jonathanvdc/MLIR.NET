@@ -487,7 +487,7 @@ internal sealed class TryParseEmitter
     {
         var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
         return !string.IsNullOrEmpty(constraintRecordName)
-            && resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!)?.IsUnit == true;
+            && resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!).IsUnit;
     }
 
     // -----------------------------------------------------------------------

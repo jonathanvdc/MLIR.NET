@@ -66,10 +66,7 @@ internal sealed class DialectSymbolResolver
                 }
 
                 var strategy = AttributeConstraintCodeStrategyFactory.GetStrategy(attributeConstraint.Kind, attributeConstraint.RecordName);
-                if (strategy != null)
-                {
-                    attributeConstraintStrategiesByRecordName[attributeConstraint.RecordName] = strategy;
-                }
+                attributeConstraintStrategiesByRecordName[attributeConstraint.RecordName] = strategy;
             }
 
             foreach (var type in dialect.Types)
@@ -112,9 +109,17 @@ internal sealed class DialectSymbolResolver
             : null;
     }
 
-    public AttributeConstraintCodeStrategy? TryResolveAttributeConstraintStrategy(string recordName)
+    /// <summary>
+    /// Returns the code-generation strategy for the attribute constraint identified by
+    /// <paramref name="recordName"/>.  Always returns a non-null value: records that have a
+    /// specialised strategy return it; all others return
+    /// <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/>.
+    /// </summary>
+    public AttributeConstraintCodeStrategy TryResolveAttributeConstraintStrategy(string recordName)
     {
-        return attributeConstraintStrategiesByRecordName.TryGetValue(recordName, out var strategy) ? strategy : null;
+        return attributeConstraintStrategiesByRecordName.TryGetValue(recordName, out var strategy)
+            ? strategy
+            : FallbackAttributeConstraintCodeStrategy.Instance;
     }
 
     public string? TryResolveAttributeConstraintClassName(string recordName)

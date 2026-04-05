@@ -10,11 +10,11 @@ internal static class AttributeConstraintEmitter
     {
         var strategy = resolver.TryResolveAttributeConstraintStrategy(attributeConstraint.RecordName);
 
-        if (strategy?.IsEnum == true && attributeConstraint.EnumModel != null)
+        if (strategy.IsEnum && attributeConstraint.EnumModel != null)
         {
             EmitEnumConstraint(builder, attributeConstraint, attributeConstraint.EnumModel);
         }
-        else if (strategy?.IsTypedArray == true)
+        else if (strategy.IsTypedArray)
         {
             EmitTypedArrayConstraint(builder, attributeConstraint, resolver);
         }
@@ -135,10 +135,10 @@ internal static class AttributeConstraintEmitter
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
         var elementRecordName = attributeConstraint.ElementConstraintRecordName;
         var elementStrategy = string.IsNullOrEmpty(elementRecordName)
-            ? null
+            ? FallbackAttributeConstraintCodeStrategy.Instance
             : resolver.TryResolveAttributeConstraintStrategy(elementRecordName!);
         var elementTypeName = GetTypedArrayElementTypeName(elementRecordName, elementStrategy, resolver);
-        var elementUsesPayload = elementStrategy?.UsesTypedArrayElementPayload == true;
+        var elementUsesPayload = elementStrategy.UsesTypedArrayElementPayload;
         var assemblyFormatType = className + "AssemblyFormat";
 
         builder.AppendLine("public sealed class " + className + " : TypedArrayAttributeValue<" + elementTypeName + ">");
@@ -207,9 +207,9 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("}");
     }
 
-    private static string GetTypedArrayElementTypeName(string? elementRecordName, AttributeConstraintCodeStrategy? elementStrategy, DialectSymbolResolver resolver)
+    private static string GetTypedArrayElementTypeName(string? elementRecordName, AttributeConstraintCodeStrategy elementStrategy, DialectSymbolResolver resolver)
     {
-        if (string.IsNullOrEmpty(elementRecordName) || elementStrategy is null || elementStrategy.IsGenericTypedArrayElement)
+        if (string.IsNullOrEmpty(elementRecordName) || elementStrategy.IsGenericTypedArrayElement)
         {
             return "global::MLIR.Semantics.AttributeValue";
         }
@@ -230,9 +230,9 @@ internal static class AttributeConstraintEmitter
             ?? "global::MLIR.Semantics.AttributeValue";
     }
 
-    private static string GetTypedArrayElementPayloadPropertyName(string? elementRecordName, AttributeConstraintCodeStrategy? elementStrategy)
+    private static string GetTypedArrayElementPayloadPropertyName(string? elementRecordName, AttributeConstraintCodeStrategy elementStrategy)
     {
-        if (string.IsNullOrEmpty(elementRecordName) || elementStrategy is null)
+        if (string.IsNullOrEmpty(elementRecordName))
         {
             return "Value";
         }
@@ -240,16 +240,16 @@ internal static class AttributeConstraintEmitter
         return elementStrategy.GetTypedArrayElementPayloadPropertyName();
     }
 
-    private static void EmitStandardConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy? strategy)
+    private static void EmitStandardConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy strategy)
     {
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
-        var baseType = strategy?.GetBaseType(attributeConstraint.RecordName) ?? "AttributeValue";
+        var baseType = strategy.GetBaseType(attributeConstraint.RecordName);
         builder.AppendLine("public sealed class " + className + " : " + baseType);
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
         builder.Append("        new AttributeConstraintDefinition(");
         builder.Append(EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        var assemblyFormatType = strategy?.GetAssemblyFormatType(attributeConstraint.RecordName);
+        var assemblyFormatType = strategy.GetAssemblyFormatType(attributeConstraint.RecordName);
         if (assemblyFormatType != null)
         {
             builder.Append(", new " + assemblyFormatType + "()");
@@ -258,7 +258,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine(", factory: static context => new " + className + "(context));");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
-        var primitiveBaseConstructor = strategy?.GetPrimitiveBaseConstructor(attributeConstraint.RecordName);
+        var primitiveBaseConstructor = strategy.GetPrimitiveBaseConstructor(attributeConstraint.RecordName);
         if (primitiveBaseConstructor != null)
         {
             builder.AppendLine("        : base(" + primitiveBaseConstructor + ")");
@@ -270,7 +270,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
 
-        var valueConstructorParam = strategy?.GetValueConstructorParameter(attributeConstraint.RecordName);
+        var valueConstructorParam = strategy.GetValueConstructorParameter(attributeConstraint.RecordName);
         if (valueConstructorParam != null)
         {
             builder.AppendLine();

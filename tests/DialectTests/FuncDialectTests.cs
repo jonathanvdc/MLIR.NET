@@ -252,7 +252,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
             CreateFuncRegistry());
 
         Assert.Equal("%2", op.ResultValue.Name);
-        Assert.Equal("value", op.Value.Name);
+        Assert.NotNull(op.Value);
     }
 
     /// <summary>

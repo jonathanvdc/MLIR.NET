@@ -21,6 +21,6 @@ internal static class AttributeTypeResolver
 
         var nonNullRecordName = constraintRecordName!;
         var strategy = resolver.TryResolveAttributeConstraintStrategy(nonNullRecordName);
-        return strategy?.GetAttributeValueTypeName(nonNullRecordName, resolver);
+        return strategy.GetAttributeValueTypeName(nonNullRecordName, resolver);
     }
 }

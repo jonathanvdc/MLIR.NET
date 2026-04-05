@@ -571,7 +571,7 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         }
 
         var elementStrategy = resolver.TryResolveAttributeConstraintStrategy(elementRecordName!);
-        if (elementStrategy is null || elementStrategy.IsGenericTypedArrayElement)
+        if (elementStrategy.IsGenericTypedArrayElement)
         {
             return "IReadOnlyList<AttributeValue>";
         }
@@ -599,6 +599,43 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
 }
 
 // =============================================================================
+// Fallback strategy
+// =============================================================================
+
+/// <summary>
+/// Used whenever no specialised strategy matches a constraint record (e.g.
+/// <see cref="AttributeConstraintKind.None"/> or any unrecognised kind, as well as
+/// when an attribute has no associated constraint record at all).
+/// </summary>
+/// <remarks>
+/// Produces <c>AttributeValue</c> / <c>AttributeValue?</c> operation properties instead
+/// of the old <c>NamedAttribute</c> / <c>NamedAttribute?</c> pair, so callers always
+/// receive a typed value rather than a raw named-attribute wrapper.
+/// When used as a typed-array element type the generic
+/// <c>IReadOnlyList&lt;AttributeValue&gt;</c> fallback is applied (via
+/// <see cref="AttributeConstraintCodeStrategy.IsGenericTypedArrayElement"/>).
+/// </remarks>
+internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+{
+    public static readonly FallbackAttributeConstraintCodeStrategy Instance = new();
+    private FallbackAttributeConstraintCodeStrategy() { }
+
+    /// <summary>
+    /// Marks this as a generic typed-array element so that
+    /// <see cref="TypedArrayConstraintCodeStrategy"/> falls back to
+    /// <c>IReadOnlyList&lt;AttributeValue&gt;</c> for arrays whose element type is
+    /// unknown.
+    /// </summary>
+    public override bool IsGenericTypedArrayElement => true;
+
+    /// <summary>
+    /// Returns <c>"AttributeValue"</c> — the most general typed representation for an
+    /// attribute whose concrete constraint kind is not statically known.
+    /// </summary>
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "AttributeValue";
+}
+
+// =============================================================================
 // Factory
 // =============================================================================
 
@@ -618,14 +655,15 @@ internal static class AttributeConstraintCodeStrategyFactory
 {
     /// <summary>
     /// Returns the strategy singleton for the given <paramref name="kind"/> and
-    /// <paramref name="recordName"/>, or <see langword="null"/> when no specialised
-    /// strategy is available (i.e. <see cref="AttributeConstraintKind.None"/>).
+    /// <paramref name="recordName"/>.  Returns <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/>
+    /// for unrecognised kinds (including <see cref="AttributeConstraintKind.None"/> and
+    /// <see cref="AttributeConstraintKind.DenseArrayAttribute"/>).
     /// </summary>
     /// <param name="kind">The constraint kind from the ODS model.</param>
     /// <param name="recordName">
     /// The ODS record name; used to distinguish F32/F64 from generic floating-point.
     /// </param>
-    public static AttributeConstraintCodeStrategy? GetStrategy(AttributeConstraintKind kind, string recordName)
+    public static AttributeConstraintCodeStrategy GetStrategy(AttributeConstraintKind kind, string recordName)
     {
         return kind switch
         {
@@ -634,7 +672,6 @@ internal static class AttributeConstraintCodeStrategyFactory
             AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointStrategy(recordName),
             AttributeConstraintKind.StringLiteral => StringLiteralConstraintCodeStrategy.Instance,
             AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DenseArrayAttribute => null,
             AttributeConstraintKind.ElementsAttribute => ElementsAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.TypeAttribute => TypeAttributeConstraintCodeStrategy.Instance,
@@ -645,7 +682,7 @@ internal static class AttributeConstraintCodeStrategyFactory
             AttributeConstraintKind.DenseF64ArrayAttribute => DenseF64ArrayConstraintCodeStrategy.Instance,
             AttributeConstraintKind.EnumAttribute => EnumAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.TypedArrayAttribute => TypedArrayConstraintCodeStrategy.Instance,
-            _ => null,
+            _ => FallbackAttributeConstraintCodeStrategy.Instance,
         };
     }
 
