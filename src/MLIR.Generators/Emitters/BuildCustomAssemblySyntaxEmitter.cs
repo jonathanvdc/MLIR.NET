@@ -311,7 +311,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     {
         var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
         return !string.IsNullOrEmpty(constraintRecordName)
-            && resolver.TryResolveAttributeConstraintKind(constraintRecordName!) == AttributeConstraintKind.UnitAttribute;
+            && resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!)?.IsUnit == true;
     }
 
     // -----------------------------------------------------------------------

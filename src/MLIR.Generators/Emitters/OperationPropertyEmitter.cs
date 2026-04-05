@@ -140,7 +140,7 @@ internal static class OperationPropertyEmitter
             var member = attributeMembers[i];
             var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
 
-            if (member.ConstraintKind == AttributeConstraintKind.UnitAttribute)
+            if (member.ConstraintStrategy?.IsUnit == true)
             {
                 if (!string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
                 {
@@ -156,7 +156,7 @@ internal static class OperationPropertyEmitter
                 continue;
             }
 
-            if (member.ConstraintKind == AttributeConstraintKind.None)
+            if (member.ConstraintStrategy is null)
             {
                 if (isOptional)
                 {
@@ -176,7 +176,7 @@ internal static class OperationPropertyEmitter
                     builder.AppendLine("    }");
                 }
             }
-            else if (OperationAttributeValueHelpers.IsPrimitiveConstraintKind(member.ConstraintKind))
+            else if (member.ConstraintStrategy?.IsPrimitive == true)
             {
                 var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
                 var localName = EmitterHelpers.LowerFirst(member.PropertyName);
@@ -186,7 +186,7 @@ internal static class OperationPropertyEmitter
                 builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
                 builder.AppendLine("    }");
             }
-            else if (OperationAttributeValueHelpers.IsDenseCollectionConstraintKind(member.ConstraintKind))
+            else if (member.ConstraintStrategy?.IsDenseCollection == true || member.ConstraintStrategy?.IsTypedArray == true)
             {
                 var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
                 var localName = EmitterHelpers.LowerFirst(member.PropertyName);
