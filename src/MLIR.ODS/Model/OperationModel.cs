@@ -20,7 +20,7 @@ public sealed class OperationModel
         string? summary = null,
         string? description = null,
         AssemblyFormatModel? assemblyFormat = null,
-        IReadOnlyList<string>? traits = null,
+        IReadOnlyList<TraitModel>? traits = null,
         string? assemblyExtensionKind = null)
     {
         Name = name;
@@ -82,16 +82,19 @@ public sealed class OperationModel
     public AssemblyFormatModel? AssemblyFormat { get; }
 
     /// <summary>
-    /// Gets the declared trait names.
+    /// Gets the traits declared on this operation.
+    /// Each element may be a <see cref="NativeTraitModel"/>, <see cref="TraitListModel"/>,
+    /// <see cref="GenInternalTraitModel"/>, or <see cref="SimpleTraitModel"/> depending on
+    /// the trait's base class in the originating TableGen source.
     /// </summary>
-    public IReadOnlyList<string> Traits { get; }
+    public IReadOnlyList<TraitModel> Traits { get; }
 
     /// <summary>
     /// Gets C# code for any custom assembly format, if specified.
     /// </summary>
     public string? AssemblyFormatCode { get; }
 
-    private static readonly IReadOnlyList<string> EmptyTraits = new string[0];
+    private static readonly IReadOnlyList<TraitModel> EmptyTraits = new TraitModel[0];
     private static readonly IReadOnlyList<RegionModel> EmptyRegions = new RegionModel[0];
     private static readonly IReadOnlyList<OperandModel> EmptyOperands = new OperandModel[0];
     private static readonly IReadOnlyList<ResultModel> EmptyResults = new ResultModel[0];

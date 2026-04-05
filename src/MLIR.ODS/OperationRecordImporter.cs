@@ -43,7 +43,7 @@ internal static class OperationRecordImporter
                     index.GetOptionalStringField(record, "summary"),
                     index.GetOptionalStringField(record, "description"),
                     assemblyFormat,
-                    index.GetStringListField(record, "traits")));
+                    index.GetTraitListField(record, "traits")));
         }
     }
 }
