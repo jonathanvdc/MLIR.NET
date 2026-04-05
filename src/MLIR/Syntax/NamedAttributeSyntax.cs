@@ -43,19 +43,6 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// </summary>
     public AttributeValueSyntax ValueSyntax { get; } = valueSyntax;
 
-    /// <summary>
-    /// Attempts to get the attribute value as raw syntax text.
-    /// </summary>
-    public bool TryGetRawValue(out RawSyntaxText? rawValue)
-    {
-        return ValueSyntax.TryGetRawText(out rawValue);
-    }
-
-    /// <summary>
-    /// Gets the attribute value as raw syntax text.
-    /// </summary>
-    public RawSyntaxText RawValue => ValueSyntax.GetRawText();
-
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)
     {

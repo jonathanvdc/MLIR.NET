@@ -375,7 +375,7 @@ public sealed class ParsingTests
         var module = Parser.ParseModule(source);
         var attribute = GetGenericBody(module.Operations[0]).Attributes[0];
 
-        Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.RawValue.Text);
+        Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.ValueSyntax.ToString());
         Assert.Equal(source, Printer.Print(module));
     }
 
