@@ -82,7 +82,8 @@ public sealed class BlockSyntax : SyntaxNode
 
         if (blockHasExplicitLabel)
         {
-            writer.WriteToken(LabelToken, "\n" + new string(' ', blockIndentLevel * 2));
+            writer.SuggestIndentedNewLine(blockIndentLevel);
+            writer.WriteToken(LabelToken);
             writer.WriteDelimitedList(Arguments);
             writer.WriteToken(ColonToken);
         }
