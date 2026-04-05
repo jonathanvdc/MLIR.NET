@@ -138,6 +138,6 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             return denseArraySyntax;
         }
 
-        return (DenseArrayAttributeValueSyntax)binder.ReparseAttributeValueSyntax(syntax.GetRawText(), definition);
+        throw new System.InvalidOperationException("Unexpected syntax for dense array attribute. Expected a dense array attribute literal such as 'array<i32: 1, 2>'.");
     }
 }
