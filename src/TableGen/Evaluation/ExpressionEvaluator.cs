@@ -206,6 +206,17 @@ internal sealed class ExpressionEvaluator
             return Failure(right.Diagnostic!);
         }
 
+        // In TableGen, # is overloaded: it concatenates two strings or two lists.
+        // Check for list concatenation first so that list traits (e.g. `[A] # B.traits`)
+        // are handled before falling back to string concatenation.
+        if (left.Value is ListValue leftList && right.Value is ListValue rightList)
+        {
+            var merged = new System.Collections.Generic.List<Value>(leftList.Items.Count + rightList.Items.Count);
+            merged.AddRange(leftList.Items);
+            merged.AddRange(rightList.Items);
+            return Success(new ListValue(merged));
+        }
+
         var leftString = ValueUtilities.TryValueToString(left.Value);
         if (!leftString.IsSuccess)
         {
