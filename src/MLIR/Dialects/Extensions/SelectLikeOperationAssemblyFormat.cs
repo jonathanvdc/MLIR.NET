@@ -304,17 +304,17 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(Condition, " ");
-        writer.WriteToken(CommaToken, string.Empty);
+        writer.WriteToken(CommaToken);
         writer.WriteToken(TrueValue, " ");
-        writer.WriteToken(CommaToken2, string.Empty);
+        writer.WriteToken(CommaToken2);
         writer.WriteToken(FalseValue, " ");
         writer.WriteDelimitedList(AttrDict, " ");
-        writer.WriteToken(ColonToken, string.Empty);
+        writer.WriteToken(ColonToken);
         writer.SuggestTrivia(" ");
         FirstType.WriteTo(writer);
         if (TypeCommaToken.HasValue && SecondType != null)
         {
-            writer.WriteToken(TypeCommaToken.Value, string.Empty);
+            writer.WriteToken(TypeCommaToken.Value);
             writer.SuggestTrivia(" ");
             SecondType.WriteTo(writer);
         }

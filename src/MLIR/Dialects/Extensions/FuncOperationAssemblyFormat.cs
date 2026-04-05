@@ -562,7 +562,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
         }
 
         writer.WriteRaw(SymbolName, " ");
-        writer.WriteToken(LParenToken, string.Empty);
+        writer.WriteToken(LParenToken);
         WriteArgumentList(writer);
 
         if (ArrowToken.HasValue && ResultTypes != null)
@@ -589,14 +589,14 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
         {
             if (i > 0)
             {
-                writer.WriteToken(Arguments.SeparatorTokens[i - 1], string.Empty);
+                writer.WriteToken(Arguments.SeparatorTokens[i - 1]);
                 writer.SuggestTrivia(" ");
             }
 
             Arguments.Items[i].WriteTo(writer);
         }
 
-        writer.WriteToken(Arguments.CloseToken!.Value, string.Empty);
+        writer.WriteToken(Arguments.CloseToken!.Value);
     }
 
     private void WriteResultList(SyntaxWriter writer)
@@ -610,7 +610,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
         {
             if (i > 0)
             {
-                writer.WriteToken(ResultTypes.SeparatorTokens[i - 1], string.Empty);
+                writer.WriteToken(ResultTypes.SeparatorTokens[i - 1]);
                 writer.SuggestTrivia(" ");
             }
 
@@ -619,7 +619,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
 
         if (ResultTypes.CloseToken.HasValue)
         {
-            writer.WriteToken(ResultTypes.CloseToken.Value, string.Empty);
+            writer.WriteToken(ResultTypes.CloseToken.Value);
         }
     }
 }
@@ -682,7 +682,7 @@ public sealed class FuncFunctionArgumentSyntax
         if (AttrDict.OpenToken.HasValue)
         {
             writer.Write(" ");
-            writer.WriteDelimitedList(AttrDict, string.Empty);
+            writer.WriteDelimitedList(AttrDict);
         }
     }
 }
@@ -726,7 +726,7 @@ public sealed class FuncFunctionResultSyntax
         if (AttrDict.OpenToken.HasValue)
         {
             writer.Write(" ");
-            writer.WriteDelimitedList(AttrDict, string.Empty);
+            writer.WriteDelimitedList(AttrDict);
         }
     }
 }

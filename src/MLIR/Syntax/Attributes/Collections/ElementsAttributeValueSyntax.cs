@@ -55,9 +55,9 @@ public sealed class ElementsAttributeValueSyntax(
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(KeywordToken);
-        writer.WriteToken(LessThanToken, string.Empty);
+        writer.WriteToken(LessThanToken);
         Payload.WriteTo(writer);
-        writer.WriteToken(GreaterThanToken, string.Empty);
+        writer.WriteToken(GreaterThanToken);
         writer.WriteToken(ColonToken, " ");
         writer.SuggestTrivia(" ");
         TypeSyntax.WriteTo(writer);

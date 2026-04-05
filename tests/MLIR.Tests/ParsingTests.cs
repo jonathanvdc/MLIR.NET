@@ -108,7 +108,7 @@ public sealed class ParsingTests
             {
                 if (i > 0)
                 {
-                    writer.WriteToken(new SyntaxToken(","), string.Empty);
+                    writer.WriteToken(new SyntaxToken(","));
                 }
 
                 writer.WriteToken(Inputs[i], " ");

@@ -212,7 +212,7 @@ public sealed class ConstructionTests
             new SyntaxToken(")"));
 
         var writer = new SyntaxWriter();
-        writer.WriteDelimitedList(list, string.Empty);
+        writer.WriteDelimitedList(list);
 
         Assert.Equal("(%arg0: i32, %arg1: i64)", writer.ToString());
     }
@@ -229,7 +229,7 @@ public sealed class ConstructionTests
         Assert.False(list.IsPresent);
 
         var writer = new SyntaxWriter();
-        writer.WriteDelimitedList(list, string.Empty);
+        writer.WriteDelimitedList(list);
 
         Assert.Equal(string.Empty, writer.ToString());
     }
@@ -242,7 +242,7 @@ public sealed class ConstructionTests
             [new SyntaxToken(","), new SyntaxToken(",")]);
 
         var writer = new SyntaxWriter();
-        writer.WriteSeparatedList(list, string.Empty);
+        writer.WriteSeparatedList(list);
 
         Assert.Equal("%a, %b, %c", writer.ToString());
     }
@@ -253,7 +253,7 @@ public sealed class ConstructionTests
         var list = SeparatedSyntaxList<SyntaxToken>.Empty;
 
         var writer = new SyntaxWriter();
-        writer.WriteSeparatedList(list, string.Empty);
+        writer.WriteSeparatedList(list);
 
         Assert.Equal(string.Empty, writer.ToString());
         Assert.Empty(list);

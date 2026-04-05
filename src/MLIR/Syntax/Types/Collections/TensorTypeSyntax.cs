@@ -54,11 +54,11 @@ public sealed class TensorTypeSyntax(
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(KeywordToken);
-        writer.WriteToken(LessThanToken, string.Empty);
+        writer.WriteToken(LessThanToken);
         WriteShapedPrefix(writer);
         ElementType.WriteTo(writer);
         WriteTrailing(writer);
-        writer.WriteToken(GreaterThanToken, string.Empty);
+        writer.WriteToken(GreaterThanToken);
     }
 
     private void AppendShapedPrefix(List<object?> parts)
@@ -81,15 +81,15 @@ public sealed class TensorTypeSyntax(
     {
         if (IsUnranked)
         {
-            writer.WriteToken(UnrankedToken!.Value, string.Empty);
-            writer.WriteToken(XTokens[0], string.Empty);
+            writer.WriteToken(UnrankedToken!.Value);
+            writer.WriteToken(XTokens[0]);
             return;
         }
 
         for (var i = 0; i < Dimensions.Count; i++)
         {
             Dimensions[i].WriteTo(writer);
-            writer.WriteToken(XTokens[i], string.Empty);
+            writer.WriteToken(XTokens[i]);
         }
     }
 
@@ -106,7 +106,7 @@ public sealed class TensorTypeSyntax(
     {
         for (var i = 0; i < TrailingParameters.Count; i++)
         {
-            writer.WriteToken(TrailingCommaTokens[i], string.Empty);
+            writer.WriteToken(TrailingCommaTokens[i]);
             writer.WriteRaw(TrailingParameters[i], " ");
         }
     }

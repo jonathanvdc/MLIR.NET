@@ -120,6 +120,16 @@ public sealed class SyntaxWriter
     /// Does nothing when <paramref name="list"/> has no opening delimiter token.
     /// </summary>
     /// <param name="list">The delimited token list to write.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<SyntaxToken> list)
+    {
+        list.WriteTo(this, static (token, writer) => writer.WriteToken(token));
+    }
+
+    /// <summary>
+    /// Writes a delimited list of syntax tokens.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited token list to write.</param>
     /// <param name="openLeadingTrivia">The explicit leading trivia for the opening delimiter token.</param>
     public void WriteDelimitedList(DelimitedSyntaxList<SyntaxToken> list, string openLeadingTrivia)
     {
@@ -131,10 +141,30 @@ public sealed class SyntaxWriter
     /// Does nothing when <paramref name="list"/> has no opening delimiter token.
     /// </summary>
     /// <param name="list">The delimited attribute list to write.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<NamedAttributeSyntax> list)
+    {
+        list.WriteTo(this, static (attr, writer) => attr.WriteTo(writer));
+    }
+
+    /// <summary>
+    /// Writes a delimited list of named attribute syntax nodes.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited attribute list to write.</param>
     /// <param name="openLeadingTrivia">The explicit leading trivia for the opening delimiter token.</param>
     public void WriteDelimitedList(DelimitedSyntaxList<NamedAttributeSyntax> list, string openLeadingTrivia)
     {
         list.WriteTo(this, openLeadingTrivia, static (attr, writer) => attr.WriteTo(writer));
+    }
+
+    /// <summary>
+    /// Writes a delimited list of block argument syntax nodes.
+    /// Does nothing when <paramref name="list"/> has no opening delimiter token.
+    /// </summary>
+    /// <param name="list">The delimited block argument list to write.</param>
+    public void WriteDelimitedList(DelimitedSyntaxList<BlockArgumentSyntax> list)
+    {
+        list.WriteTo(this, static (arg, writer) => arg.WriteTo(writer));
     }
 
     /// <summary>
@@ -164,10 +194,9 @@ public sealed class SyntaxWriter
     /// Does nothing when <paramref name="list"/> is empty.
     /// </summary>
     /// <param name="list">The separated token list to write.</param>
-    /// <param name="firstLeadingTrivia">The explicit leading trivia for the first element.</param>
-    public void WriteSeparatedList(SeparatedSyntaxList<SyntaxToken> list, string firstLeadingTrivia)
+    public void WriteSeparatedList(SeparatedSyntaxList<SyntaxToken> list)
     {
-        list.WriteTo(this, firstLeadingTrivia, static (token, writer) => writer.WriteToken(token));
+        list.WriteTo(this, static (token, writer) => writer.WriteToken(token));
     }
 
     /// <summary>
@@ -178,7 +207,8 @@ public sealed class SyntaxWriter
     /// <param name="firstLeadingTrivia">The explicit leading trivia for the first element.</param>
     public void WriteSeparatedList(SeparatedSyntaxList<AttributeValueSyntax> list, string firstLeadingTrivia)
     {
-        list.WriteTo(this, firstLeadingTrivia, static (attr, writer) => attr.WriteTo(writer));
+        SuggestTrivia(firstLeadingTrivia);
+        list.WriteTo(this, static (attr, writer) => attr.WriteTo(writer));
     }
 
     /// <summary>
@@ -264,11 +294,19 @@ public sealed class SyntaxWriter
     }
 
     /// <summary>
-    /// Writes indentation using the library's standard two-space indent width.
+    /// Writes a newline and indentation for the specified indent level.
     /// </summary>
     /// <param name="indentLevel">The indentation level to write.</param>
-    public void WriteIndent(int indentLevel)
+    public void SuggestIndentedNewLine(int indentLevel)
     {
-        builder.Append(' ', indentLevel * 2);
+        SuggestTrivia("\n" + new string(' ', indentLevel * 2));
+    }
+
+    /// <summary>
+    /// Writes a newline and indentation for the current <see cref="IndentLevel"/>.
+    /// </summary>
+    public void SuggestIndentedNewLine()
+    {
+        SuggestIndentedNewLine(IndentLevel);
     }
 }

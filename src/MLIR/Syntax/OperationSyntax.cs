@@ -157,7 +157,7 @@ public sealed class OperationSyntax : SyntaxNode
         {
             // The pending trivia (if any) is consumed by the first result token.
             // Subsequent result tokens receive a space suggestion from SeparatedSyntaxList.
-            ResultList.WriteTo(writer, string.Empty, static (token, w) => w.WriteToken(token));
+            ResultList.WriteTo(writer, static (token, w) => w.WriteToken(token));
             writer.WriteToken(EqualsToken!.Value, " ");
             writer.WriteToken(NameToken, " ");
         }

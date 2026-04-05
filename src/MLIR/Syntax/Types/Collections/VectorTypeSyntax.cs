@@ -44,14 +44,14 @@ public sealed class VectorTypeSyntax(
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(KeywordToken);
-        writer.WriteToken(LessThanToken, string.Empty);
+        writer.WriteToken(LessThanToken);
         for (var i = 0; i < Dimensions.Count; i++)
         {
             Dimensions[i].WriteTo(writer);
-            writer.WriteToken(XTokens[i], string.Empty);
+            writer.WriteToken(XTokens[i]);
         }
 
         ElementType.WriteTo(writer);
-        writer.WriteToken(GreaterThanToken, string.Empty);
+        writer.WriteToken(GreaterThanToken);
     }
 }

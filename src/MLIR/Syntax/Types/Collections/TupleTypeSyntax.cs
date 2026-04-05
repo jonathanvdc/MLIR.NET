@@ -46,9 +46,9 @@ public sealed class TupleTypeSyntax(
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(KeywordToken);
-        writer.WriteToken(LessThanToken, string.Empty);
+        writer.WriteToken(LessThanToken);
         WriteSeparatedTypes(writer, Elements, CommaTokens);
-        writer.WriteToken(GreaterThanToken, string.Empty);
+        writer.WriteToken(GreaterThanToken);
     }
 
     private static IEnumerable<object> Interleave(IReadOnlyList<TypeSyntax> items, IReadOnlyList<SyntaxToken> separators)
@@ -70,7 +70,7 @@ public sealed class TupleTypeSyntax(
         {
             if (i > 0)
             {
-                writer.WriteToken(separators[i - 1], string.Empty);
+                writer.WriteToken(separators[i - 1]);
                 writer.SuggestTrivia(" ");
             }
 

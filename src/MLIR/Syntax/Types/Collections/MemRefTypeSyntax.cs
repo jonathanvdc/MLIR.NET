@@ -72,28 +72,28 @@ public sealed class MemRefTypeSyntax(
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(KeywordToken);
-        writer.WriteToken(LessThanToken, string.Empty);
+        writer.WriteToken(LessThanToken);
         if (IsUnranked)
         {
-            writer.WriteToken(UnrankedToken!.Value, string.Empty);
-            writer.WriteToken(XTokens[0], string.Empty);
+            writer.WriteToken(UnrankedToken!.Value);
+            writer.WriteToken(XTokens[0]);
         }
         else
         {
             for (var i = 0; i < Dimensions.Count; i++)
             {
                 Dimensions[i].WriteTo(writer);
-                writer.WriteToken(XTokens[i], string.Empty);
+                writer.WriteToken(XTokens[i]);
             }
         }
 
         ElementType.WriteTo(writer);
         for (var i = 0; i < TrailingParameters.Count; i++)
         {
-            writer.WriteToken(TrailingCommaTokens[i], string.Empty);
+            writer.WriteToken(TrailingCommaTokens[i]);
             writer.WriteRaw(TrailingParameters[i], " ");
         }
 
-        writer.WriteToken(GreaterThanToken, string.Empty);
+        writer.WriteToken(GreaterThanToken);
     }
 }

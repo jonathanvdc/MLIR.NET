@@ -53,7 +53,7 @@ public sealed class GenericOperationBodySyntax(
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteDelimitedList(OperandList, string.Empty);
+        writer.WriteDelimitedList(OperandList);
 
         writer.WriteDelimitedList(SuccessorList, " ");
 

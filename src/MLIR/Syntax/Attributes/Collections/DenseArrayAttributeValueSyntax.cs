@@ -71,10 +71,10 @@ public sealed class DenseArrayAttributeValueSyntax(
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(KeywordToken);
-        writer.WriteToken(LessThanToken, string.Empty);
+        writer.WriteToken(LessThanToken);
         ElementTypeSyntax.WriteTo(writer);
-        writer.WriteToken(ColonToken, string.Empty);
+        writer.WriteToken(ColonToken);
         writer.WriteSeparatedList(Items, " ");
-        writer.WriteToken(GreaterThanToken, string.Empty);
+        writer.WriteToken(GreaterThanToken);
     }
 }

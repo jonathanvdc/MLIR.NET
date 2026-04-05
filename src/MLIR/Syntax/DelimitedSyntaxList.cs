@@ -84,14 +84,14 @@ public sealed class DelimitedSyntaxList<T>(
         {
             if (i > 0)
             {
-                writer.WriteToken(SeparatorTokens[i - 1], string.Empty);
+                writer.WriteToken(SeparatorTokens[i - 1]);
                 writer.SuggestTrivia(" ");
             }
 
             writeElement(Items[i], writer);
         }
 
-        writer.WriteToken(CloseToken!.Value, string.Empty);
+        writer.WriteToken(CloseToken!.Value);
     }
 
     /// <summary>
@@ -114,19 +114,8 @@ public sealed class DelimitedSyntaxList<T>(
             return;
         }
 
-        writer.WriteToken(OpenToken.Value, openLeadingTrivia);
-        for (var i = 0; i < Count; i++)
-        {
-            if (i > 0)
-            {
-                writer.WriteToken(SeparatorTokens[i - 1], string.Empty);
-                writer.SuggestTrivia(" ");
-            }
-
-            writeElement(Items[i], writer);
-        }
-
-        writer.WriteToken(CloseToken!.Value, string.Empty);
+        writer.SuggestTrivia(openLeadingTrivia);
+        WriteTo(writer, writeElement);
     }
 
     /// <summary>

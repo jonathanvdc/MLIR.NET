@@ -446,7 +446,7 @@ internal static class EmitterHelpers
             {
                 var name = MakeUnique(DialectGeneratorNaming.ToPascalCase(literal.Value) + "Token", usedNames);
                 var field = new BodySyntaxField(name, "SyntaxToken?",
-                    "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, string.Empty);");
+                    "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value);");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "OilistLiteral:" + literal.Value, field.Name));
                 break;
@@ -462,8 +462,8 @@ internal static class EmitterHelpers
     {
         var name = MakeUnique(GetPunctuationFieldName(tokenKind), usedNames);
         var (csType, writeStmt) = nullable
-            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, string.Empty);")
-            : ("SyntaxToken", "writer.WriteToken(" + name + ", string.Empty);");
+            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value);")
+            : ("SyntaxToken", "writer.WriteToken(" + name + ");");
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Punctuation:" + tokenKind, field.Name));
@@ -591,7 +591,7 @@ internal static class EmitterHelpers
                 "{\n" +
                 "    if (i > 0)\n" +
                 "    {\n" +
-                "        writer.WriteToken(new SyntaxToken(\",\"), string.Empty);\n" +
+                "        writer.WriteToken(new SyntaxToken(\",\"));\n" +
                 "    }\n" +
                 "\n" +
                 "    writer.SuggestTrivia(\" \");\n" +

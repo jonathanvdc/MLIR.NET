@@ -47,7 +47,7 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     public override void WriteTo(SyntaxWriter writer)
     {
         writer.WriteToken(NameToken);
-        writer.WriteToken(ColonToken, string.Empty);
+        writer.WriteToken(ColonToken);
         writer.SuggestTrivia(" ");
         TypeSyntax.WriteTo(writer);
     }
