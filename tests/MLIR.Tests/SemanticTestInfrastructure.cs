@@ -69,7 +69,7 @@ public sealed partial class SemanticTests
         private readonly GenericOperationBodySyntax genericBody;
 
         public PrefixConstantBodySyntax(
-            RawSyntaxText value,
+            AttributeValueSyntax value,
             SyntaxToken colonToken,
             TypeSyntax typeSignature,
             DelimitedSyntaxList<NamedAttributeSyntax> attributes)
@@ -86,7 +86,7 @@ public sealed partial class SemanticTests
                 typeSignature);
         }
 
-        public RawSyntaxText Value { get; }
+        public AttributeValueSyntax Value { get; }
 
         public SyntaxToken ColonToken { get; }
 
@@ -96,7 +96,8 @@ public sealed partial class SemanticTests
 
         public override void WriteTo(SyntaxWriter writer)
         {
-            writer.WriteRaw(Value, " ");
+            writer.SuggestTrivia(" ");
+            Value.WriteTo(writer);
             writer.WriteToken(ColonToken, " ");
             writer.SuggestTrivia(" ");
             TypeSignature.WriteTo(writer);
@@ -445,6 +446,7 @@ public sealed partial class SemanticTests
             {
                 return ParseResult<OperationBodySyntax>.Failure(valueResult.Diagnostic!);
             }
+            var valueAttrSyntax = new RawAttributeValueSyntax(valueResult.Value);
 
             var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
             if (!colonTokenResult.IsSuccess)
@@ -458,9 +460,9 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(valueResult.Value))]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), valueAttrSyntax)]);
 
-            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, new RawTypeSyntax(typeResult.Value), attributes));
+            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, new RawTypeSyntax(typeResult.Value), attributes));
         }
 
         public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
@@ -479,7 +481,7 @@ public sealed partial class SemanticTests
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
             var body = new PrefixConstantBodySyntax(
-                valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value).GetRawText() : new RawSyntaxText(string.Empty),
+                valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value) : new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)),
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
@@ -529,7 +531,7 @@ public sealed partial class SemanticTests
 
             var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), valueResult.Value)]);
 
-            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value.GetRawText(), colonTokenResult.Value, typeResult.Value, attributes));
+            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
         public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
@@ -547,14 +549,9 @@ public sealed partial class SemanticTests
         {
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
-            var valueText = valueAttr?.Value switch
-            {
-                MLIR.Semantics.Attributes.Primitives.F32AttributeValue f32Value => MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatSingle(f32Value.Value),
-                MLIR.Semantics.Attributes.Primitives.F64AttributeValue f64Value => MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatDouble(f64Value.Value),
-                _ => valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value).ToString() : string.Empty,
-            };
+            var attrSyntax = context.BuildAttributeValueSyntax(valueAttr?.Value ?? new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)), null, null, SourceLocation.Unknown));
             var body = new PrefixConstantBodySyntax(
-                new RawSyntaxText(valueText),
+                attrSyntax,
                 genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);

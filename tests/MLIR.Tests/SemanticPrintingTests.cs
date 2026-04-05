@@ -199,7 +199,7 @@ public sealed partial class SemanticTests
         Assert.True(module.Operations[0].HasCustomAssemblyBody);
 
         var body = Assert.IsType<PrefixConstantBodySyntax>(module.Operations[0].Body);
-        Assert.Equal("0", body.Value.Text);
+        Assert.Equal("0", body.Value.ToString());
         Assert.Equal("i32", body.TypeSignature.ToString());
     }
 
