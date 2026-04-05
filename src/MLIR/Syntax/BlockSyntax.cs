@@ -6,7 +6,7 @@ using MLIR.Text;
 /// <summary>
 /// Represents a single block within an MLIR region.
 /// </summary>
-public sealed class BlockSyntax
+public sealed class BlockSyntax : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="BlockSyntax"/> class.
@@ -99,6 +99,12 @@ public sealed class BlockSyntax
         {
             writer.WriteOperation(operation, operationIndentLevel, "\n");
         }
+    }
+
+    /// <inheritdoc/>
+    public override void WriteTo(SyntaxWriter writer)
+    {
+        WriteTo(writer, regionIndentLevel: 0);
     }
 
     private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)

@@ -11,7 +11,7 @@ using MLIR.Text;
 /// </remarks>
 /// <param name="operations">The top-level operations in the module.</param>
 /// <param name="endOfFileToken">The end-of-file token that carries any trailing trivia.</param>
-public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, SyntaxToken endOfFileToken)
+public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, SyntaxToken endOfFileToken) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ModuleSyntax"/> class.
@@ -36,7 +36,7 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
     /// Writes this module to the supplied syntax writer.
     /// </summary>
     /// <param name="writer">The syntax writer to write to.</param>
-    public void WriteTo(SyntaxWriter writer)
+    public override void WriteTo(SyntaxWriter writer)
     {
         for (var i = 0; i < Operations.Count; i++)
         {

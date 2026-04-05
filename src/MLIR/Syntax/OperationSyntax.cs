@@ -7,7 +7,7 @@ using MLIR.Semantics;
 /// <summary>
 /// Represents an MLIR operation.
 /// </summary>
-public sealed class OperationSyntax
+public sealed class OperationSyntax : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationSyntax"/> class.
@@ -179,6 +179,12 @@ public sealed class OperationSyntax
         }
 
         Body.WriteTo(writer, indentLevel);
+    }
+
+    /// <inheritdoc/>
+    public override void WriteTo(SyntaxWriter writer)
+    {
+        WriteTo(writer, indentLevel: 0, defaultLeadingTrivia: string.Empty);
     }
 
     private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)

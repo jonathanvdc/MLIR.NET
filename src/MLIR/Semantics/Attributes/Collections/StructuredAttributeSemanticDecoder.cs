@@ -125,7 +125,7 @@ public static class StructuredAttributeSemanticDecoder
 
     private static AttributeValue DecodeDenseArrayValue(DenseArrayAttributeValueSyntax syntax)
     {
-        var typeText = syntax.ElementTypeSyntax.GetRawText().Text;
+        var typeText = syntax.ElementTypeSyntax.ToString();
         return typeText switch
         {
             "i1" => new DecodedDenseBooleanArrayAttributeValue(syntax),

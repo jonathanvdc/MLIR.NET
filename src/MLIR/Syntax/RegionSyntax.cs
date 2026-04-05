@@ -12,7 +12,7 @@ using MLIR.Text;
 /// <param name="openBraceToken">The opening brace token.</param>
 /// <param name="blocks">The blocks contained in the region.</param>
 /// <param name="closeBraceToken">The closing brace token.</param>
-public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<BlockSyntax> blocks, SyntaxToken closeBraceToken)
+public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<BlockSyntax> blocks, SyntaxToken closeBraceToken) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="RegionSyntax"/> class.
@@ -55,5 +55,11 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
         }
 
         writer.WriteToken(CloseBraceToken, "\n", indentLevel);
+    }
+
+    /// <inheritdoc/>
+    public override void WriteTo(SyntaxWriter writer)
+    {
+        WriteTo(writer, indentLevel: 0);
     }
 }

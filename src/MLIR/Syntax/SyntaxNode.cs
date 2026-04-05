@@ -1,0 +1,24 @@
+namespace MLIR.Syntax;
+
+/// <summary>
+/// Base class for all MLIR concrete syntax tree nodes.
+/// Provides a uniform <see cref="WriteTo(Text.SyntaxWriter)"/> entry point used by
+/// <see cref="ToString"/> so that every concrete node type produces a trimmed textual
+/// representation without requiring callers to manage formatting parameters.
+/// </summary>
+public abstract class SyntaxNode
+{
+    /// <summary>
+    /// Writes this syntax node to the supplied writer using default formatting.
+    /// </summary>
+    /// <param name="writer">The syntax writer to write to.</param>
+    public abstract void WriteTo(Text.SyntaxWriter writer);
+
+    /// <inheritdoc/>
+    public override string ToString()
+    {
+        var writer = new Text.SyntaxWriter();
+        WriteTo(writer);
+        return writer.ToString().Trim();
+    }
+}

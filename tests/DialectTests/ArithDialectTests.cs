@@ -38,7 +38,7 @@ public sealed class ArithDialectTests : DialectIntegrationTestBase
 
         Assert.Equal("%value", operation.ResultValue.Name);
         Assert.Equal("value", operation.Value.Name);
-        Assert.Equal("42 : i32", operation.Value.Value.Syntax!.GetRawText().Text);
+        Assert.Equal("42 : i32", operation.Value.Value.Syntax!.ToString());
     }
 
     [Fact]

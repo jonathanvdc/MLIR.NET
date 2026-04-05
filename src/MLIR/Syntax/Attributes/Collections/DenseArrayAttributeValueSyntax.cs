@@ -52,11 +52,11 @@ public sealed class DenseArrayAttributeValueSyntax(
     /// <inheritdoc/>
     public override bool TryGetRawText(out RawSyntaxText? rawText)
     {
-        var text = KeywordToken.Text + LessThanToken.Text + ElementTypeSyntax.GetRawText().Text + ColonToken.Text;
+        var text = KeywordToken.Text + LessThanToken.Text + ElementTypeSyntax.ToString() + ColonToken.Text;
         for (var i = 0; i < Items.Count; i++)
         {
             text += i == 0 ? " " : string.Empty;
-            text += Items[i].GetRawText().Text;
+            text += Items[i].ToString();
             if (i < Items.SeparatorTokens.Count)
             {
                 text += Items.SeparatorTokens[i].Text + " ";

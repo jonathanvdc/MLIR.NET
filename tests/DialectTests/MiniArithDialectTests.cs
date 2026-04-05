@@ -208,7 +208,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             "%result = miniarith.add_type_immediate i32, %lhs : i32",
             CreateMiniArithRegistry());
 
-        Assert.Equal("i32", operation.Value.TypeSyntax.GetRawText().Text);
+        Assert.Equal("i32", operation.Value.TypeSyntax.ToString());
         Assert.IsType<TypeAttributeValueSyntax>(operation.Value.Syntax);
     }
 
@@ -250,7 +250,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var second = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[1]);
         Assert.Equal((BigInteger)1, first.Value);
         Assert.Equal((BigInteger)2, second.Value);
-        Assert.Equal("tensor<2xi32>", value.TypeSyntax.GetRawText().Text);
+        Assert.Equal("tensor<2xi32>", value.TypeSyntax.ToString());
     }
 
     [Fact]

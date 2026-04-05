@@ -5,7 +5,7 @@ namespace MLIR.Syntax;
 /// <summary>
 /// Represents the syntax of a type.
 /// </summary>
-public abstract class TypeSyntax
+public abstract class TypeSyntax : SyntaxNode
 {
     /// <summary>
     /// Attempts to project this type into preserved raw syntax text.
@@ -30,6 +30,12 @@ public abstract class TypeSyntax
     /// </summary>
     public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
 
+    /// <inheritdoc/>
+    public override void WriteTo(Text.SyntaxWriter writer)
+    {
+        WriteTo(writer, defaultLeadingTrivia: string.Empty);
+    }
+
     /// <summary>
     /// Gets the source location of this type syntax, if available.
     /// </summary>
@@ -46,13 +52,5 @@ public abstract class TypeSyntax
                 return SourceLocation.Unknown;
             }
         }
-    }
-
-    /// <inheritdoc/>
-    public override string ToString()
-    {
-        var writer = new Text.SyntaxWriter();
-        WriteTo(writer, defaultLeadingTrivia: string.Empty);
-        return writer.ToString().Trim();
     }
 }

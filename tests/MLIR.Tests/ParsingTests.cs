@@ -364,10 +364,10 @@ public sealed class ParsingTests
 
         Assert.Collection(
             tensor.Dimensions,
-            static dimension => Assert.Equal("2", dimension.GetRawText().Text),
-            static dimension => Assert.Equal("?", dimension.GetRawText().Text));
-        Assert.Equal("f32", tensor.ElementType.GetRawText().Text);
-        Assert.Equal("4", vector.Dimensions[0].GetRawText().Text);
+            static dimension => Assert.Equal("2", dimension.ToString()),
+            static dimension => Assert.Equal("?", dimension.ToString()));
+        Assert.Equal("f32", tensor.ElementType.ToString());
+        Assert.Equal("4", vector.Dimensions[0].ToString());
         Assert.True(memref.IsUnranked);
         Assert.Equal("#map", Assert.Single(memref.TrailingParameters).Text);
     }

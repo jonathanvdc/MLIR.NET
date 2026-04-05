@@ -5,7 +5,7 @@ namespace MLIR.Syntax.Types.Collections;
 /// <summary>
 /// Represents one dimension in a ranked builtin shaped type.
 /// </summary>
-public abstract class ShapedTypeDimensionSyntax
+public abstract class ShapedTypeDimensionSyntax : SyntaxNode
 {
     /// <summary>
     /// Attempts to project this dimension into preserved raw syntax text.
@@ -29,4 +29,10 @@ public abstract class ShapedTypeDimensionSyntax
     /// Writes this dimension to the supplied syntax writer.
     /// </summary>
     public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
+
+    /// <inheritdoc/>
+    public override void WriteTo(Text.SyntaxWriter writer)
+    {
+        WriteTo(writer, defaultLeadingTrivia: string.Empty);
+    }
 }

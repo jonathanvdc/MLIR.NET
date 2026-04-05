@@ -31,7 +31,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         var operation = Assert.Single(document.Module.Operations);
         var body = Assert.IsType<MiniTest_CastOpBodySyntax>(operation.Body);
         Assert.Equal("%input", body.Input.Text);
-        Assert.Equal("i32", body.ResultType.GetRawText().Text);
+        Assert.Equal("i32", body.ResultType.ToString());
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         Assert.Equal("%lhs", body.Lhs.Text);
         Assert.Equal(hasRhs, body.CommaToken.HasValue);
         Assert.Equal(hasRhs, body.Rhs.HasValue);
-        Assert.Equal("i32", body.ResultType.GetRawText().Text);
+        Assert.Equal("i32", body.ResultType.ToString());
         Assert.Equal(rhsName, body.Rhs.HasValue ? body.Rhs!.Value.Text : null);
     }
 
