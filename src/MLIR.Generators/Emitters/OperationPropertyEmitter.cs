@@ -161,9 +161,10 @@ internal static class OperationPropertyEmitter
         // Append a mention of the operation summary to the remarks so the generated surface
         // is self-explanatory (required by the issue: the doc comment must cite the summary
         // and the traits that justify the property).
-        var summaryRemark = string.IsNullOrWhiteSpace(operation.Summary)
-            ? string.Empty
-            : " The operation summary states: '" + EmitterHelpers.EscapeXmlText(operation.Summary!.Trim()) + "'.";
+        var summary = operation.Summary;
+        var summaryRemark = summary != null && summary.Trim().Length > 0
+            ? " The operation summary states: '" + EmitterHelpers.EscapeXmlText(summary.Trim()) + "'."
+            : string.Empty;
 
         // Emit the Block convenience property.
         builder.AppendLine("    /// <summary>Gets the single block of this operation's body region.</summary>");
