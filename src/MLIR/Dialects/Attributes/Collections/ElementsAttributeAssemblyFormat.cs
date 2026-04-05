@@ -91,6 +91,6 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
             return elementsSyntax;
         }
 
-        return (ElementsAttributeValueSyntax)binder.ReparseAttributeValueSyntax(syntax.GetRawText(), definition);
+        throw new System.InvalidOperationException("Unexpected syntax for elements attribute. Expected an elements attribute literal such as 'dense<[1, 2]> : tensor<2xi32>'.");
     }
 }
