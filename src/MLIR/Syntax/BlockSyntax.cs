@@ -91,7 +91,7 @@ public sealed class BlockSyntax : SyntaxNode
         foreach (var operation in Operations)
         {
             writer.IndentLevel = operationIndentLevel;
-            writer.SuggestTrivia("\n" + new string(' ', operationIndentLevel * 2));
+            writer.SuggestIndentedNewLine(operationIndentLevel);
             operation.WriteTo(writer);
         }
     }
