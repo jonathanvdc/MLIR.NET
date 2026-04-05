@@ -382,7 +382,7 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
         builder.AppendLine("    {");
         builder.AppendLine("        return syntax is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax");
         builder.AppendLine("            ? typeSyntax.TypeSyntax");
-        builder.AppendLine("            : new global::MLIR.Syntax.RawTypeSyntax(syntax?.GetRawText() ?? new global::MLIR.Syntax.RawSyntaxText(string.Empty));");
+        builder.AppendLine("            : throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\");");
         builder.AppendLine("    }");
     }
 }
