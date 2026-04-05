@@ -92,7 +92,7 @@ public sealed class BlockSyntax : SyntaxNode
         foreach (var operation in Operations)
         {
             writer.IndentLevel = operationIndentLevel;
-            writer.SuggestIndentedNewLine(operationIndentLevel);
+            writer.SuggestIndentedNewLine();
             operation.WriteTo(writer);
         }
     }
