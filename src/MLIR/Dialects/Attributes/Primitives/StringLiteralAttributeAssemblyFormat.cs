@@ -28,9 +28,12 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
-        var normalizedSyntax = syntax as StringAttributeValueSyntax
-            ?? new StringAttributeValueSyntax(new SyntaxToken(syntax.GetRawText().Text), Unescape(syntax.GetRawText().Text));
-        return definition.Factory(new AttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        if (syntax is not StringAttributeValueSyntax stringSyntax)
+        {
+            throw new InvalidOperationException("Expected a string literal syntax for a primitive string attribute.");
+        }
+
+        return definition.Factory(new AttributeValueConstructionContext(stringSyntax, definition.Name, definition, stringSyntax.Location));
     }
 
     /// <inheritdoc/>
