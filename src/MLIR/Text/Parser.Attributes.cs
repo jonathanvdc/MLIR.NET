@@ -4,6 +4,7 @@ using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Collections;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Attributes.Collections;
 
 public sealed partial class Parser
@@ -28,6 +29,7 @@ public sealed partial class Parser
     ///   <item><description>Self-identifying attributes of the form <c>#name</c> looked up in the dialect registry.</description></item>
     ///   <item><description>Built-in structured attributes: arrays (<c>[...]</c>), dictionaries (<c>{...}</c>),
     ///     dense arrays, and elements attributes.</description></item>
+    ///   <item><description>Primitive numeric literals (floating-point and integer forms).</description></item>
     ///   <item><description>Raw token scan as a fallback <c>RawAttributeValueSyntax</c>.</description></item>
     /// </list>
     /// </summary>
@@ -64,6 +66,12 @@ public sealed partial class Parser
         if (!builtinStructuredResult.IsNoMatch)
         {
             return builtinStructuredResult;
+        }
+
+        var numericLiteralResult = TryParseNumericAttributeSyntaxResult(stopAtOperationBoundary, stopBefore);
+        if (!numericLiteralResult.IsNoMatch)
+        {
+            return numericLiteralResult;
         }
 
         var rawResult = stopAtOperationBoundary
@@ -115,6 +123,72 @@ public sealed partial class Parser
         }
 
         return TryParseAttributeAssemblyFormatResult(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat);
+    }
+
+    /// <summary>
+    /// Tries to parse a primitive numeric attribute literal, preferring floating-point forms over integers.
+    /// The method backtracks cleanly so partially-consumed non-numeric text can still fall through to raw syntax.
+    /// </summary>
+    private ParseResult<AttributeValueSyntax> TryParseNumericAttributeSyntaxResult(bool stopAtOperationBoundary, TokenKind[] stopBefore)
+    {
+        var checkpoint = Mark();
+
+        var floatingPointResult = FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(new AttributeParsingContext(this, dialectRegistry, null));
+        if (floatingPointResult.IsSuccess)
+        {
+            if (IsValidAttributeValueTermination(stopAtOperationBoundary, stopBefore))
+            {
+                return floatingPointResult;
+            }
+
+            Reset(checkpoint);
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        if (!floatingPointResult.IsNoMatch)
+        {
+            return floatingPointResult;
+        }
+
+        Reset(checkpoint);
+
+        if (!IntegerLiteralAttributeAssemblyFormat.TryParseSignedIntegerLiteral(new AttributeParsingContext(this, dialectRegistry, null), out var rawText, out var value))
+        {
+            Reset(checkpoint);
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        var integerSyntax = ParseResult<AttributeValueSyntax>.Success(
+            new IntegerAttributeValueSyntax(IntegerLiteralAttributeAssemblyFormat.CreateSingleToken(rawText), value));
+        if (IsValidAttributeValueTermination(stopAtOperationBoundary, stopBefore))
+        {
+            return integerSyntax;
+        }
+
+        Reset(checkpoint);
+        return ParseResult<AttributeValueSyntax>.NoMatch();
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the current parser position is a valid termination point for
+    /// a completed attribute value in the current parsing mode.
+    /// </summary>
+    private bool IsValidAttributeValueTermination(bool stopAtOperationBoundary, TokenKind[] stopBefore)
+    {
+        if (Is(TokenKind.EndOfFile))
+        {
+            return true;
+        }
+
+        for (var i = 0; i < stopBefore.Length; i++)
+        {
+            if (Current.Kind == stopBefore[i])
+            {
+                return true;
+            }
+        }
+
+        return stopAtOperationBoundary && IsOperationBoundary(Current, false);
     }
 
     /// <summary>

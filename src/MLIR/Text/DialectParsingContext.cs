@@ -39,6 +39,23 @@ public abstract class DialectParsingContext
     }
 
     /// <summary>
+    /// Peeks at a token relative to the current position without consuming it.
+    /// </summary>
+    internal bool TryPeekToken(int offset, out TokenKind kind, out string text)
+    {
+        if (Parser.TryPeekToken(offset, out var token))
+        {
+            kind = token.Kind;
+            text = token.Text;
+            return true;
+        }
+
+        kind = default;
+        text = string.Empty;
+        return false;
+    }
+
+    /// <summary>
     /// Expects a token of the supplied kind.
     /// </summary>
     public ParseResult<SyntaxToken> Expect(TokenKind kind, string message)

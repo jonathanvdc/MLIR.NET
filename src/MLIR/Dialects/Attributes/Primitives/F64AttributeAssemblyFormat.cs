@@ -22,9 +22,19 @@ public sealed class F64AttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
-        var normalizedSyntax = syntax as FloatingPointAttributeValueSyntax
-            ?? new FloatingPointAttributeValueSyntax(syntax.GetRawText(), syntax.GetRawText().Text);
-        return definition.Factory(new AttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        if (syntax is FloatingPointAttributeValueSyntax floatSyntax)
+        {
+            return definition.Factory(new AttributeValueConstructionContext(floatSyntax, definition.Name, definition, floatSyntax.Location));
+        }
+        else if (syntax is IntegerAttributeValueSyntax integerSyntax)
+        {
+            // Allow integer literals to be implicitly converted to double-precision floating-point attributes.
+            return definition.Factory(new AttributeValueConstructionContext(integerSyntax, definition.Name, definition, integerSyntax.Location));
+        }
+        else
+        {
+            throw new InvalidOperationException("Expected a floating-point or integer literal syntax for a double-precision floating-point attribute.");
+        }
     }
 
     /// <inheritdoc/>

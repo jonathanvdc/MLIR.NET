@@ -29,8 +29,12 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
-        var normalizedSyntax = NormalizeSyntax(syntax);
-        return definition.Factory(new AttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        if (syntax is not IntegerAttributeValueSyntax integerSyntax)
+        {
+            throw new InvalidOperationException("Expected an integer literal syntax for a primitive integer attribute.");
+        }
+
+        return definition.Factory(new AttributeValueConstructionContext(integerSyntax, definition.Name, definition, integerSyntax.Location));
     }
 
     /// <inheritdoc/>
@@ -50,25 +54,18 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
         return new IntegerAttributeValueSyntax(new SyntaxToken(text), value);
     }
 
-    internal static IntegerAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax)
-    {
-        if (syntax is IntegerAttributeValueSyntax integerSyntax)
-        {
-            return integerSyntax;
-        }
-
-        var rawText = syntax.GetRawText();
-        return new IntegerAttributeValueSyntax(CreateSingleToken(rawText), BigInteger.Parse(rawText.Text, CultureInfo.InvariantCulture));
-    }
-
     internal static bool TryParseSignedIntegerLiteral(AttributeParsingContext context, out RawSyntaxText rawText, out BigInteger value)
     {
         rawText = null!;
         value = default;
-        SyntaxToken? minusToken = null;
+        SyntaxToken? signToken = null;
         if (context.TryMatch(TokenKind.Minus, out var minus))
         {
-            minusToken = minus;
+            signToken = minus;
+        }
+        else if (context.TryMatch(TokenKind.Plus, out var plus))
+        {
+            signToken = plus;
         }
 
         if (!context.TryMatch(TokenKind.Integer, out var integerToken))
@@ -78,9 +75,9 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
             return false;
         }
 
-        if (minusToken.HasValue)
+        if (signToken.HasValue)
         {
-            rawText = new RawSyntaxText([minusToken.Value, integerToken], minusToken.Value.Text + integerToken.Text);
+            rawText = new RawSyntaxText([signToken.Value, integerToken], signToken.Value.Text + integerToken.Text);
             value = BigInteger.Parse(rawText.Text, CultureInfo.InvariantCulture);
         }
         else
@@ -92,7 +89,7 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
         return true;
     }
 
-    private static SyntaxToken CreateSingleToken(RawSyntaxText rawText)
+    internal static SyntaxToken CreateSingleToken(RawSyntaxText rawText)
     {
         return rawText.Tokens.Count == 0 ? new SyntaxToken(rawText.Text) : new SyntaxToken(rawText.Text, rawText.Tokens[0].LeadingTrivia, rawText.Location.Line, rawText.Location.Column);
     }

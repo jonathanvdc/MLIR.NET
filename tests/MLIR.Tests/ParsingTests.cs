@@ -4,6 +4,7 @@ using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -293,6 +294,33 @@ public sealed class ParsingTests
         Assert.Empty(GetGenericBody(operation).Regions);
         Assert.Empty(GetGenericBody(operation).Attributes);
         Assert.Equal(source, Printer.Print(module));
+    }
+
+    [Theory]
+    [InlineData("42", 42)]
+    [InlineData("-42", -42)]
+    [InlineData("+42", 42)]
+    public void ParsesStandaloneIntegerAttributeValues(string source, int expectedValue)
+    {
+        var syntax = Parser.ParseAttributeValue(source);
+
+        var integerSyntax = Assert.IsType<IntegerAttributeValueSyntax>(syntax);
+        Assert.Equal(expectedValue, (int)integerSyntax.Value);
+        Assert.Equal(source, syntax.ToString());
+    }
+
+    [Theory]
+    [InlineData("1.5")]
+    [InlineData("+1.5")]
+    [InlineData("1e3")]
+    [InlineData("0x3f800000")]
+    public void ParsesStandaloneFloatingPointAttributeValues(string source)
+    {
+        var syntax = Parser.ParseAttributeValue(source);
+
+        var floatingPointSyntax = Assert.IsType<FloatingPointAttributeValueSyntax>(syntax);
+        Assert.Equal(source, syntax.ToString());
+        Assert.Equal(source, floatingPointSyntax.LiteralText);
     }
 
     [Fact]

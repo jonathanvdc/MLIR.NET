@@ -509,6 +509,23 @@ public sealed partial class Parser
         return TryMatch(kind, out token);
     }
 
+    /// <summary>
+    /// Peeks ahead from the current parser position without consuming any tokens.
+    /// Returns <see langword="true"/> when the requested token exists.
+    /// </summary>
+    internal bool TryPeekToken(int offset, out Token token)
+    {
+        var peekIndex = position + offset;
+        if (peekIndex < 0 || peekIndex >= tokens.Count)
+        {
+            token = default;
+            return false;
+        }
+
+        token = tokens[peekIndex];
+        return true;
+    }
+
     /// <summary>Bridges <see cref="ExpectTokenResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
     internal ParseResult<SyntaxToken> ExpectTokenInternal(TokenKind kind, string message)
     {

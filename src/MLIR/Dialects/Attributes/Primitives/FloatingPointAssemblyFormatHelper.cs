@@ -54,21 +54,17 @@ internal static class FloatingPointAssemblyFormatHelper
 
     private static ParseResult<AttributeValueSyntax> TryParseSpecialLiteral(AttributeParsingContext context, List<SyntaxToken> tokens)
     {
-        if (!context.Is(TokenKind.Identifier))
+        if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Identifier)
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        if (!context.TryMatch(TokenKind.Identifier, out var identifierToken))
+        if (!IsSpecialLiteral(text))
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        if (!IsSpecialLiteral(identifierToken.Text))
-        {
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
+        context.TryMatch(TokenKind.Identifier, out var identifierToken);
         tokens.Add(identifierToken);
         var literalText = string.Concat(tokens.Select(static token => token.Text));
         return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
@@ -76,32 +72,19 @@ internal static class FloatingPointAssemblyFormatHelper
 
     private static ParseResult<AttributeValueSyntax> TryParseHexLiteral(AttributeParsingContext context, List<SyntaxToken> tokens)
     {
-        if (!context.Is(TokenKind.Integer))
+        if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Integer || text != "0")
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        if (!context.TryMatch(TokenKind.Integer, out var zeroToken))
+        if (!context.TryPeekToken(1, out var prefixKind, out var prefixText) || prefixKind != TokenKind.Identifier || !IsHexPrefixToken(prefixText))
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
+        context.TryMatch(TokenKind.Integer, out var zeroToken);
         tokens.Add(zeroToken);
-        if (!context.Is(TokenKind.Identifier))
-        {
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
-        if (!context.TryMatch(TokenKind.Identifier, out var hexToken))
-        {
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
-        if (!IsHexPrefixToken(hexToken.Text))
-        {
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
+        context.TryMatch(TokenKind.Identifier, out var hexToken);
         tokens.Add(hexToken);
         var literalText = string.Concat(tokens.Select(static token => token.Text));
         return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
@@ -146,9 +129,19 @@ internal static class FloatingPointAssemblyFormatHelper
 
     private static bool TryParseExponent(AttributeParsingContext context, List<SyntaxToken> tokens)
     {
-        if (!context.Is(TokenKind.Identifier))
+        if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Identifier)
         {
             return true;
+        }
+
+        if (text.Length == 0 || (text[0] != 'e' && text[0] != 'E'))
+        {
+            return true;
+        }
+
+        if (text.Length > 1 && text.Substring(1).Any(ch => !char.IsDigit(ch)))
+        {
+            return false;
         }
 
         if (!context.TryMatch(TokenKind.Identifier, out var exponentMarker))
@@ -156,23 +149,12 @@ internal static class FloatingPointAssemblyFormatHelper
             return false;
         }
 
-        if (exponentMarker.Text.Length == 0 || (exponentMarker.Text[0] != 'e' && exponentMarker.Text[0] != 'E'))
-        {
-            return false;
-        }
-
+        tokens.Add(exponentMarker);
         if (exponentMarker.Text.Length > 1)
         {
-            if (exponentMarker.Text.Substring(1).Any(ch => !char.IsDigit(ch)))
-            {
-                return false;
-            }
-
-            tokens.Add(exponentMarker);
             return true;
         }
 
-        tokens.Add(exponentMarker);
         if (context.TryMatch(TokenKind.Plus, out var exponentPlus))
         {
             tokens.Add(exponentPlus);
