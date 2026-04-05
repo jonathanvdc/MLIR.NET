@@ -5,6 +5,11 @@ namespace MLIR.Syntax;
 /// <summary>
 /// Represents the syntax of an attribute value.
 /// </summary>
+/// <remarks>
+/// Implementations of <see cref="SyntaxNode.WriteTo(Text.SyntaxWriter)"/> should call
+/// <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/> for the first token to consume
+/// any pending suggested trivia, and use explicit-trivia overloads for subsequent tokens.
+/// </remarks>
 public abstract class AttributeValueSyntax : SyntaxNode
 {
     /// <summary>
@@ -24,14 +29,6 @@ public abstract class AttributeValueSyntax : SyntaxNode
 
         throw new System.InvalidOperationException("This attribute value does not provide a raw syntax-text projection.");
     }
-
-    /// <summary>
-    /// Writes the attribute value to the supplied syntax writer using the current pending suggested trivia
-    /// (set via <see cref="Text.SyntaxWriter.SuggestTrivia"/>) for any leading whitespace.
-    /// Implementations should call <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/> for the
-    /// first token to consume the suggestion, and use explicit-trivia overloads for subsequent tokens.
-    /// </summary>
-    public abstract void WriteTo(Text.SyntaxWriter writer);
 
     /// <summary>
     /// Gets the source location of this attribute value, if known.

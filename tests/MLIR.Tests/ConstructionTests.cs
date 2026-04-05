@@ -34,7 +34,7 @@ public sealed class ConstructionTests
         public RawSyntaxText Value { get; }
         public SyntaxToken ColonToken { get; }
 
-        public override void WriteTo(SyntaxWriter writer, int indentLevel)
+        public override void WriteTo(SyntaxWriter writer)
         {
             writer.WriteRaw(Value, " ");
             writer.WriteToken(ColonToken, " ");

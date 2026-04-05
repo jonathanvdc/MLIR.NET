@@ -301,7 +301,7 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
     public TypeSyntax? SecondType { get; }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(Condition, " ");
         writer.WriteToken(CommaToken, string.Empty);
@@ -310,11 +310,13 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
         writer.WriteToken(FalseValue, " ");
         writer.WriteDelimitedList(AttrDict, " ");
         writer.WriteToken(ColonToken, string.Empty);
-        FirstType.WriteTo(writer, " ");
+        writer.SuggestTrivia(" ");
+        FirstType.WriteTo(writer);
         if (TypeCommaToken.HasValue && SecondType != null)
         {
             writer.WriteToken(TypeCommaToken.Value, string.Empty);
-            SecondType.WriteTo(writer, " ");
+            writer.SuggestTrivia(" ");
+            SecondType.WriteTo(writer);
         }
     }
 }
