@@ -12,6 +12,7 @@ internal static class OperationPropertyEmitter
     public static void Emit(StringBuilder builder, string className, OperationModel operation, OperationMemberPlan plan)
     {
         EmitRegionProperties(builder, plan.Regions);
+        EmitBlockAndOperationsConvenienceProperties(builder, operation, plan.Regions);
         EmitOperandAndResultProperties(builder, plan.Operands, plan.Results, operation);
         EmitAttributeProperties(builder, plan.Attributes);
     }
@@ -101,6 +102,90 @@ internal static class OperationPropertyEmitter
         }
 
         builder.AppendLine();
+    }
+
+    /// <summary>
+    /// Recursively searches for a trait with the given <paramref name="recordName"/> in the
+    /// provided trait list, descending into <see cref="TraitListModel"/> entries.
+    /// </summary>
+    private static bool HasTrait(IReadOnlyList<TraitModel> traits, string recordName)
+    {
+        for (var i = 0; i < traits.Count; i++)
+        {
+            var trait = traits[i];
+            if (string.Equals(trait.RecordName, recordName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (trait is TraitListModel traitList && HasTrait(traitList.Traits, recordName))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Emits <c>Block</c> and <c>Operations</c> convenience properties when the operation
+    /// declares exactly one non-variadic region and satisfies the ODS <c>SingleBlock</c>
+    /// (and, for <c>Operations</c>, <c>NoRegionArguments</c>) traits.
+    /// </summary>
+    private static void EmitBlockAndOperationsConvenienceProperties(
+        StringBuilder builder,
+        OperationModel operation,
+        IReadOnlyList<GeneratedMember> regionMembers)
+    {
+        // Only applicable when there is exactly one, non-variadic region.
+        if (regionMembers.Count != 1 || regionMembers[0].IsVariadic)
+        {
+            return;
+        }
+
+        if (!HasTrait(operation.Traits, "SingleBlock"))
+        {
+            return;
+        }
+
+        var hasNoRegionArguments = HasTrait(operation.Traits, "NoRegionArguments");
+
+        var regionPropertyName = regionMembers[0].PropertyName;
+        // When the region type is nullable, use the null-forgiving operator so that the
+        // convenience property stays non-nullable.  The SingleBlock trait implies the region
+        // is structurally required; nullable here reflects only a static-analysis limitation
+        // in how the planner determines requiredness.
+        var isNullableRegion = regionMembers[0].TypeName.EndsWith("?", StringComparison.Ordinal);
+        var regionAccess = isNullableRegion ? regionPropertyName + "!" : regionPropertyName;
+
+        // Append a mention of the operation summary to the remarks so the generated surface
+        // is self-explanatory (required by the issue: the doc comment must cite the summary
+        // and the traits that justify the property).
+        var summaryRemark = string.IsNullOrWhiteSpace(operation.Summary)
+            ? string.Empty
+            : " The operation summary states: '" + EmitterHelpers.EscapeXmlText(operation.Summary!.Trim()) + "'.";
+
+        // Emit the Block convenience property.
+        builder.AppendLine("    /// <summary>Gets the single block of this operation's body region.</summary>");
+        builder.AppendLine("    /// <remarks>");
+        builder.AppendLine("    /// This property is generated because this operation declares exactly one region and");
+        builder.AppendLine("    /// satisfies the ODS <c>SingleBlock</c> constraint." + summaryRemark);
+        builder.AppendLine("    /// </remarks>");
+        builder.AppendLine("    public Block Block => " + regionAccess + ".Blocks.Single();");
+        builder.AppendLine();
+
+        if (hasNoRegionArguments)
+        {
+            // Emit the Operations convenience property.
+            builder.AppendLine("    /// <summary>Gets the operations in the single block of this operation's body region.</summary>");
+            builder.AppendLine("    /// <remarks>");
+            builder.AppendLine("    /// This property is generated because this operation declares exactly one region and");
+            builder.AppendLine("    /// satisfies ODS constraints that imply a single block (<c>SingleBlock</c>) and no region");
+            builder.AppendLine("    /// arguments (<c>NoRegionArguments</c>)." + summaryRemark);
+            builder.AppendLine("    /// </remarks>");
+            builder.AppendLine("    public IReadOnlyList<Operation> Operations => Block.Operations;");
+            builder.AppendLine();
+        }
     }
 
     private static void EmitRegionProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> regionMembers)

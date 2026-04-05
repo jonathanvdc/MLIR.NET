@@ -404,6 +404,43 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void EvaluatesListConcatenationWithHash()
+    {
+        // TableGen's # operator concatenates two lists when both operands are list values.
+        // This is the mechanism used by ops like ModuleOp: [A, B] # SomeTraitList.traits
+        const string source =
+            "def Example {\n" +
+            "  list<int> A = [1, 2];\n" +
+            "  list<int> B = [3, 4];\n" +
+            "  list<int> C = A # B;\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+        var c = Assert.IsType<ListValue>(record.GetField("C"));
+
+        Assert.Equal([1, 2, 3, 4], c.Items.Cast<IntegerValue>().Select(static item => item.Value).ToArray());
+    }
+
+    [Fact]
+    public void EvaluatesListConcatenationViaFieldAccessWithHash()
+    {
+        // Accessing a record's field and concatenating the resulting list via # must work.
+        // This mirrors `[MyTrait] # TraitListRecord.traits` used in ODS op definitions.
+        const string source =
+            "class Holder<list<int> inner> { list<int> items = inner; };\n" +
+            "def H : Holder<[3, 4]>;\n" +
+            "def Example {\n" +
+            "  list<int> Result = [1, 2] # H.items;\n" +
+            "};";
+
+        var evaluated = Document.Parse(source).Evaluate();
+        var record = evaluated.Records.Single(static r => r.Name == "Example");
+        var result = Assert.IsType<ListValue>(record.GetField("Result"));
+
+        Assert.Equal([1, 2, 3, 4], result.Items.Cast<IntegerValue>().Select(static item => item.Value).ToArray());
+    }
+
+    [Fact]
     public void EvaluatesBangArithmetic()
     {
         const string source =
