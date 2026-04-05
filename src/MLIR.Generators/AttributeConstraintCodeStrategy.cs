@@ -184,115 +184,82 @@ internal abstract class AttributeConstraintCodeStrategy
     public virtual void EmitInnerHelpers(System.Text.StringBuilder builder, string className) { }
 }
 
-// =============================================================================
-// Concrete strategy implementations
-// =============================================================================
-
-/// <summary>Boolean literal attribute (e.g. <c>BoolAttr</c>).</summary>
-internal sealed class BooleanLiteralConstraintCodeStrategy : AttributeConstraintCodeStrategy
+internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    public static readonly BooleanLiteralConstraintCodeStrategy Instance = new();
-    private BooleanLiteralConstraintCodeStrategy() { }
+    private readonly string attributeValueTypeName;
+    private readonly string baseType;
+    private readonly string? assemblyFormatType;
+    private readonly string? primitiveBaseConstructor;
+    private readonly string? valueConstructorParameter;
+    private readonly string primitiveValueAccess;
+    private readonly string typedArrayElementPayloadPropertyName;
+
+    public PrimitiveAttributeConstraintCodeStrategy(
+        string attributeValueTypeName,
+        string baseType,
+        string? assemblyFormatType,
+        string? primitiveBaseConstructor,
+        string? valueConstructorParameter,
+        string primitiveValueAccess = ".Value",
+        string typedArrayElementPayloadPropertyName = "Value")
+    {
+        this.attributeValueTypeName = attributeValueTypeName;
+        this.baseType = baseType;
+        this.assemblyFormatType = assemblyFormatType;
+        this.primitiveBaseConstructor = primitiveBaseConstructor;
+        this.valueConstructorParameter = valueConstructorParameter;
+        this.primitiveValueAccess = primitiveValueAccess;
+        this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
+    }
 
     public override bool IsPrimitive => true;
     public override bool UsesTypedArrayElementPayload => true;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "bool";
-    public override string GetBaseType(string constraintRecordName) => "BooleanAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "BooleanLiteralAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, ((BooleanAttributeValueSyntax)context.Syntax).Value";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "bool";
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => attributeValueTypeName;
+    public override string GetPrimitiveValueAccess(string typeName) => primitiveValueAccess;
+    public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
+    public override string GetBaseType(string constraintRecordName) => baseType;
+    public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
+    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => primitiveBaseConstructor;
+    public override string? GetValueConstructorParameter(string constraintRecordName) => valueConstructorParameter;
 }
 
-/// <summary>Integer literal attribute (e.g. <c>I32Attr</c>, <c>I64Attr</c>).</summary>
-internal sealed class IntegerLiteralConstraintCodeStrategy : AttributeConstraintCodeStrategy
+internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    public static readonly IntegerLiteralConstraintCodeStrategy Instance = new();
-    private IntegerLiteralConstraintCodeStrategy() { }
+    private readonly string attributeValueTypeName;
+    private readonly string baseType;
+    private readonly string? assemblyFormatType;
+    private readonly string? primitiveBaseConstructor;
+    private readonly string? valueConstructorParameter;
+    private readonly string typedArrayElementPayloadPropertyName;
 
-    public override bool IsPrimitive => true;
+    public DensePrimitiveArrayAttributeConstraintCodeStrategy(
+        string attributeValueTypeName,
+        string baseType,
+        string? assemblyFormatType,
+        string? primitiveBaseConstructor,
+        string? valueConstructorParameter,
+        string typedArrayElementPayloadPropertyName = "Items")
+    {
+        this.attributeValueTypeName = attributeValueTypeName;
+        this.baseType = baseType;
+        this.assemblyFormatType = assemblyFormatType;
+        this.primitiveBaseConstructor = primitiveBaseConstructor;
+        this.valueConstructorParameter = valueConstructorParameter;
+        this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
+    }
+
+    public override bool IsDenseCollection => true;
     public override bool UsesTypedArrayElementPayload => true;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "BigInteger";
-    public override string GetBaseType(string constraintRecordName) => "IntegerAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "IntegerLiteralAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, ((IntegerAttributeValueSyntax)context.Syntax).Value";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "global::System.Numerics.BigInteger";
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => attributeValueTypeName;
+    public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
+    public override string GetBaseType(string constraintRecordName) => baseType;
+    public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
+    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => primitiveBaseConstructor;
+    public override string? GetValueConstructorParameter(string constraintRecordName) => valueConstructorParameter;
 }
 
-/// <summary>
-/// Generic floating-point literal attribute (e.g. <c>BF16Attr</c> and other non-F32/F64
-/// float attributes). Exposes the literal text as a <c>string</c>.
-/// </summary>
-internal sealed class GenericFloatingPointLiteralConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly GenericFloatingPointLiteralConstraintCodeStrategy Instance = new();
-    private GenericFloatingPointLiteralConstraintCodeStrategy() { }
-
-    public override bool IsPrimitive => true;
-    public override bool UsesTypedArrayElementPayload => true;
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "string";
-    public override string GetPrimitiveValueAccess(string typeName) => ".LiteralText";
-    public override string GetBaseType(string constraintRecordName) => "FloatingPointAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "FloatingPointLiteralAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "string";
-}
-
-/// <summary>Single-precision floating-point attribute (<c>F32Attr</c>).</summary>
-internal sealed class F32ConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly F32ConstraintCodeStrategy Instance = new();
-    private F32ConstraintCodeStrategy() { }
-
-    public override bool IsPrimitive => true;
-    public override bool UsesTypedArrayElementPayload => true;
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "float";
-    public override string GetBaseType(string constraintRecordName) => "F32AttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "F32AttributeAssemblyFormat";
-
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) =>
-        "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseSingle(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)";
-
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "float";
-}
-
-/// <summary>Double-precision floating-point attribute (<c>F64Attr</c>).</summary>
-internal sealed class F64ConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly F64ConstraintCodeStrategy Instance = new();
-    private F64ConstraintCodeStrategy() { }
-
-    public override bool IsPrimitive => true;
-    public override bool UsesTypedArrayElementPayload => true;
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "double";
-    public override string GetBaseType(string constraintRecordName) => "F64AttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "F64AttributeAssemblyFormat";
-
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) =>
-        "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseDouble(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)";
-
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "double";
-}
-
-/// <summary>String literal attribute (e.g. <c>StrAttr</c>).</summary>
-internal sealed class StringLiteralConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly StringLiteralConstraintCodeStrategy Instance = new();
-    private StringLiteralConstraintCodeStrategy() { }
-
-    public override bool IsPrimitive => true;
-    public override bool UsesTypedArrayElementPayload => true;
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "string";
-    public override string GetBaseType(string constraintRecordName) => "StringAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "StringLiteralAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, ((StringAttributeValueSyntax)context.Syntax).Value";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "string";
-}
 
 /// <summary>
 /// Opaque attribute (e.g. <c>AnyAttr</c>, <c>LocationAttr</c>). Preserved as a generic
@@ -447,73 +414,6 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context";
 }
 
-/// <summary>Dense boolean array attribute (<c>DenseBoolArrayAttr</c>).</summary>
-internal sealed class DenseBooleanArrayConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly DenseBooleanArrayConstraintCodeStrategy Instance = new();
-    private DenseBooleanArrayConstraintCodeStrategy() { }
-
-    public override bool IsDenseCollection => true;
-    public override bool UsesTypedArrayElementPayload => true;
-    public override string GetTypedArrayElementPayloadPropertyName() => "Items";
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "IReadOnlyList<bool>";
-    public override string GetBaseType(string constraintRecordName) => "DenseBooleanArrayAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "DenseBooleanArrayAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, StructuredAttributeSemanticDecoder.DecodeBooleanItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "global::System.Collections.Generic.IReadOnlyList<bool>";
-}
-
-/// <summary>Dense integer array attribute (<c>DenseI32ArrayAttr</c>, etc.).</summary>
-internal sealed class DenseIntegerArrayConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly DenseIntegerArrayConstraintCodeStrategy Instance = new();
-    private DenseIntegerArrayConstraintCodeStrategy() { }
-
-    public override bool IsDenseCollection => true;
-    public override bool UsesTypedArrayElementPayload => true;
-    public override string GetTypedArrayElementPayloadPropertyName() => "Items";
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "IReadOnlyList<BigInteger>";
-    public override string GetBaseType(string constraintRecordName) => "DenseIntegerArrayAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "DenseIntegerArrayAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, StructuredAttributeSemanticDecoder.DecodeIntegerItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "global::System.Collections.Generic.IReadOnlyList<global::System.Numerics.BigInteger>";
-}
-
-/// <summary>Dense single-precision float array attribute (<c>DenseF32ArrayAttr</c>).</summary>
-internal sealed class DenseF32ArrayConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly DenseF32ArrayConstraintCodeStrategy Instance = new();
-    private DenseF32ArrayConstraintCodeStrategy() { }
-
-    public override bool IsDenseCollection => true;
-    public override bool UsesTypedArrayElementPayload => true;
-    public override string GetTypedArrayElementPayloadPropertyName() => "Items";
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "IReadOnlyList<float>";
-    public override string GetBaseType(string constraintRecordName) => "DenseF32ArrayAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "DenseF32ArrayAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, StructuredAttributeSemanticDecoder.DecodeSinglePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "global::System.Collections.Generic.IReadOnlyList<float>";
-}
-
-/// <summary>Dense double-precision float array attribute (<c>DenseF64ArrayAttr</c>).</summary>
-internal sealed class DenseF64ArrayConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly DenseF64ArrayConstraintCodeStrategy Instance = new();
-    private DenseF64ArrayConstraintCodeStrategy() { }
-
-    public override bool IsDenseCollection => true;
-    public override bool UsesTypedArrayElementPayload => true;
-    public override string GetTypedArrayElementPayloadPropertyName() => "Items";
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "IReadOnlyList<double>";
-    public override string GetBaseType(string constraintRecordName) => "DenseF64ArrayAttributeValue";
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "DenseF64ArrayAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, StructuredAttributeSemanticDecoder.DecodeDoublePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "global::System.Collections.Generic.IReadOnlyList<double>";
-}
 
 /// <summary>
 /// Enum attribute (e.g. <c>I32EnumAttr</c>-backed attrs). The C# type for the value
@@ -653,6 +553,77 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
 /// </remarks>
 internal static class AttributeConstraintCodeStrategyFactory
 {
+    private static readonly PrimitiveAttributeConstraintCodeStrategy BooleanLiteralStrategy = new(
+        attributeValueTypeName: "bool",
+        baseType: "BooleanAttributeValue",
+        assemblyFormatType: "BooleanLiteralAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, ((BooleanAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "bool");
+
+    private static readonly PrimitiveAttributeConstraintCodeStrategy IntegerLiteralStrategy = new(
+        attributeValueTypeName: "BigInteger",
+        baseType: "IntegerAttributeValue",
+        assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "global::System.Numerics.BigInteger");
+
+    private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
+        attributeValueTypeName: "string",
+        baseType: "FloatingPointAttributeValue",
+        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText",
+        valueConstructorParameter: "string",
+        primitiveValueAccess: ".LiteralText");
+
+    private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
+        attributeValueTypeName: "float",
+        baseType: "F32AttributeValue",
+        assemblyFormatType: "F32AttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseSingle(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)",
+        valueConstructorParameter: "float");
+
+    private static readonly PrimitiveAttributeConstraintCodeStrategy F64Strategy = new(
+        attributeValueTypeName: "double",
+        baseType: "F64AttributeValue",
+        assemblyFormatType: "F64AttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseDouble(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)",
+        valueConstructorParameter: "double");
+
+    private static readonly PrimitiveAttributeConstraintCodeStrategy StringLiteralStrategy = new(
+        attributeValueTypeName: "string",
+        baseType: "StringAttributeValue",
+        assemblyFormatType: "StringLiteralAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, ((StringAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "string");
+
+    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseBooleanArrayStrategy = new(
+        attributeValueTypeName: "IReadOnlyList<bool>",
+        baseType: "DenseBooleanArrayAttributeValue",
+        assemblyFormatType: "DenseBooleanArrayAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeBooleanItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
+        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<bool>");
+
+    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseIntegerArrayStrategy = new(
+        attributeValueTypeName: "IReadOnlyList<BigInteger>",
+        baseType: "DenseIntegerArrayAttributeValue",
+        assemblyFormatType: "DenseIntegerArrayAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeIntegerItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
+        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::System.Numerics.BigInteger>");
+
+    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF32ArrayStrategy = new(
+        attributeValueTypeName: "IReadOnlyList<float>",
+        baseType: "DenseF32ArrayAttributeValue",
+        assemblyFormatType: "DenseF32ArrayAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeSinglePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
+        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<float>");
+
+    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF64ArrayStrategy = new(
+        attributeValueTypeName: "IReadOnlyList<double>",
+        baseType: "DenseF64ArrayAttributeValue",
+        assemblyFormatType: "DenseF64ArrayAttributeAssemblyFormat",
+        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeDoublePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
+        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<double>");
+
     /// <summary>
     /// Returns the strategy singleton for the given <paramref name="kind"/> and
     /// <paramref name="recordName"/>.  Returns <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/>
@@ -667,19 +638,19 @@ internal static class AttributeConstraintCodeStrategyFactory
     {
         return kind switch
         {
-            AttributeConstraintKind.BooleanLiteral => BooleanLiteralConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.IntegerLiteral => IntegerLiteralConstraintCodeStrategy.Instance,
+            AttributeConstraintKind.BooleanLiteral => BooleanLiteralStrategy,
+            AttributeConstraintKind.IntegerLiteral => IntegerLiteralStrategy,
             AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointStrategy(recordName),
-            AttributeConstraintKind.StringLiteral => StringLiteralConstraintCodeStrategy.Instance,
+            AttributeConstraintKind.StringLiteral => StringLiteralStrategy,
             AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.ElementsAttribute => ElementsAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.TypeAttribute => TypeAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.UnitAttribute => UnitAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DenseBooleanArrayAttribute => DenseBooleanArrayConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DenseIntegerArrayAttribute => DenseIntegerArrayConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DenseF32ArrayAttribute => DenseF32ArrayConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DenseF64ArrayAttribute => DenseF64ArrayConstraintCodeStrategy.Instance,
+            AttributeConstraintKind.DenseBooleanArrayAttribute => DenseBooleanArrayStrategy,
+            AttributeConstraintKind.DenseIntegerArrayAttribute => DenseIntegerArrayStrategy,
+            AttributeConstraintKind.DenseF32ArrayAttribute => DenseF32ArrayStrategy,
+            AttributeConstraintKind.DenseF64ArrayAttribute => DenseF64ArrayStrategy,
             AttributeConstraintKind.EnumAttribute => EnumAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.TypedArrayAttribute => TypedArrayConstraintCodeStrategy.Instance,
             _ => FallbackAttributeConstraintCodeStrategy.Instance,
@@ -690,9 +661,9 @@ internal static class AttributeConstraintCodeStrategyFactory
     {
         return recordName switch
         {
-            "F32Attr" => F32ConstraintCodeStrategy.Instance,
-            "F64Attr" => F64ConstraintCodeStrategy.Instance,
-            _ => GenericFloatingPointLiteralConstraintCodeStrategy.Instance,
+            "F32Attr" => F32Strategy,
+            "F64Attr" => F64Strategy,
+            _ => GenericFloatingPointLiteralStrategy,
         };
     }
 }
