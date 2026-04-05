@@ -37,10 +37,12 @@ public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
-        var normalizedSyntax = syntax is BooleanAttributeValueSyntax booleanSyntax
-            ? booleanSyntax
-            : new BooleanAttributeValueSyntax(new SyntaxToken(syntax.GetRawText().Text), syntax.GetRawText().Text == "true");
-        return definition.Factory(new AttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        if (syntax is not BooleanAttributeValueSyntax booleanSyntax)
+        {
+            throw new InvalidOperationException("Expected a boolean literal syntax for a primitive boolean attribute.");
+        }
+
+        return definition.Factory(new AttributeValueConstructionContext(booleanSyntax, definition.Name, definition, booleanSyntax.Location));
     }
 
     /// <inheritdoc/>
