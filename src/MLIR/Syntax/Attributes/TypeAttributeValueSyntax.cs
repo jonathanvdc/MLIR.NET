@@ -19,8 +19,8 @@ public sealed class TypeAttributeValueSyntax(TypeSyntax typeSyntax) : AttributeV
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        TypeSyntax.WriteTo(writer, defaultLeadingTrivia);
+        TypeSyntax.WriteTo(writer);
     }
 }

@@ -26,13 +26,8 @@ public abstract class ShapedTypeDimensionSyntax : SyntaxNode
     }
 
     /// <summary>
-    /// Writes this dimension to the supplied syntax writer.
+    /// Writes this dimension to the supplied syntax writer using the current pending suggested trivia
+    /// (set via <see cref="Text.SyntaxWriter.SuggestTrivia"/>) for any leading whitespace.
     /// </summary>
-    public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
-
-    /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer)
-    {
-        WriteTo(writer, defaultLeadingTrivia: string.Empty);
-    }
+    public abstract void WriteTo(Text.SyntaxWriter writer);
 }

@@ -7,12 +7,7 @@ public abstract class OperationBodySyntax : SyntaxNode
 {
     /// <summary>
     /// Writes the operation body to the supplied syntax writer.
+    /// Uses <see cref="Text.SyntaxWriter.IndentLevel"/> for indentation decisions.
     /// </summary>
-    public abstract void WriteTo(Text.SyntaxWriter writer, int indentLevel);
-
-    /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer)
-    {
-        WriteTo(writer, indentLevel: 0);
-    }
+    public abstract void WriteTo(Text.SyntaxWriter writer);
 }

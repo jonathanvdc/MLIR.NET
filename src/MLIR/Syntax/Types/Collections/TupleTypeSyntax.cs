@@ -43,9 +43,9 @@ public sealed class TupleTypeSyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
         writer.WriteToken(LessThanToken, string.Empty);
         WriteSeparatedTypes(writer, Elements, CommaTokens);
         writer.WriteToken(GreaterThanToken, string.Empty);
@@ -71,9 +71,10 @@ public sealed class TupleTypeSyntax(
             if (i > 0)
             {
                 writer.WriteToken(separators[i - 1], string.Empty);
+                writer.SuggestTrivia(" ");
             }
 
-            items[i].WriteTo(writer, i > 0 ? " " : string.Empty);
+            items[i].WriteTo(writer);
         }
     }
 }

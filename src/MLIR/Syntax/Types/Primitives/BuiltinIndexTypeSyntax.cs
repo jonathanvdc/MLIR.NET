@@ -18,8 +18,8 @@ public sealed class BuiltinIndexTypeSyntax(SyntaxToken keywordToken) : TypeSynta
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
     }
 }

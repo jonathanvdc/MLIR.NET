@@ -48,7 +48,7 @@ internal static class OperationBodySyntaxEmitter
         }
 
         builder.AppendLine();
-        builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)");
+        builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer)");
         builder.AppendLine("    {");
         foreach (var field in fields)
         {

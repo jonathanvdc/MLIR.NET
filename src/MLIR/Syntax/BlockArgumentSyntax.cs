@@ -43,21 +43,12 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     /// </summary>
     public TypeSyntax TypeSyntax { get; } = typeSyntax;
 
-    /// <summary>
-    /// Writes this block argument to the supplied syntax writer.
-    /// </summary>
-    /// <param name="writer">The syntax writer to write to.</param>
-    /// <param name="defaultLeadingTrivia">The fallback leading trivia to use when syntax does not carry explicit trivia.</param>
-    public void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
-    {
-        writer.WriteToken(NameToken, defaultLeadingTrivia);
-        writer.WriteToken(ColonToken, string.Empty);
-        TypeSyntax.WriteTo(writer, " ");
-    }
-
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)
     {
-        WriteTo(writer, defaultLeadingTrivia: string.Empty);
+        writer.WriteToken(NameToken);
+        writer.WriteToken(ColonToken, string.Empty);
+        writer.SuggestTrivia(" ");
+        TypeSyntax.WriteTo(writer);
     }
 }

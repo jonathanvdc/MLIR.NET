@@ -31,8 +31,8 @@ public sealed class FloatingPointAttributeValueSyntax : AttributeValueSyntax
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteRaw(rawText, defaultLeadingTrivia);
+        writer.WriteRaw(rawText);
     }
 }

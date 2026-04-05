@@ -5,6 +5,11 @@ namespace MLIR.Syntax;
 /// <summary>
 /// Represents the syntax of a type.
 /// </summary>
+/// <remarks>
+/// Implementations of <see cref="SyntaxNode.WriteTo(Text.SyntaxWriter)"/> should call
+/// <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/> for the first token to consume
+/// any pending suggested trivia, and use explicit-trivia overloads for subsequent tokens.
+/// </remarks>
 public abstract class TypeSyntax : SyntaxNode
 {
     /// <summary>
@@ -23,17 +28,6 @@ public abstract class TypeSyntax : SyntaxNode
         }
 
         throw new System.InvalidOperationException("This type syntax does not provide a raw syntax-text projection.");
-    }
-
-    /// <summary>
-    /// Writes the type syntax to the supplied syntax writer.
-    /// </summary>
-    public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
-
-    /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer)
-    {
-        WriteTo(writer, defaultLeadingTrivia: string.Empty);
     }
 
     /// <summary>

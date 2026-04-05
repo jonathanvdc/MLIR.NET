@@ -51,7 +51,7 @@ public sealed class GenericOperationBodySyntax(
     public TypeSyntax? TypeSignatureSyntax { get; } = typeSignatureSyntax;
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteDelimitedList(OperandList, string.Empty);
 
@@ -59,7 +59,7 @@ public sealed class GenericOperationBodySyntax(
 
         foreach (var region in Regions)
         {
-            writer.WriteRegion(region, indentLevel);
+            writer.WriteRegion(region);
         }
 
         writer.WriteDelimitedList(Attributes, " ");
@@ -67,7 +67,8 @@ public sealed class GenericOperationBodySyntax(
         if (TypeSignatureColonToken != null && TypeSignatureSyntax != null)
         {
             writer.WriteToken(TypeSignatureColonToken.Value, " ");
-            TypeSignatureSyntax.WriteTo(writer, " ");
+            writer.SuggestTrivia(" ");
+            TypeSignatureSyntax.WriteTo(writer);
         }
     }
 }

@@ -26,15 +26,12 @@ public abstract class AttributeValueSyntax : SyntaxNode
     }
 
     /// <summary>
-    /// Writes the attribute value to the supplied syntax writer.
+    /// Writes the attribute value to the supplied syntax writer using the current pending suggested trivia
+    /// (set via <see cref="Text.SyntaxWriter.SuggestTrivia"/>) for any leading whitespace.
+    /// Implementations should call <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/> for the
+    /// first token to consume the suggestion, and use explicit-trivia overloads for subsequent tokens.
     /// </summary>
-    public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
-
-    /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer)
-    {
-        WriteTo(writer, defaultLeadingTrivia: string.Empty);
-    }
+    public abstract void WriteTo(Text.SyntaxWriter writer);
 
     /// <summary>
     /// Gets the source location of this attribute value, if known.

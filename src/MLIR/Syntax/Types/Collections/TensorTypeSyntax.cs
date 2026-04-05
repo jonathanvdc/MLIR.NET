@@ -51,12 +51,12 @@ public sealed class TensorTypeSyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
         writer.WriteToken(LessThanToken, string.Empty);
         WriteShapedPrefix(writer);
-        ElementType.WriteTo(writer, string.Empty);
+        ElementType.WriteTo(writer);
         WriteTrailing(writer);
         writer.WriteToken(GreaterThanToken, string.Empty);
     }
@@ -88,7 +88,7 @@ public sealed class TensorTypeSyntax(
 
         for (var i = 0; i < Dimensions.Count; i++)
         {
-            Dimensions[i].WriteTo(writer, string.Empty);
+            Dimensions[i].WriteTo(writer);
             writer.WriteToken(XTokens[i], string.Empty);
         }
     }
