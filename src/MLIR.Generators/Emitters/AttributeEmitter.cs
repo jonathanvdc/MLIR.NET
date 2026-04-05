@@ -93,7 +93,7 @@ internal static class AttributeEmitter
         builder.AppendLine(indent + "private " + enumTypeName + " ParseEnumValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine(indent + "{");
         builder.AppendLine(indent + "    if (syntax == null) return default;");
-        builder.AppendLine(indent + "    var raw = syntax.GetRawText().Text.Trim();");
+        builder.AppendLine(indent + "    var raw = syntax.ToString();");
         if (isBitEnum)
         {
             builder.AppendLine(indent + "    if (raw.Length >= 2 && raw[0] == '<' && raw[raw.Length - 1] == '>')");

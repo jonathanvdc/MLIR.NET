@@ -40,7 +40,7 @@ public sealed class DictionaryAttributeValueSyntax(DelimitedSyntaxList<NamedAttr
                 text += ", ";
             }
 
-            text += Attributes[i].Name + " = " + Attributes[i].ValueSyntax.GetRawText().Text;
+            text += Attributes[i].Name + " = " + Attributes[i].ValueSyntax.ToString();
         }
 
         return text + "}";

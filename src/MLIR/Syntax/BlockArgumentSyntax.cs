@@ -11,7 +11,7 @@ using MLIR.Text;
 /// <param name="nameToken">The SSA name token.</param>
 /// <param name="colonToken">The separating colon token.</param>
 /// <param name="typeSyntax">The declared argument type syntax.</param>
-public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colonToken, TypeSyntax typeSyntax)
+public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colonToken, TypeSyntax typeSyntax) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="BlockArgumentSyntax"/> class.
@@ -53,5 +53,11 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
         writer.WriteToken(NameToken, defaultLeadingTrivia);
         writer.WriteToken(ColonToken, string.Empty);
         TypeSyntax.WriteTo(writer, " ");
+    }
+
+    /// <inheritdoc/>
+    public override void WriteTo(SyntaxWriter writer)
+    {
+        WriteTo(writer, defaultLeadingTrivia: string.Empty);
     }
 }

@@ -200,7 +200,7 @@ public sealed partial class SemanticTests
 
         var body = Assert.IsType<PrefixConstantBodySyntax>(module.Operations[0].Body);
         Assert.Equal("0", body.Value.Text);
-        Assert.Equal("i32", body.TypeSignature.GetRawText().Text);
+        Assert.Equal("i32", body.TypeSignature.ToString());
     }
 
     [Fact]
@@ -223,7 +223,7 @@ public sealed partial class SemanticTests
         var module = Binder.BindModule(document.Module, registry);
 
         Assert.Equal("%0 = arith.constant 0 : i32", module.ToText(ReplaceExistingSyntaxOptions()));
-        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax!.GetRawText().Text);
+        Assert.Equal("0", module.Operations[0].GetAttribute("value").Value.Syntax!.ToString());
     }
 
     [Fact]

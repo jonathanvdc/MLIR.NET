@@ -11,7 +11,7 @@ using MLIR.Text;
 /// <param name="nameToken">The attribute name token.</param>
 /// <param name="equalsToken">The equals token.</param>
 /// <param name="valueSyntax">The attribute value syntax.</param>
-public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equalsToken, AttributeValueSyntax valueSyntax)
+public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equalsToken, AttributeValueSyntax valueSyntax) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="NamedAttributeSyntax"/> class.
@@ -66,5 +66,11 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
         writer.WriteToken(NameToken, defaultLeadingTrivia);
         writer.WriteToken(EqualsToken, " ");
         ValueSyntax.WriteTo(writer, " ");
+    }
+
+    /// <inheritdoc/>
+    public override void WriteTo(SyntaxWriter writer)
+    {
+        WriteTo(writer, defaultLeadingTrivia: string.Empty);
     }
 }

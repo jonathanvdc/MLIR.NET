@@ -70,12 +70,4 @@ public sealed class GenericOperationBodySyntax(
             TypeSignatureSyntax.WriteTo(writer, " ");
         }
     }
-
-    /// <inheritdoc/>
-    public override string ToString()
-    {
-        var writer = new Text.SyntaxWriter();
-        WriteTo(writer, indentLevel: 0);
-        return writer.ToString().Trim();
-    }
 }

@@ -240,13 +240,13 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             functionAttributes.Add(binder.BindNamedAttribute(attribute, definition));
         }
 
-        var inputTypeTexts = body.Arguments.Items.Select(static argument => argument.Type.GetRawText().Text);
+        var inputTypeTexts = body.Arguments.Items.Select(static argument => argument.Type.ToString());
         var resultTypeText = body.ResultTypes != null
             ? body.ResultTypes.Items.Count switch
             {
                 0 => "()",
-                1 => body.ResultTypes.Items[0].Type.GetRawText().Text,
-                _ => "(" + string.Join(", ", body.ResultTypes.Items.Select(static result => result.Type.GetRawText().Text)) + ")",
+                1 => body.ResultTypes.Items[0].Type.ToString(),
+                _ => "(" + string.Join(", ", body.ResultTypes.Items.Select(static result => result.Type.ToString())) + ")",
             }
             : "()";
         var functionTypeSyntax = Parser.ParseType(
@@ -396,7 +396,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             return stringSyntax.Value;
         }
 
-        var rawText = value?.Syntax?.GetRawText().Text;
+        var rawText = value?.Syntax?.ToString();
         if (rawText == null)
         {
             return null;

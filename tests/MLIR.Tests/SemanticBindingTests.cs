@@ -174,7 +174,7 @@ public sealed partial class SemanticTests
         Assert.Equal("%arg0", block.Arguments[0].Name);
         Assert.Single(nestedOperation.Attributes);
         Assert.Equal("value", nestedOperation.Attributes[0].Name);
-        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax!.GetRawText().Text);
+        Assert.Equal("1 : i32", nestedOperation.Attributes[0].Value.Syntax!.ToString());
         Assert.Equal("i32", block.Arguments[0].Type.Name);
     }
 
@@ -536,7 +536,7 @@ public sealed partial class SemanticTests
         var attribute = module.Operations[0].GetAttribute("value");
 
         Assert.Equal("value", attribute.Name);
-        Assert.Equal("0 : i32", attribute.Value.Syntax!.GetRawText().Text);
+        Assert.Equal("0 : i32", attribute.Value.Syntax!.ToString());
     }
 
     [Fact]
@@ -553,7 +553,7 @@ public sealed partial class SemanticTests
 
         Assert.Equal("%0", view.Results[0]);
         Assert.Equal("%0", view.ResultValue.Name);
-        Assert.Equal("0 : i32", view.ValueAttribute.Value.Syntax!.GetRawText().Text);
+        Assert.Equal("0 : i32", view.ValueAttribute.Value.Syntax!.ToString());
     }
 
     [Fact]

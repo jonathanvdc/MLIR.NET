@@ -5,7 +5,7 @@ namespace MLIR.Syntax;
 /// <summary>
 /// Represents the syntax of an attribute value.
 /// </summary>
-public abstract class AttributeValueSyntax
+public abstract class AttributeValueSyntax : SyntaxNode
 {
     /// <summary>
     /// Attempts to project this value into preserved raw syntax text.
@@ -29,6 +29,12 @@ public abstract class AttributeValueSyntax
     /// Writes the attribute value to the supplied syntax writer.
     /// </summary>
     public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
+
+    /// <inheritdoc/>
+    public override void WriteTo(Text.SyntaxWriter writer)
+    {
+        WriteTo(writer, defaultLeadingTrivia: string.Empty);
+    }
 
     /// <summary>
     /// Gets the source location of this attribute value, if known.

@@ -127,10 +127,10 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
         var conditionType = body.SecondType != null ? body.FirstType : new RawTypeSyntax(new RawSyntaxText("i1"));
         var valueType = body.SecondType ?? body.FirstType;
         var typeSignature = binder.BindTypeReference(new RawSyntaxText(
-            "(" + conditionType.GetRawText().Text + ", "
-            + valueType.GetRawText().Text + ", "
-            + valueType.GetRawText().Text + ") -> "
-            + valueType.GetRawText().Text));
+            "(" + conditionType.ToString() + ", "
+            + valueType.ToString() + ", "
+            + valueType.ToString() + ") -> "
+            + valueType.ToString()));
 
         var attributes = new List<NamedAttribute>(body.AttrDict.Items.Count);
         foreach (var attribute in body.AttrDict.Items)
@@ -213,7 +213,7 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             return false;
         }
 
-        includeConditionType = !string.Equals(conditionType.GetRawText().Text, "i1", System.StringComparison.Ordinal);
+        includeConditionType = !string.Equals(conditionType.ToString(), "i1", System.StringComparison.Ordinal);
         return true;
     }
 }

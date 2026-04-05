@@ -47,7 +47,7 @@ public sealed class ElementsAttributeValueSyntax(
     public override bool TryGetRawText(out RawSyntaxText? rawText)
     {
         rawText = new RawSyntaxText(
-            KeywordToken.Text + LessThanToken.Text + Payload.GetRawText().Text + GreaterThanToken.Text + " " + ColonToken.Text + " " + TypeSyntax.GetRawText().Text);
+            KeywordToken.Text + LessThanToken.Text + Payload.ToString() + GreaterThanToken.Text + " " + ColonToken.Text + " " + TypeSyntax.ToString());
         return true;
     }
 

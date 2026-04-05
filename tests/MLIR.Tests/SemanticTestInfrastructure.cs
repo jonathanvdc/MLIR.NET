@@ -550,7 +550,7 @@ public sealed partial class SemanticTests
             {
                 MLIR.Semantics.Attributes.Primitives.F32AttributeValue f32Value => MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatSingle(f32Value.Value),
                 MLIR.Semantics.Attributes.Primitives.F64AttributeValue f64Value => MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatDouble(f64Value.Value),
-                _ => valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value).GetRawText().Text : string.Empty,
+                _ => valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value).ToString() : string.Empty,
             };
             var body = new PrefixConstantBodySyntax(
                 new RawSyntaxText(valueText),
@@ -629,7 +629,7 @@ public sealed partial class SemanticTests
         {
             var denseAttribute = new DenseAttributeValue(new AttributeValueConstructionContext(syntax, "dense", definition, syntax.Location));
             denseAttribute.BindDense();
-            if (!syntax.GetRawText().Text.Contains("tensor<"))
+            if (!syntax.ToString().Contains("tensor<"))
             {
                 binder.Report(new AssemblyDiagnostic(syntax.Location, "dense attribute literals should mention a tensor type."));
             }
@@ -662,7 +662,7 @@ public sealed partial class SemanticTests
 
         public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
         {
-            return new IntegerTypeReference(new TypeReferenceConstructionContext(syntax, syntax.GetRawText().Text, definition, syntax.Location));
+            return new IntegerTypeReference(new TypeReferenceConstructionContext(syntax, syntax.ToString(), definition, syntax.Location));
         }
 
         public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)
@@ -691,7 +691,7 @@ public sealed partial class SemanticTests
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
         {
             var attribute = new I32AttributeValue(new AttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));
-            attribute.BindValue(int.Parse(syntax.GetRawText().Text));
+            attribute.BindValue(int.Parse(syntax.ToString()));
             return attribute;
         }
 
