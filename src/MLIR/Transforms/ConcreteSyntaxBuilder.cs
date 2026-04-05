@@ -334,7 +334,7 @@ public static class ConcreteSyntaxBuilder
             var syntheticArguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
             foreach (var argument in block.Arguments)
             {
-                syntheticArguments.Add(new BlockArgumentSyntax(argument.Name, BuildTypeReference(argument.Type).GetRawText()));
+                syntheticArguments.Add(new BlockArgumentSyntax(new SyntaxToken(argument.Name), new SyntaxToken(":"), BuildTypeReference(argument.Type)));
             }
 
             return new BlockSyntax(block.Label, syntheticArguments, operations);
