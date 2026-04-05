@@ -20,8 +20,8 @@ public sealed class OpaqueAttributeValueSyntax(RawSyntaxText rawText) : Attribut
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteRaw(RawText, defaultLeadingTrivia);
+        writer.WriteRaw(RawText);
     }
 }

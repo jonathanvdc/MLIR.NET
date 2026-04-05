@@ -94,11 +94,12 @@ public sealed partial class SemanticTests
 
         public DelimitedSyntaxList<NamedAttributeSyntax> Attributes => genericBody.Attributes;
 
-        public override void WriteTo(SyntaxWriter writer, int indentLevel)
+        public override void WriteTo(SyntaxWriter writer)
         {
             writer.WriteRaw(Value, " ");
             writer.WriteToken(ColonToken, " ");
-            writer.WriteType(TypeSignature, " ");
+            writer.SuggestTrivia(" ");
+            TypeSignature.WriteTo(writer);
         }
     }
 
@@ -298,9 +299,9 @@ public sealed partial class SemanticTests
             return true;
         }
 
-        public override void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+        public override void WriteTo(SyntaxWriter writer)
         {
-            writer.WriteRaw(rawText, defaultLeadingTrivia);
+            writer.WriteRaw(rawText);
         }
     }
 
@@ -396,9 +397,9 @@ public sealed partial class SemanticTests
             return true;
         }
 
-        public override void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+        public override void WriteTo(SyntaxWriter writer)
         {
-            writer.WriteToken(NameToken, defaultLeadingTrivia);
+            writer.WriteToken(NameToken);
         }
     }
 
@@ -420,9 +421,9 @@ public sealed partial class SemanticTests
             return true;
         }
 
-        public override void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+        public override void WriteTo(SyntaxWriter writer)
         {
-            writer.WriteToken(LiteralToken, defaultLeadingTrivia);
+            writer.WriteToken(LiteralToken);
         }
     }
 

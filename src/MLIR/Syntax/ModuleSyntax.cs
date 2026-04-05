@@ -38,9 +38,15 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
     /// <param name="writer">The syntax writer to write to.</param>
     public override void WriteTo(SyntaxWriter writer)
     {
+        writer.IndentLevel = 0;
         for (var i = 0; i < Operations.Count; i++)
         {
-            writer.WriteOperation(Operations[i], 0, i > 0 ? "\n" : string.Empty);
+            if (i > 0)
+            {
+                writer.SuggestTrivia("\n");
+            }
+
+            writer.WriteOperation(Operations[i]);
         }
 
         writer.Write(EndOfFileToken.LeadingTrivia);

@@ -150,41 +150,23 @@ public sealed class OperationSyntax : SyntaxNode
     /// </summary>
     public SourceLocation Location => SourceLocation.FromToken(NameToken);
 
-    /// <summary>
-    /// Writes this operation to the supplied syntax writer.
-    /// </summary>
-    /// <param name="writer">The syntax writer to write to.</param>
-    /// <param name="indentLevel">The indentation level to use when indentation is synthesized.</param>
-    /// <param name="defaultLeadingTrivia">The fallback leading trivia to use when syntax does not carry explicit trivia.</param>
-    public void WriteTo(
-        SyntaxWriter writer,
-        int indentLevel,
-        string defaultLeadingTrivia)
+    /// <inheritdoc/>
+    public override void WriteTo(SyntaxWriter writer)
     {
         if (ResultList.Count > 0)
         {
-            var isFirst = true;
-            ResultList.WriteTo(writer, defaultLeadingTrivia, (token, w, trivia) =>
-            {
-                w.WriteToken(token, trivia, isFirst ? indentLevel : null);
-                isFirst = false;
-            });
-
+            // The pending trivia (if any) is consumed by the first result token.
+            // Subsequent result tokens receive a space suggestion from SeparatedSyntaxList.
+            ResultList.WriteTo(writer, string.Empty, static (token, w) => w.WriteToken(token));
             writer.WriteToken(EqualsToken!.Value, " ");
             writer.WriteToken(NameToken, " ");
         }
         else
         {
-            writer.WriteToken(NameToken, defaultLeadingTrivia, indentLevel);
+            writer.WriteToken(NameToken);
         }
 
-        Body.WriteTo(writer, indentLevel);
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTo(SyntaxWriter writer)
-    {
-        WriteTo(writer, indentLevel: 0, defaultLeadingTrivia: string.Empty);
+        Body.WriteTo(writer);
     }
 
     private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)

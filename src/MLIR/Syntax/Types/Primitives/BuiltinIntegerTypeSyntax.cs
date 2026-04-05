@@ -28,8 +28,8 @@ public sealed class BuiltinIntegerTypeSyntax(SyntaxToken nameToken, IntegerTypeS
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(NameToken, defaultLeadingTrivia);
+        writer.WriteToken(NameToken);
     }
 }

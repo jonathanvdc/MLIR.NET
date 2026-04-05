@@ -49,26 +49,33 @@ public sealed class SeparatedSyntaxList<T>(
 
     /// <summary>
     /// Writes this list to the supplied syntax writer. Each element is interleaved with its
-    /// preceding separator token. The first element receives <paramref name="firstLeadingTrivia"/>
-    /// as its fallback leading trivia; subsequent elements receive a single space as their fallback.
+    /// preceding separator token. Before each element, the writer's pending trivia is set to
+    /// <paramref name="firstLeadingTrivia"/> for the first element and a single space for
+    /// subsequent elements; the element delegate then reads that suggestion via
+    /// <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/>.
     /// Does nothing when the list is empty.
     /// </summary>
     /// <param name="writer">The syntax writer to write to.</param>
-    /// <param name="firstLeadingTrivia">The fallback leading trivia to use for the first element.</param>
+    /// <param name="firstLeadingTrivia">The fallback leading trivia to suggest for the first element.</param>
     /// <param name="writeElement">A delegate that writes a single element to the writer.</param>
     public void WriteTo(
         Text.SyntaxWriter writer,
         string firstLeadingTrivia,
-        System.Action<T, Text.SyntaxWriter, string> writeElement)
+        System.Action<T, Text.SyntaxWriter> writeElement)
     {
         for (var i = 0; i < Count; i++)
         {
             if (i > 0)
             {
                 writer.WriteToken(SeparatorTokens[i - 1], string.Empty);
+                writer.SuggestTrivia(" ");
+            }
+            else if (firstLeadingTrivia.Length > 0)
+            {
+                writer.SuggestTrivia(firstLeadingTrivia);
             }
 
-            writeElement(Items[i], writer, i > 0 ? " " : firstLeadingTrivia);
+            writeElement(Items[i], writer);
         }
     }
 

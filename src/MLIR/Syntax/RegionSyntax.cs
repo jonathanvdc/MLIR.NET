@@ -40,26 +40,23 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
 
     /// <summary>
     /// Writes this region to the supplied syntax writer.
+    /// Uses <see cref="Text.SyntaxWriter.IndentLevel"/> as the indentation level of the
+    /// containing operation when computing trivia for the closing brace.
     /// </summary>
     /// <param name="writer">The syntax writer to write to.</param>
-    /// <param name="indentLevel">The indentation level of the containing operation.</param>
-    public void WriteTo(
-        SyntaxWriter writer,
-        int indentLevel)
+    public override void WriteTo(SyntaxWriter writer)
     {
+        var containingOpIndentLevel = writer.IndentLevel;
+
         writer.WriteToken(OpenBraceToken, " ");
 
         foreach (var block in Blocks)
         {
-            block.WriteTo(writer, indentLevel);
+            writer.IndentLevel = containingOpIndentLevel;
+            block.WriteTo(writer);
         }
 
-        writer.WriteToken(CloseBraceToken, "\n", indentLevel);
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTo(SyntaxWriter writer)
-    {
-        WriteTo(writer, indentLevel: 0);
+        writer.IndentLevel = containingOpIndentLevel;
+        writer.WriteToken(CloseBraceToken, "\n" + new string(' ', containingOpIndentLevel * 2));
     }
 }

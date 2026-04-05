@@ -68,11 +68,11 @@ public sealed class DenseArrayAttributeValueSyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
         writer.WriteToken(LessThanToken, string.Empty);
-        ElementTypeSyntax.WriteTo(writer, string.Empty);
+        ElementTypeSyntax.WriteTo(writer);
         writer.WriteToken(ColonToken, string.Empty);
         writer.WriteSeparatedList(Items, " ");
         writer.WriteToken(GreaterThanToken, string.Empty);

@@ -71,40 +71,29 @@ public sealed class BlockSyntax : SyntaxNode
     /// </summary>
     public string Label => LabelToken.Text;
 
-    /// <summary>
-    /// Writes this block to the supplied syntax writer.
-    /// </summary>
-    /// <param name="writer">The syntax writer to write to.</param>
-    /// <param name="regionIndentLevel">The indentation level of the containing region.</param>
-    public void WriteTo(
-        SyntaxWriter writer,
-        int regionIndentLevel)
+    /// <inheritdoc/>
+    public override void WriteTo(SyntaxWriter writer)
     {
         // Synthetic entry blocks are a parser implementation detail. Omit their labels when
         // printing unless the block carries arguments that require an explicit header.
         var blockHasExplicitLabel = Label != "^entry" || Arguments.Count > 0;
+        var regionIndentLevel = writer.IndentLevel;
         var blockIndentLevel = regionIndentLevel + 1;
 
         if (blockHasExplicitLabel)
         {
-            writer.WriteToken(LabelToken, "\n", blockIndentLevel);
-
+            writer.WriteToken(LabelToken, "\n" + new string(' ', blockIndentLevel * 2));
             writer.WriteDelimitedList(Arguments, string.Empty);
-
             writer.WriteToken(ColonToken, string.Empty);
         }
 
         var operationIndentLevel = blockHasExplicitLabel ? regionIndentLevel + 2 : regionIndentLevel + 1;
         foreach (var operation in Operations)
         {
-            writer.WriteOperation(operation, operationIndentLevel, "\n");
+            writer.IndentLevel = operationIndentLevel;
+            writer.SuggestTrivia("\n" + new string(' ', operationIndentLevel * 2));
+            operation.WriteTo(writer);
         }
-    }
-
-    /// <inheritdoc/>
-    public override void WriteTo(SyntaxWriter writer)
-    {
-        WriteTo(writer, regionIndentLevel: 0);
     }
 
     private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)

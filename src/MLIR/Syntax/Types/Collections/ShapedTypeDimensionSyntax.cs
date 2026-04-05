@@ -5,6 +5,11 @@ namespace MLIR.Syntax.Types.Collections;
 /// <summary>
 /// Represents one dimension in a ranked builtin shaped type.
 /// </summary>
+/// <remarks>
+/// Implementations of <see cref="SyntaxNode.WriteTo(Text.SyntaxWriter)"/> should call
+/// <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/> for the first token to consume
+/// any pending suggested trivia.
+/// </remarks>
 public abstract class ShapedTypeDimensionSyntax : SyntaxNode
 {
     /// <summary>
@@ -23,16 +28,5 @@ public abstract class ShapedTypeDimensionSyntax : SyntaxNode
         }
 
         throw new InvalidOperationException("This shaped-type dimension does not provide a raw syntax-text projection.");
-    }
-
-    /// <summary>
-    /// Writes this dimension to the supplied syntax writer.
-    /// </summary>
-    public abstract void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia);
-
-    /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer)
-    {
-        WriteTo(writer, defaultLeadingTrivia: string.Empty);
     }
 }

@@ -69,9 +69,9 @@ public sealed class MemRefTypeSyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
         writer.WriteToken(LessThanToken, string.Empty);
         if (IsUnranked)
         {
@@ -82,12 +82,12 @@ public sealed class MemRefTypeSyntax(
         {
             for (var i = 0; i < Dimensions.Count; i++)
             {
-                Dimensions[i].WriteTo(writer, string.Empty);
+                Dimensions[i].WriteTo(writer);
                 writer.WriteToken(XTokens[i], string.Empty);
             }
         }
 
-        ElementType.WriteTo(writer, string.Empty);
+        ElementType.WriteTo(writer);
         for (var i = 0; i < TrailingParameters.Count; i++)
         {
             writer.WriteToken(TrailingCommaTokens[i], string.Empty);

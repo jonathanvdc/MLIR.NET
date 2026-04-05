@@ -49,9 +49,9 @@ public sealed class FunctionTypeSyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteDelimitedList(InputTypes, defaultLeadingTrivia);
+        InputTypes.WriteTo(writer, static (type, w) => type.WriteTo(w));
         writer.WriteToken(ArrowToken, " ");
         if (HasDelimitedResults)
         {
@@ -59,7 +59,8 @@ public sealed class FunctionTypeSyntax(
         }
         else
         {
-            ResultType!.WriteTo(writer, " ");
+            writer.SuggestTrivia(" ");
+            ResultType!.WriteTo(writer);
         }
     }
 

@@ -41,17 +41,17 @@ public sealed class VectorTypeSyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
         writer.WriteToken(LessThanToken, string.Empty);
         for (var i = 0; i < Dimensions.Count; i++)
         {
-            Dimensions[i].WriteTo(writer, string.Empty);
+            Dimensions[i].WriteTo(writer);
             writer.WriteToken(XTokens[i], string.Empty);
         }
 
-        ElementType.WriteTo(writer, string.Empty);
+        ElementType.WriteTo(writer);
         writer.WriteToken(GreaterThanToken, string.Empty);
     }
 }

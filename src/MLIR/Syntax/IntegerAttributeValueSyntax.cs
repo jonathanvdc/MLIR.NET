@@ -40,8 +40,8 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(LiteralToken, defaultLeadingTrivia);
+        writer.WriteToken(LiteralToken);
     }
 }

@@ -18,8 +18,8 @@ public sealed class BuiltinNoneTypeSyntax(SyntaxToken keywordToken) : TypeSyntax
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
     }
 }

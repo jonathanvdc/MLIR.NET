@@ -52,13 +52,14 @@ public sealed class ElementsAttributeValueSyntax(
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
         writer.WriteToken(LessThanToken, string.Empty);
-        Payload.WriteTo(writer, string.Empty);
+        Payload.WriteTo(writer);
         writer.WriteToken(GreaterThanToken, string.Empty);
         writer.WriteToken(ColonToken, " ");
-        TypeSyntax.WriteTo(writer, " ");
+        writer.SuggestTrivia(" ");
+        TypeSyntax.WriteTo(writer);
     }
 }

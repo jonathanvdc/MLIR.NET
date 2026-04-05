@@ -35,7 +35,7 @@ public sealed class ParsingTests
                 new RawTypeSyntax(typeSignature));
         }
 
-        public override void WriteTo(SyntaxWriter writer, int indentLevel)
+        public override void WriteTo(SyntaxWriter writer)
         {
             writer.WriteRaw(value, " ");
             writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"), " ");
@@ -102,7 +102,7 @@ public sealed class ParsingTests
         /// <summary>Gets the SSA tokens that were parsed by <see cref="OperationParsingContext.TryParseSsaTokenList"/>.</summary>
         public SeparatedSyntaxList<SyntaxToken> Inputs { get; }
 
-        public override void WriteTo(SyntaxWriter writer, int indentLevel)
+        public override void WriteTo(SyntaxWriter writer)
         {
             for (var i = 0; i < Inputs.Count; i++)
             {
@@ -111,7 +111,7 @@ public sealed class ParsingTests
                     writer.WriteToken(new SyntaxToken(","), string.Empty);
                 }
 
-                writer.WriteToken(Inputs[i], i > 0 ? " " : " ");
+                writer.WriteToken(Inputs[i], " ");
             }
         }
     }

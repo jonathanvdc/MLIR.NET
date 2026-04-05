@@ -554,7 +554,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
     public RegionSyntax? BodyRegion { get; }
 
     /// <inheritdoc/>
-    public override void WriteTo(SyntaxWriter writer, int indentLevel)
+    public override void WriteTo(SyntaxWriter writer)
     {
         if (VisibilityToken.HasValue)
         {
@@ -579,7 +579,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
 
         if (BodyRegion != null)
         {
-            BodyRegion.WriteTo(writer, indentLevel);
+            writer.WriteRegion(BodyRegion);
         }
     }
 
@@ -590,9 +590,10 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
             if (i > 0)
             {
                 writer.WriteToken(Arguments.SeparatorTokens[i - 1], string.Empty);
+                writer.SuggestTrivia(" ");
             }
 
-            Arguments.Items[i].WriteTo(writer, i > 0 ? " " : string.Empty);
+            Arguments.Items[i].WriteTo(writer);
         }
 
         writer.WriteToken(Arguments.CloseToken!.Value, string.Empty);
@@ -610,9 +611,10 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
             if (i > 0)
             {
                 writer.WriteToken(ResultTypes.SeparatorTokens[i - 1], string.Empty);
+                writer.SuggestTrivia(" ");
             }
 
-            ResultTypes.Items[i].WriteTo(writer, i > 0 ? " " : string.Empty);
+            ResultTypes.Items[i].WriteTo(writer);
         }
 
         if (ResultTypes.CloseToken.HasValue)
@@ -667,15 +669,16 @@ public sealed class FuncFunctionArgumentSyntax
     public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }
 
     /// <summary>
-    /// Writes the argument syntax to the provided writer.
+    /// Writes the argument syntax to the provided writer using the current pending suggested trivia
+    /// for leading whitespace.
     /// </summary>
     /// <param name="writer">The writer to receive the rendered syntax.</param>
-    /// <param name="defaultLeadingTrivia">The leading trivia to use when the argument begins a list.</param>
-    public void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+    public void WriteTo(SyntaxWriter writer)
     {
-        writer.WriteToken(Name, defaultLeadingTrivia);
+        writer.WriteToken(Name);
         writer.WriteToken(ColonToken, " ");
-        Type.WriteTo(writer, " ");
+        writer.SuggestTrivia(" ");
+        Type.WriteTo(writer);
         if (AttrDict.OpenToken.HasValue)
         {
             writer.Write(" ");
@@ -713,13 +716,13 @@ public sealed class FuncFunctionResultSyntax
     public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }
 
     /// <summary>
-    /// Writes the result syntax to the provided writer.
+    /// Writes the result syntax to the provided writer using the current pending suggested trivia
+    /// for leading whitespace.
     /// </summary>
     /// <param name="writer">The writer to receive the rendered syntax.</param>
-    /// <param name="defaultLeadingTrivia">The leading trivia to use when the result begins a list.</param>
-    public void WriteTo(SyntaxWriter writer, string defaultLeadingTrivia)
+    public void WriteTo(SyntaxWriter writer)
     {
-        Type.WriteTo(writer, defaultLeadingTrivia);
+        Type.WriteTo(writer);
         if (AttrDict.OpenToken.HasValue)
         {
             writer.Write(" ");

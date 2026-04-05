@@ -18,8 +18,8 @@ public sealed class DynamicShapedTypeDimensionSyntax(SyntaxToken questionToken) 
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(QuestionToken, defaultLeadingTrivia);
+        writer.WriteToken(QuestionToken);
     }
 }

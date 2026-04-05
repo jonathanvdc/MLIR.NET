@@ -22,8 +22,8 @@ public sealed class UnitAttributeValueSyntax(SyntaxToken keywordToken) : Attribu
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(KeywordToken, defaultLeadingTrivia);
+        writer.WriteToken(KeywordToken);
     }
 }

@@ -23,8 +23,8 @@ public sealed class StaticShapedTypeDimensionSyntax(SyntaxToken sizeToken, long 
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(SizeToken, defaultLeadingTrivia);
+        writer.WriteToken(SizeToken);
     }
 }

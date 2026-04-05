@@ -35,7 +35,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             "public SyntaxToken ColonToken { get; }",
             "public TypeSyntax ResultType { get; }",
             "public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }",
-            "public override void WriteTo(Text.SyntaxWriter writer, int indentLevel)");
+            "public override void WriteTo(Text.SyntaxWriter writer)");
     }
 
     [Fact]

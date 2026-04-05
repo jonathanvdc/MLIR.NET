@@ -341,7 +341,7 @@ internal static class EmitterHelpers
                 var field = new BodySyntaxField(name, "IReadOnlyList<RegionSyntax>",
                     "foreach (var region in " + name + ")\n" +
                     "{\n" +
-                    "    writeRegion(writer, region, indentLevel);\n" +
+                    "    writer.WriteRegion(region);\n" +
                     "}");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Regions, "Regions", field.Name));
@@ -490,8 +490,8 @@ internal static class EmitterHelpers
         if (ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
         {
             var (csType, writeStmt) = nullable
-                ? ("AttributeValueSyntax?", name + "?.WriteTo(writer, \" \");")
-                : ("AttributeValueSyntax", name + ".WriteTo(writer, \" \");");
+                ? ("AttributeValueSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
+                : ("AttributeValueSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
             var field = new BodySyntaxField(name, csType, writeStmt);
             metadata.AddField(field);
             metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variableName, field.Name));
@@ -504,14 +504,14 @@ internal static class EmitterHelpers
             if (isVariadic)
             {
                 csType = "global::System.Collections.Generic.IReadOnlyList<RegionSyntax>";
-                writeStmt = "foreach (var region in " + name + ") { writer.WriteRegion(region, indentLevel); }";
+                writeStmt = "foreach (var region in " + name + ") { writer.WriteRegion(region); }";
             }
             else
             {
                 csType = nullable ? "RegionSyntax?" : "RegionSyntax";
                 writeStmt = nullable
-                    ? "if (" + name + ".HasValue) writer.WriteRegion(" + name + ".Value, indentLevel);"
-                    : "writer.WriteRegion(" + name + ", indentLevel);";
+                    ? "if (" + name + ".HasValue) writer.WriteRegion(" + name + ".Value);"
+                    : "writer.WriteRegion(" + name + ");";
             }
 
             var field = new BodySyntaxField(name, csType, writeStmt);
@@ -594,14 +594,15 @@ internal static class EmitterHelpers
                 "        writer.WriteToken(new SyntaxToken(\",\"), string.Empty);\n" +
                 "    }\n" +
                 "\n" +
-                "    " + name + "[i].WriteTo(writer, i > 0 ? \" \" : \" \");\n" +
+                "    writer.SuggestTrivia(\" \");\n" +
+                "    " + name + "[i].WriteTo(writer);\n" +
                 "}";
         }
         else
         {
             (csType, writeStmt) = nullable
-                ? ("TypeSyntax?", name + "?.WriteTo(writer, \" \");")
-                : ("TypeSyntax", name + ".WriteTo(writer, \" \");");
+                ? ("TypeSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
+                : ("TypeSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
         }
 
         var field = new BodySyntaxField(name, csType, writeStmt);

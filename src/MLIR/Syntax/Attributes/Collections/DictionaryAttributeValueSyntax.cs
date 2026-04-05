@@ -20,9 +20,9 @@ public sealed class DictionaryAttributeValueSyntax(DelimitedSyntaxList<NamedAttr
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteDelimitedList(Attributes, defaultLeadingTrivia);
+        Attributes.WriteTo(writer, static (attr, w) => attr.WriteTo(w));
     }
 
     private string BuildText()

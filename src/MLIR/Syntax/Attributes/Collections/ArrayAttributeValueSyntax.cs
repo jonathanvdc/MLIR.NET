@@ -52,8 +52,8 @@ public sealed class ArrayAttributeValueSyntax : AttributeValueSyntax
     }
 
     /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer, string defaultLeadingTrivia)
+    public override void WriteTo(Text.SyntaxWriter writer)
     {
-        Items.WriteTo(writer, defaultLeadingTrivia, static (item, innerWriter, trivia) => item.WriteTo(innerWriter, trivia));
+        Items.WriteTo(writer, static (item, w) => item.WriteTo(w));
     }
 }
