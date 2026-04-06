@@ -33,6 +33,35 @@ internal sealed class DialectModelBuilder
 
     public IReadOnlyList<DialectModel> Build()
     {
+        // Build a map from C++ namespace to dialect so enum constraints can be routed to the
+        // dialect that owns their namespace rather than always landing in the prelude.
+        var dialectsByCppNamespace = new Dictionary<string, MutableDialectModel>(System.StringComparer.Ordinal);
+        foreach (var dialect in dialectsByName.Values)
+        {
+            if (!string.IsNullOrWhiteSpace(dialect.CppNamespace))
+            {
+                dialectsByCppNamespace[dialect.CppNamespace!] = dialect;
+            }
+        }
+
+        // Distribute shared attribute constraints: enum constraints whose cppNamespace matches
+        // a known dialect are moved to that dialect so they are generated in the correct C#
+        // namespace.  All other constraints remain in the shared prelude pool.
+        var preludeConstraints = new List<AttributeConstraintModel>();
+        foreach (var constraint in sharedAttributeConstraints)
+        {
+            var enumCppNamespace = constraint.EnumModel?.CppNamespace;
+            if (enumCppNamespace != null
+                && dialectsByCppNamespace.TryGetValue(enumCppNamespace, out var targetDialect))
+            {
+                targetDialect.AttributeConstraints.Add(constraint);
+            }
+            else
+            {
+                preludeConstraints.Add(constraint);
+            }
+        }
+
         var dialects = dialectsByName.Values
             .Select(static dialect => dialect.ToImmutable())
             .OrderBy(static dialect => dialect.Name, System.StringComparer.Ordinal)
@@ -45,7 +74,7 @@ internal sealed class DialectModelBuilder
 
         var result = new List<DialectModel>(dialects.Length + 1)
         {
-            DialectModel.CreatePrelude(sharedAttributeConstraints.ToArray(), sharedTypeConstraints.ToArray()),
+            DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedTypeConstraints.ToArray()),
         };
         result.AddRange(dialects);
         return result;
@@ -65,12 +94,13 @@ internal sealed class DialectModelBuilder
         public bool HasConstantMaterializer { get; set; }
         public List<OperationModel> Operations { get; } = new();
         public List<AttributeModel> Attributes { get; } = new();
+        public List<AttributeConstraintModel> AttributeConstraints { get; } = new();
         public List<TypeModel> Types { get; } = new();
         public List<TypeConstraintModel> TypeConstraints { get; } = new();
 
         public DialectModel ToImmutable()
         {
-            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, typeConstraints: TypeConstraints, types: Types);
+            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, attributeConstraints: AttributeConstraints, typeConstraints: TypeConstraints, types: Types);
         }
     }
 }

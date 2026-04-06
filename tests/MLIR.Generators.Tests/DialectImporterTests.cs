@@ -244,7 +244,14 @@ public sealed class DialectImporterTests
         var dialect = dialects[1];
         var modeAttr = Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MiniEnum_ModeAttr");
         var flagsAttr = Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MiniEnum_FlagsAttr");
-        var flagsConstraint = Assert.Single(prelude.AttributeConstraints, static attr => attr.RecordName == "MiniEnum_Flags");
+
+        // Enum constraints whose cppNamespace matches the dialect are routed to the dialect,
+        // not the prelude.  Both MiniEnum_Mode and MiniEnum_Flags have cppNamespace =
+        // "::mlir::minienum", so they belong to the minienum dialect.
+        var modeConstraint = Assert.Single(dialect.AttributeConstraints, static attr => attr.RecordName == "MiniEnum_Mode");
+        var flagsConstraint = Assert.Single(dialect.AttributeConstraints, static attr => attr.RecordName == "MiniEnum_Flags");
+        Assert.DoesNotContain(prelude.AttributeConstraints, static attr =>
+            attr.RecordName == "MiniEnum_Mode" || attr.RecordName == "MiniEnum_Flags");
 
         Assert.Equal("Mode", modeAttr.EnumModel!.ClassName);
         Assert.False(modeAttr.EnumModel.IsBitEnum);
@@ -254,6 +261,9 @@ public sealed class DialectImporterTests
         Assert.True(flagsAttr.EnumModel.IsBitEnum);
         Assert.Equal(",", flagsAttr.EnumModel.Separator);
         Assert.Equal(new long[] { 0, 1, 2, 3 }, flagsAttr.EnumModel.Cases.Select(static c => c.Value).ToArray());
+
+        Assert.NotNull(modeConstraint.EnumModel);
+        Assert.False(modeConstraint.EnumModel!.IsBitEnum);
 
         Assert.NotNull(flagsConstraint.EnumModel);
         Assert.True(flagsConstraint.EnumModel!.IsBitEnum);
