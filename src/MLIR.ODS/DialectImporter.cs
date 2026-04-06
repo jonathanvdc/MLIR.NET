@@ -18,7 +18,6 @@ public static class DialectImporter
 
         DialectRecordImporter.Import(index, builder);
         OperationRecordImporter.Import(index, builder);
-        OperationAssemblyExtensionRecordImporter.Import(index, builder);
         AttributeRecordImporter.Import(index, builder);
         AttributeConstraintImporter.Import(index, builder);
         TypeConstraintImporter.Import(index, builder);

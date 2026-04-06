@@ -23,6 +23,7 @@ internal static class OperationRecordImporter
             var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
                 ? AssemblyFormatParser.Parse(assemblyFormatString!)
                 : null;
+            var assemblyExtensionCode = index.GetOptionalStringField(record, "csharpAsmFormatCode");
 
             dialect.Operations.Add(
                 new OperationModel(
@@ -43,7 +44,8 @@ internal static class OperationRecordImporter
                     index.GetOptionalStringField(record, "summary"),
                     index.GetOptionalStringField(record, "description"),
                     assemblyFormat,
-                    index.GetTraitListField(record, "traits")));
+                    index.GetTraitListField(record, "traits"),
+                    assemblyExtensionCode));
         }
     }
 }
