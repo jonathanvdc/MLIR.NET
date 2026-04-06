@@ -180,4 +180,64 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "new MLIR.Minienum.FlagsAttr(value)",
             "return string.Join(\",\", parts);");
     }
+
+    [Fact]
+    public void EnumConstraintWithCppNamespaceIsPlacedInMatchingDialectNamespace()
+    {
+        // This covers the case from the issue: an I64EnumAttr (attribute constraint, not an
+        // AttrDef wrapper) whose cppNamespace matches the dialect.  The generated enum type and
+        // constraint class should appear in the dialect namespace, not the prelude.
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new MLIR.Generators.DialectGenerator(),
+            (
+                "myarith.td",
+                ComposeSource(
+                    [
+                        "include \"mlir/IR/EnumAttr.td\"",
+                        string.Empty,
+                        "class MyArith_Op<string mnemonic, list<Trait> traits = []> : Op<MyArith_Dialect, mnemonic, traits>;",
+                        "def MyArith_Dialect : Dialect {",
+                        "  let name = \"myarith\";",
+                        "  let cppNamespace = \"::mlir::myarith\";",
+                        "};",
+                        "def MyArith_CmpPredicateAttr : I64EnumAttr<",
+                        "    \"CmpPredicate\", \"\",",
+                        "    [",
+                        "      I64EnumAttrCase<\"eq\", 0, \"eq\">,",
+                        "      I64EnumAttrCase<\"ne\", 1, \"ne\">,",
+                        "    ]> {",
+                        "  let cppNamespace = \"::mlir::myarith\";",
+                        "};",
+                        "def MyArith_CmpOp : MyArith_Op<\"cmp\", []> {",
+                        "  let arguments = (ins MyArith_CmpPredicateAttr:$predicate, I32:$lhs, I32:$rhs);",
+                        "  let results = (outs I1:$result);",
+                        "  let assemblyFormat = \"$predicate `,` $lhs `,` $rhs attr-dict `:` type($result)\";",
+                        "};",
+                    ])));
+
+        var preludeSource = System.Linq.Enumerable.Single(
+            generatedSources,
+            static result => result.HintName == "PreludeDialectRegistration.g.cs").SourceText.ToString();
+        var dialectSource = System.Linq.Enumerable.Single(
+            generatedSources,
+            static result => result.HintName == "MyarithDialectRegistration.g.cs").SourceText.ToString();
+
+        // The enum and its constraint class must be in the dialect file, not the prelude.
+        AssertContainsAll(
+            dialectSource,
+            "public enum CmpPredicate : ulong",
+            "internal static class CmpPredicateInfo",
+            "MyArithCmpPredicateAttrConstraintAttributeValue");
+
+        // The operation property must use the fully-qualified dialect type.
+        AssertContainsAll(
+            dialectSource,
+            "public MLIR.Myarith.CmpPredicate Predicate");
+
+        // The prelude must not contain the enum or its constraint.
+        AssertDoesNotContainAny(
+            preludeSource,
+            "CmpPredicate",
+            "MyArithCmpPredicateAttr");
+    }
 }
