@@ -112,10 +112,26 @@ public sealed partial class SemanticTests
         Assert.NotNull(operation.Syntax);
         Assert.Equal("value", operation.GetAttribute("value").Name);
 
-        operation.SetAttribute("value", replacement);
+        operation.SetAttribute(replacement);
 
         Assert.Null(operation.Syntax);
         Assert.Same(replacement, operation.GetAttribute("value"));
+    }
+
+    [Fact]
+    public void SetAttributeByNameInvalidatesSyntaxAndUpdatesCollection()
+    {
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
+        var operation = module.Operations[0];
+        var replacementValue = new SyntheticAttributeValue("replacement");
+
+        Assert.NotNull(operation.Syntax);
+
+        operation.SetAttribute("value", replacementValue);
+
+        Assert.Null(operation.Syntax);
+        Assert.Same(replacementValue, operation.GetAttribute("value").Value);
     }
 
     [Fact]
@@ -125,21 +141,9 @@ public sealed partial class SemanticTests
             Parser.ParseModule("%0 = \"arith.constant\"() {value = 0 : i32} : () -> i32"));
         var operation = module.Operations[0];
 
-        operation.SetAttribute("value", null);
+        operation.SetAttribute("value", (AttributeValue?)null);
 
         Assert.False(operation.HasAttribute("value"));
-    }
-
-    [Fact]
-    public void SetAttributeRejectsMismatchedAttributeName()
-    {
-        var operation = new SyntheticOperation("test.synthetic");
-        var attribute = new NamedAttribute("other", new SyntheticAttributeValue("test"));
-
-        var exception = Assert.Throws<ArgumentException>(() => operation.SetAttribute("value", attribute));
-
-        Assert.Contains("value", exception.Message);
-        Assert.Contains("other", exception.Message);
     }
 
     [Fact]

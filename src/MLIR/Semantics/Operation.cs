@@ -197,35 +197,41 @@ public abstract class Operation
     /// <summary>
     /// Sets or removes an attribute on this operation by name.
     /// </summary>
-    /// <param name="name">The declared attribute name.</param>
-    /// <param name="attribute">
-    /// The replacement attribute. Pass null to remove the attribute.
+    /// <param name="name">The attribute name.</param>
+    /// <param name="value">
+    /// The replacement attribute value. Pass <see langword="null"/> to remove the attribute.
     /// </param>
     /// <exception cref="ArgumentNullException">
     /// Thrown if <paramref name="name"/> is <see langword="null"/>.
     /// </exception>
-    /// <exception cref="ArgumentException">
-    /// Thrown if <paramref name="attribute"/> is non-null and its
-    /// <see cref="NamedAttribute.Name"/> does not match <paramref name="name"/>.
-    /// </exception>
-    public void SetAttribute(string name, NamedAttribute? attribute)
+    public void SetAttribute(string name, AttributeValue? value)
     {
         if (name is null)
         {
             throw new ArgumentNullException(nameof(name));
         }
 
-        if (attribute is null)
+        if (value is null)
         {
             SetAttributes(Attributes.Remove(name));
             return;
         }
 
-        if (!string.Equals(attribute.Name, name, System.StringComparison.Ordinal))
+        SetAttributes(Attributes.SetOrAdd(new NamedAttribute(name, value)));
+    }
+
+    /// <summary>
+    /// Sets or replaces an attribute on this operation using the name encapsulated in the attribute.
+    /// </summary>
+    /// <param name="attribute">The attribute to set.</param>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown if <paramref name="attribute"/> is <see langword="null"/>.
+    /// </exception>
+    public void SetAttribute(NamedAttribute attribute)
+    {
+        if (attribute is null)
         {
-            throw new ArgumentException(
-                $"Expected an attribute named '{name}' but got '{attribute.Name}'.",
-                nameof(attribute));
+            throw new ArgumentNullException(nameof(attribute));
         }
 
         SetAttributes(Attributes.SetOrAdd(attribute));

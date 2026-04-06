@@ -44,7 +44,58 @@ internal static class OperationAttributeValueHelpers
 
     public static string GetAttributeSetterExpression(GeneratedMember member, string sourceNameLiteral, string valueExpression)
     {
-        return "SetAttribute(" + sourceNameLiteral + ", " + GetNamedAttributeExpression(member, valueExpression) + ")";
+        return "SetAttribute(" + sourceNameLiteral + ", " + GetAttributeValueExpression(member, valueExpression) + ")";
+    }
+
+    /// <summary>
+    /// Returns a C# expression that evaluates to the <c>AttributeValue</c> (or null)
+    /// to pass to <c>SetAttribute(string, AttributeValue?)</c> for the given member and value.
+    /// </summary>
+    public static string GetAttributeValueExpression(GeneratedMember member, string valueExpression)
+    {
+        var isOptional = IsOptionalMember(member);
+        // ConstraintStrategy is always non-null for attribute members.
+        var strategy = member.ConstraintStrategy!;
+
+        if (strategy.IsUnit)
+        {
+            if (string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
+            {
+                return valueExpression + " ? " + GetUnitAttributeValueExpression() + " : null";
+            }
+
+            return valueExpression;
+        }
+
+        if (strategy.IsPrimitive)
+        {
+            var constraintClass = member.ConstraintClassName!;
+            if (!isOptional)
+            {
+                return "new " + constraintClass + "(" + valueExpression + ")";
+            }
+
+            if (strategy.IsEnum || IsPrimitiveValueType(member.TypeName))
+            {
+                return valueExpression + ".HasValue ? new " + constraintClass + "(" + valueExpression + ".Value) : null";
+            }
+
+            return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
+        }
+
+        if (strategy.IsDenseCollection || strategy.IsTypedArray)
+        {
+            var constraintClass = member.ConstraintClassName!;
+            if (!isOptional)
+            {
+                return "new " + constraintClass + "(" + valueExpression + ")";
+            }
+
+            return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
+        }
+
+        // Generic AttributeValue: pass through directly (already nullable if optional).
+        return valueExpression;
     }
 
     public static string GetNamedAttributeExpression(GeneratedMember member, string valueExpression)

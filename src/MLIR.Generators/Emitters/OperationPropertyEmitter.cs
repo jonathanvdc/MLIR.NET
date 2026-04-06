@@ -212,7 +212,7 @@ internal static class OperationPropertyEmitter
         builder.AppendLine("    public string? SymbolName");
         builder.AppendLine("    {");
         builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is StringAttributeValue sv ? sv.Value : null;");
-        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new NamedAttribute(\"sym_name\", new SyntheticStringAttributeValue(value)) : null);");
+        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new SyntheticStringAttributeValue(value) : null);");
         builder.AppendLine("    }");
         builder.AppendLine();
     }
@@ -268,7 +268,7 @@ internal static class OperationPropertyEmitter
                 builder.AppendLine("    public bool " + member.PropertyName);
                 builder.AppendLine("    {");
                 builder.AppendLine("        get => Attributes.Contains(" + sourceNameLiteral + ");");
-                builder.AppendLine("        set => SetAttribute(" + sourceNameLiteral + ", value ? new NamedAttribute(" + sourceNameLiteral + ", " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + ") : null);");
+                builder.AppendLine("        set => SetAttribute(" + sourceNameLiteral + ", value ? " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + " : null);");
                 builder.AppendLine("    }");
                 continue;
             }

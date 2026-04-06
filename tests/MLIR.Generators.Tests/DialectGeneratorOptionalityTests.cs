@@ -54,7 +54,7 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
             registrationSource,
             "public bool OptionalFlag",
             "get => Attributes.Contains(\"optionalFlag\")",
-            "SetAttribute(\"optionalFlag\", value ? new NamedAttribute(\"optionalFlag\", new UnknownAttributeValue(",
+            "SetAttribute(\"optionalFlag\", value ? new UnknownAttributeValue(",
             "new UnitAttributeValueSyntax(new SyntaxToken(\"unit\"))",
             "bool optionalFlag,");
         AssertDoesNotContainAny(
