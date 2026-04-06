@@ -3,6 +3,7 @@ namespace MLIR.Semantics;
 using System;
 using System.Collections.Generic;
 using MLIR.Dialects;
+using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 
 /// <summary>
@@ -296,6 +297,102 @@ public abstract class Operation
     {
         Syntax = null;
         ParentBlock?.InvalidateSyntax();
+    }
+
+    /// <summary>
+    /// Returns the typed symbol with the supplied name that is directly defined by this operation,
+    /// or <see langword="null"/> if this operation is not a symbol table or contains no matching symbol.
+    /// </summary>
+    /// <typeparam name="TSymbol">The expected type of the symbol operation.</typeparam>
+    /// <param name="name">The symbol name to look up (without the leading <c>@</c>).</param>
+    /// <returns>
+    /// The matching symbol operation cast to <typeparamref name="TSymbol"/>, or
+    /// <see langword="null"/> if the symbol is not found or has an incompatible type.
+    /// </returns>
+    /// <remarks>
+    /// The default implementation always returns <see langword="null"/>. Operations with the
+    /// <c>SymbolTable</c> ODS trait generate an override that searches their immediate region contents.
+    /// </remarks>
+    public virtual TSymbol? GetSymbol<TSymbol>(string name) where TSymbol : Operation => null;
+
+    /// <summary>
+    /// Walks up the parent operation chain and returns the first symbol named <paramref name="name"/>
+    /// found in an enclosing symbol table, or <see langword="null"/> if no match is found.
+    /// </summary>
+    /// <typeparam name="TSymbol">The expected type of the symbol operation.</typeparam>
+    /// <param name="name">The symbol name to look up (without the leading <c>@</c>).</param>
+    /// <returns>
+    /// The first matching symbol cast to <typeparamref name="TSymbol"/> in the nearest enclosing
+    /// symbol table, or <see langword="null"/> if not found.
+    /// </returns>
+    /// <remarks>
+    /// Mimics MLIR's lexical symbol resolution: starts at the nearest enclosing operation and
+    /// walks upward, consulting each ancestor via <see cref="GetSymbol{TSymbol}"/>. Operations
+    /// without the <c>SymbolTable</c> trait return <see langword="null"/> from
+    /// <see cref="GetSymbol{TSymbol}"/> and are skipped transparently.
+    /// </remarks>
+    public TSymbol? LookupSymbol<TSymbol>(string name) where TSymbol : Operation
+    {
+        var current = ParentBlock?.ParentRegion?.ParentOperation;
+        while (current != null)
+        {
+            var symbol = current.GetSymbol<TSymbol>(name);
+            if (symbol != null)
+            {
+                return symbol;
+            }
+
+            current = current.ParentBlock?.ParentRegion?.ParentOperation;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolves a <see cref="SymbolRefAttr"/> by walking the parent operation chain for the root
+    /// symbol and, for nested references, descending into each inner symbol table in turn.
+    /// </summary>
+    /// <typeparam name="TSymbol">The expected type of the resolved symbol operation.</typeparam>
+    /// <param name="reference">The symbol reference to resolve.</param>
+    /// <returns>
+    /// The resolved symbol cast to <typeparamref name="TSymbol"/>, or <see langword="null"/> if
+    /// any component of the reference is not found or has an incompatible type.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// For flat references (<c>@foo</c>), this is equivalent to
+    /// <see cref="LookupSymbol{TSymbol}(string)"/>.
+    /// </para>
+    /// <para>
+    /// For nested references (<c>@outer::@inner</c>), the root symbol is resolved first via
+    /// <see cref="LookupSymbol{TSymbol}(string)"/> and then each subsequent component is looked
+    /// up with <see cref="GetSymbol{TSymbol}"/> on the previously resolved operation.
+    /// </para>
+    /// </remarks>
+    public TSymbol? Resolve<TSymbol>(SymbolRefAttr reference) where TSymbol : Operation
+    {
+        if (reference.NestedReferences.Count == 0)
+        {
+            return LookupSymbol<TSymbol>(reference.RootReference);
+        }
+
+        // For nested refs, find the root as any operation, then walk each nested component.
+        var current = LookupSymbol<Operation>(reference.RootReference);
+        if (current == null)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < reference.NestedReferences.Count - 1; i++)
+        {
+            current = current.GetSymbol<Operation>(reference.NestedReferences[i]);
+            if (current == null)
+            {
+                return null;
+            }
+        }
+
+        return current.GetSymbol<TSymbol>(reference.NestedReferences[reference.NestedReferences.Count - 1]);
     }
 
     internal void Bind(Block parentBlock)

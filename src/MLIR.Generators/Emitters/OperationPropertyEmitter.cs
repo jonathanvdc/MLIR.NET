@@ -13,6 +13,7 @@ internal static class OperationPropertyEmitter
     {
         EmitRegionProperties(builder, plan.Regions);
         EmitBlockAndOperationsConvenienceProperties(builder, operation, plan.Regions);
+        EmitSymbolProperties(builder, operation);
         EmitOperandAndResultProperties(builder, plan.Operands, plan.Results, operation);
         EmitAttributeProperties(builder, plan.Attributes);
     }
@@ -185,6 +186,96 @@ internal static class OperationPropertyEmitter
             builder.AppendLine("    /// arguments (<c>NoRegionArguments</c>)." + summaryRemark);
             builder.AppendLine("    /// </remarks>");
             builder.AppendLine("    public IReadOnlyList<Operation> Operations => Block.Operations;");
+            builder.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Emits <c>SymbolName</c> for operations with the ODS <c>Symbol</c> trait, and emits
+    /// <c>Symbols</c> plus a <c>GetSymbol</c> override for operations with the ODS <c>SymbolTable</c>
+    /// trait.
+    /// </summary>
+    private static void EmitSymbolProperties(StringBuilder builder, OperationModel operation)
+    {
+        var hasSymbol = HasTrait(operation.Traits, "Symbol");
+        var hasSymbolTable = HasTrait(operation.Traits, "SymbolTable");
+
+        if (!hasSymbol && !hasSymbolTable)
+        {
+            return;
+        }
+
+        if (hasSymbol)
+        {
+            // SymbolName getter/setter backed by the "sym_name" attribute.
+            // sym_name is a StringAttr in MLIR; we access it as StringAttributeValue.
+            builder.AppendLine("    /// <summary>Gets or sets the symbol name of this operation, backed by the <c>sym_name</c> attribute.</summary>");
+            builder.AppendLine("    /// <remarks>This property is generated because this operation has the ODS <c>Symbol</c> trait.</remarks>");
+            builder.AppendLine("    public string? SymbolName");
+            builder.AppendLine("    {");
+            builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is StringAttributeValue sv ? sv.Value : null;");
+            builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new NamedAttribute(\"sym_name\", new SyntheticStringAttributeValue(value)) : null);");
+            builder.AppendLine("    }");
+            builder.AppendLine();
+        }
+
+        if (hasSymbolTable)
+        {
+            // Symbols: a dictionary of immediately contained symbols keyed by sym_name.
+            builder.AppendLine("    /// <summary>Gets a read-only dictionary of symbols immediately contained in this operation's first region, keyed by their symbol name.</summary>");
+            builder.AppendLine("    /// <remarks>");
+            builder.AppendLine("    /// This property is generated because this operation has the ODS <c>SymbolTable</c> trait.");
+            builder.AppendLine("    /// The dictionary is rebuilt on every access from the immediate region contents; no deep traversal is performed.");
+            builder.AppendLine("    /// </remarks>");
+            builder.AppendLine("    public IReadOnlyDictionary<string, Operation> Symbols");
+            builder.AppendLine("    {");
+            builder.AppendLine("        get");
+            builder.AppendLine("        {");
+            builder.AppendLine("            var result = new Dictionary<string, Operation>();");
+            builder.AppendLine("            if (base.Regions.Count > 0)");
+            builder.AppendLine("            {");
+            builder.AppendLine("                foreach (var block in base.Regions[0].Blocks)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    foreach (var op in block.Operations)");
+            builder.AppendLine("                    {");
+            builder.AppendLine("                        if (op.Attributes.TryGet(\"sym_name\", out var attr) && attr.Value is StringAttributeValue sv)");
+            builder.AppendLine("                        {");
+            builder.AppendLine("                            result[sv.Value] = op;");
+            builder.AppendLine("                        }");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                }");
+            builder.AppendLine("            }");
+            builder.AppendLine("            return result;");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }");
+            builder.AppendLine();
+
+            // GetSymbol<TSymbol> override for typed lookup.
+            builder.AppendLine("    /// <summary>Returns the symbol with the given name directly defined in this operation's first region, or null if not found.</summary>");
+            builder.AppendLine("    /// <typeparam name=\"TSymbol\">The expected type of the symbol operation.</typeparam>");
+            builder.AppendLine("    /// <param name=\"name\">The symbol name (without the leading <c>@</c>).</param>");
+            builder.AppendLine("    /// <remarks>This override is generated because this operation has the ODS <c>SymbolTable</c> trait.</remarks>");
+            builder.AppendLine("    [return: global::System.Diagnostics.CodeAnalysis.MaybeNull]");
+            builder.AppendLine("    public override TSymbol GetSymbol<TSymbol>(string name)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        if (base.Regions.Count > 0)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            foreach (var block in base.Regions[0].Blocks)");
+            builder.AppendLine("            {");
+            builder.AppendLine("                foreach (var op in block.Operations)");
+            builder.AppendLine("                {");
+            builder.AppendLine("                    if (op is TSymbol typedOp");
+            builder.AppendLine("                        && op.Attributes.TryGet(\"sym_name\", out var attr)");
+            builder.AppendLine("                        && attr.Value is StringAttributeValue sv");
+            builder.AppendLine("                        && string.Equals(sv.Value, name, global::System.StringComparison.Ordinal))");
+            builder.AppendLine("                    {");
+            builder.AppendLine("                        return typedOp;");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                }");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine("        return null;");
+            builder.AppendLine("    }");
             builder.AppendLine();
         }
     }
