@@ -1,7 +1,6 @@
 namespace MLIR.Tests;
 
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
@@ -13,7 +12,7 @@ using Xunit;
 /// Tests for the <see cref="Operation.GetSymbol{TSymbol}"/>,
 /// <see cref="Operation.LookupSymbol{TSymbol}"/>, and
 /// <see cref="Operation.Resolve{TSymbol}"/> methods, as well as for
-/// <see cref="SymbolRefAttr"/>.
+/// <see cref="SymbolRefAttr"/> and <see cref="SymbolTableOperation"/>.
 /// </summary>
 public sealed class SymbolTests
 {
@@ -24,8 +23,9 @@ public sealed class SymbolTests
     /// <summary>
     /// A lightweight named-symbol operation that carries a <c>sym_name</c> string attribute.
     /// Used to represent leaves in a symbol table.
+    /// Implements <see cref="ISymbolOp"/> so it is discoverable via the typed interface.
     /// </summary>
-    private sealed class TestSymbolOp : Operation
+    private sealed class TestSymbolOp : Operation, ISymbolOp
     {
         public TestSymbolOp(string symbolName)
             : base(null, [], CreateAttributes(symbolName))
@@ -36,6 +36,12 @@ public sealed class SymbolTests
 
         public override OperationDefinition? Definition => null;
 
+        public string? SymbolName
+        {
+            get => Attributes.TryGet("sym_name", out var attr) && attr.Value is StringAttributeValue sv ? sv.Value : null;
+            set => SetAttribute("sym_name", value != null ? new NamedAttribute("sym_name", new SyntheticStringAttributeValue(value)) : null);
+        }
+
         private static NamedAttributeCollection CreateAttributes(string symbolName)
         {
             return NamedAttributeCollection.Create(
@@ -44,14 +50,13 @@ public sealed class SymbolTests
     }
 
     /// <summary>
-    /// An operation that acts as a symbol table: it maintains a lazy O(1) dictionary cache that
-    /// is invalidated via <see cref="InvalidateSyntax()"/> whenever child nodes change.
-    /// This mirrors what the code generator emits for operations with the <c>SymbolTable</c> ODS trait.
+    /// An operation that acts as a symbol table by inheriting <see cref="SymbolTableOperation"/>,
+    /// which provides the O(1) cached dictionary and cache-invalidation logic.
+    /// This mirrors the class hierarchy the code generator produces for operations with the
+    /// <c>SymbolTable</c> ODS trait.
     /// </summary>
-    private sealed class TestSymbolTableOp : Operation
+    private sealed class TestSymbolTableOp : SymbolTableOperation
     {
-        private Dictionary<string, Operation>? _symbolCache;
-
         public TestSymbolTableOp(Region region)
             : base(null, [region])
         {
@@ -60,46 +65,6 @@ public sealed class SymbolTests
         public override string Name => "test.module";
 
         public override OperationDefinition? Definition => null;
-
-        public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();
-
-        [return: MaybeNull]
-        public override TSymbol GetSymbol<TSymbol>(string name)
-        {
-            return GetOrBuildSymbolCache().TryGetValue(name, out var op) && op is TSymbol typedOp ? typedOp : null;
-        }
-
-        public override void InvalidateSyntax()
-        {
-            _symbolCache = null;
-            base.InvalidateSyntax();
-        }
-
-        private Dictionary<string, Operation> GetOrBuildSymbolCache()
-        {
-            if (_symbolCache != null)
-            {
-                return _symbolCache;
-            }
-
-            var cache = new Dictionary<string, Operation>();
-            if (base.Regions.Count > 0)
-            {
-                foreach (var block in base.Regions[0].Blocks)
-                {
-                    foreach (var op in block.Operations)
-                    {
-                        if (op.Attributes.TryGet("sym_name", out var attr) && attr.Value is StringAttributeValue sv)
-                        {
-                            cache[sv.Value] = op;
-                        }
-                    }
-                }
-            }
-
-            _symbolCache = cache;
-            return cache;
-        }
     }
 
     /// <summary>
@@ -386,5 +351,87 @@ public sealed class SymbolTests
 
         // The cache must have been invalidated.
         Assert.Same(barOp, mod.GetSymbol<TestSymbolOp>("bar"));
+    }
+
+    // ---------------------------------------------------------------------------
+    // ISymbolOp interface tests
+    // ---------------------------------------------------------------------------
+
+    [Fact]
+    public void TestSymbolOpImplementsISymbolOp()
+    {
+        var op = new TestSymbolOp("hello");
+        Assert.IsAssignableFrom<ISymbolOp>(op);
+    }
+
+    [Fact]
+    public void ISymbolOpSymbolNameMatchesAttribute()
+    {
+        ISymbolOp op = new TestSymbolOp("hello");
+        Assert.Equal("hello", op.SymbolName);
+    }
+
+    [Fact]
+    public void SymbolTableContentsCanBeFilteredViaISymbolOpInterface()
+    {
+        var (outerModule, _, fooOp, barOp, _) = BuildAst();
+
+        // Collect all ISymbolOp children of the outer module via the Symbols dictionary.
+        // This demonstrates that ISymbolOp enables typed traversal without string-attribute inspection.
+        var symbolOps = new List<(string Name, Operation Op)>();
+        foreach (var (name, op) in outerModule.Symbols)
+        {
+            if (op is ISymbolOp)
+            {
+                symbolOps.Add((name, op));
+            }
+        }
+
+        Assert.Contains(symbolOps, t => t.Name == "bar" && ReferenceEquals(t.Op, barOp));
+    }
+
+    [Fact]
+    public void SymbolTableCacheIndexesISymbolOpChildrenViaInterface()
+    {
+        // The SymbolTableOperation cache must use ISymbolOp for typed ops.
+        var fooOp = new TestSymbolOp("foo");  // implements ISymbolOp
+        var block = new Block("^bb0", [], [fooOp]);
+        var region = new Region(null, [block]);
+        var mod = new TestSymbolTableOp(region);
+
+        // Should be findable via the interface-backed cache.
+        Assert.Same(fooOp, mod.GetSymbol<TestSymbolOp>("foo"));
+        Assert.Same(fooOp, mod.Symbols["foo"]);
+    }
+
+    [Fact]
+    public void SymbolTableCacheFallsBackToAttributeForNonISymbolOpChildren()
+    {
+        // An operation that does NOT implement ISymbolOp but carries sym_name as a raw attribute
+        // should still be indexed via the attribute fallback.
+        var rawOp = new RawSymbolAttributeOp("raw");
+        var block = new Block("^bb0", [], [rawOp]);
+        var region = new Region(null, [block]);
+        var mod = new TestSymbolTableOp(region);
+
+        Assert.Same(rawOp, mod.Symbols["raw"]);
+    }
+
+    /// <summary>
+    /// An operation that carries <c>sym_name</c> as a raw attribute but does NOT implement
+    /// <see cref="ISymbolOp"/>. Used to test the attribute fallback path in
+    /// <see cref="SymbolTableOperation"/>.
+    /// </summary>
+    private sealed class RawSymbolAttributeOp : Operation
+    {
+        public RawSymbolAttributeOp(string symbolName)
+            : base(null, [], NamedAttributeCollection.Create(
+                new NamedAttribute("sym_name", new SyntheticStringAttributeValue(symbolName))))
+        {
+        }
+
+        public override string Name => "test.raw";
+
+        public override OperationDefinition? Definition => null;
     }
 }

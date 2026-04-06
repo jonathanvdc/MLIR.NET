@@ -109,7 +109,7 @@ internal static class OperationPropertyEmitter
     /// Recursively searches for a trait with the given <paramref name="recordName"/> in the
     /// provided trait list, descending into <see cref="TraitListModel"/> entries.
     /// </summary>
-    private static bool HasTrait(IReadOnlyList<TraitModel> traits, string recordName)
+    internal static bool HasTrait(IReadOnlyList<TraitModel> traits, string recordName)
     {
         for (var i = 0; i < traits.Count; i++)
         {
@@ -191,99 +191,30 @@ internal static class OperationPropertyEmitter
     }
 
     /// <summary>
-    /// Emits <c>SymbolName</c> for operations with the ODS <c>Symbol</c> trait, and emits
-    /// <c>Symbols</c>, a typed <c>GetSymbol</c> override, and <c>InvalidateSyntax</c> override
-    /// backed by a lazily-built O(1) dictionary for operations with the ODS <c>SymbolTable</c> trait.
+    /// Emits <c>SymbolName</c> for operations with the ODS <c>Symbol</c> trait.
+    /// Operations with the <c>SymbolTable</c> trait inherit all symbol-table logic from
+    /// <see cref="SymbolTableOperation"/> and require no additional property emission here.
     /// </summary>
     private static void EmitSymbolProperties(StringBuilder builder, OperationModel operation)
     {
         var hasSymbol = HasTrait(operation.Traits, "Symbol");
-        var hasSymbolTable = HasTrait(operation.Traits, "SymbolTable");
 
-        if (!hasSymbol && !hasSymbolTable)
+        if (!hasSymbol)
         {
             return;
         }
 
-        if (hasSymbol)
-        {
-            // SymbolName getter/setter backed by the "sym_name" attribute.
-            // sym_name is a StringAttr in MLIR; we access it as StringAttributeValue.
-            builder.AppendLine("    /// <summary>Gets or sets the symbol name of this operation, backed by the <c>sym_name</c> attribute.</summary>");
-            builder.AppendLine("    /// <remarks>This property is generated because this operation has the ODS <c>Symbol</c> trait.</remarks>");
-            builder.AppendLine("    public string? SymbolName");
-            builder.AppendLine("    {");
-            builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is StringAttributeValue sv ? sv.Value : null;");
-            builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new NamedAttribute(\"sym_name\", new SyntheticStringAttributeValue(value)) : null);");
-            builder.AppendLine("    }");
-            builder.AppendLine();
-        }
-
-        if (hasSymbolTable)
-        {
-            // Backing field for the lazily-built symbol cache.
-            // Null means the cache has not been built yet or has been invalidated.
-            builder.AppendLine("    private Dictionary<string, Operation>? _symbolCache;");
-            builder.AppendLine();
-
-            // Symbols: O(1) access via the cache.
-            builder.AppendLine("    /// <summary>Gets a read-only dictionary of symbols immediately contained in this operation's first region, keyed by their symbol name.</summary>");
-            builder.AppendLine("    /// <remarks>");
-            builder.AppendLine("    /// This property is generated because this operation has the ODS <c>SymbolTable</c> trait.");
-            builder.AppendLine("    /// The dictionary is built lazily and cached; it is invalidated whenever the region contents change.");
-            builder.AppendLine("    /// No deep traversal is performed: only direct children of the first region are indexed.");
-            builder.AppendLine("    /// </remarks>");
-            builder.AppendLine("    public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();");
-            builder.AppendLine();
-
-            // GetSymbol<TSymbol> override: O(1) lookup via the cache.
-            builder.AppendLine("    /// <summary>Returns the symbol with the given name directly defined in this operation's first region, or null if not found.</summary>");
-            builder.AppendLine("    /// <typeparam name=\"TSymbol\">The expected type of the symbol operation.</typeparam>");
-            builder.AppendLine("    /// <param name=\"name\">The symbol name (without the leading <c>@</c>).</param>");
-            builder.AppendLine("    /// <remarks>This override is generated because this operation has the ODS <c>SymbolTable</c> trait.</remarks>");
-            builder.AppendLine("    [return: global::System.Diagnostics.CodeAnalysis.MaybeNull]");
-            builder.AppendLine("    public override TSymbol GetSymbol<TSymbol>(string name)");
-            builder.AppendLine("    {");
-            builder.AppendLine("        return GetOrBuildSymbolCache().TryGetValue(name, out var op) && op is TSymbol typedOp ? typedOp : null;");
-            builder.AppendLine("    }");
-            builder.AppendLine();
-
-            // InvalidateSyntax override: clears the cached dictionary, then propagates.
-            builder.AppendLine("    /// <summary>Clears the cached symbol dictionary and propagates the invalidation to ancestor nodes.</summary>");
-            builder.AppendLine("    /// <remarks>This override is generated because this operation has the ODS <c>SymbolTable</c> trait.</remarks>");
-            builder.AppendLine("    public override void InvalidateSyntax()");
-            builder.AppendLine("    {");
-            builder.AppendLine("        _symbolCache = null;");
-            builder.AppendLine("        base.InvalidateSyntax();");
-            builder.AppendLine("    }");
-            builder.AppendLine();
-
-            // Private helper: builds the cache from the first region's immediate contents.
-            builder.AppendLine("    private Dictionary<string, Operation> GetOrBuildSymbolCache()");
-            builder.AppendLine("    {");
-            builder.AppendLine("        if (_symbolCache != null)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            return _symbolCache;");
-            builder.AppendLine("        }");
-            builder.AppendLine("        var cache = new Dictionary<string, Operation>();");
-            builder.AppendLine("        if (base.Regions.Count > 0)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            foreach (var block in base.Regions[0].Blocks)");
-            builder.AppendLine("            {");
-            builder.AppendLine("                foreach (var op in block.Operations)");
-            builder.AppendLine("                {");
-            builder.AppendLine("                    if (op.Attributes.TryGet(\"sym_name\", out var attr) && attr.Value is StringAttributeValue sv)");
-            builder.AppendLine("                    {");
-            builder.AppendLine("                        cache[sv.Value] = op;");
-            builder.AppendLine("                    }");
-            builder.AppendLine("                }");
-            builder.AppendLine("            }");
-            builder.AppendLine("        }");
-            builder.AppendLine("        _symbolCache = cache;");
-            builder.AppendLine("        return cache;");
-            builder.AppendLine("    }");
-            builder.AppendLine();
-        }
+        // SymbolName getter/setter backed by the "sym_name" attribute.
+        // sym_name is a StringAttr in MLIR; we access it as StringAttributeValue.
+        // This property satisfies the ISymbolOp interface that is declared on the class.
+        builder.AppendLine("    /// <summary>Gets or sets the symbol name of this operation, backed by the <c>sym_name</c> attribute.</summary>");
+        builder.AppendLine("    /// <remarks>This property is generated because this operation has the ODS <c>Symbol</c> trait.</remarks>");
+        builder.AppendLine("    public string? SymbolName");
+        builder.AppendLine("    {");
+        builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is StringAttributeValue sv ? sv.Value : null;");
+        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new NamedAttribute(\"sym_name\", new SyntheticStringAttributeValue(value)) : null);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
     }
 
     private static void EmitRegionProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> regionMembers)

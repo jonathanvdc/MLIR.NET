@@ -3,9 +3,8 @@ namespace MLIR.Generators.Tests;
 using Xunit;
 
 /// <summary>
-/// Tests for the generator's automatic emission of <c>SymbolName</c>, <c>Symbols</c>, and
-/// <c>GetSymbol</c> properties on operations that carry the ODS <c>Symbol</c> or
-/// <c>SymbolTable</c> traits.
+/// Tests for the generator's handling of ODS <c>Symbol</c> and <c>SymbolTable</c> traits:
+/// correct base-class selection, interface declaration, and property emission.
 /// </summary>
 public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTestBase
 {
@@ -19,7 +18,7 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         "};",
     ];
 
-    // An op that only has the SymbolTable trait (no regions — intentionally; the trait is still emitted).
+    // An op that only has the SymbolTable trait.
     private static readonly string[] SymbolTableOnlyOpLines =
     [
         "include \"mlir/IR/SymbolInterfaces.td\"",
@@ -41,7 +40,7 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         "};",
     ];
 
-    // An op with neither Symbol nor SymbolTable — no symbol properties should be generated.
+    // An op with neither Symbol nor SymbolTable.
     private static readonly string[] PlainOpLines =
     [
         "def MyDialect_PlainOp : MyDialect_Op<\"plain\", []> {",
@@ -49,7 +48,16 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         "};",
     ];
 
-    // --- Symbol trait tests ---
+    // --- Symbol trait: base class and interface ---
+
+    [Fact]
+    public void SymbolOpInheritsFromOperationAndImplementsISymbolOp()
+    {
+        var source = GenerateMyDialectRegistrationSource(SymbolOnlyOpLines);
+
+        // Must declare Operation as base class and ISymbolOp as interface.
+        Assert.Contains(": Operation, ISymbolOp", source);
+    }
 
     [Fact]
     public void GeneratesSymbolNamePropertyForSymbolOp()
@@ -78,46 +86,28 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         Assert.DoesNotContain("SymbolName", source);
     }
 
-    // --- SymbolTable trait tests ---
+    // --- SymbolTable trait: base class ---
 
     [Fact]
-    public void GeneratesSymbolsDictionaryForSymbolTableOp()
+    public void SymbolTableOpInheritsFromSymbolTableOperation()
     {
         var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
 
-        Assert.Contains("private Dictionary<string, Operation>? _symbolCache;", source);
-        Assert.Contains("public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();", source);
-        Assert.Contains("private Dictionary<string, Operation> GetOrBuildSymbolCache()", source);
-        Assert.Contains("_symbolCache = cache;", source);
+        // Must use SymbolTableOperation as the base class.
+        Assert.Contains(": SymbolTableOperation", source);
     }
 
     [Fact]
-    public void GeneratesGetSymbolOverrideForSymbolTableOp()
+    public void SymbolTableOpDoesNotEmitSymbolCacheFieldOrHelperMethods()
     {
         var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
 
-        Assert.Contains("[return: global::System.Diagnostics.CodeAnalysis.MaybeNull]", source);
-        Assert.Contains("public override TSymbol GetSymbol<TSymbol>(string name)", source);
-        Assert.Contains("GetOrBuildSymbolCache().TryGetValue(name, out var op)", source);
-    }
-
-    [Fact]
-    public void GeneratesInvalidateSyntaxOverrideForSymbolTableOp()
-    {
-        var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
-
-        Assert.Contains("public override void InvalidateSyntax()", source);
-        Assert.Contains("_symbolCache = null;", source);
-        Assert.Contains("base.InvalidateSyntax();", source);
-    }
-
-    [Fact]
-    public void SymbolTablePropertiesDocCommentsMentionSymbolTableTrait()
-    {
-        var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
-
-        Assert.Contains("ODS <c>SymbolTable</c> trait", source);
-        Assert.Contains("built lazily and cached", source);
+        // All cache logic lives in SymbolTableOperation; nothing should be generated into the class.
+        Assert.DoesNotContain("_symbolCache", source);
+        Assert.DoesNotContain("GetOrBuildSymbolCache", source);
+        Assert.DoesNotContain("override void InvalidateSyntax", source);
+        Assert.DoesNotContain("override TSymbol GetSymbol", source);
+        Assert.DoesNotContain("IReadOnlyDictionary<string, Operation> Symbols", source);
     }
 
     [Fact]
@@ -129,25 +119,51 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         Assert.DoesNotContain("GetSymbol<TSymbol>", source);
     }
 
+    [Fact]
+    public void PlainOpInheritsFromOperation()
+    {
+        var source = GenerateMyDialectRegistrationSource(PlainOpLines);
+
+        Assert.Contains(": Operation", source);
+        Assert.DoesNotContain("SymbolTableOperation", source);
+        Assert.DoesNotContain("ISymbolOp", source);
+    }
+
     // --- Combined Symbol + SymbolTable ---
 
     [Fact]
-    public void GeneratesBothSymbolNameAndSymbolsForOpWithBothTraits()
+    public void OpWithBothTraitsInheritsFromSymbolTableOperationAndImplementsISymbolOp()
+    {
+        var source = GenerateMyDialectRegistrationSource(SymbolAndSymbolTableOpLines);
+
+        Assert.Contains(": SymbolTableOperation, ISymbolOp", source);
+    }
+
+    [Fact]
+    public void OpWithBothTraitsGeneratesSymbolNameProperty()
     {
         var source = GenerateMyDialectRegistrationSource(SymbolAndSymbolTableOpLines);
 
         Assert.Contains("public string? SymbolName", source);
-        Assert.Contains("public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();", source);
-        Assert.Contains("public override TSymbol GetSymbol<TSymbol>(string name)", source);
-        Assert.Contains("public override void InvalidateSyntax()", source);
     }
 
     [Fact]
-    public void DoesNotGenerateSymbolNameForSymbolTableOnlyOp()
+    public void OpWithBothTraitsDoesNotEmitCacheOrOverrides()
     {
-        var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
+        var source = GenerateMyDialectRegistrationSource(SymbolAndSymbolTableOpLines);
 
-        Assert.DoesNotContain("public string? SymbolName", source);
+        Assert.DoesNotContain("_symbolCache", source);
+        Assert.DoesNotContain("GetOrBuildSymbolCache", source);
+    }
+
+    // --- Symbol-only op: no SymbolTable emission ---
+
+    [Fact]
+    public void SymbolOnlyOpDoesNotInheritFromSymbolTableOperation()
+    {
+        var source = GenerateMyDialectRegistrationSource(SymbolOnlyOpLines);
+
+        Assert.DoesNotContain("SymbolTableOperation", source);
     }
 
     [Fact]
@@ -156,6 +172,6 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         var source = GenerateMyDialectRegistrationSource(SymbolOnlyOpLines);
 
         Assert.DoesNotContain("IReadOnlyDictionary<string, Operation> Symbols", source);
-        Assert.DoesNotContain("public override TSymbol? GetSymbol<TSymbol>", source);
+        Assert.DoesNotContain("GetSymbol<TSymbol>", source);
     }
 }
