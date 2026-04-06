@@ -13,6 +13,7 @@ internal static class OperationPropertyEmitter
     {
         EmitRegionProperties(builder, plan.Regions);
         EmitBlockAndOperationsConvenienceProperties(builder, operation, plan.Regions);
+        EmitSymbolProperties(builder, operation);
         EmitOperandAndResultProperties(builder, plan.Operands, plan.Results, operation);
         EmitAttributeProperties(builder, plan.Attributes);
     }
@@ -108,7 +109,7 @@ internal static class OperationPropertyEmitter
     /// Recursively searches for a trait with the given <paramref name="recordName"/> in the
     /// provided trait list, descending into <see cref="TraitListModel"/> entries.
     /// </summary>
-    private static bool HasTrait(IReadOnlyList<TraitModel> traits, string recordName)
+    internal static bool HasTrait(IReadOnlyList<TraitModel> traits, string recordName)
     {
         for (var i = 0; i < traits.Count; i++)
         {
@@ -187,6 +188,33 @@ internal static class OperationPropertyEmitter
             builder.AppendLine("    public IReadOnlyList<Operation> Operations => Block.Operations;");
             builder.AppendLine();
         }
+    }
+
+    /// <summary>
+    /// Emits <c>SymbolName</c> for operations with the ODS <c>Symbol</c> trait.
+    /// Operations with the <c>SymbolTable</c> trait inherit all symbol-table logic from
+    /// <c>SymbolTableOperation</c> and require no additional property emission here.
+    /// </summary>
+    private static void EmitSymbolProperties(StringBuilder builder, OperationModel operation)
+    {
+        var hasSymbol = HasTrait(operation.Traits, "Symbol");
+
+        if (!hasSymbol)
+        {
+            return;
+        }
+
+        // SymbolName getter/setter backed by the "sym_name" attribute.
+        // sym_name is a StringAttr in MLIR; we access it as StringAttributeValue.
+        // This property satisfies the ISymbolOp interface that is declared on the class.
+        builder.AppendLine("    /// <summary>Gets or sets the symbol name of this operation, backed by the <c>sym_name</c> attribute.</summary>");
+        builder.AppendLine("    /// <remarks>This property is generated because this operation has the ODS <c>Symbol</c> trait.</remarks>");
+        builder.AppendLine("    public string? SymbolName");
+        builder.AppendLine("    {");
+        builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is StringAttributeValue sv ? sv.Value : null;");
+        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new NamedAttribute(\"sym_name\", new SyntheticStringAttributeValue(value)) : null);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
     }
 
     private static void EmitRegionProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> regionMembers)

@@ -10,8 +10,17 @@ internal static class OperationEmitter
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var plan = OperationMemberPlanner.Plan(operation, resolver);
 
+        var hasSymbol = OperationPropertyEmitter.HasTrait(operation.Traits, "Symbol");
+        var hasSymbolTable = OperationPropertyEmitter.HasTrait(operation.Traits, "SymbolTable");
+
+        // Operations with the SymbolTable trait inherit from SymbolTableOperation, which provides
+        // the O(1) cached symbol dictionary and invalidation logic.
+        // Operations with the Symbol trait implement ISymbolOp to be discoverable via typed traversal.
+        var baseClass = hasSymbolTable ? "SymbolTableOperation" : "Operation";
+        var interfaces = hasSymbol ? ", ISymbolOp" : string.Empty;
+
         EmitterHelpers.AppendXmlDocComment(builder, operation.Summary, operation.Description);
-        builder.AppendLine("public sealed class " + className + " : Operation");
+        builder.AppendLine("public sealed class " + className + " : " + baseClass + interfaces);
         builder.AppendLine("{");
 
         OperationDefinitionEmitter.Emit(builder, className, operation, resolver);
