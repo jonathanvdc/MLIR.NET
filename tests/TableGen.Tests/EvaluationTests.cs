@@ -33,39 +33,41 @@ public sealed class EvaluationTests
     public void EvaluatesExtendsOverlaysIntoTheTargetRecord()
     {
         const string source =
-            "class MLIRNet_OpExtension {\n" +
-            "  string csharpAsmFormatCode = ?;\n" +
-            "  string kind = \"assembly\";\n" +
+            "class AssemblyOverlay<string asm> {\n" +
+            "  string csharpAsmFormatCode = asm;\n" +
             "};\n" +
-            "def Arith_SelectOp {\n" +
+            "class PriorityOverlay<int value> {\n" +
+            "  int priority = value;\n" +
+            "};\n" +
+            "def Example {\n" +
             "  string mnemonic = \"select\";\n" +
             "};\n" +
-            "extends Arith_SelectOp : MLIRNet_OpExtension {\n" +
-            "  let csharpAsmFormatCode = \"global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance\";\n" +
+            "extends Example : AssemblyOverlay<\"global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance\">, PriorityOverlay<7> {\n" +
+            "  let priority = 9;\n" +
             "};";
 
         var record = TestHelpers.EvaluateSingleRecord(source);
 
-        Assert.Equal("Arith_SelectOp", record.Name);
+        Assert.Equal("Example", record.Name);
         Assert.Equal("select", Assert.IsType<StringValue>(record.GetField("mnemonic")).Value);
-        Assert.Equal("assembly", Assert.IsType<StringValue>(record.GetField("kind")).Value);
         Assert.Equal("global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance", Assert.IsType<StringValue>(record.GetField("csharpAsmFormatCode")).Value);
+        Assert.Equal(9, Assert.IsType<IntegerValue>(record.GetField("priority")).Value);
     }
 
     [Fact]
     public void ReportsDuplicateFieldsAcrossExtendsDeclarations()
     {
         const string source =
-            "class MLIRNet_OpExtension {\n" +
+            "class OverlayA {\n" +
             "  string csharpAsmFormatCode = ?;\n" +
             "};\n" +
             "def Example {\n" +
             "  string mnemonic = \"demo\";\n" +
             "};\n" +
-            "extends Example : MLIRNet_OpExtension {\n" +
+            "extends Example : OverlayA {\n" +
             "  let csharpAsmFormatCode = \"first\";\n" +
             "};\n" +
-            "extends Example : MLIRNet_OpExtension {\n" +
+            "extends Example : OverlayA {\n" +
             "  let csharpAsmFormatCode = \"second\";\n" +
             "};";
 
@@ -78,17 +80,37 @@ public sealed class EvaluationTests
     public void ReportsFieldsThatAreNotDeclaredByTheExtensionSchema()
     {
         const string source =
-            "class MLIRNet_OpExtension {\n" +
+            "class OverlayA {\n" +
             "  string csharpAsmFormatCode = ?;\n" +
             "};\n" +
             "def Example;\n" +
-            "extends Example : MLIRNet_OpExtension {\n" +
+            "extends Example : OverlayA {\n" +
             "  let notARealField = \"oops\";\n" +
             "};";
 
         var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
 
-        Assert.Contains("not declared by extension schema 'MLIRNet_OpExtension'", exception.Message);
+        Assert.Contains("not declared by any extension schema base", exception.Message);
+    }
+
+    [Fact]
+    public void ReportsDuplicateFieldsAcrossMultipleSchemaBases()
+    {
+        const string source =
+            "class OverlayA {\n" +
+            "  string common = \"a\";\n" +
+            "};\n" +
+            "class OverlayB {\n" +
+            "  string common = \"b\";\n" +
+            "};\n" +
+            "def Example;\n" +
+            "extends Example : OverlayA, OverlayB {\n" +
+            "  let common = \"value\";\n" +
+            "};";
+
+        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
+
+        Assert.Contains("defined by more than one base class", exception.Message);
     }
 
     [Fact]

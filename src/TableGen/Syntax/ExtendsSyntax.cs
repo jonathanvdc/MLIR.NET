@@ -7,7 +7,7 @@ using System.Collections.Generic;
 /// </summary>
 public sealed class ExtendsSyntax(
     string targetName,
-    string baseClassName,
+    IReadOnlyList<BaseSyntax> bases,
     IReadOnlyList<LetSyntax> topLevelLets,
     IReadOnlyList<LetSyntax> bodyLets) : TopLevelSyntax
 {
@@ -17,9 +17,9 @@ public sealed class ExtendsSyntax(
     public string TargetName { get; } = targetName;
 
     /// <summary>
-    /// Gets the schema class used to validate and materialize the overlay.
+    /// Gets the schema classes used to validate and materialize the overlay.
     /// </summary>
-    public string BaseClassName { get; } = baseClassName;
+    public IReadOnlyList<BaseSyntax> Bases { get; } = bases;
 
     /// <summary>
     /// Gets top-level <c>let ... in</c> bindings lexically applied to this overlay.

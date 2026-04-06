@@ -174,14 +174,14 @@ internal sealed class Parser
         Expect(TokenKind.Identifier, "Expected 'extends'.");
         var targetName = ExpectName("Expected a target record name after 'extends'.").Text;
         Expect(TokenKind.Colon, "Expected ':' after the target record name.");
-        var baseClassName = ExpectName("Expected a schema class name after ':'.").Text;
+        var bases = ParseExtendsBases();
         var lets = ParseOptionalExtendsBody();
         if (!lets.hadBraces || Is(TokenKind.Semicolon))
         {
             Expect(TokenKind.Semicolon, "Expected ';' after the extends declaration.");
         }
 
-        return new ExtendsSyntax(targetName, baseClassName, topLevelLets, lets.items);
+        return new ExtendsSyntax(targetName, bases, topLevelLets, lets.items);
     }
 
     /// <summary>
@@ -315,6 +315,23 @@ internal sealed class Parser
         }
 
         return (true, items);
+    }
+
+    /// <summary>
+    /// Parses the schema base list after the colon in an <c>extends</c> declaration.
+    /// </summary>
+    /// <returns>The parsed schema bases.</returns>
+    private IReadOnlyList<BaseSyntax> ParseExtendsBases()
+    {
+        var bases = new List<BaseSyntax>();
+        do
+        {
+            var name = ExpectName("Expected a schema class name after ':'.").Text;
+            bases.Add(new BaseSyntax(name, ParseOptionalArgumentList()));
+        }
+        while (TryMatch(TokenKind.Comma) && !Is(TokenKind.LBrace) && !Is(TokenKind.Semicolon));
+
+        return bases;
     }
 
     /// <summary>

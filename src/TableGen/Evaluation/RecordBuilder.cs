@@ -228,27 +228,44 @@ internal sealed class RecordBuilder
             return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen record '{extension.TargetName}'."));
         }
 
-        if (!context.Classes.TryGetValue(extension.BaseClassName, out var schemaClass))
-        {
-            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{extension.BaseClassName}'."));
-        }
-
-        var schemaState = InstantiatePendingClass(schemaClass, [], Scope.Empty);
-        if (!schemaState.IsSuccess)
-        {
-            return EvaluationResult<bool>.Failure(schemaState.Diagnostic!);
-        }
-
+        var schemaState = new PendingRecordState();
         var allowedFields = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var pair in schemaState.Value.Fields)
+        if (extension.Bases.Count == 0)
         {
-            allowedFields.Add(pair.Key);
+            return EvaluationResult<bool>.Failure(
+                InvalidOperation($"Extension '{extension.TargetName}' must specify at least one schema base."));
+        }
+
+        foreach (var baseSpec in extension.Bases)
+        {
+            if (!context.Classes.TryGetValue(baseSpec.Name, out var schemaClass))
+            {
+                return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{baseSpec.Name}'."));
+            }
+
+            var instantiatedSchema = InstantiatePendingClass(schemaClass, baseSpec.Arguments, Scope.Empty);
+            if (!instantiatedSchema.IsSuccess)
+            {
+                return EvaluationResult<bool>.Failure(instantiatedSchema.Diagnostic!);
+            }
+
+            foreach (var pair in instantiatedSchema.Value.Fields)
+            {
+                if (!allowedFields.Add(pair.Key))
+                {
+                    return EvaluationResult<bool>.Failure(
+                        InvalidOperation(
+                            $"Extension schema field '{pair.Key}' is defined by more than one base class."));
+                }
+            }
+
+            schemaState.Import(instantiatedSchema.Value);
         }
 
         var seenFields = new HashSet<string>(StringComparer.Ordinal);
         foreach (var let in extension.TopLevelLets)
         {
-            if (!schemaState.Value.TryGetField(let.Name, out var existingField) || !existingField.IsInherited)
+            if (!schemaState.TryGetField(let.Name, out var existingField) || !existingField.IsInherited)
             {
                 continue;
             }
@@ -260,7 +277,7 @@ internal sealed class RecordBuilder
                         $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
             }
 
-            schemaState.Value.ApplyTopLevelLet(let, Scope.Empty);
+            schemaState.ApplyTopLevelLet(let, Scope.Empty);
         }
 
         foreach (var let in extension.BodyLets)
@@ -269,7 +286,7 @@ internal sealed class RecordBuilder
             {
                 return EvaluationResult<bool>.Failure(
                     InvalidOperation(
-                        $"Field '{let.Name}' is not declared by extension schema '{extension.BaseClassName}'."));
+                        $"Field '{let.Name}' is not declared by any extension schema base."));
             }
 
             if (!seenFields.Add(let.Name))
@@ -279,10 +296,10 @@ internal sealed class RecordBuilder
                         $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
             }
 
-            schemaState.Value.ApplyLet(let, Scope.Empty);
+            schemaState.ApplyLet(let, Scope.Empty);
         }
 
-        var resolved = ResolveFields(schemaState.Value);
+        var resolved = ResolveFields(schemaState);
         if (!resolved.IsSuccess)
         {
             return EvaluationResult<bool>.Failure(resolved.Diagnostic!);
