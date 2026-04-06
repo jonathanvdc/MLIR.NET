@@ -85,9 +85,10 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
     {
         var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
 
-        Assert.Contains("public IReadOnlyDictionary<string, Operation> Symbols", source);
-        Assert.Contains("var result = new Dictionary<string, Operation>();", source);
-        Assert.Contains("Attributes.TryGet(\"sym_name\",", source);
+        Assert.Contains("private Dictionary<string, Operation>? _symbolCache;", source);
+        Assert.Contains("public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();", source);
+        Assert.Contains("private Dictionary<string, Operation> GetOrBuildSymbolCache()", source);
+        Assert.Contains("_symbolCache = cache;", source);
     }
 
     [Fact]
@@ -97,9 +98,17 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
 
         Assert.Contains("[return: global::System.Diagnostics.CodeAnalysis.MaybeNull]", source);
         Assert.Contains("public override TSymbol GetSymbol<TSymbol>(string name)", source);
-        Assert.Contains("if (op is TSymbol typedOp", source);
-        Assert.Contains("return typedOp;", source);
-        Assert.Contains("return null;", source);
+        Assert.Contains("GetOrBuildSymbolCache().TryGetValue(name, out var op)", source);
+    }
+
+    [Fact]
+    public void GeneratesInvalidateSyntaxOverrideForSymbolTableOp()
+    {
+        var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
+
+        Assert.Contains("public override void InvalidateSyntax()", source);
+        Assert.Contains("_symbolCache = null;", source);
+        Assert.Contains("base.InvalidateSyntax();", source);
     }
 
     [Fact]
@@ -108,6 +117,7 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         var source = GenerateMyDialectRegistrationSource(SymbolTableOnlyOpLines);
 
         Assert.Contains("ODS <c>SymbolTable</c> trait", source);
+        Assert.Contains("built lazily and cached", source);
     }
 
     [Fact]
@@ -127,8 +137,9 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         var source = GenerateMyDialectRegistrationSource(SymbolAndSymbolTableOpLines);
 
         Assert.Contains("public string? SymbolName", source);
-        Assert.Contains("public IReadOnlyDictionary<string, Operation> Symbols", source);
+        Assert.Contains("public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();", source);
         Assert.Contains("public override TSymbol GetSymbol<TSymbol>(string name)", source);
+        Assert.Contains("public override void InvalidateSyntax()", source);
     }
 
     [Fact]

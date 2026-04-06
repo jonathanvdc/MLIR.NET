@@ -192,8 +192,8 @@ internal static class OperationPropertyEmitter
 
     /// <summary>
     /// Emits <c>SymbolName</c> for operations with the ODS <c>Symbol</c> trait, and emits
-    /// <c>Symbols</c> plus a <c>GetSymbol</c> override for operations with the ODS <c>SymbolTable</c>
-    /// trait.
+    /// <c>Symbols</c>, a typed <c>GetSymbol</c> override, and <c>InvalidateSyntax</c> override
+    /// backed by a lazily-built O(1) dictionary for operations with the ODS <c>SymbolTable</c> trait.
     /// </summary>
     private static void EmitSymbolProperties(StringBuilder builder, OperationModel operation)
     {
@@ -221,36 +221,22 @@ internal static class OperationPropertyEmitter
 
         if (hasSymbolTable)
         {
-            // Symbols: a dictionary of immediately contained symbols keyed by sym_name.
+            // Backing field for the lazily-built symbol cache.
+            // Null means the cache has not been built yet or has been invalidated.
+            builder.AppendLine("    private Dictionary<string, Operation>? _symbolCache;");
+            builder.AppendLine();
+
+            // Symbols: O(1) access via the cache.
             builder.AppendLine("    /// <summary>Gets a read-only dictionary of symbols immediately contained in this operation's first region, keyed by their symbol name.</summary>");
             builder.AppendLine("    /// <remarks>");
             builder.AppendLine("    /// This property is generated because this operation has the ODS <c>SymbolTable</c> trait.");
-            builder.AppendLine("    /// The dictionary is rebuilt on every access from the immediate region contents; no deep traversal is performed.");
+            builder.AppendLine("    /// The dictionary is built lazily and cached; it is invalidated whenever the region contents change.");
+            builder.AppendLine("    /// No deep traversal is performed: only direct children of the first region are indexed.");
             builder.AppendLine("    /// </remarks>");
-            builder.AppendLine("    public IReadOnlyDictionary<string, Operation> Symbols");
-            builder.AppendLine("    {");
-            builder.AppendLine("        get");
-            builder.AppendLine("        {");
-            builder.AppendLine("            var result = new Dictionary<string, Operation>();");
-            builder.AppendLine("            if (base.Regions.Count > 0)");
-            builder.AppendLine("            {");
-            builder.AppendLine("                foreach (var block in base.Regions[0].Blocks)");
-            builder.AppendLine("                {");
-            builder.AppendLine("                    foreach (var op in block.Operations)");
-            builder.AppendLine("                    {");
-            builder.AppendLine("                        if (op.Attributes.TryGet(\"sym_name\", out var attr) && attr.Value is StringAttributeValue sv)");
-            builder.AppendLine("                        {");
-            builder.AppendLine("                            result[sv.Value] = op;");
-            builder.AppendLine("                        }");
-            builder.AppendLine("                    }");
-            builder.AppendLine("                }");
-            builder.AppendLine("            }");
-            builder.AppendLine("            return result;");
-            builder.AppendLine("        }");
-            builder.AppendLine("    }");
+            builder.AppendLine("    public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();");
             builder.AppendLine();
 
-            // GetSymbol<TSymbol> override for typed lookup.
+            // GetSymbol<TSymbol> override: O(1) lookup via the cache.
             builder.AppendLine("    /// <summary>Returns the symbol with the given name directly defined in this operation's first region, or null if not found.</summary>");
             builder.AppendLine("    /// <typeparam name=\"TSymbol\">The expected type of the symbol operation.</typeparam>");
             builder.AppendLine("    /// <param name=\"name\">The symbol name (without the leading <c>@</c>).</param>");
@@ -258,23 +244,43 @@ internal static class OperationPropertyEmitter
             builder.AppendLine("    [return: global::System.Diagnostics.CodeAnalysis.MaybeNull]");
             builder.AppendLine("    public override TSymbol GetSymbol<TSymbol>(string name)");
             builder.AppendLine("    {");
+            builder.AppendLine("        return GetOrBuildSymbolCache().TryGetValue(name, out var op) && op is TSymbol typedOp ? typedOp : null;");
+            builder.AppendLine("    }");
+            builder.AppendLine();
+
+            // InvalidateSyntax override: clears the cached dictionary, then propagates.
+            builder.AppendLine("    /// <summary>Clears the cached symbol dictionary and propagates the invalidation to ancestor nodes.</summary>");
+            builder.AppendLine("    /// <remarks>This override is generated because this operation has the ODS <c>SymbolTable</c> trait.</remarks>");
+            builder.AppendLine("    public override void InvalidateSyntax()");
+            builder.AppendLine("    {");
+            builder.AppendLine("        _symbolCache = null;");
+            builder.AppendLine("        base.InvalidateSyntax();");
+            builder.AppendLine("    }");
+            builder.AppendLine();
+
+            // Private helper: builds the cache from the first region's immediate contents.
+            builder.AppendLine("    private Dictionary<string, Operation> GetOrBuildSymbolCache()");
+            builder.AppendLine("    {");
+            builder.AppendLine("        if (_symbolCache != null)");
+            builder.AppendLine("        {");
+            builder.AppendLine("            return _symbolCache;");
+            builder.AppendLine("        }");
+            builder.AppendLine("        var cache = new Dictionary<string, Operation>();");
             builder.AppendLine("        if (base.Regions.Count > 0)");
             builder.AppendLine("        {");
             builder.AppendLine("            foreach (var block in base.Regions[0].Blocks)");
             builder.AppendLine("            {");
             builder.AppendLine("                foreach (var op in block.Operations)");
             builder.AppendLine("                {");
-            builder.AppendLine("                    if (op is TSymbol typedOp");
-            builder.AppendLine("                        && op.Attributes.TryGet(\"sym_name\", out var attr)");
-            builder.AppendLine("                        && attr.Value is StringAttributeValue sv");
-            builder.AppendLine("                        && string.Equals(sv.Value, name, global::System.StringComparison.Ordinal))");
+            builder.AppendLine("                    if (op.Attributes.TryGet(\"sym_name\", out var attr) && attr.Value is StringAttributeValue sv)");
             builder.AppendLine("                    {");
-            builder.AppendLine("                        return typedOp;");
+            builder.AppendLine("                        cache[sv.Value] = op;");
             builder.AppendLine("                    }");
             builder.AppendLine("                }");
             builder.AppendLine("            }");
             builder.AppendLine("        }");
-            builder.AppendLine("        return null;");
+            builder.AppendLine("        _symbolCache = cache;");
+            builder.AppendLine("        return cache;");
             builder.AppendLine("    }");
             builder.AppendLine();
         }

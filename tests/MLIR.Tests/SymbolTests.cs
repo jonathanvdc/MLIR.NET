@@ -44,12 +44,14 @@ public sealed class SymbolTests
     }
 
     /// <summary>
-    /// An operation that acts as a symbol table: it overrides <see cref="GetSymbol{TSymbol}"/>
-    /// to search its first region's immediate operations for a matching <c>sym_name</c>.
+    /// An operation that acts as a symbol table: it maintains a lazy O(1) dictionary cache that
+    /// is invalidated via <see cref="InvalidateSyntax()"/> whenever child nodes change.
     /// This mirrors what the code generator emits for operations with the <c>SymbolTable</c> ODS trait.
     /// </summary>
     private sealed class TestSymbolTableOp : Operation
     {
+        private Dictionary<string, Operation>? _symbolCache;
+
         public TestSymbolTableOp(Region region)
             : base(null, [region])
         {
@@ -59,27 +61,44 @@ public sealed class SymbolTests
 
         public override OperationDefinition? Definition => null;
 
+        public IReadOnlyDictionary<string, Operation> Symbols => GetOrBuildSymbolCache();
+
         [return: MaybeNull]
         public override TSymbol GetSymbol<TSymbol>(string name)
         {
+            return GetOrBuildSymbolCache().TryGetValue(name, out var op) && op is TSymbol typedOp ? typedOp : null;
+        }
+
+        public override void InvalidateSyntax()
+        {
+            _symbolCache = null;
+            base.InvalidateSyntax();
+        }
+
+        private Dictionary<string, Operation> GetOrBuildSymbolCache()
+        {
+            if (_symbolCache != null)
+            {
+                return _symbolCache;
+            }
+
+            var cache = new Dictionary<string, Operation>();
             if (base.Regions.Count > 0)
             {
                 foreach (var block in base.Regions[0].Blocks)
                 {
                     foreach (var op in block.Operations)
                     {
-                        if (op is TSymbol typedOp
-                            && op.Attributes.TryGet("sym_name", out var attr)
-                            && attr.Value is StringAttributeValue sv
-                            && string.Equals(sv.Value, name, System.StringComparison.Ordinal))
+                        if (op.Attributes.TryGet("sym_name", out var attr) && attr.Value is StringAttributeValue sv)
                         {
-                            return typedOp;
+                            cache[sv.Value] = op;
                         }
                     }
                 }
             }
 
-            return null;
+            _symbolCache = cache;
+            return cache;
         }
     }
 
@@ -312,5 +331,60 @@ public sealed class SymbolTests
         Assert.True(op.Attributes.TryGet("sym_name", out var attr));
         var sv = Assert.IsAssignableFrom<StringAttributeValue>(attr.Value);
         Assert.Equal("main", sv.Value);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Cache invalidation tests
+    // ---------------------------------------------------------------------------
+
+    [Fact]
+    public void SymbolCacheIsInvalidatedWhenNewOperationIsAdded()
+    {
+        // Prime the cache.
+        var (outerModule, _, _, _, _) = BuildAst();
+        Assert.Null(outerModule.GetSymbol<TestSymbolOp>("baz"));
+
+        // Add a new symbol op to the first block.
+        var bazOp = new TestSymbolOp("baz");
+        outerModule.Regions[0].Blocks[0].AddOperation(bazOp);
+
+        // Cache should have been invalidated; the new symbol must now be found.
+        var found = outerModule.GetSymbol<TestSymbolOp>("baz");
+        Assert.Same(bazOp, found);
+    }
+
+    [Fact]
+    public void SymbolCacheReturnsStaleDataBeforeInvalidation()
+    {
+        // Prime the cache by accessing Symbols.
+        var (outerModule, _, _, barOp, _) = BuildAst();
+        var initialCount = outerModule.Symbols.Count;
+        Assert.Same(barOp, outerModule.GetSymbol<TestSymbolOp>("bar"));
+
+        // Access again to confirm the cache is reused (same content).
+        Assert.Equal(initialCount, outerModule.Symbols.Count);
+        Assert.Same(barOp, outerModule.GetSymbol<TestSymbolOp>("bar"));
+    }
+
+    [Fact]
+    public void SymbolCacheIsInvalidatedWhenRegionContentsChangeThroughNestedBlock()
+    {
+        // Build a module with an inner block, prime the cache, then add a new op to a new block.
+        var fooOp = new TestSymbolOp("foo");
+        var block1 = new Block("^bb0", [], [fooOp]);
+        var region = new Region(null, [block1]);
+        var mod = new TestSymbolTableOp(region);
+
+        // Prime the cache.
+        Assert.Same(fooOp, mod.GetSymbol<TestSymbolOp>("foo"));
+        Assert.Null(mod.GetSymbol<TestSymbolOp>("bar"));
+
+        // Add a new block with a new symbol op.
+        var barOp = new TestSymbolOp("bar");
+        var block2 = new Block("^bb1", [], [barOp]);
+        region.AddBlock(block2);
+
+        // The cache must have been invalidated.
+        Assert.Same(barOp, mod.GetSymbol<TestSymbolOp>("bar"));
     }
 }

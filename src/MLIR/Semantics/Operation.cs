@@ -293,7 +293,12 @@ public abstract class Operation
     /// <summary>
     /// Invalidates any cached syntax for this operation and its ancestors.
     /// </summary>
-    public void InvalidateSyntax()
+    /// <remarks>
+    /// Derived classes that maintain additional caches (such as a symbol table index) should
+    /// override this method to clear those caches, then call <c>base.InvalidateSyntax()</c>
+    /// to continue propagation up the ancestor chain.
+    /// </remarks>
+    public virtual void InvalidateSyntax()
     {
         Syntax = null;
         ParentBlock?.InvalidateSyntax();
