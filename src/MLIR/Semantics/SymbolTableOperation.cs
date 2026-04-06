@@ -29,7 +29,13 @@ using MLIR.Semantics.Attributes.Primitives;
 /// </remarks>
 public abstract class SymbolTableOperation : Operation
 {
-    private Dictionary<string, Operation>? symbolCache;
+    /// <summary>
+    /// The name of the MLIR attribute that holds a symbol's name. Used as a fallback for
+    /// operations that do not implement <see cref="ISymbolOp"/>.
+    /// </summary>
+    internal const string SymNameAttributeName = "sym_name";
+
+    private Dictionary<string, Operation>? _symbolCache;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SymbolTableOperation"/> class.
@@ -64,7 +70,7 @@ public abstract class SymbolTableOperation : Operation
     /// </remarks>
     public override void InvalidateSyntax()
     {
-        symbolCache = null;
+        _symbolCache = null;
         base.InvalidateSyntax();
     }
 
@@ -81,9 +87,9 @@ public abstract class SymbolTableOperation : Operation
     /// </summary>
     private Dictionary<string, Operation> GetOrBuildSymbolCache()
     {
-        if (symbolCache != null)
+        if (_symbolCache != null)
         {
-            return symbolCache;
+            return _symbolCache;
         }
 
         var cache = new Dictionary<string, Operation>();
@@ -100,7 +106,7 @@ public abstract class SymbolTableOperation : Operation
                     {
                         symName = symbolOp.SymbolName;
                     }
-                    else if (op.Attributes.TryGet("sym_name", out var attr) && attr.Value is StringAttributeValue sv)
+                    else if (op.Attributes.TryGet(SymNameAttributeName, out var attr) && attr.Value is StringAttributeValue sv)
                     {
                         symName = sv.Value;
                     }
@@ -117,7 +123,7 @@ public abstract class SymbolTableOperation : Operation
             }
         }
 
-        symbolCache = cache;
+        _symbolCache = cache;
         return cache;
     }
 }

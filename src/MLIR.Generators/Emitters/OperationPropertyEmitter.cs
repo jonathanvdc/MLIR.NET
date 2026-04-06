@@ -193,7 +193,7 @@ internal static class OperationPropertyEmitter
     /// <summary>
     /// Emits <c>SymbolName</c> for operations with the ODS <c>Symbol</c> trait.
     /// Operations with the <c>SymbolTable</c> trait inherit all symbol-table logic from
-    /// <see cref="SymbolTableOperation"/> and require no additional property emission here.
+    /// <c>SymbolTableOperation</c> and require no additional property emission here.
     /// </summary>
     private static void EmitSymbolProperties(StringBuilder builder, OperationModel operation)
     {
