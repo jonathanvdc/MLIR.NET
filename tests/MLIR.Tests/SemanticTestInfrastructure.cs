@@ -370,12 +370,9 @@ public sealed partial class SemanticTests
 
     private sealed class BuiltinIntegerTypeSyntax : TypeSyntax
     {
-        private readonly RawSyntaxText rawText;
-
         public BuiltinIntegerTypeSyntax(SyntaxToken nameToken)
         {
             NameToken = nameToken;
-            rawText = new RawSyntaxText([nameToken]);
         }
 
         public SyntaxToken NameToken { get; }
@@ -390,12 +387,9 @@ public sealed partial class SemanticTests
 
     private sealed class IntegerLiteralAttributeSyntax : AttributeValueSyntax
     {
-        private readonly RawSyntaxText rawText;
-
         public IntegerLiteralAttributeSyntax(SyntaxToken literalToken)
         {
             LiteralToken = literalToken;
-            rawText = new RawSyntaxText([literalToken]);
         }
 
         public SyntaxToken LiteralToken { get; }
