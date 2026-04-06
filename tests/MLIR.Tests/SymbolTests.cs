@@ -39,7 +39,7 @@ public sealed class SymbolTests
         public string? SymbolName
         {
             get => Attributes.TryGet("sym_name", out var attr) && attr.Value is StringAttributeValue sv ? sv.Value : null;
-            set => SetAttribute("sym_name", value != null ? new NamedAttribute("sym_name", new SyntheticStringAttributeValue(value)) : null);
+            set => SetAttribute("sym_name", value != null ? new SyntheticStringAttributeValue(value) : null);
         }
 
         private static NamedAttributeCollection CreateAttributes(string symbolName)
@@ -94,7 +94,7 @@ public sealed class SymbolTests
         var leafSymbol = new TestSymbolOp("leaf");
 
         // Give innerModule a sym_name so it can be resolved by nested refs
-        innerModule.SetAttribute("sym_name", new NamedAttribute("sym_name", new SyntheticStringAttributeValue("inner")));
+        innerModule.SetAttribute("sym_name", new SyntheticStringAttributeValue("inner"));
 
         var outerBlock = new Block("^bb0", [], [innerModule, barOp, leafSymbol]);
         var outerRegion = new Region(null, [outerBlock]);
