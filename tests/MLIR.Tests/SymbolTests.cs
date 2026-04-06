@@ -185,12 +185,11 @@ public sealed class SymbolTests
     [Fact]
     public void LookupSymbolFindsSymbolInGrandparentSymbolTable()
     {
-        var (_, _, fooOp, _, _) = BuildAst();
+        var (_, _, fooOp, barOp, _) = BuildAst();
 
         // fooOp is inside innerModule. Looking up "bar" should reach outerModule.
         var found = fooOp.LookupSymbol<TestSymbolOp>("bar");
-        Assert.Same(found, found);
-        Assert.NotNull(found);
+        Assert.Same(barOp, found);
     }
 
     [Fact]
