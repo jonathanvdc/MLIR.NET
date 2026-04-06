@@ -41,7 +41,7 @@ public sealed class ParsingTests
             "let Prefix = \"arith\" in\n" +
             "extends Arith_SelectOp : MLIRNet_OpExtension, OtherOverlay<1, \"x\"> {\n" +
             "  let csharpAsmFormatCode = Prefix # \".select\";\n" +
-            "};";
+            "}";
 
         var document = Document.Parse(source);
         var extends = Assert.IsType<ExtendsSyntax>(document.Syntax.Declarations[0]);

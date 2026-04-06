@@ -5,6 +5,6 @@ include "mlir/Extensions/IR/MLIRNetExtensions.td"
 
 extends FuncOp : MLIRNet_OpExtension {
   let csharpAsmFormatCode = "global::MLIR.Dialects.Extensions.FuncOperationAssemblyFormat.Instance";
-};
+}
 
 #endif // FUNC_OPS_EXTENSIONS_TD

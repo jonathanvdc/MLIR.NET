@@ -44,7 +44,7 @@ public sealed class EvaluationTests
             "};\n" +
             "extends Example : AssemblyOverlay<\"global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance\">, PriorityOverlay<7> {\n" +
             "  let priority = 9;\n" +
-            "};";
+            "}";
 
         var record = TestHelpers.EvaluateSingleRecord(source);
 
@@ -66,10 +66,10 @@ public sealed class EvaluationTests
             "};\n" +
             "extends Example : OverlayA {\n" +
             "  let csharpAsmFormatCode = \"first\";\n" +
-            "};\n" +
+            "}\n" +
             "extends Example : OverlayA {\n" +
             "  let csharpAsmFormatCode = \"second\";\n" +
-            "};";
+            "}";
 
         var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
 
@@ -86,7 +86,7 @@ public sealed class EvaluationTests
             "def Example;\n" +
             "extends Example : OverlayA {\n" +
             "  let notARealField = \"oops\";\n" +
-            "};";
+            "}";
 
         var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
 
@@ -106,7 +106,7 @@ public sealed class EvaluationTests
             "def Example;\n" +
             "extends Example : OverlayA, OverlayB {\n" +
             "  let common = \"value\";\n" +
-            "};";
+            "}";
 
         var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
 

@@ -5,6 +5,6 @@ include "mlir/Extensions/IR/MLIRNetExtensions.td"
 
 extends SelectOp : MLIRNet_OpExtension {
   let csharpAsmFormatCode = "global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance";
-};
+}
 
 #endif // ARITH_OPS_EXTENSIONS_TD
