@@ -78,7 +78,7 @@ public sealed class OpSuccessor
         get
         {
             var token = LabelToken;
-            return token.HasValue ? SourceLocation.FromToken(token.Value) : SourceLocation.Unknown;
+            return token.HasValue ? token.Value.Location : SourceLocation.Unknown;
         }
     }
 }

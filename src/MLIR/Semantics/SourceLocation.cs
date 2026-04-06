@@ -34,16 +34,6 @@ public readonly struct SourceLocation
     public bool IsKnown => Line > 0 && Column > 0;
 
     /// <summary>
-    /// Creates a source location from a syntax token.
-    /// </summary>
-    /// <param name="token">The syntax token.</param>
-    /// <returns>The resulting source location.</returns>
-    public static SourceLocation FromToken(SyntaxToken token)
-    {
-        return token.HasSourceLocation ? new SourceLocation(token.Line, token.Column) : SourceLocation.Unknown;
-    }
-
-    /// <summary>
     /// Returns the source location as text.
     /// </summary>
     /// <returns>The formatted location text.</returns>

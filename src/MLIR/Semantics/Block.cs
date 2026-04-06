@@ -84,7 +84,7 @@ public sealed class Block
     /// <summary>
     /// Gets the source location of the block label, if known.
     /// </summary>
-    public SourceLocation Location => Syntax != null ? SourceLocation.FromToken(Syntax.LabelToken) : SourceLocation.Unknown;
+    public SourceLocation Location => Syntax != null ? Syntax.LabelToken.Location : SourceLocation.Unknown;
 
     /// <summary>
     /// Gets the uses of this block as a successor of an operation.

@@ -54,5 +54,5 @@ public sealed class NamedAttribute
     /// <summary>
     /// Gets the source location of the attribute name, if known.
     /// </summary>
-    public SourceLocation Location => Syntax != null ? SourceLocation.FromToken(Syntax.NameToken) : SourceLocation.Unknown;
+    public SourceLocation Location => Syntax != null ? Syntax.NameToken.Location : SourceLocation.Unknown;
 }

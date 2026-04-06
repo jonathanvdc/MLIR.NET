@@ -148,7 +148,7 @@ public sealed class OperationSyntax : SyntaxNode
     /// <summary>
     /// Gets the source location of the operation name.
     /// </summary>
-    public SourceLocation Location => SourceLocation.FromToken(NameToken);
+    public SourceLocation Location => NameToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)

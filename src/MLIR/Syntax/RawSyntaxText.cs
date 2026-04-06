@@ -77,7 +77,7 @@ public sealed class RawSyntaxText
     /// <summary>
     /// Gets the source location of the first token, if any tokens are present; otherwise, returns an unknown location.
     /// </summary>
-    public SourceLocation Location => Tokens.Count == 0 ? SourceLocation.Unknown : SourceLocation.FromToken(Tokens[0]);
+    public SourceLocation Location => Tokens.Count == 0 ? SourceLocation.Unknown : Tokens[0].Location;
 
     /// <summary>
     /// Returns the preserved syntax text.

@@ -35,7 +35,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
         if (resultList.Count != 0 || equalsToken.HasValue)
         {
             return ParseResult<OperationBodySyntax>.Failure(
-                new Diagnostic("func.func cannot have SSA results.", SourceLocation.FromToken(nameToken).Line, SourceLocation.FromToken(nameToken).Column));
+                new Diagnostic("func.func cannot have SSA results.", nameToken.Line, nameToken.Column));
         }
 
         SyntaxToken? visibilityToken = null;

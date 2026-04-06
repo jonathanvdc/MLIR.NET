@@ -165,7 +165,7 @@ public abstract class Operation
     /// <summary>
     /// Gets the source location of the operation name, if known.
     /// </summary>
-    public SourceLocation Location => Syntax != null ? SourceLocation.FromToken(Syntax.NameToken) : SourceLocation.Unknown;
+    public SourceLocation Location => Syntax != null ? Syntax.Location : SourceLocation.Unknown;
 
     /// <summary>
     /// Determines whether the operation has an attribute with the supplied name.

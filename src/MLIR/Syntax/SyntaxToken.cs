@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax;
 
 /// <summary>
@@ -44,6 +46,11 @@ public readonly struct SyntaxToken
     /// Gets a value indicating whether the token has source location information.
     /// </summary>
     public bool HasSourceLocation => Line > 0 && Column > 0;
+    
+    /// <summary>
+    /// Gets the source location of the token, if known.
+    /// </summary>
+    public SourceLocation Location => HasSourceLocation ? new SourceLocation(Line, Column) : SourceLocation.Unknown;
 
     /// <summary>
     /// Gets the complete token text including leading trivia.

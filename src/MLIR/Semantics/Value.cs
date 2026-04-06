@@ -48,7 +48,7 @@ public abstract class Value
     /// <summary>
     /// Gets the source location of the SSA value, if known.
     /// </summary>
-    public SourceLocation Location => Token.HasValue ? SourceLocation.FromToken(Token.Value) : SourceLocation.Unknown;
+    public SourceLocation Location => Token.HasValue ? Token.Value.Location : SourceLocation.Unknown;
 
     /// <summary>
     /// Gets the uses of this SSA value.
