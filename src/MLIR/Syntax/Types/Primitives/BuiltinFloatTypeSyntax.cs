@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Primitives;
 
 /// <summary>
@@ -16,11 +18,7 @@ public sealed class BuiltinFloatTypeSyntax(SyntaxToken nameToken) : TypeSyntax
     public string Name => NameToken.Text;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = new RawSyntaxText([NameToken]);
-        return true;
-    }
+    public override SourceLocation Location => NameToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

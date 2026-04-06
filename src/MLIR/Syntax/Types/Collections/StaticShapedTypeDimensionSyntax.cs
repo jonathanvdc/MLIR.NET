@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Collections;
 
 /// <summary>
@@ -16,11 +18,7 @@ public sealed class StaticShapedTypeDimensionSyntax(SyntaxToken sizeToken, long 
     public long Size { get; } = size;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = new RawSyntaxText([SizeToken]);
-        return true;
-    }
+    public override SourceLocation Location => SizeToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -1,6 +1,7 @@
 namespace MLIR.Syntax.Attributes.Primitives;
 
 using System.Numerics;
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -33,11 +34,7 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     public BigInteger Value { get; }
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = this.rawText;
-        return true;
-    }
+    public override SourceLocation Location => LiteralToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

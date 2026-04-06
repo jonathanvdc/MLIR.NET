@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes;
 
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -13,10 +14,7 @@ public sealed class TypeAttributeValueSyntax(TypeSyntax typeSyntax) : AttributeV
     public TypeSyntax TypeSyntax { get; } = typeSyntax;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        return TypeSyntax.TryGetRawText(out rawText);
-    }
+    public override SourceLocation Location => TypeSyntax.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Collections;
 
 /// <summary>
@@ -39,34 +41,7 @@ public sealed class MemRefTypeSyntax(
     public bool IsUnranked => UnrankedToken.HasValue;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        var parts = new List<object?> { KeywordToken, LessThanToken };
-        if (IsUnranked)
-        {
-            parts.Add(UnrankedToken);
-            parts.Add(XTokens[0]);
-        }
-        else
-        {
-            for (var i = 0; i < Dimensions.Count; i++)
-            {
-                parts.Add(Dimensions[i]);
-                parts.Add(XTokens[i]);
-            }
-        }
-
-        parts.Add(ElementType);
-        for (var i = 0; i < TrailingParameters.Count; i++)
-        {
-            parts.Add(TrailingCommaTokens[i]);
-            parts.Add(TrailingParameters[i]);
-        }
-
-        parts.Add(GreaterThanToken);
-        rawText = SyntaxTextComposer.Compose(parts.ToArray());
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Collections;
 
 /// <summary>
@@ -39,16 +41,7 @@ public sealed class TensorTypeSyntax(
     public bool IsUnranked => UnrankedToken.HasValue;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        var parts = new List<object?> { KeywordToken, LessThanToken };
-        AppendShapedPrefix(parts);
-        parts.Add(ElementType);
-        AppendTrailing(parts);
-        parts.Add(GreaterThanToken);
-        rawText = SyntaxTextComposer.Compose(parts.ToArray());
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

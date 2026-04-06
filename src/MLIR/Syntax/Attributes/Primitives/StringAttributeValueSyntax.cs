@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes.Primitives;
 
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -7,8 +8,6 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class StringAttributeValueSyntax : AttributeValueSyntax
 {
-    private readonly RawSyntaxText rawText;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="StringAttributeValueSyntax"/> class.
     /// </summary>
@@ -16,7 +15,6 @@ public sealed class StringAttributeValueSyntax : AttributeValueSyntax
     {
         LiteralToken = literalToken;
         Value = value;
-        rawText = new RawSyntaxText([literalToken]);
     }
 
     /// <summary>
@@ -30,11 +28,7 @@ public sealed class StringAttributeValueSyntax : AttributeValueSyntax
     public string Value { get; }
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = this.rawText;
-        return true;
-    }
+    public override SourceLocation Location => LiteralToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

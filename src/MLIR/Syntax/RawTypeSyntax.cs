@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax;
 
 /// <summary>
@@ -15,11 +17,7 @@ public sealed class RawTypeSyntax(RawSyntaxText rawText) : TypeSyntax
     public RawSyntaxText RawText { get; } = rawText;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = RawText;
-        return true;
-    }
+    public override SourceLocation Location => RawText.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -13,20 +13,7 @@ namespace MLIR.Syntax.Types.Collections;
 public abstract class ShapedTypeDimensionSyntax : SyntaxNode
 {
     /// <summary>
-    /// Attempts to project this dimension into preserved raw syntax text.
+    /// Gets the source location of this dimension syntax, if available.
     /// </summary>
-    public abstract bool TryGetRawText(out RawSyntaxText? rawText);
-
-    /// <summary>
-    /// Gets the preserved raw syntax text for this dimension.
-    /// </summary>
-    public RawSyntaxText GetRawText()
-    {
-        if (TryGetRawText(out var rawText))
-        {
-            return rawText!;
-        }
-
-        throw new InvalidOperationException("This shaped-type dimension does not provide a raw syntax-text projection.");
-    }
+    public abstract SourceLocation Location { get; }
 }

@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Collections;
 
 /// <summary>
@@ -11,11 +13,7 @@ public sealed class DynamicShapedTypeDimensionSyntax(SyntaxToken questionToken) 
     public SyntaxToken QuestionToken { get; } = questionToken;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = new RawSyntaxText([QuestionToken]);
-        return true;
-    }
+    public override SourceLocation Location => QuestionToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

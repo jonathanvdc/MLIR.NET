@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Collections;
 
 /// <summary>
@@ -36,11 +38,7 @@ public sealed class TupleTypeSyntax(
     public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = SyntaxTextComposer.Compose(KeywordToken, LessThanToken, Interleave(Elements, CommaTokens), GreaterThanToken);
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

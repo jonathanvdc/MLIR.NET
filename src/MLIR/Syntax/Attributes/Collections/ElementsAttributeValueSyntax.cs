@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes.Collections;
 
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -44,12 +45,7 @@ public sealed class ElementsAttributeValueSyntax(
     public TypeSyntax TypeSyntax { get; } = typeSyntax;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = new RawSyntaxText(
-            KeywordToken.Text + LessThanToken.Text + Payload.ToString() + GreaterThanToken.Text + " " + ColonToken.Text + " " + TypeSyntax.ToString());
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

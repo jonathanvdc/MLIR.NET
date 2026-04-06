@@ -245,8 +245,6 @@ public sealed partial class SemanticTests
 
     private sealed class DenseAttributeValueSyntax : AttributeValueSyntax
     {
-        private readonly RawSyntaxText rawText;
-
         public DenseAttributeValueSyntax(
             SyntaxToken hashToken,
             SyntaxToken nameToken,
@@ -263,21 +261,6 @@ public sealed partial class SemanticTests
             GreaterThanToken = greaterThanToken;
             ColonToken = colonToken;
             TypeSyntax = typeSyntax;
-
-            var tokens = new List<SyntaxToken> { hashToken, nameToken, lessThanToken };
-            tokens.AddRange(payload.Tokens);
-            tokens.Add(greaterThanToken);
-            if (colonToken.HasValue)
-            {
-                tokens.Add(colonToken.Value);
-            }
-
-            if (typeSyntax != null && typeSyntax.TryGetRawText(out var rawType))
-            {
-                tokens.AddRange(rawType!.Tokens);
-            }
-
-            rawText = new RawSyntaxText(tokens);
         }
 
         public SyntaxToken HashToken { get; }
@@ -294,15 +277,20 @@ public sealed partial class SemanticTests
 
         public TypeSyntax? TypeSyntax { get; }
 
-        public override bool TryGetRawText(out RawSyntaxText? rawText)
-        {
-            rawText = this.rawText;
-            return true;
-        }
+        public override SourceLocation Location => HashToken.Location;
 
         public override void WriteTo(SyntaxWriter writer)
         {
-            writer.WriteRaw(rawText);
+            writer.WriteToken(HashToken);
+            writer.WriteToken(NameToken);
+            writer.WriteToken(LessThanToken);
+            writer.WriteRaw(Payload);
+            writer.WriteToken(GreaterThanToken);
+            if (ColonToken.HasValue && TypeSyntax != null)
+            {
+                writer.WriteToken(ColonToken.Value, " ");
+                TypeSyntax.WriteTo(writer);
+            }
         }
     }
 
@@ -392,11 +380,7 @@ public sealed partial class SemanticTests
 
         public SyntaxToken NameToken { get; }
 
-        public override bool TryGetRawText(out RawSyntaxText? rawText)
-        {
-            rawText = this.rawText;
-            return true;
-        }
+        public override SourceLocation Location => NameToken.Location;
 
         public override void WriteTo(SyntaxWriter writer)
         {
@@ -416,11 +400,7 @@ public sealed partial class SemanticTests
 
         public SyntaxToken LiteralToken { get; }
 
-        public override bool TryGetRawText(out RawSyntaxText? rawText)
-        {
-            rawText = this.rawText;
-            return true;
-        }
+        public override SourceLocation Location => LiteralToken.Location;
 
         public override void WriteTo(SyntaxWriter writer)
         {

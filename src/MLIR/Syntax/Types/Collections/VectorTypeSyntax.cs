@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Collections;
 
 /// <summary>
@@ -25,20 +27,7 @@ public sealed class VectorTypeSyntax(
     public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        var parts = new List<object?> { KeywordToken, LessThanToken };
-        for (var i = 0; i < Dimensions.Count; i++)
-        {
-            parts.Add(Dimensions[i]);
-            parts.Add(XTokens[i]);
-        }
-
-        parts.Add(ElementType);
-        parts.Add(GreaterThanToken);
-        rawText = SyntaxTextComposer.Compose(parts.ToArray());
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes.Primitives;
 
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -24,11 +25,7 @@ public sealed class FloatingPointAttributeValueSyntax : AttributeValueSyntax
     public string LiteralText { get; }
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = this.rawText;
-        return true;
-    }
+    public override SourceLocation Location => rawText.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

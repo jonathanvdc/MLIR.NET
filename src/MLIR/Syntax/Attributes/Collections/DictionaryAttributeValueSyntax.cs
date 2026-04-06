@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes.Collections;
 
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -13,11 +14,7 @@ public sealed class DictionaryAttributeValueSyntax(DelimitedSyntaxList<NamedAttr
     public DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; } = attributes;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = new RawSyntaxText(BuildText());
-        return true;
-    }
+    public override SourceLocation Location => Attributes.OpenToken.HasValue ? Attributes.OpenToken.Value.Location : SourceLocation.Unknown;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes;
 
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -13,11 +14,7 @@ public sealed class OpaqueAttributeValueSyntax(RawSyntaxText rawText) : Attribut
     public RawSyntaxText RawText { get; } = rawText;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = RawText;
-        return true;
-    }
+    public override SourceLocation Location => RawText.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

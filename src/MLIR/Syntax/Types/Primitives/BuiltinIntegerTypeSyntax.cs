@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Primitives;
 
 /// <summary>
@@ -21,11 +23,7 @@ public sealed class BuiltinIntegerTypeSyntax(SyntaxToken nameToken, IntegerTypeS
     public int Width { get; } = width;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = new RawSyntaxText([NameToken]);
-        return true;
-    }
+    public override SourceLocation Location => NameToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Primitives;
 
 /// <summary>
@@ -11,11 +13,7 @@ public sealed class BuiltinIndexTypeSyntax(SyntaxToken keywordToken) : TypeSynta
     public SyntaxToken KeywordToken { get; } = keywordToken;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = new RawSyntaxText([KeywordToken]);
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax.Types.Collections;
 
 /// <summary>
@@ -35,18 +37,7 @@ public sealed class FunctionTypeSyntax(
     public bool HasDelimitedResults => ResultTypes.IsPresent;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = SyntaxTextComposer.Compose(
-            InputTypes.OpenToken,
-            Interleave(InputTypes.Items, InputTypes.SeparatorTokens),
-            InputTypes.CloseToken,
-            ArrowToken,
-            HasDelimitedResults
-                ? SyntaxTextComposer.Compose(ResultTypes.OpenToken, Interleave(ResultTypes.Items, ResultTypes.SeparatorTokens), ResultTypes.CloseToken)
-                : ResultType);
-        return true;
-    }
+    public override SourceLocation Location => InputTypes.OpenToken.HasValue ? InputTypes.OpenToken.Value.Location : SourceLocation.Unknown;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

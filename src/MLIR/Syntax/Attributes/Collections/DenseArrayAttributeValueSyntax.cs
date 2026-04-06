@@ -45,27 +45,7 @@ public sealed class DenseArrayAttributeValueSyntax(
     public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
 
     /// <inheritdoc/>
-    public override SourceLocation Location => KeywordToken.HasSourceLocation
-        ? new SourceLocation(KeywordToken.Line, KeywordToken.Column)
-        : SourceLocation.Unknown;
-
-    /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        var text = KeywordToken.Text + LessThanToken.Text + ElementTypeSyntax.ToString() + ColonToken.Text;
-        for (var i = 0; i < Items.Count; i++)
-        {
-            text += i == 0 ? " " : string.Empty;
-            text += Items[i].ToString();
-            if (i < Items.SeparatorTokens.Count)
-            {
-                text += Items.SeparatorTokens[i].Text + " ";
-            }
-        }
-
-        rawText = new RawSyntaxText(text + GreaterThanToken.Text);
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

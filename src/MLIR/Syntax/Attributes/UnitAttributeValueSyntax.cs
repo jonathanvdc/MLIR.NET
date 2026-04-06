@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes;
 
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -15,11 +16,7 @@ public sealed class UnitAttributeValueSyntax(SyntaxToken keywordToken) : Attribu
     public SyntaxToken KeywordToken { get; } = keywordToken;
 
     /// <inheritdoc/>
-    public override bool TryGetRawText(out RawSyntaxText? rawText)
-    {
-        rawText = this.rawText;
-        return true;
-    }
+    public override SourceLocation Location => KeywordToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

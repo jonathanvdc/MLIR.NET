@@ -13,36 +13,7 @@ namespace MLIR.Syntax;
 public abstract class AttributeValueSyntax : SyntaxNode
 {
     /// <summary>
-    /// Attempts to project this value into preserved raw syntax text.
-    /// </summary>
-    public abstract bool TryGetRawText(out RawSyntaxText? rawText);
-
-    /// <summary>
-    /// Gets the preserved raw syntax text for this value.
-    /// </summary>
-    public RawSyntaxText GetRawText()
-    {
-        if (TryGetRawText(out var rawText))
-        {
-            return rawText!;
-        }
-
-        throw new System.InvalidOperationException("This attribute value does not provide a raw syntax-text projection.");
-    }
-
-    /// <summary>
     /// Gets the source location of this attribute value, if known.
     /// </summary>
-    public virtual SourceLocation Location
-    {
-        get
-        {
-            if (TryGetRawText(out var rawText))
-            {
-                return rawText!.Location;
-            }
-
-            return SourceLocation.Unknown;
-        }
-    }
+    public abstract SourceLocation Location { get; }
 }
