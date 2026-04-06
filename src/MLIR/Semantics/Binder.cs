@@ -411,29 +411,14 @@ public sealed class Binder
             return expectedDefinition.AssemblyFormat.Bind(syntax, expectedDefinition, this);
         }
 
-        if (syntax.TryGetRawText(out var rawAttributeValueSyntax))
-        {
-            return BindAttributeValueCore(syntax, rawAttributeValueSyntax!, expectedDefinition);
-        }
-        else
-        {
-            return StructuredAttributeSemanticDecoder.DecodeValue(syntax);
-        }
+        return BindAttributeValueCore(syntax, expectedDefinition);
     }
 
-    /// <summary>
-    /// Binds an attribute value syntax tree to a semantic attribute value.
-    /// </summary>
-    /// <param name="syntax">The concrete syntax tree to bind.</param>
-    /// <returns>The semantic attribute value.</returns>
-    public AttributeValue BindAttributeValue(RawSyntaxText syntax)
+    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, AttributeConstraintDefinition? expectedDefinition)
     {
-        return BindAttributeValueCore(new RawAttributeValueSyntax(syntax), syntax, null);
-    }
-
-    private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, RawSyntaxText rawSyntax, AttributeConstraintDefinition? expectedDefinition)
-    {
-        var canonicalName = TryGetAttributeDefinitionName(rawSyntax.Text);
+        // TODO: don't just turn the syntax node back into text and reparse it; instead, take advantage
+        // of the fact that this only applies to custom attributes and grab the name directly from the syntax node.
+        var canonicalName = TryGetAttributeDefinitionName(syntaxNode.ToString());
         AttributeConstraintDefinition? definition = null;
         if (expectedDefinition != null)
         {
@@ -458,7 +443,7 @@ public sealed class Binder
         }
         else
         {
-            attribute = new UnknownAttributeValue(syntaxNode, canonicalName, definition, location);
+            attribute = StructuredAttributeSemanticDecoder.DecodeValue(syntaxNode);
         }
 
         return attribute;
