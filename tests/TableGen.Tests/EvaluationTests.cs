@@ -30,6 +30,68 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void EvaluatesExtendsOverlaysIntoTheTargetRecord()
+    {
+        const string source =
+            "class MLIRNet_OpExtension {\n" +
+            "  string csharpAsmFormatCode = ?;\n" +
+            "  string kind = \"assembly\";\n" +
+            "};\n" +
+            "def Arith_SelectOp {\n" +
+            "  string mnemonic = \"select\";\n" +
+            "};\n" +
+            "extends Arith_SelectOp : MLIRNet_OpExtension {\n" +
+            "  let csharpAsmFormatCode = \"global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance\";\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("Arith_SelectOp", record.Name);
+        Assert.Equal("select", Assert.IsType<StringValue>(record.GetField("mnemonic")).Value);
+        Assert.Equal("assembly", Assert.IsType<StringValue>(record.GetField("kind")).Value);
+        Assert.Equal("global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance", Assert.IsType<StringValue>(record.GetField("csharpAsmFormatCode")).Value);
+    }
+
+    [Fact]
+    public void ReportsDuplicateFieldsAcrossExtendsDeclarations()
+    {
+        const string source =
+            "class MLIRNet_OpExtension {\n" +
+            "  string csharpAsmFormatCode = ?;\n" +
+            "};\n" +
+            "def Example {\n" +
+            "  string mnemonic = \"demo\";\n" +
+            "};\n" +
+            "extends Example : MLIRNet_OpExtension {\n" +
+            "  let csharpAsmFormatCode = \"first\";\n" +
+            "};\n" +
+            "extends Example : MLIRNet_OpExtension {\n" +
+            "  let csharpAsmFormatCode = \"second\";\n" +
+            "};";
+
+        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
+
+        Assert.Contains("already defines field 'csharpAsmFormatCode'", exception.Message);
+    }
+
+    [Fact]
+    public void ReportsFieldsThatAreNotDeclaredByTheExtensionSchema()
+    {
+        const string source =
+            "class MLIRNet_OpExtension {\n" +
+            "  string csharpAsmFormatCode = ?;\n" +
+            "};\n" +
+            "def Example;\n" +
+            "extends Example : MLIRNet_OpExtension {\n" +
+            "  let notARealField = \"oops\";\n" +
+            "};";
+
+        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Evaluate());
+
+        Assert.Contains("not declared by extension schema 'MLIRNet_OpExtension'", exception.Message);
+    }
+
+    [Fact]
     public void EvaluatesListsAndNestedTemplateInstantiation()
     {
         const string source =

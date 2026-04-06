@@ -35,6 +35,25 @@ public sealed class ParsingTests
     }
 
     [Fact]
+    public void ParsesExtendsDeclarations()
+    {
+        const string source =
+            "let Prefix = \"arith\" in\n" +
+            "extends Arith_SelectOp : MLIRNet_OpExtension {\n" +
+            "  let csharpAsmFormatCode = Prefix # \".select\";\n" +
+            "};";
+
+        var document = Document.Parse(source);
+        var extends = Assert.IsType<ExtendsSyntax>(document.Syntax.Declarations[0]);
+
+        Assert.Equal("Arith_SelectOp", extends.TargetName);
+        Assert.Equal("MLIRNet_OpExtension", extends.BaseClassName);
+        Assert.Single(extends.TopLevelLets);
+        Assert.Single(extends.BodyLets);
+        Assert.Equal("csharpAsmFormatCode", extends.BodyLets[0].Name);
+    }
+
+    [Fact]
     public void ParsesNestedGenericTypeNames()
     {
         const string source =
@@ -133,9 +152,20 @@ public sealed class ParsingTests
     {
         var exception = Assert.Throws<ParseException>(() => Document.Parse("int Width = 1;"));
 
-        Assert.Contains("Expected 'class', 'def', 'defvar', or 'let'.", exception.Message);
+        Assert.Contains("Expected 'class', 'def', 'defvar', 'let', or 'extends'.", exception.Message);
         Assert.Equal(1, exception.Diagnostic.Line);
         Assert.Equal(1, exception.Diagnostic.Column);
+    }
+
+    [Fact]
+    public void TreatsExtendsAsAContextualKeyword()
+    {
+        const string source = "def extends { int Width = 1; };";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
+
+        Assert.Equal("extends", def.Name);
     }
 
     [Fact]

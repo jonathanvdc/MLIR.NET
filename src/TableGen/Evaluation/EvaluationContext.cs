@@ -21,6 +21,7 @@ internal sealed class EvaluationContext
             .ToDictionary(static c => c.Name, static c => c);
         Definitions = document.Declarations.OfType<DefSyntax>().ToList();
         DefinitionsByName = Definitions.ToDictionary(static definition => definition.Name, static definition => definition);
+        ExtendsDeclarations = document.Declarations.OfType<ExtendsSyntax>().ToList();
     }
 
     /// <summary>
@@ -42,6 +43,11 @@ internal sealed class EvaluationContext
     /// Gets the top-level record definitions keyed by record name.
     /// </summary>
     public IReadOnlyDictionary<string, DefSyntax> DefinitionsByName { get; }
+
+    /// <summary>
+    /// Gets the top-level overlay declarations in source order.
+    /// </summary>
+    public IReadOnlyList<ExtendsSyntax> ExtendsDeclarations { get; }
 
     /// <summary>
     /// Gets the already-evaluated values of top-level <c>defvar</c> declarations.

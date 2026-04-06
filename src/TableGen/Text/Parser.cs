@@ -119,7 +119,12 @@ internal sealed class Parser
             return [new DefVarSyntax(name, value)];
         }
 
-        throw Error("Expected 'class', 'def', 'defvar', or 'let'.");
+        if (Is(TokenKind.Identifier) && Current.Text == "extends")
+        {
+            return [ParseExtends(topLevelLets)];
+        }
+
+        throw Error("Expected 'class', 'def', 'defvar', 'let', or 'extends'.");
     }
 
     /// <summary>
@@ -157,6 +162,26 @@ internal sealed class Parser
         }
 
         return new DefSyntax(name, bases, topLevelLets, bodyItems);
+    }
+
+    /// <summary>
+    /// Parses an <c>extends</c> overlay declaration.
+    /// </summary>
+    /// <param name="topLevelLets">The top-level lets captured for this declaration.</param>
+    /// <returns>The parsed extends syntax node.</returns>
+    private ExtendsSyntax ParseExtends(IReadOnlyList<LetSyntax> topLevelLets)
+    {
+        Expect(TokenKind.Identifier, "Expected 'extends'.");
+        var targetName = ExpectName("Expected a target record name after 'extends'.").Text;
+        Expect(TokenKind.Colon, "Expected ':' after the target record name.");
+        var baseClassName = ExpectName("Expected a schema class name after ':'.").Text;
+        var lets = ParseOptionalExtendsBody();
+        if (!lets.hadBraces || Is(TokenKind.Semicolon))
+        {
+            Expect(TokenKind.Semicolon, "Expected ';' after the extends declaration.");
+        }
+
+        return new ExtendsSyntax(targetName, baseClassName, topLevelLets, lets.items);
     }
 
     /// <summary>
@@ -258,6 +283,35 @@ internal sealed class Parser
         while (!TryMatch(TokenKind.RBrace))
         {
             items.Add(ParseBodyItem());
+        }
+
+        return (true, items);
+    }
+
+    /// <summary>
+    /// Parses the body of an <c>extends</c> declaration, which only accepts <c>let</c> assignments.
+    /// </summary>
+    /// <returns>A tuple indicating whether braces were present and the parsed let bindings.</returns>
+    private (bool hadBraces, IReadOnlyList<LetSyntax> items) ParseOptionalExtendsBody()
+    {
+        var items = new List<LetSyntax>();
+        if (!TryMatch(TokenKind.LBrace))
+        {
+            return (false, items);
+        }
+
+        while (!TryMatch(TokenKind.RBrace))
+        {
+            if (!TryMatch(TokenKind.LetKeyword))
+            {
+                throw Error("Expected 'let' or '}' in an 'extends' body.");
+            }
+
+            var name = ExpectName("Expected a field name after 'let'.").Text;
+            Expect(TokenKind.Equal, "Expected '=' after the field name.");
+            var value = ParseExpression();
+            Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
+            items.Add(new LetSyntax(name, value));
         }
 
         return (true, items);

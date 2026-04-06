@@ -74,6 +74,15 @@ internal sealed class RecordBuilder
             records.Add(record.Value);
         }
 
+        foreach (var extension in context.ExtendsDeclarations)
+        {
+            var applied = ApplyExtension(extension);
+            if (!applied.IsSuccess)
+            {
+                return EvaluationResult<InterpretedDocument>.Failure(applied.Diagnostic!);
+            }
+        }
+
         return EvaluationResult<InterpretedDocument>.Success(new InterpretedDocument(records));
     }
 
@@ -200,6 +209,86 @@ internal sealed class RecordBuilder
 
         instantiatedClasses[cacheKey] = CloneFields(resolvedFields.Value);
         return EvaluationResult<Dictionary<string, Value>>.Success(CloneFields(resolvedFields.Value));
+    }
+
+    /// <summary>
+    /// Applies an <c>extends</c> overlay to the target record after both the target and overlay schema have been evaluated.
+    /// </summary>
+    /// <param name="extension">The parsed overlay declaration.</param>
+    /// <returns>A success flag or a diagnostic.</returns>
+    private EvaluationResult<bool> ApplyExtension(ExtendsSyntax extension)
+    {
+        if (!context.DefinitionsByName.TryGetValue(extension.TargetName, out var targetDefinition))
+        {
+            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen record '{extension.TargetName}'."));
+        }
+
+        if (!evaluatedDefinitions.TryGetValue(targetDefinition.Name, out var targetRecord))
+        {
+            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen record '{extension.TargetName}'."));
+        }
+
+        if (!context.Classes.TryGetValue(extension.BaseClassName, out var schemaClass))
+        {
+            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{extension.BaseClassName}'."));
+        }
+
+        var schemaState = InstantiatePendingClass(schemaClass, [], Scope.Empty);
+        if (!schemaState.IsSuccess)
+        {
+            return EvaluationResult<bool>.Failure(schemaState.Diagnostic!);
+        }
+
+        var allowedFields = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var pair in schemaState.Value.Fields)
+        {
+            allowedFields.Add(pair.Key);
+        }
+
+        var seenFields = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var let in extension.TopLevelLets)
+        {
+            if (!schemaState.Value.TryGetField(let.Name, out var existingField) || !existingField.IsInherited)
+            {
+                continue;
+            }
+
+            if (!seenFields.Add(let.Name))
+            {
+                return EvaluationResult<bool>.Failure(
+                    InvalidOperation(
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+            }
+
+            schemaState.Value.ApplyTopLevelLet(let, Scope.Empty);
+        }
+
+        foreach (var let in extension.BodyLets)
+        {
+            if (!allowedFields.Contains(let.Name))
+            {
+                return EvaluationResult<bool>.Failure(
+                    InvalidOperation(
+                        $"Field '{let.Name}' is not declared by extension schema '{extension.BaseClassName}'."));
+            }
+
+            if (!seenFields.Add(let.Name))
+            {
+                return EvaluationResult<bool>.Failure(
+                    InvalidOperation(
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+            }
+
+            schemaState.Value.ApplyLet(let, Scope.Empty);
+        }
+
+        var resolved = ResolveFields(schemaState.Value);
+        if (!resolved.IsSuccess)
+        {
+            return EvaluationResult<bool>.Failure(resolved.Diagnostic!);
+        }
+
+        return targetRecord.ApplyOverlayFields(resolved.Value);
     }
 
     /// <summary>

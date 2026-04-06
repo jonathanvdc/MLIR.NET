@@ -3,27 +3,23 @@ namespace MLIR.ODS;
 using MLIR.ODS.Model;
 
 /// <summary>
-/// Imports MLIR.NET-specific operation assembly extensions that overlay upstream ODS records.
+/// Imports MLIR.NET-specific operation assembly overlays into the operation model.
 /// </summary>
 internal static class OperationAssemblyExtensionRecordImporter
 {
     public static void Import(OdsRecordIndex index, DialectModelBuilder builder)
     {
-        foreach (var record in index.GetRecordsWithBaseClass("MLIRNet_OpExtension"))
+        foreach (var record in index.GetRecordsWithBaseClass("Op"))
         {
-            if (!index.TryGetStringField(record, "opName", out var operationName)
-                || !index.TryGetStringField(record, "csharpAsmFormatCode", out var strategy))
+            if (!index.TryGetStringField(record, "csharpAsmFormatCode", out var strategy)
+                || !index.TryGetOperationName(record, out var mnemonic)
+                || !index.TryGetDialectName(record, out var dialectName))
             {
                 continue;
             }
 
-            var separatorIndex = operationName.IndexOf('.');
-            if (separatorIndex <= 0)
-            {
-                continue;
-            }
-
-            var dialect = builder.GetOrCreateDialect(operationName.Substring(0, separatorIndex));
+            var dialect = builder.GetOrCreateDialect(dialectName);
+            var operationName = dialectName + "." + mnemonic;
             var existingIndex = dialect.Operations.FindIndex(operation => operation.Name == operationName);
             if (existingIndex >= 0)
             {
@@ -40,10 +36,6 @@ internal static class OperationAssemblyExtensionRecordImporter
                     existing.AssemblyFormat,
                     existing.Traits,
                     strategy);
-            }
-            else
-            {
-                dialect.Operations.Add(new OperationModel(operationName, assemblyExtensionKind: strategy));
             }
         }
     }
