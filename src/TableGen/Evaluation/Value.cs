@@ -118,15 +118,67 @@ public sealed class UnsetValue : Value
 /// <summary>
 /// Represents an anonymously instantiated class record value.
 /// </summary>
-public sealed class AnonymousRecordValue(string className, IReadOnlyDictionary<string, Value> fields) : Value
+/// <remarks>
+/// The <see cref="Fields"/> property returns an <see cref="ExtensionAwareFieldView"/>, giving
+/// anonymous records the same extension-field visibility as top-level <see cref="Record"/>
+/// instances. The instantiated class's own <see cref="EvaluatedClass"/> is stored directly so
+/// that class-level <c>extends</c> overlays targeting that class are always found, regardless
+/// of whether the class also appears in any top-level <c>def</c> base-class chain.
+/// </remarks>
+public sealed class AnonymousRecordValue : Value
 {
+    private readonly IReadOnlyDictionary<string, Value> localFields;
+
+    /// <summary>
+    /// Initializes an <see cref="AnonymousRecordValue"/>.
+    /// </summary>
+    /// <param name="ownClass">
+    /// The shared <see cref="EvaluatedClass"/> for the instantiated class. Stored directly so
+    /// that extensions attached to the class are visible through <see cref="Fields"/> even when
+    /// no top-level <c>def</c> derives from the class.
+    /// </param>
+    /// <param name="localFields">The evaluated field values produced by the instantiation.</param>
+    /// <param name="inheritedBaseClasses">
+    /// The transitive base classes of the instantiated class (not including the class itself,
+    /// which is covered by <paramref name="ownClass"/>).
+    /// </param>
+    internal AnonymousRecordValue(
+        EvaluatedClass ownClass,
+        IReadOnlyDictionary<string, Value> localFields,
+        IReadOnlyList<EvaluatedClass> inheritedBaseClasses)
+    {
+        OwnClass = ownClass;
+        this.localFields = localFields;
+
+        // Combine own class and inherited bases into one list so that ExtensionAwareFieldView
+        // can iterate them uniformly. Own class is first so that if multiple base classes
+        // contribute the same extension field name, the instantiated class's extension wins.
+        var allClasses = new List<EvaluatedClass>(1 + inheritedBaseClasses.Count);
+        allClasses.Add(ownClass);
+        allClasses.AddRange(inheritedBaseClasses);
+        BaseClasses = allClasses;
+    }
+
+    /// <summary>
+    /// Gets the <see cref="EvaluatedClass"/> for the class that was instantiated.
+    /// </summary>
+    public EvaluatedClass OwnClass { get; }
+
     /// <summary>
     /// Gets the class name that was instantiated.
     /// </summary>
-    public string ClassName { get; } = className;
+    public string ClassName => OwnClass.Name;
 
     /// <summary>
-    /// Gets the field values of the instantiated record.
+    /// Gets the combined list of base classes: the instantiated class itself followed by its
+    /// transitive inherited bases, in first-seen order.
     /// </summary>
-    public IReadOnlyDictionary<string, Value> Fields { get; } = fields;
+    public IReadOnlyList<EvaluatedClass> BaseClasses { get; }
+
+    /// <summary>
+    /// Gets a unified view of all fields: locally instantiated fields first, followed by any
+    /// fields contributed by class-level <c>extends</c> overlays on <see cref="OwnClass"/> or
+    /// its inherited base classes.
+    /// </summary>
+    public IReadOnlyDictionary<string, Value> Fields => new ExtensionAwareFieldView(localFields, BaseClasses);
 }

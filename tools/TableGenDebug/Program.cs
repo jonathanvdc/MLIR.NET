@@ -94,7 +94,7 @@ static void PrintRecord(Record record)
     builder.Append("def ").Append(record.Name);
     if (record.BaseClasses.Count > 0)
     {
-        builder.Append(" : ").Append(string.Join(", ", record.BaseClasses));
+        builder.Append(" : ").Append(string.Join(", ", record.BaseClassNames));
     }
 
     builder.AppendLine(" {");

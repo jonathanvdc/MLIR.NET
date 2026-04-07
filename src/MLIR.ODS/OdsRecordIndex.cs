@@ -24,10 +24,10 @@ internal sealed class OdsRecordIndex
             recordsByName[record.Name] = record;
             foreach (var baseClass in record.BaseClasses)
             {
-                if (!baseClassBuckets.TryGetValue(baseClass, out var bucket))
+                if (!baseClassBuckets.TryGetValue(baseClass.Name, out var bucket))
                 {
                     bucket = new List<Record>();
-                    baseClassBuckets.Add(baseClass, bucket);
+                    baseClassBuckets.Add(baseClass.Name, bucket);
                 }
 
                 bucket.Add(record);
@@ -834,10 +834,10 @@ internal sealed class OdsRecordIndex
         var summary = GetStringFromValueDictionary(fields, "summary");
         var defaultValue = GetStringFromValueDictionary(fields, "defaultValue");
 
-        // Prefer a C# type declared via MLIRNet_AttrOrTypeParameterExtension; fall back to
-        // hard-coded mappings for well-known upstream parameter classes.
-        var csharpType = GetStringFromValueDictionary(fields, "csharpType")
-                         ?? GetCsharpTypeForWellKnownParameterClass(className);
+        // csharpType is an optional MLIR.NET annotation contributed via a class-level extends
+        // on the parameter class (e.g., StringRefParameter → "string" via AttrTypeBaseExtensions.td).
+        // AnonymousRecordValue.Fields is extension-aware, so the lookup finds it automatically.
+        var csharpType = GetStringFromValueDictionary(fields, "csharpType");
 
         return new Model.AttrOrTypeParameterModel(
             name,
@@ -848,29 +848,6 @@ internal sealed class OdsRecordIndex
             summary,
             defaultValue,
             csharpType);
-    }
-
-    /// <summary>
-    /// Returns the C# type name for well-known upstream <c>AttrOrTypeParameter</c> subclasses.
-    /// These mappings exist because the upstream classes are defined in vendored .td files that
-    /// cannot be annotated with <c>MLIRNet_AttrOrTypeParameterExtension</c> directly.
-    /// </summary>
-    private static string? GetCsharpTypeForWellKnownParameterClass(string className)
-    {
-        return className switch
-        {
-            // StringRef parameters store as std::string but expose as StringRef.
-            // In C# this maps cleanly to the built-in string type.
-            "StringRefParameter" => "string",
-
-            // APInt has arbitrary precision; map to BigInteger for a lossless C# representation.
-            "APIntParameter" => "global::System.Numerics.BigInteger",
-
-            // APFloat maps to double as the closest standard C# floating-point type.
-            "APFloatParameter" => "double",
-
-            _ => null,
-        };
     }
 
     /// <summary>

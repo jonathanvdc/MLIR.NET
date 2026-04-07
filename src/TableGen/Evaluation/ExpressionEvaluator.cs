@@ -18,7 +18,7 @@ internal sealed class ExpressionEvaluator
     /// <summary>
     /// Instantiates classes so expression-time class calls can compute field values.
     /// </summary>
-    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass;
+    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass;
 
     /// <summary>
     /// Builds top-level definitions on demand for record field access.
@@ -50,7 +50,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="buildDefinition">Callback used for on-demand record building.</param>
     public ExpressionEvaluator(
         EvaluationContext context,
-        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<Dictionary<string, Value>>> instantiateClass,
+        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass,
         Func<DefSyntax, EvaluationResult<Record>> buildDefinition)
     {
         this.context = context;
@@ -295,13 +295,13 @@ internal sealed class ExpressionEvaluator
             return Failure(MissingKey($"Unknown TableGen class '{instantiation.ClassName}'."));
         }
 
-        var fields = instantiateClass(classSyntax, instantiation.Arguments, scope, tryResolveValue);
-        if (!fields.IsSuccess)
+        var record = instantiateClass(classSyntax, instantiation.Arguments, scope, tryResolveValue);
+        if (!record.IsSuccess)
         {
-            return Failure(fields.Diagnostic!);
+            return Failure(record.Diagnostic!);
         }
 
-        return fields.Value.TryGetValue(instantiation.FieldName, out var fieldValue)
+        return record.Value.Fields.TryGetValue(instantiation.FieldName, out var fieldValue)
             ? Success(fieldValue)
             : Failure(MissingKey($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'."));
     }
@@ -323,10 +323,10 @@ internal sealed class ExpressionEvaluator
             return Failure(MissingKey($"Unknown TableGen class '{inst.ClassName}'."));
         }
 
-        var fields = instantiateClass(classSyntax, inst.Arguments, scope, tryResolveValue);
-        return fields.IsSuccess
-            ? Success(new AnonymousRecordValue(inst.ClassName, fields.Value))
-            : Failure(fields.Diagnostic!);
+        var record = instantiateClass(classSyntax, inst.Arguments, scope, tryResolveValue);
+        return record.IsSuccess
+            ? Success(record.Value)
+            : Failure(record.Diagnostic!);
     }
 
     /// <summary>
