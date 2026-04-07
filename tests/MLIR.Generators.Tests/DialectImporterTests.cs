@@ -363,4 +363,192 @@ public sealed class DialectImporterTests
         Assert.NotNull(moduleOp.AssemblyFormat);
         Assert.Equal("builtin.module", moduleOp.Name);
     }
+
+    [Fact]
+    public void ImportsAttrDefParametersWithShorthandStringType()
+    {
+        // Inline C++ type strings in the parameters dag are the shorthand form.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_PairAttr : MyP_Attr<\"pair\"> {\n" +
+            "  let parameters = (ins \"unsigned\":$first, \"unsigned\":$second);\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_PairAttr");
+
+        Assert.Equal(2, attr.Parameters.Count);
+        Assert.Equal("first", attr.Parameters[0].Name);
+        Assert.Equal("unsigned", attr.Parameters[0].CppType);
+        Assert.Null(attr.Parameters[0].ConstraintRecordName);
+        Assert.Null(attr.Parameters[0].CsharpType);
+
+        Assert.Equal("second", attr.Parameters[1].Name);
+        Assert.Equal("unsigned", attr.Parameters[1].CppType);
+        Assert.Null(attr.Parameters[1].CsharpType);
+    }
+
+    [Fact]
+    public void ImportsAttrDefParametersFromStringRefParameterClass()
+    {
+        // StringRefParameter is a well-known AttrOrTypeParameter subclass that maps to C# string.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_NamedAttr : MyP_Attr<\"named\"> {\n" +
+            "  let parameters = (ins StringRefParameter<\"the name\">:$value);\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_NamedAttr");
+
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("value", param.Name);
+        Assert.Equal("StringRefParameter", param.ConstraintRecordName);
+        Assert.Equal("::llvm::StringRef", param.CppType);
+        Assert.Equal("std::string", param.CppStorageType);
+        Assert.Equal("the name", param.Summary);
+        Assert.Equal("string", param.CsharpType);
+        // StringRefParameter with no explicit default → no default value.
+        Assert.False(param.HasDefaultValue);
+    }
+
+    [Fact]
+    public void ImportsTypeDefParametersFromMixedParameterClasses()
+    {
+        // TypeDef with mixed parameter classes: plain string and named class.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Type<string name> : TypeDef<MyP_Dialect, name> {\n" +
+            "  let typeName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_VecType : MyP_Type<\"vec\"> {\n" +
+            "  let parameters = (ins \"unsigned\":$rank, StringRefParameter<\"element kind\">:$kind);\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var type = Assert.Single(dialect.Types, static t => t.RecordName == "MyP_VecType");
+
+        Assert.Equal(2, type.Parameters.Count);
+
+        var rankParam = type.Parameters[0];
+        Assert.Equal("rank", rankParam.Name);
+        Assert.Equal("unsigned", rankParam.CppType);
+        Assert.Null(rankParam.ConstraintRecordName);
+        Assert.Null(rankParam.CsharpType);
+
+        var kindParam = type.Parameters[1];
+        Assert.Equal("kind", kindParam.Name);
+        Assert.Equal("StringRefParameter", kindParam.ConstraintRecordName);
+        Assert.Equal("::llvm::StringRef", kindParam.CppType);
+        Assert.Equal("std::string", kindParam.CppStorageType);
+        Assert.Equal("string", kindParam.CsharpType);
+        Assert.Equal("element kind", kindParam.Summary);
+    }
+
+    [Fact]
+    public void ImportsAttrDefParameterWithOptionalDefaultValue()
+    {
+        // StringRefParameter with an explicit default value makes the parameter optional.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_OptAttr : MyP_Attr<\"opt\"> {\n" +
+            "  let parameters = (ins StringRefParameter<\"label\", \"default\">:$label);\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_OptAttr");
+
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("label", param.Name);
+        Assert.Equal("default", param.DefaultValue);
+        Assert.True(param.HasDefaultValue);
+        Assert.Equal("string", param.CsharpType);
+    }
+
+    [Fact]
+    public void ImportsAttrOrTypeParameterExtensionCsharpTypeFromUserDefinedClass()
+    {
+        // User-defined parameter classes that inherit MLIRNet_AttrOrTypeParameterExtension
+        // allow callers to declare their own C# type mapping.
+        const string source =
+            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyCustomIntParam<string desc> :\n" +
+            "    AttrOrTypeParameter<\"MyIntType\", desc>,\n" +
+            "    MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "  let csharpType = \"global::MyNamespace.MyInt\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_CustomAttr : MyP_Attr<\"custom\"> {\n" +
+            "  let parameters = (ins MyCustomIntParam<\"width\">:$width);\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_CustomAttr");
+
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("width", param.Name);
+        Assert.Equal("MyCustomIntParam", param.ConstraintRecordName);
+        Assert.Equal("MyIntType", param.CppType);
+        Assert.Equal("global::MyNamespace.MyInt", param.CsharpType);
+        Assert.Equal("width", param.Summary);
+    }
+
+    [Fact]
+    public void ImportsAttrDefWithNoParametersAsEmptyParameterList()
+    {
+        // An AttrDef with no parameters field (or empty parameters) should have an empty list.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_UnitAttr : MyP_Attr<\"unit\">;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_UnitAttr");
+
+        Assert.Empty(attr.Parameters);
+    }
 }

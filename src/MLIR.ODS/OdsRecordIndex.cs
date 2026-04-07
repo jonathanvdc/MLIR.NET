@@ -728,8 +728,168 @@ internal sealed class OdsRecordIndex
         return true;
     }
 
+    /// <summary>
+    /// Extracts the ordered list of <see cref="Model.AttrOrTypeParameterModel"/> instances declared
+    /// in the <c>parameters</c> dag field of an <c>AttrDef</c> or <c>TypeDef</c> record.
+    /// Returns an empty list when the record has no <c>parameters</c> field or when the field is empty.
+    /// </summary>
+    /// <remarks>
+    /// Each dag argument in the <c>parameters</c> field corresponds to one parameter. Parameters
+    /// are either specified as plain C++ type strings (e.g., <c>"unsigned":$width</c>) or as
+    /// instantiations of <c>AttrOrTypeParameter</c> subclasses (e.g.,
+    /// <c>StringRefParameter&lt;"desc"&gt;:$name</c>). Both forms are supported.
+    /// </remarks>
+    public IReadOnlyList<Model.AttrOrTypeParameterModel> GetAttrOrTypeParameters(Record record)
+    {
+        if (!record.Fields.TryGetValue("parameters", out var field) || field is not DagValue dag)
+        {
+            return EmptyAttrOrTypeParameters;
+        }
+
+        var parameters = new List<Model.AttrOrTypeParameterModel>(dag.Arguments.Count);
+        foreach (var argument in dag.Arguments)
+        {
+            if (argument.Name == null)
+            {
+                continue;
+            }
+
+            var paramModel = TryBuildAttrOrTypeParameterModel(argument.Name, argument.Value);
+            if (paramModel != null)
+            {
+                parameters.Add(paramModel);
+            }
+        }
+
+        return parameters;
+    }
+
+    /// <summary>
+    /// Attempts to build a parameter model from a single dag argument value.
+    /// Returns null when the value is not a recognizable parameter specification.
+    /// </summary>
+    private Model.AttrOrTypeParameterModel? TryBuildAttrOrTypeParameterModel(string name, Value value)
+    {
+        switch (value)
+        {
+            case StringValue str:
+                // Shorthand form: "C++Type":$name — the argument value is just the type string.
+                if (string.IsNullOrEmpty(str.Value))
+                {
+                    return null;
+                }
+
+                return new Model.AttrOrTypeParameterModel(name, null, str.Value);
+
+            case AnonymousRecordValue anonymous:
+                return TryBuildAttrOrTypeParameterModelFromAnonymousRecord(name, anonymous);
+
+            case RecordReferenceValue recordRef:
+                // A named record reference in a parameters dag is uncommon but can occur when a def
+                // that inherits from AttrOrTypeParameter is used by name.
+                if (TryGetRecord(recordRef.RecordName, out var referencedRecord)
+                    && referencedRecord.HasBaseClass("AttrOrTypeParameter"))
+                {
+                    return TryBuildAttrOrTypeParameterModelFromFields(name, recordRef.RecordName, referencedRecord.Fields);
+                }
+
+                return null;
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Builds a parameter model from an anonymously instantiated <c>AttrOrTypeParameter</c> subclass
+    /// (e.g., <c>StringRefParameter&lt;"desc"&gt;</c>).
+    /// </summary>
+    private Model.AttrOrTypeParameterModel? TryBuildAttrOrTypeParameterModelFromAnonymousRecord(
+        string name, AnonymousRecordValue anonymous)
+    {
+        return TryBuildAttrOrTypeParameterModelFromFields(name, anonymous.ClassName, anonymous.Fields);
+    }
+
+    /// <summary>
+    /// Extracts parameter model fields from a field dictionary representing an <c>AttrOrTypeParameter</c>
+    /// subclass instance.
+    /// </summary>
+    private Model.AttrOrTypeParameterModel? TryBuildAttrOrTypeParameterModelFromFields(
+        string name, string className, IReadOnlyDictionary<string, Value> fields)
+    {
+        // cppType is required; without it we cannot model the parameter.
+        var cppType = GetStringFromValueDictionary(fields, "cppType");
+        if (cppType == null)
+        {
+            return null;
+        }
+
+        var rawStorageType = GetStringFromValueDictionary(fields, "cppStorageType");
+        var rawAccessorType = GetStringFromValueDictionary(fields, "cppAccessorType");
+
+        // Omit storage/accessor type when identical to cppType to keep the model clean.
+        var cppStorageType = rawStorageType == cppType ? null : rawStorageType;
+        var cppAccessorType = rawAccessorType == cppType ? null : rawAccessorType;
+
+        var summary = GetStringFromValueDictionary(fields, "summary");
+        var defaultValue = GetStringFromValueDictionary(fields, "defaultValue");
+
+        // Prefer a C# type declared via MLIRNet_AttrOrTypeParameterExtension; fall back to
+        // hard-coded mappings for well-known upstream parameter classes.
+        var csharpType = GetStringFromValueDictionary(fields, "csharpType")
+                         ?? GetCsharpTypeForWellKnownParameterClass(className);
+
+        return new Model.AttrOrTypeParameterModel(
+            name,
+            className,
+            cppType,
+            cppStorageType,
+            cppAccessorType,
+            summary,
+            defaultValue,
+            csharpType);
+    }
+
+    /// <summary>
+    /// Returns the C# type name for well-known upstream <c>AttrOrTypeParameter</c> subclasses.
+    /// These mappings exist because the upstream classes are defined in vendored .td files that
+    /// cannot be annotated with <c>MLIRNet_AttrOrTypeParameterExtension</c> directly.
+    /// </summary>
+    private static string? GetCsharpTypeForWellKnownParameterClass(string className)
+    {
+        return className switch
+        {
+            // StringRef parameters store as std::string but expose as StringRef.
+            // In C# this maps cleanly to the built-in string type.
+            "StringRefParameter" => "string",
+
+            // APInt has arbitrary precision; map to BigInteger for a lossless C# representation.
+            "APIntParameter" => "global::System.Numerics.BigInteger",
+
+            // APFloat maps to double as the closest standard C# floating-point type.
+            "APFloatParameter" => "double",
+
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Reads a non-empty string value from an evaluated field dictionary,
+    /// or returns null when the field is absent, unset, or empty.
+    /// </summary>
+    private static string? GetStringFromValueDictionary(IReadOnlyDictionary<string, Value> fields, string key)
+    {
+        if (fields.TryGetValue(key, out var value) && value is StringValue str && !string.IsNullOrEmpty(str.Value))
+        {
+            return str.Value;
+        }
+
+        return null;
+    }
+
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];
     private static readonly IReadOnlyList<Model.TraitModel> EmptyTraitModels = new Model.TraitModel[0];
     private static readonly IReadOnlyList<DagMemberModel> EmptyDagMembers = new DagMemberModel[0];
     private static readonly IReadOnlyList<Model.EnumCaseModel> EmptyEnumCases = new Model.EnumCaseModel[0];
+    private static readonly IReadOnlyList<Model.AttrOrTypeParameterModel> EmptyAttrOrTypeParameters = new Model.AttrOrTypeParameterModel[0];
 }

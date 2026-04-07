@@ -15,7 +15,10 @@ internal static class TypeRecordImporter
             }
 
             var dialect = builder.GetOrCreateDialect(typeDialectName);
-            dialect.Types.Add(new TypeModel(typeName, record.Name, index.GetOptionalStringField(record, "cppClassName") ?? record.Name));
+            var className = index.GetOptionalStringField(record, "cppClassName") ?? record.Name;
+            var parameters = index.GetAttrOrTypeParameters(record);
+
+            dialect.Types.Add(new TypeModel(typeName, record.Name, className, parameters));
         }
     }
 }
