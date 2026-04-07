@@ -151,7 +151,8 @@ public sealed class AnonymousRecordValue : Value
         this.localFields = localFields;
 
         // Combine own class and inherited bases into one list so that ExtensionAwareFieldView
-        // can iterate them uniformly. Own class is first so its extensions take priority.
+        // can iterate them uniformly. Own class is first so that if multiple base classes
+        // contribute the same extension field name, the instantiated class's extension wins.
         var allClasses = new List<EvaluatedClass>(1 + inheritedBaseClasses.Count);
         allClasses.Add(ownClass);
         allClasses.AddRange(inheritedBaseClasses);

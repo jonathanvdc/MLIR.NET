@@ -245,8 +245,9 @@ internal sealed class RecordBuilder
     /// have been evaluated.
     /// <para>
     /// For <c>def</c> targets the overlay is applied directly to the named record.
-    /// For <c>class</c> targets the overlay fields are applied to every already-evaluated record whose base-class
-    /// chain includes the target class; record-local fields are never overridden.
+    /// For <c>class</c> targets the overlay fields are attached to the shared <see cref="EvaluatedClass"/>
+    /// object, making them visible through the <see cref="Record.Fields"/> view of all records and
+    /// anonymous values that inherit from the target class — without mutating any record directly.
     /// </para>
     /// </summary>
     /// <param name="extension">The parsed overlay declaration.</param>

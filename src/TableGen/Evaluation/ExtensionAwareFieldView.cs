@@ -81,16 +81,16 @@ internal sealed class ExtensionAwareFieldView(
             yield return pair;
         }
 
-        // Extension fields from base classes are yielded in order, skipping anything already
-        // present in the local dictionary. The deduplication set is only allocated when at least
-        // one extension field is encountered, keeping the common (no-extension) path allocation-free.
-        HashSet<string>? seenKeys = null;
+        // Extension fields from base classes are yielded in order. The deduplication set is only
+        // allocated when at least one extension field is encountered, keeping the common
+        // (no-extension) path allocation-free.
+        HashSet<string>? yieldedKeys = null;
         for (var i = 0; i < baseClasses.Count; i++)
         {
             foreach (var pair in baseClasses[i].GetExtensionFields())
             {
-                seenKeys ??= new HashSet<string>(localFields.Keys, StringComparer.Ordinal);
-                if (seenKeys.Add(pair.Key))
+                yieldedKeys ??= new HashSet<string>(localFields.Keys, StringComparer.Ordinal);
+                if (yieldedKeys.Add(pair.Key))
                 {
                     yield return pair;
                 }
