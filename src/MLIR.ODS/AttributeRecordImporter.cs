@@ -28,7 +28,9 @@ internal static class AttributeRecordImporter
                 index.TryGetEnumModel(enumRecord, out enumModel);
             }
 
-            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel));
+            var parameters = index.GetAttrOrTypeParameters(record);
+
+            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel, parameters));
         }
     }
 }
