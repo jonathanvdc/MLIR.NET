@@ -551,4 +551,77 @@ public sealed class DialectImporterTests
 
         Assert.Empty(attr.Parameters);
     }
+
+    [Fact]
+    public void ImportsAttrDefAssemblyFormatString()
+    {
+        // An AttrDef with an assemblyFormat string should expose it in the model.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_OpaqueAttr : MyP_Attr<\"opaque\"> {\n" +
+            "  let parameters = (ins StringRefParameter<\"the value\">:$value);\n" +
+            "  let assemblyFormat = \"`<` $value `>`\";\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_OpaqueAttr");
+
+        // Parameters should be imported.
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("value", param.Name);
+        Assert.Equal("string", param.CsharpType);
+
+        // Assembly format should be imported and parsed.
+        Assert.NotNull(attr.AssemblyFormat);
+        var elements = attr.AssemblyFormat!.Elements;
+        Assert.Equal(3, elements.Count);
+        Assert.IsType<LiteralChunk>(elements[0]);
+        Assert.IsType<VariableChunk>(elements[1]);
+        Assert.IsType<LiteralChunk>(elements[2]);
+        var variable = (VariableChunk)elements[1];
+        Assert.Equal("value", variable.Name);
+    }
+
+    [Fact]
+    public void ImportsAttrOrTypeParameterExtensionCsharpParserAndPrinter()
+    {
+        // User-defined parameter classes can specify csharpParser and csharpPrinter.
+        const string source =
+            "class MyIdParam<string desc> : AttrOrTypeParameter<\"std::string\", desc>;\n" +
+            "extends MyIdParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "  let csharpType = \"string\";\n" +
+            "  let csharpParser = \"$_parser.ParseId()\";\n" +
+            "  let csharpPrinter = \"Fmt($_self)\";\n" +
+            "}\n" +
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_IdAttr : MyP_Attr<\"id\"> {\n" +
+            "  let parameters = (ins MyIdParam<\"the id\">:$name);\n" +
+            "  let assemblyFormat = \"`<` $name `>`\";\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_IdAttr");
+
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("name", param.Name);
+        Assert.Equal("string", param.CsharpType);
+        Assert.Equal("$_parser.ParseId()", param.CsharpParser);
+        Assert.Equal("Fmt($_self)", param.CsharpPrinter);
+    }
 }

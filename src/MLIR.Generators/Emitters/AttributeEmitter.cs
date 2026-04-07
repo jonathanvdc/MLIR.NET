@@ -13,6 +13,16 @@ internal static class AttributeEmitter
         {
             EmitEnumAttributeClass(builder, attribute, className);
         }
+        else if (attribute.AssemblyFormat != null && attribute.Parameters.Count > 0)
+        {
+            // Parametrised attribute with a declarative assembly format: emit the structured
+            // syntax class, the typed attribute-value class, and the assembly format class.
+            AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
+            builder.AppendLine();
+            EmitParametrisedAttributeClass(builder, attribute, className);
+            builder.AppendLine();
+            AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
+        }
         else
         {
             EmitPlainAttributeClass(builder, attribute, className);
@@ -34,6 +44,169 @@ internal static class AttributeEmitter
         builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
         builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
         builder.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits the typed <c>AttributeValue</c> subclass for a parametrised attribute whose
+    /// assembly format is given by a declarative <c>assemblyFormat</c> string.
+    /// </summary>
+    /// <remarks>
+    /// The generated class exposes:
+    /// <list type="bullet">
+    ///   <item>A context-based constructor that extracts each parameter from the parsed syntax.</item>
+    ///   <item>A typed constructor that accepts each parameter as a plain C# value.</item>
+    ///   <item>One read-only property per parameter.</item>
+    /// </list>
+    /// </remarks>
+    private static void EmitParametrisedAttributeClass(StringBuilder builder, AttributeModel attribute, string className)
+    {
+        var parameters = attribute.Parameters;
+        var syntaxClassName = className + "Syntax";
+        var formatClassName = className + "AssemblyFormat";
+
+        builder.AppendLine("public sealed class " + className + " : AttributeValue");
+        builder.AppendLine("{");
+
+        // AttributeDefinition static property
+        builder.AppendLine("    public static AttributeDefinition AttributeDefinition { get; } =");
+        builder.AppendLine("        new AttributeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(attribute.Name) + ", new " + formatClassName + "(), factory: static context => new " + className + "(context));");
+        builder.AppendLine();
+
+        // Context-based constructor
+        builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
+        builder.AppendLine("        : base(context.Syntax, context.Location)");
+        builder.AppendLine("    {");
+        foreach (var param in parameters)
+        {
+            var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+            var helperName = "Parse" + propertyName + "Param";
+            builder.AppendLine("        " + propertyName + " = " + helperName + "(context.Syntax);");
+        }
+
+        builder.AppendLine("    }");
+        builder.AppendLine();
+
+        // Typed constructor
+        builder.Append("    public " + className + "(");
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
+            builder.Append(csharpType + " " + EmitterHelpers.LowerFirst(parameters[i].Name));
+        }
+
+        builder.AppendLine(")");
+        builder.AppendLine("        : base(null, MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("    {");
+        foreach (var param in parameters)
+        {
+            var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+            builder.AppendLine("        " + propertyName + " = " + EmitterHelpers.LowerFirst(param.Name) + ";");
+        }
+
+        builder.AppendLine("    }");
+        builder.AppendLine();
+
+        // Parameter properties
+        foreach (var param in parameters)
+        {
+            var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+            var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+            builder.AppendLine("    public " + csharpType + " " + propertyName + " { get; }");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
+        builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
+        builder.AppendLine();
+
+        // Private parse helpers
+        foreach (var param in parameters)
+        {
+            EmitParseParamHelper(builder, attribute, param, syntaxClassName);
+        }
+
+        builder.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits a private helper method that extracts the typed value for <paramref name="param"/>
+    /// from the enclosing attribute's syntax node.
+    /// </summary>
+    private static void EmitParseParamHelper(
+        StringBuilder builder,
+        AttributeModel attribute,
+        AttrOrTypeParameterModel param,
+        string syntaxClassName)
+    {
+        var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+        var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+        var helperName = "Parse" + propertyName + "Param";
+
+        builder.AppendLine("    private static " + csharpType + " " + helperName + "(MLIR.Syntax.AttributeValueSyntax? syntax)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        if (syntax is " + syntaxClassName + " structured)");
+        builder.AppendLine("        {");
+        var accessExpr = "structured." + propertyName + "Syntax";
+        var extractExpr = BuildExtractValueExpression(csharpType, accessExpr);
+        builder.AppendLine("            return " + extractExpr + ";");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+
+        // Fallback for raw syntax
+        var fallbackExpr = BuildFallbackExtractExpression(csharpType);
+        builder.AppendLine("        return " + fallbackExpr + ";");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+    }
+
+    /// <summary>
+    /// Returns a C# expression that extracts a typed value from a parsed <c>AttributeValueSyntax</c>
+    /// field exposed by the structured syntax class.
+    /// </summary>
+    private static string BuildExtractValueExpression(string csharpType, string syntaxExpr)
+    {
+        switch (csharpType)
+        {
+            case "string":
+                return syntaxExpr + " is StringAttributeValueSyntax strSyntax ? strSyntax.Value : " + syntaxExpr + ".ToString()";
+
+            case "global::System.Numerics.BigInteger":
+                return syntaxExpr + " is IntegerAttributeValueSyntax intSyntax ? intSyntax.Value : default(global::System.Numerics.BigInteger)";
+
+            case "double":
+                return syntaxExpr + " is FloatingPointAttributeValueSyntax fpSyntax && double.TryParse(fpSyntax.LiteralText, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var fpVal) ? fpVal : default(double)";
+
+            default:
+                // Unknown or AttributeValueSyntax: return the syntax as-is.
+                return syntaxExpr;
+        }
+    }
+
+    /// <summary>
+    /// Returns a fallback C# expression that produces the default value for <paramref name="csharpType"/>
+    /// when the syntax node is not of the expected structured type.
+    /// </summary>
+    private static string BuildFallbackExtractExpression(string csharpType)
+    {
+        switch (csharpType)
+        {
+            case "string":
+                return "string.Empty";
+
+            case "global::System.Numerics.BigInteger":
+                return "default(global::System.Numerics.BigInteger)";
+
+            case "double":
+                return "default(double)";
+
+            default:
+                return "syntax ?? new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(string.Empty))";
+        }
     }
 
     private static void EmitEnumAttributeClass(StringBuilder builder, AttributeModel attribute, string className)

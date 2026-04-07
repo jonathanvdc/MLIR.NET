@@ -20,7 +20,9 @@ public sealed class AttrOrTypeParameterModel(
     string? cppAccessorType = null,
     string? summary = null,
     string? defaultValue = null,
-    string? csharpType = null)
+    string? csharpType = null,
+    string? csharpParser = null,
+    string? csharpPrinter = null)
 {
     /// <summary>
     /// Gets the parameter name as declared in the <c>parameters</c> dag (e.g., <c>"value"</c> from <c>$value</c>).
@@ -77,4 +79,22 @@ public sealed class AttrOrTypeParameterModel(
     /// Null when no C# type mapping is available.
     /// </summary>
     public string? CsharpType { get; } = csharpType;
+
+    /// <summary>
+    /// Gets the custom C# parser expression for this parameter, if one was declared via
+    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpParser</c>.
+    /// <c>$_parser</c> is substituted with the <c>AttributeParsingContext</c> variable name.
+    /// The expression must return <c>ParseResult&lt;AttributeValueSyntax&gt;</c>.
+    /// When null the generator uses the default <c>TryParseAttributeValueSyntax</c> call.
+    /// </summary>
+    public string? CsharpParser { get; } = csharpParser;
+
+    /// <summary>
+    /// Gets the custom C# printer expression for this parameter, if one was declared via
+    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpPrinter</c>.
+    /// <c>$_self</c> is substituted with the typed property value expression.
+    /// The expression must return an <c>AttributeValueSyntax</c>.
+    /// When null the generator synthesises a printer from <see cref="CsharpType"/>.
+    /// </summary>
+    public string? CsharpPrinter { get; } = csharpPrinter;
 }

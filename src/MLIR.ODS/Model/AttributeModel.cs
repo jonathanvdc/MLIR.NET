@@ -10,7 +10,8 @@ public sealed class AttributeModel(
     string recordName,
     string? className = null,
     EnumModel? enumModel = null,
-    IReadOnlyList<AttrOrTypeParameterModel>? parameters = null)
+    IReadOnlyList<AttrOrTypeParameterModel>? parameters = null,
+    AssemblyFormatModel? assemblyFormat = null)
 {
     /// <summary>
     /// Gets the canonical attribute name.
@@ -37,6 +38,13 @@ public sealed class AttributeModel(
     /// Empty when the attribute has no parameters.
     /// </summary>
     public IReadOnlyList<AttrOrTypeParameterModel> Parameters { get; } = parameters ?? EmptyParameters;
+
+    /// <summary>
+    /// Gets the declarative assembly format for this attribute, if one was specified.
+    /// When set, the generator produces a structured <c>AttributeValueSyntax</c> subclass and
+    /// a matching <c>IAttributeAssemblyFormat</c> that handles parsing and printing.
+    /// </summary>
+    public AssemblyFormatModel? AssemblyFormat { get; } = assemblyFormat;
 
     private static readonly IReadOnlyList<AttrOrTypeParameterModel> EmptyParameters = new AttrOrTypeParameterModel[0];
 }

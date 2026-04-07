@@ -89,7 +89,7 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
         return builder.ToString();
     }
 
-    internal static string Quote(string value)
+    public static string Quote(string value)
     {
         return "\"" + value
             .Replace("\\", "\\\\")

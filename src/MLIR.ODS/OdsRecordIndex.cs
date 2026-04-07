@@ -839,6 +839,11 @@ internal sealed class OdsRecordIndex
         // AnonymousRecordValue.Fields is extension-aware, so the lookup finds it automatically.
         var csharpType = GetStringFromValueDictionary(fields, "csharpType");
 
+        // csharpParser / csharpPrinter are optional C# code snippets that override the default
+        // parameter parsing and printing behaviour in generated assembly format classes.
+        var csharpParser = GetStringFromValueDictionary(fields, "csharpParser");
+        var csharpPrinter = GetStringFromValueDictionary(fields, "csharpPrinter");
+
         return new Model.AttrOrTypeParameterModel(
             name,
             className,
@@ -847,7 +852,9 @@ internal sealed class OdsRecordIndex
             cppAccessorType,
             summary,
             defaultValue,
-            csharpType);
+            csharpType,
+            csharpParser,
+            csharpPrinter);
     }
 
     /// <summary>

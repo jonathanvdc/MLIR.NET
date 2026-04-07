@@ -344,6 +344,12 @@ public sealed partial class Parser
     /// and looking the name up in the dialect registry. Returns <see cref="ParseOutcome.NoMatch"/> when no
     /// registry is available or the name is not registered.
     /// </summary>
+    /// <remarks>
+    /// When the dialect's custom format is responsible only for the body of the attribute (i.e. the
+    /// tokens that appear after <c>#dialect.attr</c>), the method consumes the <c>#</c> and the name
+    /// token before delegating to the format so that the format sees only what it needs to parse.
+    /// If the format does not match, the tokens are put back via checkpoint reset.
+    /// </remarks>
     private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeSyntaxResult()
     {
         if (dialectRegistry == null)
@@ -357,7 +363,27 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        return TryParseCustomAttributeSyntaxResult(definition);
+        if (definition.AssemblyFormat == null)
+        {
+            // No custom format: fall through to raw syntax (the attribute will be bound later).
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        // Consume the '#' and the name token, then delegate to the custom format.
+        // The format is responsible only for the body that follows the dialect prefix.
+        var outerCheckpoint = Mark();
+        ConsumeToken(); // '#'
+        ConsumeToken(); // 'dialect.attr' (lexed as a single identifier including the dot)
+
+        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition));
+        if (result.IsSuccess)
+        {
+            return result;
+        }
+
+        // Format returned NoMatch or Error — restore position to before '#name'.
+        Reset(outerCheckpoint);
+        return result.IsError ? result : ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     /// <summary>
