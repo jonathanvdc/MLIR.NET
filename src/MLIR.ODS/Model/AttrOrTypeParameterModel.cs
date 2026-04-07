@@ -22,6 +22,8 @@ public sealed class AttrOrTypeParameterModel(
     string? defaultValue = null,
     string? csharpType = null,
     string? csharpParser = null,
+    string? csharpExtractor = null,
+    string? csharpDefault = null,
     string? csharpPrinter = null)
 {
     /// <summary>
@@ -90,11 +92,31 @@ public sealed class AttrOrTypeParameterModel(
     public string? CsharpParser { get; } = csharpParser;
 
     /// <summary>
+    /// Gets the custom C# extractor expression for this parameter, if one was declared via
+    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpExtractor</c>.
+    /// <c>$_syntax</c> is substituted with the per-parameter <c>AttributeValueSyntax</c>
+    /// field from the structured syntax class. The expression must return <see cref="CsharpType"/>.
+    /// When null and <see cref="CsharpType"/> is <c>AttributeValueSyntax</c>, the syntax node
+    /// is used directly; any other type without an extractor will produce a compile error.
+    /// </summary>
+    public string? CsharpExtractor { get; } = csharpExtractor;
+
+    /// <summary>
+    /// Gets the C# default-value expression for this parameter, if one was declared via
+    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpDefault</c>.
+    /// Used as the fallback when no structured syntax is available during construction.
+    /// When null the generator falls back to a raw empty syntax node (only valid for
+    /// <c>AttributeValueSyntax</c> parameters).
+    /// </summary>
+    public string? CsharpDefault { get; } = csharpDefault;
+
+    /// <summary>
     /// Gets the custom C# printer expression for this parameter, if one was declared via
     /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpPrinter</c>.
     /// <c>$_self</c> is substituted with the typed property value expression.
     /// The expression must return an <c>AttributeValueSyntax</c>.
-    /// When null the generator synthesises a printer from <see cref="CsharpType"/>.
+    /// When null the syntax node stored in the structured syntax class is used as-is
+    /// (only valid for <c>AttributeValueSyntax</c> parameters).
     /// </summary>
     public string? CsharpPrinter { get; } = csharpPrinter;
 }

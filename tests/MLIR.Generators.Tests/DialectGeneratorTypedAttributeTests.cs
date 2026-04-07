@@ -284,11 +284,14 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         // Assembly format class
         AssertContainsAll(
             registrationSource,
-            "internal sealed class FooAttrAssemblyFormat : IAttributeAssemblyFormat",
+            // Body-only marker so the parser strips '#name' before calling TryParse
+            "internal sealed class FooAttrAssemblyFormat : IBodyOnlyAttributeAssemblyFormat",
             "ParseResult<AttributeValueSyntax> TryParse",
-            "context.TryParseAttributeValueSyntax(TokenKind.GreaterThan)",
+            // StringRefParameter.csharpParser delegates to the string-literal helper
+            "context.TryParseStringLiteralSyntax()",
             "AttributeValue Bind(",
             "AttributeValueSyntax BuildCustomAssemblySyntax(",
+            // StringRefParameter.csharpPrinter wraps the string value in a quoted literal
             "StringLiteralAttributeAssemblyFormat.Quote(attr.Value)");
     }
 
@@ -332,11 +335,11 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public global::System.Numerics.BigInteger Second { get; }",
             "public PairAttr(global::System.Numerics.BigInteger first, global::System.Numerics.BigInteger second)");
 
-        // Assembly format class stops before the right delimiters
+        // Assembly format class uses the APIntParameter.csharpParser helper for both parameters
         AssertContainsAll(
             registrationSource,
-            "context.TryParseAttributeValueSyntax(TokenKind.Comma)",
-            "context.TryParseAttributeValueSyntax(TokenKind.GreaterThan)");
+            // APIntParameter.csharpParser delegates to the integer-literal helper
+            "context.TryParseIntegerLiteralSyntax()");
     }
 
     [Fact]

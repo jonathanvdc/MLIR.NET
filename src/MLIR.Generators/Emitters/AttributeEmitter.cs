@@ -137,6 +137,12 @@ internal static class AttributeEmitter
     /// Emits a private helper method that extracts the typed value for <paramref name="param"/>
     /// from the enclosing attribute's syntax node.
     /// </summary>
+    /// <remarks>
+    /// The generated helper unwraps a <c>DialectPrefixedAttributeValueSyntax</c> shell if present,
+    /// then checks whether the underlying syntax is the expected structured syntax class before
+    /// applying the parameter's <c>csharpExtractor</c> expression from the ODS model.  If neither
+    /// condition matches the <c>csharpDefault</c> expression is used as a fallback.
+    /// </remarks>
     private static void EmitParseParamHelper(
         StringBuilder builder,
         AttributeModel attribute,
@@ -149,16 +155,18 @@ internal static class AttributeEmitter
 
         builder.AppendLine("    private static " + csharpType + " " + helperName + "(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine("    {");
-        builder.AppendLine("        if (syntax is " + syntaxClassName + " structured)");
+        // Unwrap DialectPrefixedAttributeValueSyntax if present so both parsed and reused syntax work.
+        builder.AppendLine("        var effectiveSyntax = syntax is MLIR.Syntax.DialectPrefixedAttributeValueSyntax pfx ? pfx.Body : syntax;");
+        builder.AppendLine("        if (effectiveSyntax is " + syntaxClassName + " structured)");
         builder.AppendLine("        {");
         var accessExpr = "structured." + propertyName + "Syntax";
-        var extractExpr = BuildExtractValueExpression(csharpType, accessExpr);
+        var extractExpr = BuildExtractValueExpression(param, accessExpr);
         builder.AppendLine("            return " + extractExpr + ";");
         builder.AppendLine("        }");
         builder.AppendLine();
 
-        // Fallback for raw syntax
-        var fallbackExpr = BuildFallbackExtractExpression(csharpType);
+        // Fallback when structured syntax is not available.
+        var fallbackExpr = BuildFallbackExtractExpression(csharpType, param);
         builder.AppendLine("        return " + fallbackExpr + ";");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -166,47 +174,35 @@ internal static class AttributeEmitter
 
     /// <summary>
     /// Returns a C# expression that extracts a typed value from a parsed <c>AttributeValueSyntax</c>
-    /// field exposed by the structured syntax class.
+    /// field exposed by the structured syntax class, using the parameter's <c>csharpExtractor</c>
+    /// expression from the ODS model.
     /// </summary>
-    private static string BuildExtractValueExpression(string csharpType, string syntaxExpr)
+    private static string BuildExtractValueExpression(AttrOrTypeParameterModel param, string syntaxExpr)
     {
-        switch (csharpType)
+        if (!string.IsNullOrEmpty(param.CsharpExtractor))
         {
-            case "string":
-                return syntaxExpr + " is StringAttributeValueSyntax strSyntax ? strSyntax.Value : " + syntaxExpr + ".ToString()";
-
-            case "global::System.Numerics.BigInteger":
-                return syntaxExpr + " is IntegerAttributeValueSyntax intSyntax ? intSyntax.Value : default(global::System.Numerics.BigInteger)";
-
-            case "double":
-                return syntaxExpr + " is FloatingPointAttributeValueSyntax fpSyntax && double.TryParse(fpSyntax.LiteralText, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var fpVal) ? fpVal : default(double)";
-
-            default:
-                // Unknown or AttributeValueSyntax: return the syntax as-is.
-                return syntaxExpr;
+            return param.CsharpExtractor!.Replace("$_syntax", syntaxExpr);
         }
+
+        // No extractor defined: pass the syntax node through unchanged.
+        // This is only valid when csharpType is AttributeValueSyntax.
+        return syntaxExpr;
     }
 
     /// <summary>
-    /// Returns a fallback C# expression that produces the default value for <paramref name="csharpType"/>
-    /// when the syntax node is not of the expected structured type.
+    /// Returns a fallback C# expression that produces the default value for the parameter
+    /// when the syntax node is not of the expected structured type, using the parameter's
+    /// <c>csharpDefault</c> expression from the ODS model.
     /// </summary>
-    private static string BuildFallbackExtractExpression(string csharpType)
+    private static string BuildFallbackExtractExpression(string csharpType, AttrOrTypeParameterModel param)
     {
-        switch (csharpType)
+        if (!string.IsNullOrEmpty(param.CsharpDefault))
         {
-            case "string":
-                return "string.Empty";
-
-            case "global::System.Numerics.BigInteger":
-                return "default(global::System.Numerics.BigInteger)";
-
-            case "double":
-                return "default(double)";
-
-            default:
-                return "syntax ?? new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(string.Empty))";
+            return param.CsharpDefault!;
         }
+
+        // No default defined: return a raw empty syntax node as best-effort fallback.
+        return "syntax ?? new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(string.Empty))";
     }
 
     private static void EmitEnumAttributeClass(StringBuilder builder, AttributeModel attribute, string className)

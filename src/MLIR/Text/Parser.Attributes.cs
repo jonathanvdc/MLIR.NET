@@ -348,6 +348,8 @@ public sealed partial class Parser
     /// When the dialect's custom format is responsible only for the body of the attribute (i.e. the
     /// tokens that appear after <c>#dialect.attr</c>), the method consumes the <c>#</c> and the name
     /// token before delegating to the format so that the format sees only what it needs to parse.
+    /// The result is wrapped in a <see cref="Syntax.DialectPrefixedAttributeValueSyntax"/> so that the
+    /// full <c>#name body</c> form is re-emitted correctly on the print path.
     /// If the format does not match, the tokens are put back via checkpoint reset.
     /// </remarks>
     private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeSyntaxResult()
@@ -369,8 +371,14 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        // Consume the '#' and the name token, then delegate to the custom format.
-        // The format is responsible only for the body that follows the dialect prefix.
+        if (!(definition.AssemblyFormat is IBodyOnlyAttributeAssemblyFormat))
+        {
+            // Legacy format that consumes '#name' itself: delegate without stripping the prefix.
+            return TryParseCustomAttributeSyntaxResult(definition);
+        }
+
+        // Body-only format (generated from AttrDef): consume '#' and name, then delegate.
+        // The format sees only the body (e.g. `<"NULL">`).
         var outerCheckpoint = Mark();
         ConsumeToken(); // '#'
         ConsumeToken(); // 'dialect.attr' (lexed as a single identifier including the dot)
@@ -378,7 +386,10 @@ public sealed partial class Parser
         var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition));
         if (result.IsSuccess)
         {
-            return result;
+            // Wrap the body in a DialectPrefixedAttributeValueSyntax so the printer can
+            // re-emit the '#name' prefix without any additional bookkeeping.
+            return ParseResult<AttributeValueSyntax>.Success(
+                new Syntax.DialectPrefixedAttributeValueSyntax(canonicalName, result.Value));
         }
 
         // Format returned NoMatch or Error — restore position to before '#name'.

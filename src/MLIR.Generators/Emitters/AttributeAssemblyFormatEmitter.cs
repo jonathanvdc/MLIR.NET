@@ -109,8 +109,11 @@ internal static class AttributeAssemblyFormatEmitter
         var syntaxClassName = className + "Syntax";
         var formatClassName = className + "AssemblyFormat";
 
-        builder.AppendLine("internal sealed class " + formatClassName + " : IAttributeAssemblyFormat");
+        // IBodyOnlyAttributeAssemblyFormat signals to the parser that this format handles only
+        // the body after '#dialect.attr'; the parser strips the prefix before calling TryParse.
+        builder.AppendLine("internal sealed class " + formatClassName + " : IBodyOnlyAttributeAssemblyFormat");
         builder.AppendLine("{");
+        builder.AppendLine();
 
         // TryParse
         builder.AppendLine("    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)");
@@ -346,10 +349,12 @@ internal static class AttributeAssemblyFormatEmitter
         string syntaxClassName)
     {
         builder.AppendLine("        var attr = (" + className + ")attribute;");
-        builder.AppendLine("        if (attr.Syntax is " + syntaxClassName + " existingSyntax)");
-        builder.AppendLine("            return existingSyntax;");
+        // If the stored syntax is already a fully-prefixed dialect attribute syntax, reuse it
+        // directly so round-trip printing is allocation-free when nothing has changed.
+        builder.AppendLine("        if (attr.Syntax is MLIR.Syntax.DialectPrefixedAttributeValueSyntax existingPrefixed)");
+        builder.AppendLine("            return existingPrefixed;");
 
-        // For each variable, build the syntax from the attribute's property.
+        // For each variable, build the body syntax from the attribute's typed property.
         foreach (var varName in variables)
         {
             var paramModel = FindParameter(attribute, varName);
@@ -359,7 +364,7 @@ internal static class AttributeAssemblyFormatEmitter
             builder.AppendLine("        var " + localSyntaxName + " = " + buildExpr + ";");
         }
 
-        builder.Append("        return new " + syntaxClassName + "(");
+        builder.Append("        var body = new " + syntaxClassName + "(");
         for (var i = 0; i < variables.Count; i++)
         {
             if (i > 0)
@@ -371,11 +376,15 @@ internal static class AttributeAssemblyFormatEmitter
         }
 
         builder.AppendLine(");");
+
+        // Wrap the body with the '#dialect.attr' prefix so the printed form is valid MLIR.
+        builder.AppendLine("        return new MLIR.Syntax.DialectPrefixedAttributeValueSyntax(" + EmitterHelpers.ToCSharpStringLiteral(attribute.Name) + ", body);");
     }
 
     /// <summary>
     /// Returns a C# expression that converts an attribute property value to
-    /// an <c>AttributeValueSyntax</c> suitable for storage in the syntax class.
+    /// an <c>AttributeValueSyntax</c> suitable for storage in the syntax class,
+    /// using the parameter's <c>csharpPrinter</c> expression from the ODS model.
     /// </summary>
     private static string BuildSyntaxFromPropertyExpression(string propertyExpr, AttrOrTypeParameterModel? param)
     {
@@ -386,23 +395,9 @@ internal static class AttributeAssemblyFormatEmitter
             return param!.CsharpPrinter!.Replace("$_self", propertyExpr);
         }
 
-        var csharpType = GetResolvedCSharpType(param);
-
-        switch (csharpType)
-        {
-            case "string":
-                return "new StringAttributeValueSyntax(new SyntaxToken(StringLiteralAttributeAssemblyFormat.Quote(" + propertyExpr + ")), " + propertyExpr + ")";
-
-            case "global::System.Numerics.BigInteger":
-                return "new IntegerAttributeValueSyntax(new SyntaxToken(" + propertyExpr + ".ToString(global::System.Globalization.CultureInfo.InvariantCulture)), " + propertyExpr + ")";
-
-            case "double":
-                return "new FloatingPointAttributeValueSyntax(new global::MLIR.Syntax.RawSyntaxText(" + propertyExpr + ".ToString(\"G\", global::System.Globalization.CultureInfo.InvariantCulture)), " + propertyExpr + ".ToString(\"G\", global::System.Globalization.CultureInfo.InvariantCulture))";
-
-            default:
-                // Unknown type: attribute stores the AttributeValueSyntax directly.
-                return propertyExpr;
-        }
+        // No printer defined: use the syntax node stored in the structured syntax class directly.
+        // This is only valid when csharpType is AttributeValueSyntax.
+        return propertyExpr;
     }
 
     // -----------------------------------------------------------------------
