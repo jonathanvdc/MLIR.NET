@@ -25,6 +25,13 @@ internal sealed class RecordBuilder
     private readonly Dictionary<string, Record> evaluatedDefinitions = new();
 
     /// <summary>
+    /// Tracks one <see cref="EvaluatedClass"/> object per class name so that every record that
+    /// derives from a class can register itself and class-level <c>extends</c> overlays can
+    /// locate affected records directly without scanning the full record table.
+    /// </summary>
+    private readonly Dictionary<string, EvaluatedClass> evaluatedClasses = new();
+
+    /// <summary>
     /// Memoizes class instantiations by class name and evaluated template argument fingerprint.
     /// </summary>
     private readonly Dictionary<(string ClassName, string ArgumentKey), Dictionary<string, Value>> instantiatedClasses = new();
@@ -99,7 +106,7 @@ internal sealed class RecordBuilder
         }
 
         var scope = Scope.Empty;
-        var baseClasses = new List<string>();
+        var baseClasses = new List<EvaluatedClass>();
         var seenBaseClasses = new HashSet<string>();
         CollectBaseClasses(definition.Bases, seenBaseClasses, baseClasses);
 
@@ -130,14 +137,21 @@ internal sealed class RecordBuilder
     }
 
     /// <summary>
-    /// Instantiates a class and resolves all of its fields for expression-time use.
+    /// Instantiates a class, resolves its fields, and returns an <see cref="AnonymousRecordValue"/>
+    /// that carries both the evaluated fields and the shared <see cref="EvaluatedClass"/> objects
+    /// for the instantiated class and all of its transitive bases.
     /// </summary>
+    /// <remarks>
+    /// Carrying the base-class objects lets the returned <see cref="AnonymousRecordValue.Fields"/>
+    /// view surface class-level <c>extends</c> overlays in the same way that
+    /// <see cref="Record.Fields"/> does, without mutating the value after construction.
+    /// </remarks>
     /// <param name="classSyntax">The class declaration to instantiate.</param>
     /// <param name="arguments">The supplied template arguments.</param>
     /// <param name="outerScope">The lexical scope in which the instantiation appears.</param>
     /// <param name="tryResolveValue">Optional deferred lookup for field references.</param>
-    /// <returns>A dictionary containing the instantiated field values or a diagnostic.</returns>
-    public EvaluationResult<Dictionary<string, Value>> InstantiateClass(
+    /// <returns>The anonymous record value or a diagnostic.</returns>
+    public EvaluationResult<AnonymousRecordValue> InstantiateClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
         Scope outerScope,
@@ -155,7 +169,7 @@ internal sealed class RecordBuilder
                 var argumentValue = expressionEvaluator.TryEvaluate(arguments[i], outerScope, tryResolveValue);
                 if (!argumentValue.IsSuccess)
                 {
-                    return EvaluationResult<Dictionary<string, Value>>.Failure(argumentValue.Diagnostic!);
+                    return EvaluationResult<AnonymousRecordValue>.Failure(argumentValue.Diagnostic!);
                 }
 
                 value = argumentValue.Value;
@@ -165,14 +179,14 @@ internal sealed class RecordBuilder
                 var defaultValue = expressionEvaluator.TryEvaluate(parameter.DefaultValue, scope, tryResolveValue);
                 if (!defaultValue.IsSuccess)
                 {
-                    return EvaluationResult<Dictionary<string, Value>>.Failure(defaultValue.Diagnostic!);
+                    return EvaluationResult<AnonymousRecordValue>.Failure(defaultValue.Diagnostic!);
                 }
 
                 value = defaultValue.Value;
             }
             else
             {
-                return EvaluationResult<Dictionary<string, Value>>.Failure(
+                return EvaluationResult<AnonymousRecordValue>.Failure(
                     InvalidOperation($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
             }
 
@@ -180,17 +194,31 @@ internal sealed class RecordBuilder
             boundArguments.Add(value);
         }
 
+        // Get-or-create the shared EvaluatedClass for this class so that class-level extends
+        // overlays are visible through the returned value's ExtensionAwareFieldView even when
+        // no top-level def derives from this class.
+        if (!evaluatedClasses.TryGetValue(classSyntax.Name, out var ownClass))
+        {
+            ownClass = new EvaluatedClass(classSyntax.Name);
+            evaluatedClasses[classSyntax.Name] = ownClass;
+        }
+
+        // Collect the inherited (non-self) transitive base classes. ownClass is stored
+        // separately on AnonymousRecordValue and prepended inside its constructor.
+        var inheritedBaseClasses = CollectBaseClassesForClass(classSyntax);
+
         var cacheKey = (classSyntax.Name, ValueFingerprint.Create(boundArguments));
         if (instantiatedClasses.TryGetValue(cacheKey, out var cachedFields))
         {
-            return EvaluationResult<Dictionary<string, Value>>.Success(CloneFields(cachedFields));
+            return EvaluationResult<AnonymousRecordValue>.Success(
+                new AnonymousRecordValue(ownClass, CloneFields(cachedFields), inheritedBaseClasses));
         }
 
         var state = new PendingRecordState();
         var bases = ApplyPendingBases(classSyntax.Bases, scope, state);
         if (!bases.IsSuccess)
         {
-            return EvaluationResult<Dictionary<string, Value>>.Failure(bases.Diagnostic!);
+            return EvaluationResult<AnonymousRecordValue>.Failure(bases.Diagnostic!);
         }
 
         ApplyTopLevelLets(classSyntax.TopLevelLets, scope, state);
@@ -198,29 +226,43 @@ internal sealed class RecordBuilder
         var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
-            return EvaluationResult<Dictionary<string, Value>>.Failure(body.Diagnostic!);
+            return EvaluationResult<AnonymousRecordValue>.Failure(body.Diagnostic!);
         }
 
         var resolvedFields = ResolveFields(state);
         if (!resolvedFields.IsSuccess)
         {
-            return resolvedFields;
+            return EvaluationResult<AnonymousRecordValue>.Failure(resolvedFields.Diagnostic!);
         }
 
         instantiatedClasses[cacheKey] = CloneFields(resolvedFields.Value);
-        return EvaluationResult<Dictionary<string, Value>>.Success(CloneFields(resolvedFields.Value));
+        return EvaluationResult<AnonymousRecordValue>.Success(
+            new AnonymousRecordValue(ownClass, CloneFields(resolvedFields.Value), inheritedBaseClasses));
     }
 
     /// <summary>
-    /// Applies an <c>extends</c> overlay to the target record after both the target and overlay schema have been evaluated.
+    /// Applies an <c>extends</c> overlay to the target record or class after both the target and overlay schema
+    /// have been evaluated.
+    /// <para>
+    /// For <c>def</c> targets the overlay is applied directly to the named record.
+    /// For <c>class</c> targets the overlay fields are applied to every already-evaluated record whose base-class
+    /// chain includes the target class; record-local fields are never overridden.
+    /// </para>
     /// </summary>
     /// <param name="extension">The parsed overlay declaration.</param>
     /// <returns>A success flag or a diagnostic.</returns>
     private EvaluationResult<bool> ApplyExtension(ExtendsSyntax extension)
     {
+        // Check for a class target first so that a class and a def with the same name
+        // unambiguously resolves to the class when the target name matches a class.
+        if (context.Classes.TryGetValue(extension.TargetName, out var targetClass))
+        {
+            return ApplyClassExtension(extension, targetClass);
+        }
+
         if (!context.DefinitionsByName.TryGetValue(extension.TargetName, out var targetDefinition))
         {
-            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen record '{extension.TargetName}'."));
+            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen record or class '{extension.TargetName}'."));
         }
 
         if (!evaluatedDefinitions.TryGetValue(targetDefinition.Name, out var targetRecord))
@@ -309,21 +351,137 @@ internal sealed class RecordBuilder
     }
 
     /// <summary>
-    /// Collects the transitive base-class names for a record, preserving first-seen order.
+    /// Evaluates an <c>extends</c> overlay that targets a class and attaches the resolved field
+    /// set to the shared <see cref="EvaluatedClass"/> object for that class.
+    /// </summary>
+    /// <remarks>
+    /// Because every <see cref="Record"/> that inherits from the class holds a reference to the
+    /// same <see cref="EvaluatedClass"/> instance, the extension fields become visible through
+    /// each record's <see cref="Record.Fields"/> view without any record-level mutation. Field
+    /// lookup checks record-local fields first, so local fields always shadow extension fields
+    /// with the same name.
+    /// </remarks>
+    /// <param name="extension">The parsed overlay declaration.</param>
+    /// <param name="targetClass">The class syntax node that is the extension target.</param>
+    /// <returns>A success flag or a diagnostic.</returns>
+    private EvaluationResult<bool> ApplyClassExtension(ExtendsSyntax extension, ClassSyntax targetClass)
+    {
+        var schemaState = new PendingRecordState();
+        var allowedFields = new HashSet<string>(StringComparer.Ordinal);
+        if (extension.Bases.Count == 0)
+        {
+            return EvaluationResult<bool>.Failure(
+                InvalidOperation($"Extension '{extension.TargetName}' must specify at least one schema base."));
+        }
+
+        foreach (var baseSpec in extension.Bases)
+        {
+            if (!context.Classes.TryGetValue(baseSpec.Name, out var schemaClass))
+            {
+                return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{baseSpec.Name}'."));
+            }
+
+            var instantiatedSchema = InstantiatePendingClass(schemaClass, baseSpec.Arguments, Scope.Empty);
+            if (!instantiatedSchema.IsSuccess)
+            {
+                return EvaluationResult<bool>.Failure(instantiatedSchema.Diagnostic!);
+            }
+
+            foreach (var pair in instantiatedSchema.Value.Fields)
+            {
+                if (!allowedFields.Add(pair.Key))
+                {
+                    return EvaluationResult<bool>.Failure(
+                        InvalidOperation(
+                            $"Extension schema field '{pair.Key}' is defined by more than one base class."));
+                }
+            }
+
+            schemaState.Import(instantiatedSchema.Value);
+        }
+
+        var seenFields = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var let in extension.TopLevelLets)
+        {
+            if (!schemaState.TryGetField(let.Name, out var existingField) || !existingField.IsInherited)
+            {
+                continue;
+            }
+
+            if (!seenFields.Add(let.Name))
+            {
+                return EvaluationResult<bool>.Failure(
+                    InvalidOperation(
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+            }
+
+            schemaState.ApplyTopLevelLet(let, Scope.Empty);
+        }
+
+        foreach (var let in extension.BodyLets)
+        {
+            if (!allowedFields.Contains(let.Name))
+            {
+                return EvaluationResult<bool>.Failure(
+                    InvalidOperation(
+                        $"Field '{let.Name}' is not declared by any extension schema base."));
+            }
+
+            if (!seenFields.Add(let.Name))
+            {
+                return EvaluationResult<bool>.Failure(
+                    InvalidOperation(
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+            }
+
+            schemaState.ApplyLet(let, Scope.Empty);
+        }
+
+        var resolved = ResolveFields(schemaState);
+        if (!resolved.IsSuccess)
+        {
+            return EvaluationResult<bool>.Failure(resolved.Diagnostic!);
+        }
+
+        // Attach the resolved field set to the shared EvaluatedClass object.
+        // Every Record or AnonymousRecordValue that holds this class in its BaseClasses will see
+        // the fields on next lookup through its ExtensionAwareFieldView — no per-record mutation.
+        // Get-or-create so that classes used only in dag arguments (never as a def base) are
+        // covered too.
+        if (!evaluatedClasses.TryGetValue(targetClass.Name, out var evaluatedClass))
+        {
+            evaluatedClass = new EvaluatedClass(targetClass.Name);
+            evaluatedClasses[targetClass.Name] = evaluatedClass;
+        }
+
+        evaluatedClass.AddExtensionFields(resolved.Value);
+        return EvaluationResult<bool>.Success(true);
+    }
+
+    /// <summary>
+    /// Collects the transitive base-class objects for a record, preserving first-seen order.
+    /// Each class is represented by a shared <see cref="EvaluatedClass"/> instance stored in
+    /// <see cref="evaluatedClasses"/>; the instance is created on first encounter.
     /// </summary>
     /// <param name="bases">The direct bases to walk.</param>
-    /// <param name="seenBaseClasses">Tracks base names that have already been emitted.</param>
-    /// <param name="baseClasses">Accumulates the ordered base-class list.</param>
+    /// <param name="seenBaseClasses">Tracks class names that have already been emitted.</param>
+    /// <param name="baseClasses">Accumulates the ordered base-class object list.</param>
     private void CollectBaseClasses(
         IReadOnlyList<BaseSyntax> bases,
         HashSet<string> seenBaseClasses,
-        List<string> baseClasses)
+        List<EvaluatedClass> baseClasses)
     {
         foreach (var @base in bases)
         {
             if (seenBaseClasses.Add(@base.Name))
             {
-                baseClasses.Add(@base.Name);
+                if (!evaluatedClasses.TryGetValue(@base.Name, out var evaluatedClass))
+                {
+                    evaluatedClass = new EvaluatedClass(@base.Name);
+                    evaluatedClasses[@base.Name] = evaluatedClass;
+                }
+
+                baseClasses.Add(evaluatedClass);
             }
 
             if (context.Classes.TryGetValue(@base.Name, out var classSyntax))
@@ -332,6 +490,22 @@ internal sealed class RecordBuilder
                 CollectBaseClasses(classSyntax.Bases, seenBaseClasses, baseClasses);
             }
         }
+    }
+
+    /// <summary>
+    /// Builds the ordered list of transitive inherited <see cref="EvaluatedClass"/> objects for
+    /// an anonymous class instantiation — the instantiated class itself is excluded because it is
+    /// stored as <see cref="AnonymousRecordValue.OwnClass"/> and prepended inside the constructor.
+    /// </summary>
+    /// <param name="classSyntax">The class being instantiated.</param>
+    /// <returns>The inherited base-class list in first-seen order.</returns>
+    private List<EvaluatedClass> CollectBaseClassesForClass(ClassSyntax classSyntax)
+    {
+        var result = new List<EvaluatedClass>();
+        // Seed the seen-set with the class itself so CollectBaseClasses doesn't re-add it.
+        var seen = new HashSet<string>(StringComparer.Ordinal) { classSyntax.Name };
+        CollectBaseClasses(classSyntax.Bases, seen, result);
+        return result;
     }
 
     /// <summary>

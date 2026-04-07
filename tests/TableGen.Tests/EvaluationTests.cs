@@ -114,6 +114,124 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void AppliesClassExtensionToAllRecordsDerivedFromTargetClass()
+    {
+        const string source =
+            "class Schema {\n" +
+            "  string csharpType = ?;\n" +
+            "};\n" +
+            "class MyParam<string desc> {\n" +
+            "  string description = desc;\n" +
+            "};\n" +
+            "def ParamA : MyParam<\"first\">;\n" +
+            "def ParamB : MyParam<\"second\">;\n" +
+            "def Unrelated;\n" +
+            "extends MyParam : Schema {\n" +
+            "  let csharpType = \"string\";\n" +
+            "}";
+
+        var document = Document.Parse(source).Evaluate();
+        var paramA = document.Records.Single(static r => r.Name == "ParamA");
+        var paramB = document.Records.Single(static r => r.Name == "ParamB");
+        var unrelated = document.Records.Single(static r => r.Name == "Unrelated");
+
+        Assert.Equal("string", Assert.IsType<StringValue>(paramA.GetField("csharpType")).Value);
+        Assert.Equal("string", Assert.IsType<StringValue>(paramB.GetField("csharpType")).Value);
+        Assert.False(unrelated.Fields.ContainsKey("csharpType"));
+    }
+
+    [Fact]
+    public void ClassExtensionFieldsAreVisibleThroughTransitiveBaseClass()
+    {
+        const string source =
+            "class Schema {\n" +
+            "  string tag = ?;\n" +
+            "};\n" +
+            "class Base;\n" +
+            "class Derived : Base;\n" +
+            "def Example : Derived;\n" +
+            "extends Base : Schema {\n" +
+            "  let tag = \"from-base\";\n" +
+            "}";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.Equal("from-base", Assert.IsType<StringValue>(record.GetField("tag")).Value);
+    }
+
+    [Fact]
+    public void RecordLocalFieldsShadowClassExtensionFields()
+    {
+        const string source =
+            "class Schema {\n" +
+            "  string csharpType = ?;\n" +
+            "};\n" +
+            "class MyParam;\n" +
+            "def Explicit : MyParam {\n" +
+            "  string csharpType = \"custom\";\n" +
+            "};\n" +
+            "def Inherited : MyParam;\n" +
+            "extends MyParam : Schema {\n" +
+            "  let csharpType = \"default\";\n" +
+            "}";
+
+        var document = Document.Parse(source).Evaluate();
+        var explicit_ = document.Records.Single(static r => r.Name == "Explicit");
+        var inherited = document.Records.Single(static r => r.Name == "Inherited");
+
+        // Record-local field wins over the class extension.
+        Assert.Equal("custom", Assert.IsType<StringValue>(explicit_.GetField("csharpType")).Value);
+        // Record with no local field sees the extension.
+        Assert.Equal("default", Assert.IsType<StringValue>(inherited.GetField("csharpType")).Value);
+    }
+
+    [Fact]
+    public void ClassExtensionFieldsAppearInFieldsEnumeration()
+    {
+        const string source =
+            "class Schema {\n" +
+            "  string meta = ?;\n" +
+            "};\n" +
+            "class MyParam;\n" +
+            "def Example : MyParam;\n" +
+            "extends MyParam : Schema {\n" +
+            "  let meta = \"injected\";\n" +
+            "}";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+
+        Assert.True(record.Fields.ContainsKey("meta"));
+        Assert.Equal("injected", Assert.IsType<StringValue>(record.Fields["meta"]).Value);
+    }
+
+    [Fact]
+    public void AnonymousRecordValueSeesExtensionFieldsOnItsOwnClass()
+    {
+        // The critical case: the extended class IS the class being instantiated in the dag.
+        // The EvaluatedClass for MyParam must be carried directly on the AnonymousRecordValue
+        // (as OwnClass) so that its extensions are visible even though no top-level def uses
+        // MyParam as a base class.
+        const string source =
+            "class Schema {\n" +
+            "  string csharpType = ?;\n" +
+            "};\n" +
+            "class MyParam<string desc>;\n" +
+            "class Holder {\n" +
+            "  dag parameters = (ins MyParam<\"d\">:$p);\n" +
+            "};\n" +
+            "def Example : Holder;\n" +
+            "extends MyParam : Schema {\n" +
+            "  let csharpType = \"string\";\n" +
+            "}";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+        var dag = Assert.IsType<DagValue>(record.GetField("parameters"));
+        var param = Assert.IsType<AnonymousRecordValue>(dag.Arguments[0].Value);
+
+        Assert.Equal("string", Assert.IsType<StringValue>(param.Fields["csharpType"]).Value);
+    }
+
+    [Fact]
     public void EvaluatesListsAndNestedTemplateInstantiation()
     {
         const string source =
@@ -130,7 +248,7 @@ public sealed class EvaluationTests
 
         Assert.Equal(new[] { 1, 2, 3 }, values.Items.Cast<IntegerValue>().Select(static item => item.Value).ToArray());
         Assert.Equal("wrapped", Assert.IsType<StringValue>(record.GetField("Tag")).Value);
-        Assert.Equal(["Wrapper", "Numbers"], record.BaseClasses);
+        Assert.Equal(["Wrapper", "Numbers"], record.BaseClassNames);
     }
 
     [Fact]
@@ -239,8 +357,8 @@ public sealed class EvaluationTests
 
         var record = TestHelpers.LoadWithPrelude(source).Evaluate().Records.Single(static record => record.Name == "MiniArith_AddIOp");
 
-        Assert.Contains("MiniArith_Op", record.BaseClasses);
-        Assert.Contains("Op", record.BaseClasses);
+        Assert.Contains("MiniArith_Op", record.BaseClassNames);
+        Assert.Contains("Op", record.BaseClassNames);
         Assert.Equal("addi", Assert.IsType<StringValue>(record.GetField("opName")).Value);
         Assert.Equal("MiniArith_Dialect", Assert.IsType<RecordReferenceValue>(record.GetField("opDialect")).RecordName);
         var traits = Assert.IsType<ListValue>(record.GetField("traits"));
@@ -435,7 +553,7 @@ public sealed class EvaluationTests
 
         var record = TestHelpers.EvaluateSingleRecord(source);
 
-        Assert.Equal(["LeftLeaf", "Root", "RightLeaf", "RightBranch"], record.BaseClasses);
+        Assert.Equal(["LeftLeaf", "Root", "RightLeaf", "RightBranch"], record.BaseClassNames);
     }
 
     [Fact]

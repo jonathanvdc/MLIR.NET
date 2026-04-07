@@ -5,18 +5,18 @@ using System.Collections.Generic;
 /// <summary>
 /// Represents an expanded TableGen record.
 /// </summary>
-public sealed class Record(string name, IReadOnlyList<string> baseClasses, IReadOnlyDictionary<string, Value> fields)
+public sealed class Record(string name, IReadOnlyList<EvaluatedClass> baseClasses, IReadOnlyDictionary<string, Value> fields)
 {
     /// <summary>
-    /// Stores the evaluated field values, including any overlays applied after the base record was built.
+    /// Stores the record-local evaluated field values built during instantiation.
+    /// Extension fields contributed by class-level <c>extends</c> overlays are NOT stored
+    /// here; they are resolved on demand through the <see cref="Fields"/> view.
     /// </summary>
     private readonly Dictionary<string, Value> fieldValues = CopyFields(fields);
 
     /// <summary>
     /// Copies an input field dictionary into a mutable record-owned dictionary.
     /// </summary>
-    /// <param name="source">The source field dictionary.</param>
-    /// <returns>A mutable copy of the source fields.</returns>
     private static Dictionary<string, Value> CopyFields(IReadOnlyDictionary<string, Value> source)
     {
         var copy = new Dictionary<string, Value>(source.Count);
@@ -34,17 +34,28 @@ public sealed class Record(string name, IReadOnlyList<string> baseClasses, IRead
     public string Name { get; } = name;
 
     /// <summary>
-    /// Gets the evaluated field values.
+    /// Gets a unified view of all fields visible on this record: record-local fields first,
+    /// followed by any fields contributed by class-level <c>extends</c> overlays on the
+    /// record's base classes. Record-local fields always shadow extension fields with the
+    /// same name.
     /// </summary>
-    public IReadOnlyDictionary<string, Value> Fields => fieldValues;
+    public IReadOnlyDictionary<string, Value> Fields => new ExtensionAwareFieldView(fieldValues, BaseClasses);
 
     /// <summary>
-    /// Gets the transitive base-class names applied to the record.
+    /// Gets the transitive base-class objects applied to the record, in first-seen order.
+    /// Each object carries any class-level extension field sets attached via <c>extends</c>,
+    /// which are surfaced through the <see cref="Fields"/> view without mutating the record.
     /// </summary>
-    public IReadOnlyList<string> BaseClasses { get; } = baseClasses;
+    public IReadOnlyList<EvaluatedClass> BaseClasses { get; } = baseClasses;
 
     /// <summary>
-    /// Gets a field by name.
+    /// Gets the transitive base-class names in first-seen order. Convenience shorthand for
+    /// <c>BaseClasses.Select(c => c.Name)</c>.
+    /// </summary>
+    public IEnumerable<string> BaseClassNames => BaseClasses.Select(static c => c.Name);
+
+    /// <summary>
+    /// Gets a field by name, including any extension fields contributed by base-class overlays.
     /// </summary>
     /// <param name="name">The field name.</param>
     /// <returns>The field value.</returns>
@@ -60,7 +71,7 @@ public sealed class Record(string name, IReadOnlyList<string> baseClasses, IRead
     {
         for (var i = 0; i < BaseClasses.Count; i++)
         {
-            if (BaseClasses[i] == name)
+            if (BaseClasses[i].Name == name)
             {
                 return true;
             }
@@ -70,7 +81,8 @@ public sealed class Record(string name, IReadOnlyList<string> baseClasses, IRead
     }
 
     /// <summary>
-    /// Applies a field overlay to this record.
+    /// Applies a field overlay to this record, used when processing <c>extends</c> on a
+    /// <c>def</c> target.
     /// </summary>
     /// <param name="overlayFields">The field values to merge into the record.</param>
     /// <returns>A success flag or a diagnostic when the overlay conflicts with an existing field.</returns>
