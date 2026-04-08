@@ -31,8 +31,14 @@ public sealed class F32AttributeAssemblyFormat : IAttributeAssemblyFormat
         {
             // Allow integer literals to be implicitly converted to single-precision floating-point attributes.
             var convertedSyntax = FloatingPointAssemblyFormatHelper.BuildSyntax(
-                new RawSyntaxText([integerSyntax.LiteralToken]),
-                FloatingPointLiteralParser.Parse(FloatSemantics.IEEESingle, integerSyntax.LiteralToken.Text));
+                new RawSyntaxText(integerSyntax.SignToken.HasValue
+                    ? [integerSyntax.SignToken.Value, integerSyntax.IntegerToken]
+                    : [integerSyntax.IntegerToken]),
+                FloatingPointLiteralParser.Parse(
+                    FloatSemantics.IEEESingle,
+                    integerSyntax.SignToken.HasValue
+                        ? integerSyntax.SignToken.Value.Text + integerSyntax.IntegerToken.Text
+                        : integerSyntax.IntegerToken.Text));
             return definition.Factory(new AttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
         }
         else

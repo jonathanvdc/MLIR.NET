@@ -84,14 +84,15 @@ public sealed class AttributeParsingContext : DialectParsingContext
     /// </remarks>
     public ParseResult<AttributeValueSyntax> TryParseIntegerLiteralSyntax()
     {
-        if (!IntegerLiteralAttributeAssemblyFormat.TryParseSignedIntegerLiteral(this, out var rawText, out var value))
+        if (!IntegerLiteralAttributeAssemblyFormat.TryParseSignedIntegerLiteral(this, out var signToken, out var integerToken, out var value))
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         return ParseResult<AttributeValueSyntax>.Success(
             new IntegerAttributeValueSyntax(
-                IntegerLiteralAttributeAssemblyFormat.CreateSingleToken(rawText),
+                signToken,
+                integerToken,
                 ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
     }
 

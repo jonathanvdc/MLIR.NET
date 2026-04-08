@@ -12,18 +12,35 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Initializes a new instance of the <see cref="IntegerAttributeValueSyntax"/> class.
     /// </summary>
-    /// <param name="literalToken">The source token for the integer literal.</param>
+    /// <param name="signToken">The optional source token for the sign.</param>
+    /// <param name="integerToken">The source token for the digits.</param>
     /// <param name="value">The parsed integer value.</param>
-    public IntegerAttributeValueSyntax(SyntaxToken literalToken, ApInt value)
+    public IntegerAttributeValueSyntax(SyntaxToken? signToken, SyntaxToken integerToken, ApInt value)
     {
-        LiteralToken = literalToken;
+        SignToken = signToken;
+        IntegerToken = integerToken;
         Value = value;
     }
 
     /// <summary>
-    /// Gets the literal token.
+    /// Initializes a new instance of the <see cref="IntegerAttributeValueSyntax"/> class.
     /// </summary>
-    public SyntaxToken LiteralToken { get; }
+    /// <param name="integerToken">The source token for the integer literal.</param>
+    /// <param name="value">The parsed integer value.</param>
+    public IntegerAttributeValueSyntax(SyntaxToken integerToken, ApInt value)
+        : this(null, integerToken, value)
+    {
+    }
+
+    /// <summary>
+    /// Gets the optional sign token.
+    /// </summary>
+    public SyntaxToken? SignToken { get; }
+
+    /// <summary>
+    /// Gets the digits token.
+    /// </summary>
+    public SyntaxToken IntegerToken { get; }
 
     /// <summary>
     /// Gets the parsed integer value.
@@ -31,11 +48,16 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     public ApInt Value { get; }
 
     /// <inheritdoc/>
-    public override SourceLocation Location => LiteralToken.Location;
+    public override SourceLocation Location => SignToken?.Location ?? IntegerToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)
     {
-        writer.WriteToken(LiteralToken);
+        if (SignToken.HasValue)
+        {
+            writer.WriteToken(SignToken.Value);
+        }
+
+        writer.WriteToken(IntegerToken);
     }
 }

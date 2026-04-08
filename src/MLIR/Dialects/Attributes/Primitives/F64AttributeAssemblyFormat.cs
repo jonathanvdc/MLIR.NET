@@ -31,8 +31,14 @@ public sealed class F64AttributeAssemblyFormat : IAttributeAssemblyFormat
         {
             // Allow integer literals to be implicitly converted to double-precision floating-point attributes.
             var convertedSyntax = FloatingPointAssemblyFormatHelper.BuildSyntax(
-                new RawSyntaxText([integerSyntax.LiteralToken]),
-                FloatingPointLiteralParser.Parse(FloatSemantics.IEEEDouble, integerSyntax.LiteralToken.Text));
+                new RawSyntaxText(integerSyntax.SignToken.HasValue
+                    ? [integerSyntax.SignToken.Value, integerSyntax.IntegerToken]
+                    : [integerSyntax.IntegerToken]),
+                FloatingPointLiteralParser.Parse(
+                    FloatSemantics.IEEEDouble,
+                    integerSyntax.SignToken.HasValue
+                        ? integerSyntax.SignToken.Value.Text + integerSyntax.IntegerToken.Text
+                        : integerSyntax.IntegerToken.Text));
             return definition.Factory(new AttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
         }
         else

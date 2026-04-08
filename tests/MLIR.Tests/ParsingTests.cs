@@ -307,6 +307,9 @@ public sealed class ParsingTests
 
         var integerSyntax = Assert.IsType<IntegerAttributeValueSyntax>(syntax);
         Assert.Equal(expectedValue, (int)integerSyntax.Value.ToBigIntegerSigned());
+        var expectedDigits = source.StartsWith('+') || source.StartsWith('-') ? source[1..] : source;
+        Assert.Equal(expectedDigits, integerSyntax.IntegerToken.Text);
+        Assert.Equal(source.StartsWith('+') || source.StartsWith('-') ? source[..1] : null, integerSyntax.SignToken?.Text);
         Assert.Equal(source, syntax.ToString());
     }
 

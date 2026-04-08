@@ -154,7 +154,7 @@ public sealed partial class Parser
 
         Reset(checkpoint);
 
-        if (!IntegerLiteralAttributeAssemblyFormat.TryParseSignedIntegerLiteral(new AttributeParsingContext(this, dialectRegistry, null), out var rawText, out var value))
+        if (!IntegerLiteralAttributeAssemblyFormat.TryParseSignedIntegerLiteral(new AttributeParsingContext(this, dialectRegistry, null), out var signToken, out var integerToken, out var value))
         {
             Reset(checkpoint);
             return ParseResult<AttributeValueSyntax>.NoMatch();
@@ -162,7 +162,8 @@ public sealed partial class Parser
 
         var integerSyntax = ParseResult<AttributeValueSyntax>.Success(
             new IntegerAttributeValueSyntax(
-                IntegerLiteralAttributeAssemblyFormat.CreateSingleToken(rawText),
+                signToken,
+                integerToken,
                 ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
         if (IsValidAttributeValueTermination(stopAtOperationBoundary, stopBefore))
         {

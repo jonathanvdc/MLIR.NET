@@ -31,8 +31,13 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
         {
             // Allow integer literals to be used as floating-point attributes, by treating them as their decimal representation.
             var convertedSyntax = FloatingPointAssemblyFormatHelper.BuildSyntax(
-                new RawSyntaxText([integerSyntax.LiteralToken]),
-                FloatingPointLiteralParser.Parse(integerSyntax.LiteralToken.Text));
+                new RawSyntaxText(integerSyntax.SignToken.HasValue
+                    ? [integerSyntax.SignToken.Value, integerSyntax.IntegerToken]
+                    : [integerSyntax.IntegerToken]),
+                FloatingPointLiteralParser.Parse(
+                    integerSyntax.SignToken.HasValue
+                        ? integerSyntax.SignToken.Value.Text + integerSyntax.IntegerToken.Text
+                        : integerSyntax.IntegerToken.Text));
             return definition.Factory(new AttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
         }
         else

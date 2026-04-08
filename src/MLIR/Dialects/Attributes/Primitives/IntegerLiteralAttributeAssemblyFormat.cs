@@ -19,14 +19,15 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        if (!TryParseSignedIntegerLiteral(context, out var rawText, out var value))
+        if (!TryParseSignedIntegerLiteral(context, out var signToken, out var digitsToken, out var value))
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
         return ParseResult<AttributeValueSyntax>.Success(
             new IntegerAttributeValueSyntax(
-                CreateSingleToken(rawText),
+                signToken,
+                digitsToken,
                 ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
     }
 
@@ -58,11 +59,15 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
         return new IntegerAttributeValueSyntax(new SyntaxToken(text), value);
     }
 
-    internal static bool TryParseSignedIntegerLiteral(AttributeParsingContext context, out RawSyntaxText rawText, out BigInteger value)
+    internal static bool TryParseSignedIntegerLiteral(
+        AttributeParsingContext context,
+        out SyntaxToken? signToken,
+        out SyntaxToken integerToken,
+        out BigInteger value)
     {
-        rawText = null!;
+        signToken = null;
+        integerToken = default;
         value = default;
-        SyntaxToken? signToken = null;
         if (context.TryMatch(TokenKind.Minus, out var minus))
         {
             signToken = minus;
@@ -72,29 +77,23 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
             signToken = plus;
         }
 
-        if (!context.TryMatch(TokenKind.Integer, out var integerToken))
+        if (!context.TryMatch(TokenKind.Integer, out var digitsToken))
         {
-            rawText = default!;
+            integerToken = default;
             value = default;
             return false;
         }
 
         if (signToken.HasValue)
         {
-            rawText = new RawSyntaxText([signToken.Value, integerToken], signToken.Value.Text + integerToken.Text);
-            value = BigInteger.Parse(rawText.Text, CultureInfo.InvariantCulture);
+            value = BigInteger.Parse(signToken.Value.Text + digitsToken.Text, CultureInfo.InvariantCulture);
         }
         else
         {
-            rawText = new RawSyntaxText([integerToken]);
-            value = BigInteger.Parse(integerToken.Text, CultureInfo.InvariantCulture);
+            value = BigInteger.Parse(digitsToken.Text, CultureInfo.InvariantCulture);
         }
 
+        integerToken = digitsToken;
         return true;
-    }
-
-    internal static SyntaxToken CreateSingleToken(RawSyntaxText rawText)
-    {
-        return rawText.Tokens.Count == 0 ? new SyntaxToken(rawText.Text) : new SyntaxToken(rawText.Text, rawText.Tokens[0].LeadingTrivia, rawText.Location.Line, rawText.Location.Column);
     }
 }
