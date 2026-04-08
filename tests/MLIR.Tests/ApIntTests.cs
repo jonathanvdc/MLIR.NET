@@ -22,6 +22,38 @@ public sealed class ApIntTests
     }
 
     [Fact]
+    public void OneBitValuesBehaveLikeBooleansWithSign()
+    {
+        ApInt zero = ApInt.Zero(1);
+        ApInt one = ApInt.One(1);
+
+        Assert.False(zero.SignBit);
+        Assert.True(one.SignBit);
+        Assert.True(one.IsAllOnes);
+        Assert.Equal((BigInteger)(-1), one.ToBigIntegerSigned());
+        Assert.Equal("1", one.ToStringUnsigned());
+        Assert.Equal("-1", one.ToStringSigned());
+        Assert.Equal(zero, one & zero);
+        Assert.Equal(one, one | zero);
+    }
+
+    [Fact]
+    public void RangeConstructorsBuildTheExpectedBitPatterns()
+    {
+        Assert.Equal("8", ApInt.GetOneBitSet(8, 3).ToStringUnsigned(16));
+        Assert.Equal("1c", ApInt.GetBitsSet(8, 2, 5).ToStringUnsigned(16));
+        Assert.Equal("c3", ApInt.GetBitsSetWithWrap(8, 6, 2).ToStringUnsigned(16));
+        Assert.Equal("f0", ApInt.GetBitsSetFrom(8, 4).ToStringUnsigned(16));
+        Assert.Equal("e0", ApInt.GetHighBitsSet(8, 3).ToStringUnsigned(16));
+        Assert.Equal("7", ApInt.GetLowBitsSet(8, 3).ToStringUnsigned(16));
+        Assert.Equal("0", ApInt.GetZeroWidth().ToStringUnsigned());
+        Assert.Equal("ff", ApInt.GetMaxValue(8).ToStringUnsigned(16));
+        Assert.Equal("7f", ApInt.GetSignedMaxValue(8).ToStringUnsigned(16));
+        Assert.Equal("80", ApInt.GetSignedMinValue(8).ToStringUnsigned(16));
+        Assert.Equal("80", ApInt.GetSignMask(8).ToStringUnsigned(16));
+    }
+
+    [Fact]
     public void WrapsArithmeticModuloBitWidth()
     {
         ApInt left = ApInt.FromUInt64(8, 250);
@@ -53,6 +85,34 @@ public sealed class ApIntTests
     }
 
     [Fact]
+    public void RangeMutationHelpersSetAndClearBitRanges()
+    {
+        ApInt empty = ApInt.Zero(8);
+        ApInt full = ApInt.AllOnes(8);
+
+        Assert.Equal("1c", empty.SetBits(2, 5).ToStringUnsigned(16));
+        Assert.Equal("c3", empty.SetBitsWithWrap(6, 2).ToStringUnsigned(16));
+        Assert.Equal("f0", empty.SetBitsFrom(4).ToStringUnsigned(16));
+        Assert.Equal("e0", empty.SetHighBits(3).ToStringUnsigned(16));
+        Assert.Equal("7", empty.SetLowBits(3).ToStringUnsigned(16));
+        Assert.Equal("e3", full.ClearBits(2, 5).ToStringUnsigned(16));
+        Assert.Equal("3c", full.ClearBitsWithWrap(6, 2).ToStringUnsigned(16));
+        Assert.Equal("f", full.ClearBitsFrom(4).ToStringUnsigned(16));
+        Assert.Equal("1f", full.ClearHighBits(3).ToStringUnsigned(16));
+        Assert.Equal("f8", full.ClearLowBits(3).ToStringUnsigned(16));
+    }
+
+    [Fact]
+    public void AdditionCarriesAndSubtractionBorrowsWithinWidth()
+    {
+        ApInt max = ApInt.AllOnes(8);
+        ApInt one = ApInt.One(8);
+
+        Assert.Equal(ApInt.Zero(8), max + one);
+        Assert.Equal(ApInt.AllOnes(8), ApInt.Zero(8) - one);
+    }
+
+    [Fact]
     public void PreservesWidthInEquality()
     {
         ApInt eightBit = ApInt.Zero(8);
@@ -73,6 +133,34 @@ public sealed class ApIntTests
     }
 
     [Fact]
+    public void ValuePredicatesMatchSignedAndUnsignedExtremes()
+    {
+        ApInt zero = ApInt.Zero(8);
+        ApInt oneBit = ApInt.GetOneBitSet(8, 6);
+        ApInt negativeOne = ApInt.AllOnes(8);
+        ApInt minSigned = ApInt.GetSignedMinValue(8);
+        ApInt maxSigned = ApInt.GetSignedMaxValue(8);
+
+        Assert.True(zero.IsZero);
+        Assert.True(zero.IsMinValue);
+        Assert.True(zero.IsNonNegative);
+        Assert.False(zero.IsNegative);
+        Assert.False(zero.IsPowerOf2());
+        Assert.False(zero.IsNegatedPowerOf2());
+        Assert.True(oneBit.IsPowerOf2());
+        Assert.True(oneBit.IsOneBitSet(6));
+        Assert.False(oneBit.IsMaxSignedValue);
+        Assert.True(negativeOne.IsAllOnes);
+        Assert.True(negativeOne.IsMaxValue);
+        Assert.True(negativeOne.IsNegative);
+        Assert.True(negativeOne.IsNonPositive);
+        Assert.True(maxSigned.IsMaxSignedValue);
+        Assert.True(minSigned.IsMinSignedValue);
+        Assert.True(minSigned.IsNegatedPowerOf2());
+        Assert.True(maxSigned.IsStrictlyPositive);
+    }
+
+    [Fact]
     public void SignedAndUnsignedComparisonsDistinguishTheSameBits()
     {
         ApInt minusOne = ApInt.Parse(8, "ff", radix: 16, isSigned: false);
@@ -81,6 +169,20 @@ public sealed class ApIntTests
         Assert.True(minusOne.UGreaterThan(zero));
         Assert.True(minusOne.SLessThan(zero));
         Assert.True(zero.ULessThan(minusOne));
+    }
+
+    [Fact]
+    public void ComparisonHelpersAreReflexiveAndOrdered()
+    {
+        ApInt left = ApInt.Parse(8, "20", radix: 16, isSigned: false);
+        ApInt right = ApInt.Parse(8, "40", radix: 16, isSigned: false);
+
+        Assert.True(left.ULessThanOrEqual(left));
+        Assert.True(left.UGreaterThanOrEqual(left));
+        Assert.True(left.ULessThan(right));
+        Assert.True(right.UGreaterThan(left));
+        Assert.True(left.SLessThanOrEqual(left));
+        Assert.True(left.SGreaterThanOrEqual(left));
     }
 
     [Fact]
@@ -131,6 +233,16 @@ public sealed class ApIntTests
     }
 
     [Fact]
+    public void ParseStopsAtTheFirstInvalidDigitLikeUpstreamApInt()
+    {
+        ApInt parsedDecimal = ApInt.Parse(16, "123xyz", radix: 10);
+        ApInt parsedHex = ApInt.Parse(16, "ABCDg", radix: 16);
+
+        Assert.Equal((BigInteger)123, parsedDecimal.ToBigIntegerUnsigned());
+        Assert.Equal("abcd", parsedHex.ToStringUnsigned(16));
+    }
+
+    [Fact]
     public void TruncationAndExtensionRespectIdentityCases()
     {
         ApInt value = ApInt.Parse(8, "5a", radix: 16, isSigned: false);
@@ -138,6 +250,18 @@ public sealed class ApIntTests
         Assert.Equal(value, value.Trunc(8));
         Assert.Equal(value, value.ZeroExtend(8));
         Assert.Equal(value, value.SignExtend(8));
+    }
+
+    [Fact]
+    public void TruncationDropsHighBitsAndExtensionsRestoreShape()
+    {
+        ApInt value = ApInt.Parse(16, "12ab", radix: 16, isSigned: false);
+
+        ApInt truncated = value.Trunc(8);
+
+        Assert.Equal("ab", truncated.ToStringUnsigned(16));
+        Assert.Equal(truncated, truncated.ZeroExtend(16).Trunc(8));
+        Assert.Equal(truncated, truncated.SignExtend(16).Trunc(8));
     }
 
     [Fact]
@@ -182,6 +306,18 @@ public sealed class ApIntTests
     }
 
     [Fact]
+    public void DivisionByOneLeavesTheValueUnchanged()
+    {
+        ApInt value = ApInt.Parse(8, "8b", radix: 16, isSigned: false);
+        ApInt one = ApInt.One(8);
+
+        Assert.Equal(value, value.UDiv(one));
+        Assert.Equal(ApInt.Zero(8), value.URem(one));
+        Assert.Equal(value, value.SDiv(one));
+        Assert.Equal(ApInt.Zero(8), value.SRem(one));
+    }
+
+    [Fact]
     public void ConversionMethodsRoundTripForSmallValues()
     {
         ApInt value = ApInt.FromUInt64(16, 0x7fffu);
@@ -209,6 +345,16 @@ public sealed class ApIntTests
 
         Assert.Equal((BigInteger)127, quotient.ToBigIntegerUnsigned());
         Assert.Equal((BigInteger)0, remainder.ToBigIntegerUnsigned());
+    }
+
+    [Fact]
+    public void DivisionAndRemainderByLargerDivisorAreStable()
+    {
+        ApInt dividend = ApInt.Parse(8, "05", radix: 16, isSigned: false);
+        ApInt divisor = ApInt.Parse(8, "10", radix: 16, isSigned: false);
+
+        Assert.Equal(ApInt.Zero(8), dividend.UDiv(divisor));
+        Assert.Equal(dividend, dividend.URem(divisor));
     }
 
     [Fact]
@@ -250,5 +396,17 @@ public sealed class ApIntTests
         Assert.Equal(11, highBit.CountTrailingZeros());
         Assert.Equal(11, lowBit.CountLeadingZeros());
         Assert.Equal(0, lowBit.CountTrailingZeros());
+    }
+
+    [Fact]
+    public void ShiftAndBitManipulationRoundTripSingleBits()
+    {
+        ApInt value = ApInt.Zero(8).SetBit(5);
+
+        Assert.Equal(ApInt.One(3), value.LShr(5).Trunc(3));
+        Assert.Equal(value, value.LShr(0));
+        Assert.Equal(value, value.Shl(0));
+        Assert.Equal(value, value.AShr(0));
+        Assert.True(value.TestBit(5));
     }
 }

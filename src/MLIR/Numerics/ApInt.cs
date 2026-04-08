@@ -82,6 +82,46 @@ public readonly struct ApInt : IEquatable<ApInt>
     public bool SignBit => BitWidth > 0 && TestBitUnchecked(value, BitWidth - 1);
 
     /// <summary>
+    /// Gets whether this value is negative under signed two's-complement interpretation.
+    /// </summary>
+    public bool IsNegative => SignBit;
+
+    /// <summary>
+    /// Gets whether this value is non-negative under signed two's-complement interpretation.
+    /// </summary>
+    public bool IsNonNegative => !SignBit;
+
+    /// <summary>
+    /// Gets whether this value is strictly greater than zero under signed interpretation.
+    /// </summary>
+    public bool IsStrictlyPositive => IsNonNegative && !IsZero;
+
+    /// <summary>
+    /// Gets whether this value is less than or equal to zero under signed interpretation.
+    /// </summary>
+    public bool IsNonPositive => !IsStrictlyPositive;
+
+    /// <summary>
+    /// Gets whether this value is the maximum unsigned value for its width.
+    /// </summary>
+    public bool IsMaxValue => IsAllOnes;
+
+    /// <summary>
+    /// Gets whether this value is the minimum unsigned value for its width.
+    /// </summary>
+    public bool IsMinValue => IsZero;
+
+    /// <summary>
+    /// Gets whether this value is the maximum signed value for its width.
+    /// </summary>
+    public bool IsMaxSignedValue => BitWidth > 0 && value == ((BigInteger.One << (BitWidth - 1)) - BigInteger.One);
+
+    /// <summary>
+    /// Gets whether this value is the minimum signed value for its width.
+    /// </summary>
+    public bool IsMinSignedValue => BitWidth > 0 && value == (BigInteger.One << (BitWidth - 1));
+
+    /// <summary>
     /// Creates a fixed-width zero value.
     /// </summary>
     /// <param name="bitWidth">The number of bits in the result.</param>
@@ -101,6 +141,90 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// <param name="bitWidth">The number of bits in the result.</param>
     /// <returns>An <see cref="ApInt"/> of the specified width containing all one bits.</returns>
     public static ApInt AllOnes(int bitWidth) => new ApInt(bitWidth, Mask(bitWidth));
+
+    /// <summary>
+    /// Creates a fixed-width value with a single bit set.
+    /// </summary>
+    /// <param name="bitWidth">The width of the resulting value.</param>
+    /// <param name="bitNo">The zero-based bit index to set.</param>
+    public static ApInt GetOneBitSet(int bitWidth, int bitNo) => new ApInt(bitWidth, SingleBitMask(bitWidth, bitNo));
+
+    /// <summary>
+    /// Creates a zero-width value.
+    /// </summary>
+    public static ApInt GetZeroWidth() => Zero(0);
+
+    /// <summary>
+    /// Creates the maximum unsigned value for a bit width.
+    /// </summary>
+    public static ApInt GetMaxValue(int bitWidth) => AllOnes(bitWidth);
+
+    /// <summary>
+    /// Creates the maximum signed value for a bit width.
+    /// </summary>
+    public static ApInt GetSignedMaxValue(int bitWidth)
+    {
+        if (bitWidth < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitWidth));
+        }
+
+        return bitWidth == 0 ? Zero(0) : new ApInt(bitWidth, (BigInteger.One << (bitWidth - 1)) - BigInteger.One);
+    }
+
+    /// <summary>
+    /// Creates the minimum unsigned value for a bit width.
+    /// </summary>
+    public static ApInt GetMinValue(int bitWidth) => Zero(bitWidth);
+
+    /// <summary>
+    /// Creates the minimum signed value for a bit width.
+    /// </summary>
+    public static ApInt GetSignedMinValue(int bitWidth)
+    {
+        if (bitWidth < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitWidth));
+        }
+
+        return bitWidth == 0 ? Zero(0) : new ApInt(bitWidth, BigInteger.One << (bitWidth - 1));
+    }
+
+    /// <summary>
+    /// Creates the sign mask for a bit width.
+    /// </summary>
+    public static ApInt GetSignMask(int bitWidth) => GetSignedMinValue(bitWidth);
+
+    /// <summary>
+    /// Creates a fixed-width value with bits from <paramref name="loBit"/> to <paramref name="hiBit"/> set.
+    /// </summary>
+    /// <param name="bitWidth">The width of the resulting value.</param>
+    /// <param name="loBit">The first bit to set, inclusive.</param>
+    /// <param name="hiBit">The bit after the last bit to set, exclusive.</param>
+    public static ApInt GetBitsSet(int bitWidth, int loBit, int hiBit) => new ApInt(bitWidth, RangeMask(bitWidth, loBit, hiBit));
+
+    /// <summary>
+    /// Creates a fixed-width value with a wrapped bit range set.
+    /// </summary>
+    /// <param name="bitWidth">The width of the resulting value.</param>
+    /// <param name="loBit">The first bit to set, inclusive.</param>
+    /// <param name="hiBit">The bit after the last bit to set, exclusive.</param>
+    public static ApInt GetBitsSetWithWrap(int bitWidth, int loBit, int hiBit) => new ApInt(bitWidth, RangeMaskWithWrap(bitWidth, loBit, hiBit));
+
+    /// <summary>
+    /// Creates a fixed-width value with bits from <paramref name="loBit"/> to the top set.
+    /// </summary>
+    public static ApInt GetBitsSetFrom(int bitWidth, int loBit) => GetBitsSet(bitWidth, loBit, bitWidth);
+
+    /// <summary>
+    /// Creates a fixed-width value with the top <paramref name="hiBitsSet"/> bits set.
+    /// </summary>
+    public static ApInt GetHighBitsSet(int bitWidth, int hiBitsSet) => GetBitsSet(bitWidth, bitWidth - ValidateRangeCount(bitWidth, hiBitsSet), bitWidth);
+
+    /// <summary>
+    /// Creates a fixed-width value with the bottom <paramref name="loBitsSet"/> bits set.
+    /// </summary>
+    public static ApInt GetLowBitsSet(int bitWidth, int loBitsSet) => GetBitsSet(bitWidth, 0, ValidateRangeCount(bitWidth, loBitsSet));
 
     /// <summary>
     /// Creates a fixed-width value from an unsigned 64-bit integer.
@@ -465,6 +589,134 @@ public readonly struct ApInt : IEquatable<ApInt>
     }
 
     /// <summary>
+    /// Determines whether this value has exactly one bit set at the specified index.
+    /// </summary>
+    public bool IsOneBitSet(int bitIndex)
+    {
+        ValidateBitIndex(bitIndex);
+        return TestBit(bitIndex) && PopCount() == 1;
+    }
+
+    /// <summary>
+    /// Determines whether this value is a power of two in its unsigned interpretation.
+    /// </summary>
+    public bool IsPowerOf2() => !IsZero && (value & (value - BigInteger.One)) == BigInteger.Zero;
+
+    /// <summary>
+    /// Determines whether the negated signed interpretation is a power of two.
+    /// </summary>
+    public bool IsNegatedPowerOf2()
+    {
+        if (BitWidth == 0 || !IsNegative)
+        {
+            return false;
+        }
+
+        BigInteger magnitude = BigInteger.Abs(ToBigIntegerSigned());
+        return magnitude > BigInteger.Zero && (magnitude & (magnitude - BigInteger.One)) == BigInteger.Zero;
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the bits in
+    /// <paramref name="loBit"/>..<paramref name="hiBit"/> are set.
+    /// </summary>
+    public ApInt SetBits(int loBit, int hiBit)
+    {
+        ValidateBitRange(loBit, hiBit);
+        return new ApInt(BitWidth, value | RangeMask(BitWidth, loBit, hiBit));
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the bits in
+    /// <paramref name="loBit"/>..<paramref name="hiBit"/> are cleared.
+    /// </summary>
+    public ApInt ClearBits(int loBit, int hiBit)
+    {
+        ValidateBitRange(loBit, hiBit);
+        return new ApInt(BitWidth, value & ~RangeMask(BitWidth, loBit, hiBit));
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the wrapped range of bits is set.
+    /// </summary>
+    public ApInt SetBitsWithWrap(int loBit, int hiBit)
+    {
+        ValidateBitIndexForWrap(loBit);
+        ValidateBitIndexForWrap(hiBit);
+        return new ApInt(BitWidth, value | RangeMaskWithWrap(BitWidth, loBit, hiBit));
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the wrapped range of bits is cleared.
+    /// </summary>
+    public ApInt ClearBitsWithWrap(int loBit, int hiBit)
+    {
+        ValidateBitIndexForWrap(loBit);
+        ValidateBitIndexForWrap(hiBit);
+        return new ApInt(BitWidth, value & ~RangeMaskWithWrap(BitWidth, loBit, hiBit));
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that all bits from
+    /// <paramref name="loBit"/> to the top are set.
+    /// </summary>
+    public ApInt SetBitsFrom(int loBit)
+    {
+        ValidateBitIndexForRangeStart(loBit);
+        return SetBits(loBit, BitWidth);
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that all bits from
+    /// <paramref name="loBit"/> to the top are cleared.
+    /// </summary>
+    public ApInt ClearBitsFrom(int loBit)
+    {
+        ValidateBitIndexForRangeStart(loBit);
+        return ClearBits(loBit, BitWidth);
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the top
+    /// <paramref name="hiBitsSet"/> bits are set.
+    /// </summary>
+    public ApInt SetHighBits(int hiBitsSet)
+    {
+        int count = ValidateRangeCount(BitWidth, hiBitsSet);
+        return SetBits(BitWidth - count, BitWidth);
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the top
+    /// <paramref name="hiBitsSet"/> bits are cleared.
+    /// </summary>
+    public ApInt ClearHighBits(int hiBitsSet)
+    {
+        int count = ValidateRangeCount(BitWidth, hiBitsSet);
+        return ClearBits(BitWidth - count, BitWidth);
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the bottom
+    /// <paramref name="loBitsSet"/> bits are set.
+    /// </summary>
+    public ApInt SetLowBits(int loBitsSet)
+    {
+        int count = ValidateRangeCount(BitWidth, loBitsSet);
+        return SetBits(0, count);
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the bottom
+    /// <paramref name="loBitsSet"/> bits are cleared.
+    /// </summary>
+    public ApInt ClearLowBits(int loBitsSet)
+    {
+        int count = ValidateRangeCount(BitWidth, loBitsSet);
+        return ClearBits(0, count);
+    }
+
+    /// <summary>
     /// Formats this value as an unsigned integer string.
     /// </summary>
     /// <param name="radix">The output base, typically 2, 10, or 16.</param>
@@ -682,6 +934,30 @@ public readonly struct ApInt : IEquatable<ApInt>
         }
     }
 
+    private void ValidateBitRange(int loBit, int hiBit)
+    {
+        if (loBit < 0 || hiBit < 0 || loBit > hiBit || hiBit > BitWidth)
+        {
+            throw new ArgumentOutOfRangeException(loBit > hiBit ? nameof(hiBit) : nameof(loBit));
+        }
+    }
+
+    private void ValidateBitIndexForWrap(int bitIndex)
+    {
+        if (bitIndex < 0 || bitIndex > BitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitIndex));
+        }
+    }
+
+    private void ValidateBitIndexForRangeStart(int bitIndex)
+    {
+        if (bitIndex < 0 || bitIndex > BitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitIndex));
+        }
+    }
+
     private static void EnsureCompatibleWidth(ApInt left, ApInt right)
     {
         if (left.BitWidth != right.BitWidth)
@@ -709,6 +985,16 @@ public readonly struct ApInt : IEquatable<ApInt>
         return normalized;
     }
 
+    private static int ValidateRangeCount(int bitWidth, int count)
+    {
+        if (count < 0 || count > bitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+
+        return count;
+    }
+
     private static BigInteger Mask(int bitWidth)
     {
         if (bitWidth == 0)
@@ -717,6 +1003,63 @@ public readonly struct ApInt : IEquatable<ApInt>
         }
 
         return (BigInteger.One << bitWidth) - BigInteger.One;
+    }
+
+    private static BigInteger SingleBitMask(int bitWidth, int bitNo)
+    {
+        if (bitNo < 0 || bitNo >= bitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitNo));
+        }
+
+        return BigInteger.One << bitNo;
+    }
+
+    private static BigInteger RangeMask(int bitWidth, int loBit, int hiBit)
+    {
+        if (loBit < 0 || hiBit < 0 || loBit > hiBit || hiBit > bitWidth)
+        {
+            throw new ArgumentOutOfRangeException(loBit > hiBit ? nameof(hiBit) : nameof(loBit));
+        }
+
+        if (loBit == hiBit)
+        {
+            return BigInteger.Zero;
+        }
+
+        BigInteger lowerMask = loBit == 0 ? BigInteger.Zero : (BigInteger.One << loBit) - BigInteger.One;
+        BigInteger upperMask = hiBit == bitWidth ? Mask(bitWidth) : (BigInteger.One << hiBit) - BigInteger.One;
+        return upperMask & ~lowerMask;
+    }
+
+    private static BigInteger RangeMaskWithWrap(int bitWidth, int loBit, int hiBit)
+    {
+        if (bitWidth == 0)
+        {
+            if (loBit == 0 && hiBit == 0)
+            {
+                return BigInteger.Zero;
+            }
+
+            throw new ArgumentOutOfRangeException(nameof(loBit));
+        }
+
+        if (loBit < 0 || hiBit < 0 || loBit > bitWidth || hiBit > bitWidth)
+        {
+            throw new ArgumentOutOfRangeException(loBit > bitWidth ? nameof(loBit) : nameof(hiBit));
+        }
+
+        if (loBit == hiBit)
+        {
+            return Mask(bitWidth);
+        }
+
+        if (loBit < hiBit)
+        {
+            return RangeMask(bitWidth, loBit, hiBit);
+        }
+
+        return RangeMask(bitWidth, loBit, bitWidth) | RangeMask(bitWidth, 0, hiBit);
     }
 
     private static bool TestBitUnchecked(BigInteger value, int bitIndex)
@@ -805,38 +1148,53 @@ public readonly struct ApInt : IEquatable<ApInt>
         }
 
         BigInteger result = BigInteger.Zero;
+        bool sawDigit = false;
         for (; index < text.Length; index++)
         {
-            int digit = ParseDigit(text[index]);
-            if (digit >= radix)
+            if (!TryParseDigit(text[index], out int digit))
             {
-                throw new FormatException("The input text contains a digit that is invalid for the requested radix.");
+                break;
             }
 
+            if (digit >= radix)
+            {
+                break;
+            }
+
+            sawDigit = true;
             result = (result * radix) + digit;
+        }
+
+        if (!sawDigit)
+        {
+            throw new FormatException("The input text does not contain any digits for the requested radix.");
         }
 
         return negative ? BigInteger.Negate(result) : result;
     }
 
-    private static int ParseDigit(char c)
+    private static bool TryParseDigit(char c, out int digit)
     {
         if (c >= '0' && c <= '9')
         {
-            return c - '0';
+            digit = c - '0';
+            return true;
         }
 
         if (c >= 'a' && c <= 'z')
         {
-            return 10 + (c - 'a');
+            digit = 10 + (c - 'a');
+            return true;
         }
 
         if (c >= 'A' && c <= 'Z')
         {
-            return 10 + (c - 'A');
+            digit = 10 + (c - 'A');
+            return true;
         }
 
-        throw new FormatException("The input text contains a non-digit character.");
+        digit = 0;
+        return false;
     }
 
     private static string FormatBigInteger(BigInteger value, int radix)
