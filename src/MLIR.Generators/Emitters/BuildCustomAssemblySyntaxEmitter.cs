@@ -143,7 +143,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 {
                     var field = NextField();
                     var varName = EmitterHelpers.LowerFirst(field.Name);
-                    var text = EmitterHelpers.ToCSharpStringLiteral(GetPunctuationText(punc.TokenKind));
+                    var text = EmitterHelpers.ToCSharpStringLiteral(EmitterHelpers.GetPunctuationText(punc.TokenKind));
                     builder.AppendLine(indent + DeclareOrAssign(varName, "new SyntaxToken(" + text + ")", declare, field.CsType) + ";");
                     break;
                 }
@@ -728,30 +728,4 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
     }
 
-    private static string GetPunctuationText(TokenKind tokenKind)
-    {
-        return tokenKind switch
-        {
-            TokenKind.Comma => ",",
-            TokenKind.LParen => "(",
-            TokenKind.RParen => ")",
-            TokenKind.LBracket => "[",
-            TokenKind.RBracket => "]",
-            TokenKind.LBrace => "{",
-            TokenKind.RBrace => "}",
-            TokenKind.Arrow => "->",
-            TokenKind.Colon => ":",
-            TokenKind.Equal => "=",
-            TokenKind.LessThan => "<",
-            TokenKind.GreaterThan => ">",
-            TokenKind.Question => "?",
-            TokenKind.Star => "*",
-            TokenKind.Plus => "+",
-            TokenKind.Minus => "-",
-            TokenKind.Dot => ".",
-            TokenKind.At => "@",
-            TokenKind.Hash => "#",
-            _ => tokenKind.ToString()
-        };
-    }
 }

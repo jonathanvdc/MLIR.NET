@@ -75,7 +75,7 @@ internal static class AttributeAssemblyFormatEmitter
         {
             if (slot is LiteralTokenSlot lit)
             {
-                builder.AppendLine("        " + CapitalizeFirst(lit.LocalName) + " = " + lit.LocalName + ";");
+                builder.AppendLine("        " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " = " + lit.LocalName + ";");
             }
             else if (slot is VariableSlot v)
             {
@@ -132,7 +132,7 @@ internal static class AttributeAssemblyFormatEmitter
             {
                 if (slot is LiteralTokenSlot lit)
                 {
-                    builder.AppendLine("    public SyntaxToken " + CapitalizeFirst(lit.LocalName) + " { get; }");
+                    builder.AppendLine("    public SyntaxToken " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " { get; }");
                 }
             }
         }
@@ -234,7 +234,7 @@ internal static class AttributeAssemblyFormatEmitter
             switch (slot)
             {
                 case LiteralTokenSlot lit:
-                    builder.AppendLine("        writer.WriteToken(" + CapitalizeFirst(lit.LocalName) + ");");
+                    builder.AppendLine("        writer.WriteToken(" + EmitterHelpers.CapitalizeFirst(lit.LocalName) + ");");
                     break;
 
                 case VariableSlot v:
@@ -325,7 +325,7 @@ internal static class AttributeAssemblyFormatEmitter
             }
             else
             {
-                builder.AppendLine("        var " + lit.LocalName + "Result = context.Expect(TokenKind.Identifier, \"Expected keyword '" + EscapeForString(lit.SyntheticText) + "'.\");");
+                builder.AppendLine("        var " + lit.LocalName + "Result = context.Expect(TokenKind.Identifier, \"Expected keyword '" + EmitterHelpers.EscapeForStringLiteral(lit.SyntheticText, escapeSingleQuote: true) + "'.\");");
                 builder.AppendLine("        if (!" + lit.LocalName + "Result.IsSuccess)");
                 builder.AppendLine("            return ParseResult<AttributeValueSyntax>.Failure(" + lit.LocalName + "Result.Diagnostic!);");
                 builder.AppendLine("        var " + lit.LocalName + " = " + lit.LocalName + "Result.Value;");
@@ -343,7 +343,7 @@ internal static class AttributeAssemblyFormatEmitter
             }
             else
             {
-                builder.AppendLine("        var " + lit.LocalName + "Result = context.Expect(" + lit.KindExpr + ", \"Expected '" + EscapeForString(lit.SyntheticText) + "'.\");");
+                builder.AppendLine("        var " + lit.LocalName + "Result = context.Expect(" + lit.KindExpr + ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(lit.SyntheticText, escapeSingleQuote: true) + "'.\");");
                 builder.AppendLine("        if (!" + lit.LocalName + "Result.IsSuccess)");
                 builder.AppendLine("            return ParseResult<AttributeValueSyntax>.Failure(" + lit.LocalName + "Result.Diagnostic!);");
                 builder.AppendLine("        var " + lit.LocalName + " = " + lit.LocalName + "Result.Value;");
@@ -614,7 +614,7 @@ internal static class AttributeAssemblyFormatEmitter
                             slots.Add(new LiteralTokenSlot
                             {
                                 LocalName = "literal" + literalIndex + "Token",
-                                SyntheticText = GetPunctuationText(punc.TokenKind),
+                                SyntheticText = EmitterHelpers.GetPunctuationText(punc.TokenKind),
                                 KindExpr = "TokenKind." + punc.TokenKind,
                                 IsKeyword = false,
                             });
@@ -730,45 +730,5 @@ internal static class AttributeAssemblyFormatEmitter
         }
 
         return -1;
-    }
-
-    /// <summary>
-    /// Capitalizes the first character of <paramref name="s"/>, leaving the rest unchanged.
-    /// Used to convert a local-variable name like <c>"literal0Token"</c> into a property name
-    /// <c>"Literal0Token"</c>.
-    /// </summary>
-    private static string CapitalizeFirst(string s)
-        => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
-
-    private static string EscapeForString(string text)
-    {
-        return text.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("'", "\\'");
-    }
-
-    private static string GetPunctuationText(TokenKind kind)
-    {
-        return kind switch
-        {
-            TokenKind.Comma => ",",
-            TokenKind.LParen => "(",
-            TokenKind.RParen => ")",
-            TokenKind.LBracket => "[",
-            TokenKind.RBracket => "]",
-            TokenKind.LBrace => "{",
-            TokenKind.RBrace => "}",
-            TokenKind.LessThan => "<",
-            TokenKind.GreaterThan => ">",
-            TokenKind.Question => "?",
-            TokenKind.Star => "*",
-            TokenKind.Plus => "+",
-            TokenKind.Minus => "-",
-            TokenKind.Dot => ".",
-            TokenKind.Colon => ":",
-            TokenKind.Equal => "=",
-            TokenKind.At => "@",
-            TokenKind.Hash => "#",
-            TokenKind.Arrow => "->",
-            _ => kind.ToString(),
-        };
     }
 }

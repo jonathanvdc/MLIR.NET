@@ -97,6 +97,62 @@ internal static class EmitterHelpers
         return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
+    public static string EscapeForStringLiteral(string text, bool escapeSingleQuote = false)
+    {
+        var escaped = text.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        if (escapeSingleQuote)
+        {
+            escaped = escaped.Replace("'", "\\'");
+        }
+
+        return escaped;
+    }
+
+    public static string CapitalizeFirst(string s)
+    {
+        return s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+    }
+
+    public static string GetPunctuationText(TokenKind kind)
+    {
+        return kind switch
+        {
+            TokenKind.Comma => ",",
+            TokenKind.LParen => "(",
+            TokenKind.RParen => ")",
+            TokenKind.LBracket => "[",
+            TokenKind.RBracket => "]",
+            TokenKind.LBrace => "{",
+            TokenKind.RBrace => "}",
+            TokenKind.LessThan => "<",
+            TokenKind.GreaterThan => ">",
+            TokenKind.Question => "?",
+            TokenKind.Star => "*",
+            TokenKind.Plus => "+",
+            TokenKind.Minus => "-",
+            TokenKind.Dot => ".",
+            TokenKind.Colon => ":",
+            TokenKind.Equal => "=",
+            TokenKind.At => "@",
+            TokenKind.Hash => "#",
+            TokenKind.Arrow => "->",
+            _ => kind.ToString(),
+        };
+    }
+
+    public static void AppendSeparated(StringBuilder builder, int count, Action<int> emitItem, string separator = ", ")
+    {
+        for (var i = 0; i < count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(separator);
+            }
+
+            emitItem(i);
+        }
+    }
+
     public static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description)
     {
         if (!string.IsNullOrWhiteSpace(summary))

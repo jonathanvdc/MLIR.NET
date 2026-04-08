@@ -175,7 +175,7 @@ internal sealed class TryParseEmitter
                     var field = NextField();
                     var varName = EmitterHelpers.LowerFirst(field.Name);
                     var expr = "context.Expect(TokenKind." + punc.TokenKind +
-                               ", \"Expected '" + EscapeForStringLiteral(GetPunctuationDisplay(punc.TokenKind)) + "'.\")";
+                               ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(EmitterHelpers.GetPunctuationText(punc.TokenKind)) + "'.\")";
                     EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
                     break;
                 }
@@ -186,7 +186,7 @@ internal sealed class TryParseEmitter
                     var varName = EmitterHelpers.LowerFirst(field.Name);
                     var expr = "context.ExpectKeyword(" +
                                EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) +
-                               ", \"Expected '" + EscapeForStringLiteral(kw.Spelling) + "'.\")";
+                               ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(kw.Spelling) + "'.\")";
                     EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
                     break;
                 }
@@ -535,7 +535,7 @@ internal sealed class TryParseEmitter
                 kwVarName,
                 "context.ExpectKeyword(" +
                 EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) +
-                ", \"Expected '" + EscapeForStringLiteral(clause.Keyword) + "'.\")",
+                ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(clause.Keyword) + "'.\")",
                 declare: false,
                 kwField.CsType);
             fieldIndex++; // advance past keyword field
@@ -590,7 +590,7 @@ internal sealed class TryParseEmitter
             {
                 var f = metadata.Fields[fieldIndex++];
                 var varName = EmitterHelpers.LowerFirst(f.Name);
-                EmitParseResultAssignment(builder, indent, varName, "context.Expect(TokenKind.Identifier, \"Expected '" + EscapeForStringLiteral(literal.Value) + "'.\")", declare: false, f.CsType);
+                EmitParseResultAssignment(builder, indent, varName, "context.Expect(TokenKind.Identifier, \"Expected '" + EmitterHelpers.EscapeForStringLiteral(literal.Value) + "'.\")", declare: false, f.CsType);
                 break;
             }
         }
@@ -896,35 +896,4 @@ internal sealed class TryParseEmitter
         builder.AppendLine(indent + DeclareOrAssign(varName, resultName + ".Value", declare, csType) + ";");
     }
 
-    private static string GetPunctuationDisplay(TokenKind kind)
-    {
-        return kind switch
-        {
-            TokenKind.Comma => ",",
-            TokenKind.Colon => ":",
-            TokenKind.LParen => "(",
-            TokenKind.RParen => ")",
-            TokenKind.LBracket => "[",
-            TokenKind.RBracket => "]",
-            TokenKind.LBrace => "{",
-            TokenKind.RBrace => "}",
-            TokenKind.Arrow => "->",
-            TokenKind.Equal => "=",
-            TokenKind.LessThan => "<",
-            TokenKind.GreaterThan => ">",
-            TokenKind.Question => "?",
-            TokenKind.Star => "*",
-            TokenKind.Plus => "+",
-            TokenKind.Minus => "-",
-            TokenKind.Dot => ".",
-            TokenKind.At => "@",
-            TokenKind.Hash => "#",
-            _ => kind.ToString(),
-        };
-    }
-
-    private static string EscapeForStringLiteral(string text)
-    {
-        return text.Replace("\\", "\\\\").Replace("\"", "\\\"");
-    }
 }

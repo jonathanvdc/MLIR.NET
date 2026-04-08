@@ -323,30 +323,20 @@ internal static class OperationAssemblyFormatEmitter
                 // Some attributes may be absent: use a nullable array + LINQ filter so that
                 // only the present attributes end up in the collection.
                 builder.Append("            new NamedAttributeCollection(new NamedAttribute?[] { ");
-                for (var i = 0; i < operation.Attributes.Count; i++)
-                {
-                    if (i > 0)
-                    {
-                        builder.Append(", ");
-                    }
-
-                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i].Name, resolver));
-                }
+                EmitterHelpers.AppendSeparated(
+                    builder,
+                    operation.Attributes.Count,
+                    i => builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i].Name, resolver)));
 
                 builder.AppendLine(" }.Where(a => a is not null).Select(a => a!)),");
             }
             else
             {
                 builder.Append("            NamedAttributeCollection.Create(");
-                for (var i = 0; i < operation.Attributes.Count; i++)
-                {
-                    if (i > 0)
-                    {
-                        builder.Append(", ");
-                    }
-
-                    builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i].Name, resolver));
-                }
+                EmitterHelpers.AppendSeparated(
+                    builder,
+                    operation.Attributes.Count,
+                    i => builder.Append(GetAttributeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata, operation.Attributes[i].Name, resolver)));
 
                 builder.AppendLine("),");
             }
