@@ -20,11 +20,8 @@ internal static class TypeAssemblyFormatEmitter
         var syntaxClassName = className + "Syntax";
         var slots = BuildFormatSlots(type, format);
 
-        builder.AppendLine("public sealed class " + syntaxClassName + " : TypeSyntax, ITypeNameSyntax");
+        builder.AppendLine("public sealed class " + syntaxClassName + " : DialectNamedTypeSyntax");
         builder.AppendLine("{");
-        builder.AppendLine();
-
-        builder.AppendLine("    public SyntaxToken NameToken { get; }");
         builder.AppendLine();
 
         builder.Append("    public " + syntaxClassName + "(SyntaxToken nameToken");
@@ -41,8 +38,8 @@ internal static class TypeAssemblyFormatEmitter
         }
 
         builder.AppendLine(")");
+        builder.AppendLine("    : base(nameToken)");
         builder.AppendLine("    {");
-        builder.AppendLine("        NameToken = nameToken;");
         foreach (var slot in slots)
         {
             if (slot is LiteralTokenSlot lit)
@@ -125,7 +122,7 @@ internal static class TypeAssemblyFormatEmitter
         builder.AppendLine();
         builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer)");
         builder.AppendLine("    {");
-        builder.AppendLine("        writer.WriteToken(NameToken);");
+        builder.AppendLine("        WriteName(writer);");
         EmitWriteToBody(builder, slots);
         builder.AppendLine("    }");
         builder.AppendLine();
