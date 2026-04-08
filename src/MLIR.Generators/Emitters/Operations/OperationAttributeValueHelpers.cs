@@ -188,6 +188,8 @@ internal static class OperationAttributeValueHelpers
             || string.Equals(typeName.TrimEnd('?'), "BigInteger", StringComparison.Ordinal)
             || string.Equals(typeName.TrimEnd('?'), "global::MLIR.Numerics.ApInt", StringComparison.Ordinal)
             || string.Equals(typeName.TrimEnd('?'), "ApInt", StringComparison.Ordinal)
+            || string.Equals(typeName.TrimEnd('?'), "global::MLIR.Numerics.ApFloat", StringComparison.Ordinal)
+            || string.Equals(typeName.TrimEnd('?'), "ApFloat", StringComparison.Ordinal)
             || string.Equals(typeName.TrimEnd('?'), "float", StringComparison.Ordinal)
             || string.Equals(typeName.TrimEnd('?'), "double", StringComparison.Ordinal);
     }

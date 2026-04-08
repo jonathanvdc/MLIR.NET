@@ -3,6 +3,7 @@ namespace MLIR.Dialects.Attributes.Primitives;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
+using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
@@ -29,7 +30,10 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
         else if (syntax is IntegerAttributeValueSyntax integerSyntax)
         {
             // Allow integer literals to be used as floating-point attributes, by treating them as their decimal representation.
-            return definition.Factory(new AttributeValueConstructionContext(integerSyntax, definition.Name, definition, integerSyntax.Location));
+            var convertedSyntax = FloatingPointAssemblyFormatHelper.BuildSyntax(
+                new RawSyntaxText([integerSyntax.LiteralToken]),
+                FloatingPointLiteralParser.Parse(integerSyntax.LiteralToken.Text));
+            return definition.Factory(new AttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
         }
         else
         {
@@ -42,7 +46,8 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     {
         if (attribute is FloatingPointAttributeValue floatingPointAttribute)
         {
-            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(floatingPointAttribute.LiteralText), floatingPointAttribute.LiteralText);
+            var value = floatingPointAttribute.Value;
+            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(FloatingPointLiteralParser.Format(value)), value);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive floating-point attributes require syntax to rebuild their assembly form.");

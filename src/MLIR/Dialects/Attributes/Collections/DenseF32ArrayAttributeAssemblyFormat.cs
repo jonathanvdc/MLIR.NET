@@ -1,5 +1,6 @@
 namespace MLIR.Dialects.Attributes.Collections;
 
+using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 
@@ -12,7 +13,7 @@ public sealed class DenseF32ArrayAttributeAssemblyFormat : DenseArrayAttributeAs
     protected override AttributeValueSyntax ElementToSyntax(float element)
     {
         var text = MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.FormatSingle(element);
-        return new FloatingPointAttributeValueSyntax(new RawSyntaxText(text), text);
+        return new FloatingPointAttributeValueSyntax(new RawSyntaxText(text), ApFloat.FromSingle(FloatSemantics.IEEESingle, element));
     }
 
     /// <inheritdoc/>

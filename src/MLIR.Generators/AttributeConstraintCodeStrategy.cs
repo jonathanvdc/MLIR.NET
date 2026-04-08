@@ -83,9 +83,8 @@ internal abstract class AttributeConstraintCodeStrategy
 
     /// <summary>
     /// Returns the C# member-access expression suffix used to extract the primitive value
-    /// from an already-cast constraint instance (e.g. <c>.Value</c>, <c>.TypedValue</c>,
-    /// or <c>.LiteralText</c>). Only called when <see cref="IsPrimitive"/> is
-    /// <see langword="true"/>.
+    /// from an already-cast constraint instance (e.g. <c>.Value</c> or <c>.TypedValue</c>).
+    /// Only called when <see cref="IsPrimitive"/> is <see langword="true"/>.
     /// </summary>
     /// <param name="typeName">The C# type name of the member, including any trailing <c>?</c>.</param>
     public virtual string GetPrimitiveValueAccess(string typeName) => ".Value";
@@ -568,26 +567,25 @@ internal static class AttributeConstraintCodeStrategyFactory
         valueConstructorParameter: "global::MLIR.Numerics.ApInt");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
-        attributeValueTypeName: "string",
+        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText",
-        valueConstructorParameter: "string",
-        primitiveValueAccess: ".LiteralText");
+        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
-        attributeValueTypeName: "float",
-        baseType: "F32AttributeValue",
+        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
+        baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "F32AttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseSingle(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)",
-        valueConstructorParameter: "float");
+        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F64Strategy = new(
-        attributeValueTypeName: "double",
-        baseType: "F64AttributeValue",
+        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
+        baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "F64AttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseDouble(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)",
-        valueConstructorParameter: "double");
+        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy StringLiteralStrategy = new(
         attributeValueTypeName: "string",

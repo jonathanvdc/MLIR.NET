@@ -24,15 +24,15 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "BoolAttrConstraintAttributeValue)Attributes[\"boolVal\"].Value).Value;",
             "public string StrVal",
             "StrAttrConstraintAttributeValue)Attributes[\"strVal\"].Value).Value;",
-            "public float FloatVal",
+            "public global::MLIR.Numerics.ApFloat FloatVal",
             "F32AttrConstraintAttributeValue)Attributes[\"floatVal\"].Value).Value;",
-            "public double DoubleVal",
+            "public global::MLIR.Numerics.ApFloat DoubleVal",
             "F64AttrConstraintAttributeValue)Attributes[\"doubleVal\"].Value).Value;",
             "global::MLIR.Numerics.ApInt intVal,",
             "bool boolVal,",
             "string strVal,",
-            "float floatVal,",
-            "double doubleVal,");
+            "global::MLIR.Numerics.ApFloat floatVal,",
+            "global::MLIR.Numerics.ApFloat doubleVal,");
         AssertDoesNotContainAny(
             registrationSource,
             "public NamedAttribute IntVal",

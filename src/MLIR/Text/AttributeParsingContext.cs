@@ -108,6 +108,15 @@ public sealed class AttributeParsingContext : DialectParsingContext
     /// </remarks>
     public ParseResult<AttributeValueSyntax> TryParseFloatingPointLiteralSyntax()
     {
-        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(this);
+        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(this, FloatSemantics.IEEEDouble);
+    }
+
+    /// <summary>
+    /// Tries to parse a floating-point literal using explicit semantics and returns it as a
+    /// <see cref="FloatingPointAttributeValueSyntax"/>.
+    /// </summary>
+    public ParseResult<AttributeValueSyntax> TryParseFloatingPointLiteralSyntax(FloatSemantics semantics)
+    {
+        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(this, semantics);
     }
 }

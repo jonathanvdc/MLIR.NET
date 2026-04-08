@@ -330,42 +330,46 @@ public sealed partial class SemanticTests
         }
     }
 
-    private sealed class TestF32AttributeValue : MLIR.Semantics.Attributes.Primitives.F32AttributeValue
+    private sealed class TestF32AttributeValue : MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue
     {
         public TestF32AttributeValue(AttributeValueConstructionContext context)
-            : base(context, MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseSingle(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText))
+            : base(context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value)
         {
             Name = context.Name;
             Definition = context.Definition;
         }
 
         public TestF32AttributeValue(float value)
-            : base(value)
+            : base(MLIR.Numerics.ApFloat.FromSingle(MLIR.Numerics.FloatSemantics.IEEESingle, value))
         {
         }
 
         public override string? Name { get; }
 
         public override AttributeConstraintDefinition? Definition { get; }
+
+        public new float Value => base.Value.ToSingle();
     }
 
-    private sealed class TestF64AttributeValue : MLIR.Semantics.Attributes.Primitives.F64AttributeValue
+    private sealed class TestF64AttributeValue : MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue
     {
         public TestF64AttributeValue(AttributeValueConstructionContext context)
-            : base(context, MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.ParseDouble(((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText))
+            : base(context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value)
         {
             Name = context.Name;
             Definition = context.Definition;
         }
 
         public TestF64AttributeValue(double value)
-            : base(value)
+            : base(MLIR.Numerics.ApFloat.FromDouble(MLIR.Numerics.FloatSemantics.IEEEDouble, value))
         {
         }
 
         public override string? Name { get; }
 
         public override AttributeConstraintDefinition? Definition { get; }
+
+        public new double Value => base.Value.ToDouble();
     }
 
     private sealed class BuiltinIntegerTypeSyntax : TypeSyntax

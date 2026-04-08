@@ -322,6 +322,7 @@ public sealed class ParsingTests
         var floatingPointSyntax = Assert.IsType<FloatingPointAttributeValueSyntax>(syntax);
         Assert.Equal(source, syntax.ToString());
         Assert.Equal(source, floatingPointSyntax.LiteralText);
+        Assert.Equal(FloatSemantics.IEEEDouble, floatingPointSyntax.Value.Semantics);
     }
 
     [Fact]

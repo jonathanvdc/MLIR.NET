@@ -2,12 +2,23 @@ namespace MLIR.Semantics.Attributes.Primitives;
 
 using System;
 using System.Globalization;
+using MLIR.Numerics;
 
 /// <summary>
 /// Parses and formats MLIR-style floating-point literals.
 /// </summary>
 public static class FloatingPointLiteralParser
 {
+    /// <summary>
+    /// Parses a floating-point literal using the default MLIR semantics (binary64).
+    /// </summary>
+    public static ApFloat Parse(string text) => Parse(FloatSemantics.IEEEDouble, text);
+
+    /// <summary>
+    /// Parses a floating-point literal using the specified semantics.
+    /// </summary>
+    public static ApFloat Parse(FloatSemantics semantics, string text) => ApFloat.Parse(semantics, text);
+
     /// <summary>
     /// Parses a single-precision floating-point literal.
     /// </summary>
@@ -73,6 +84,24 @@ public static class FloatingPointLiteralParser
     {
         var bits = BitConverter.ToInt64(BitConverter.GetBytes(value), 0);
         return Format(value, bits < 0);
+    }
+
+    /// <summary>
+    /// Formats an <see cref="ApFloat"/> using the most natural literal form for its semantics.
+    /// </summary>
+    public static string Format(ApFloat value)
+    {
+        if (value.Semantics.Equals(FloatSemantics.IEEESingle))
+        {
+            return FormatSingle(value.ToSingle());
+        }
+
+        if (value.Semantics.Equals(FloatSemantics.IEEEDouble))
+        {
+            return FormatDouble(value.ToDouble());
+        }
+
+        return value.ToString();
     }
 
     private static bool TryParse(string text, bool single, out double value)

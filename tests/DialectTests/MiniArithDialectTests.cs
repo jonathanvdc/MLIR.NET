@@ -189,7 +189,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             "%result = miniarith.add_float_immediate 1.5, %lhs : i32",
             CreateMiniArithRegistry());
 
-        Assert.Equal(1.5f, operation.Value);
+        Assert.Equal(ApFloat.FromSingle(FloatSemantics.IEEESingle, 1.5f), operation.Value);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 namespace MLIR.Syntax.Attributes.Primitives;
 
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
 
@@ -13,16 +14,21 @@ public sealed class FloatingPointAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Initializes a new instance of the <see cref="FloatingPointAttributeValueSyntax"/> class.
     /// </summary>
-    public FloatingPointAttributeValueSyntax(RawSyntaxText rawText, string literalText)
+    public FloatingPointAttributeValueSyntax(RawSyntaxText rawText, ApFloat value)
     {
         this.rawText = rawText;
-        LiteralText = literalText;
+        Value = value;
     }
 
     /// <summary>
-    /// Gets the normalized literal text.
+    /// Gets the parsed floating-point value, including its semantics.
     /// </summary>
-    public string LiteralText { get; }
+    public ApFloat Value { get; }
+
+    /// <summary>
+    /// Gets the literal text as written in source.
+    /// </summary>
+    public string LiteralText => rawText.Text;
 
     /// <inheritdoc/>
     public override SourceLocation Location => rawText.Location;

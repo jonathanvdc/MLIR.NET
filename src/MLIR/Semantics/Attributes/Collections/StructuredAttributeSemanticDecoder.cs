@@ -169,10 +169,9 @@ public static class StructuredAttributeSemanticDecoder
 
     private static float DecodeSinglePrecisionValue(AttributeValueSyntax syntax)
     {
-        if (syntax is FloatingPointAttributeValueSyntax fpSyntax
-            && FloatingPointLiteralParser.TryParseSingle(fpSyntax.LiteralText, out var parsed))
+        if (syntax is FloatingPointAttributeValueSyntax fpSyntax)
         {
-            return parsed;
+            return fpSyntax.Value.ToSingle();
         }
 
         if (syntax is RawAttributeValueSyntax rawSyntax
@@ -186,10 +185,9 @@ public static class StructuredAttributeSemanticDecoder
 
     private static double DecodeDoublePrecisionValue(AttributeValueSyntax syntax)
     {
-        if (syntax is FloatingPointAttributeValueSyntax fpSyntax
-            && FloatingPointLiteralParser.TryParseDouble(fpSyntax.LiteralText, out var parsed))
+        if (syntax is FloatingPointAttributeValueSyntax fpSyntax)
         {
-            return parsed;
+            return fpSyntax.Value.ToDouble();
         }
 
         if (syntax is RawAttributeValueSyntax rawSyntax
@@ -225,7 +223,9 @@ public static class StructuredAttributeSemanticDecoder
 
         if (LooksLikeFloatingPointLiteral(text))
         {
-            return new DecodedFloatingPointAttributeValue(new FloatingPointAttributeValueSyntax(new RawSyntaxText(text), text));
+            return new DecodedFloatingPointAttributeValue(new FloatingPointAttributeValueSyntax(
+                new RawSyntaxText(text),
+                FloatingPointLiteralParser.Parse(text)));
         }
 
         return new UnknownAttributeValue(syntax, null, null, syntax.Location);
@@ -263,7 +263,7 @@ public static class StructuredAttributeSemanticDecoder
     private sealed class DecodedFloatingPointAttributeValue : FloatingPointAttributeValue
     {
         public DecodedFloatingPointAttributeValue(FloatingPointAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.LiteralText)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.Value)
         {
         }
 

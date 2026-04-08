@@ -3,6 +3,8 @@ namespace MLIR.Dialects.Attributes.Primitives;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MLIR.Numerics;
+using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
@@ -10,6 +12,11 @@ using MLIR.Text;
 internal static class FloatingPointAssemblyFormatHelper
 {
     public static ParseResult<AttributeValueSyntax> TryParseDecimalLiteral(AttributeParsingContext context)
+    {
+        return TryParseDecimalLiteral(context, FloatSemantics.IEEEDouble);
+    }
+
+    public static ParseResult<AttributeValueSyntax> TryParseDecimalLiteral(AttributeParsingContext context, FloatSemantics semantics)
     {
         var tokens = new List<SyntaxToken>();
         if (context.TryMatch(TokenKind.Plus, out var plusToken))
@@ -21,13 +28,13 @@ internal static class FloatingPointAssemblyFormatHelper
             tokens.Add(minusToken);
         }
 
-        var specialLiteralResult = TryParseSpecialLiteral(context, tokens);
+        var specialLiteralResult = TryParseSpecialLiteral(context, semantics, tokens);
         if (!specialLiteralResult.IsNoMatch)
         {
             return specialLiteralResult;
         }
 
-        var hexLiteralResult = TryParseHexLiteral(context, tokens);
+        var hexLiteralResult = TryParseHexLiteral(context, semantics, tokens);
         if (!hexLiteralResult.IsNoMatch)
         {
             return hexLiteralResult;
@@ -49,10 +56,13 @@ internal static class FloatingPointAssemblyFormatHelper
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
+        return ParseResult<AttributeValueSyntax>.Success(
+            new FloatingPointAttributeValueSyntax(
+                new RawSyntaxText(tokens, literalText),
+                FloatingPointLiteralParser.Parse(semantics, literalText)));
     }
 
-    private static ParseResult<AttributeValueSyntax> TryParseSpecialLiteral(AttributeParsingContext context, List<SyntaxToken> tokens)
+    private static ParseResult<AttributeValueSyntax> TryParseSpecialLiteral(AttributeParsingContext context, FloatSemantics semantics, List<SyntaxToken> tokens)
     {
         if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Identifier)
         {
@@ -67,10 +77,13 @@ internal static class FloatingPointAssemblyFormatHelper
         context.TryMatch(TokenKind.Identifier, out var identifierToken);
         tokens.Add(identifierToken);
         var literalText = string.Concat(tokens.Select(static token => token.Text));
-        return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
+        return ParseResult<AttributeValueSyntax>.Success(
+            new FloatingPointAttributeValueSyntax(
+                new RawSyntaxText(tokens, literalText),
+                FloatingPointLiteralParser.Parse(semantics, literalText)));
     }
 
-    private static ParseResult<AttributeValueSyntax> TryParseHexLiteral(AttributeParsingContext context, List<SyntaxToken> tokens)
+    private static ParseResult<AttributeValueSyntax> TryParseHexLiteral(AttributeParsingContext context, FloatSemantics semantics, List<SyntaxToken> tokens)
     {
         if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Integer || text != "0")
         {
@@ -87,7 +100,9 @@ internal static class FloatingPointAssemblyFormatHelper
         context.TryMatch(TokenKind.Identifier, out var hexToken);
         tokens.Add(hexToken);
         var literalText = string.Concat(tokens.Select(static token => token.Text));
-        return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), literalText));
+        var hexDigits = literalText.Substring(2);
+        var bits = ApInt.Parse(semantics.BitWidth, hexDigits, radix: 16);
+        return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), ApFloat.FromBits(semantics, bits)));
     }
 
     private static bool TryParseDecimalLiteralBody(AttributeParsingContext context, List<SyntaxToken> tokens)
@@ -187,8 +202,8 @@ internal static class FloatingPointAssemblyFormatHelper
             && text.Skip(1).All(ch => Uri.IsHexDigit(ch));
     }
 
-    public static FloatingPointAttributeValueSyntax BuildSyntax(RawSyntaxText rawText, string literalText)
+    public static FloatingPointAttributeValueSyntax BuildSyntax(RawSyntaxText rawText, ApFloat value)
     {
-        return new FloatingPointAttributeValueSyntax(rawText, literalText);
+        return new FloatingPointAttributeValueSyntax(rawText, value);
     }
 }

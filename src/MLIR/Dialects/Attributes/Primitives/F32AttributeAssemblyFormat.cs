@@ -3,6 +3,7 @@ namespace MLIR.Dialects.Attributes.Primitives;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
+using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
@@ -16,7 +17,7 @@ public sealed class F32AttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context);
+        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context, FloatSemantics.IEEESingle);
     }
 
     /// <inheritdoc/>
@@ -29,7 +30,10 @@ public sealed class F32AttributeAssemblyFormat : IAttributeAssemblyFormat
         else if (syntax is IntegerAttributeValueSyntax integerSyntax)
         {
             // Allow integer literals to be implicitly converted to single-precision floating-point attributes.
-            return definition.Factory(new AttributeValueConstructionContext(integerSyntax, definition.Name, definition, integerSyntax.Location));
+            var convertedSyntax = FloatingPointAssemblyFormatHelper.BuildSyntax(
+                new RawSyntaxText([integerSyntax.LiteralToken]),
+                FloatingPointLiteralParser.Parse(FloatSemantics.IEEESingle, integerSyntax.LiteralToken.Text));
+            return definition.Factory(new AttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
         }
         else
         {
@@ -40,10 +44,11 @@ public sealed class F32AttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is F32AttributeValue f32Attribute)
+        if (attribute is FloatingPointAttributeValue floatingPointAttribute)
         {
-            var text = FloatingPointLiteralParser.FormatSingle(f32Attribute.Value);
-            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(text), text);
+            var value = floatingPointAttribute.Value;
+            var text = FloatingPointLiteralParser.Format(value);
+            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(text), value);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Single-precision floating-point attributes require syntax to rebuild their assembly form.");
