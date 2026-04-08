@@ -17,7 +17,7 @@ class MLIRNet_OpExtension {
 // Fields:
 //
 //   csharpType      – Fully-qualified C# type for the property (e.g. "string",
-//                     "global::System.Numerics.BigInteger").  Required when a
+//                     "global::MLIR.Numerics.ApInt").  Required when a
 //                     custom csharpParser, csharpExtractor or csharpPrinter is
 //                     provided.
 //
@@ -66,7 +66,7 @@ class MLIRNet_OpExtension {
 //     let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
 //     let csharpExtractor = "$_syntax.Value";
 //     let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
-//     let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), global::System.Numerics.BigInteger.Parse($_self.ToStringSigned(), global::System.Globalization.CultureInfo.InvariantCulture))";
+//     let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), $_self)";
 //   }
 class MLIRNet_AttrOrTypeParameterExtension {
   // The C# type used for the generated typed property.

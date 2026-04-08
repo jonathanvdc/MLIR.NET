@@ -30,12 +30,12 @@ extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpSyntaxType = "IntegerAttributeValueSyntax";
   // Parse a signed integer literal and return it as IntegerAttributeValueSyntax.
   let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
-  // Interpret the stored literal as a signless i64 when no context provides more specific width.
-  let csharpExtractor = "global::MLIR.Numerics.ApInt.Parse(64, $_syntax.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture), isSigned: true)";
+  // The syntax node already stores the parsed APInt value.
+  let csharpExtractor = "$_syntax.Value";
   // Default to signless i64 zero when no syntax is available.
   let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
   // Build an IntegerAttributeValueSyntax from the typed APInt value using signed decimal text.
-  let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), global::System.Numerics.BigInteger.Parse($_self.ToStringSigned(), global::System.Globalization.CultureInfo.InvariantCulture))";
+  let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), $_self)";
 }
 
 extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {

@@ -100,7 +100,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
     public void GeneratedAssemblyFormatBindProducesTypedConstantOpFromCustomBodySyntax()
     {
         var body = new MiniArith_ConstantOpBodySyntax(
-            new IntegerAttributeValueSyntax(new SyntaxToken("42"), 42),
+            new IntegerAttributeValueSyntax(new SyntaxToken("42"), ApInt.Parse(64, "42")),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
         var syntax = new OperationSyntax(

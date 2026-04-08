@@ -1,19 +1,18 @@
 namespace MLIR.Dialects.Attributes.Collections;
 
-using System.Globalization;
-using System.Numerics;
+using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 
 /// <summary>
 /// Parses dense integer-array attribute literals such as <c>array&lt;i32: 1, 2&gt;</c>.
 /// </summary>
-public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttributeAssemblyFormat<BigInteger>
+public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttributeAssemblyFormat<ApInt>
 {
     /// <inheritdoc/>
-    protected override AttributeValueSyntax ElementToSyntax(BigInteger element)
+    protected override AttributeValueSyntax ElementToSyntax(ApInt element)
     {
-        var text = element.ToString(CultureInfo.InvariantCulture);
+        var text = element.ToStringSigned();
         return new IntegerAttributeValueSyntax(new SyntaxToken(text), element);
     }
 

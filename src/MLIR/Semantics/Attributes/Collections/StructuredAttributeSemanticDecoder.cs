@@ -141,13 +141,12 @@ public static class StructuredAttributeSemanticDecoder
     {
         if (syntax is IntegerAttributeValueSyntax intSyntax)
         {
-            return ApInt.Parse(64, intSyntax.Value.ToString(CultureInfo.InvariantCulture), isSigned: true);
+            return intSyntax.Value;
         }
 
-        if (syntax is RawAttributeValueSyntax rawSyntax
-            && BigInteger.TryParse(rawSyntax.RawText.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+        if (syntax is RawAttributeValueSyntax rawSyntax)
         {
-            return ApInt.Parse(64, parsed.ToString(CultureInfo.InvariantCulture), isSigned: true);
+            return ApInt.Parse(64, rawSyntax.RawText.Text, isSigned: true);
         }
 
         return ApInt.Zero(64);
@@ -218,7 +217,10 @@ public static class StructuredAttributeSemanticDecoder
 
         if (BigInteger.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integerValue))
         {
-            return new DecodedIntegerAttributeValue(new IntegerAttributeValueSyntax(new SyntaxToken(text), integerValue));
+            return new DecodedIntegerAttributeValue(
+                new IntegerAttributeValueSyntax(
+                    new SyntaxToken(text),
+                    ApInt.Parse(64, integerValue.ToString(CultureInfo.InvariantCulture), isSigned: true)));
         }
 
         if (LooksLikeFloatingPointLiteral(text))

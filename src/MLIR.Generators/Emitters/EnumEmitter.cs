@@ -191,15 +191,15 @@ internal static class EnumEmitter
 
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    internal static bool TryFromInteger(global::System.Numerics.BigInteger raw, out " + enumTypeName + " value)");
+        builder.AppendLine("    internal static bool TryFromInteger(global::MLIR.Numerics.ApInt raw, out " + enumTypeName + " value)");
         builder.AppendLine("    {");
-        builder.AppendLine("        if (raw < 0)");
+        builder.AppendLine("        if (raw.IsNegative)");
         builder.AppendLine("        {");
         builder.AppendLine("            value = default;");
         builder.AppendLine("            return false;");
         builder.AppendLine("        }");
         builder.AppendLine();
-        builder.AppendLine("        return IntegerToEnum.TryGetValue((ulong)raw, out value);");
+        builder.AppendLine("        return IntegerToEnum.TryGetValue(raw.ToUInt64(), out value);");
         builder.AppendLine("    }");
         builder.AppendLine("}");
     }

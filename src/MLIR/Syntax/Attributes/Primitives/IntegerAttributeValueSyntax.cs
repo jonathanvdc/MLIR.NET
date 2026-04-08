@@ -1,6 +1,6 @@
 namespace MLIR.Syntax.Attributes.Primitives;
 
-using System.Numerics;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
 
@@ -14,7 +14,7 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     /// </summary>
     /// <param name="literalToken">The source token for the integer literal.</param>
     /// <param name="value">The parsed integer value.</param>
-    public IntegerAttributeValueSyntax(SyntaxToken literalToken, BigInteger value)
+    public IntegerAttributeValueSyntax(SyntaxToken literalToken, ApInt value)
     {
         LiteralToken = literalToken;
         Value = value;
@@ -28,7 +28,7 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Gets the parsed integer value.
     /// </summary>
-    public BigInteger Value { get; }
+    public ApInt Value { get; }
 
     /// <inheritdoc/>
     public override SourceLocation Location => LiteralToken.Location;

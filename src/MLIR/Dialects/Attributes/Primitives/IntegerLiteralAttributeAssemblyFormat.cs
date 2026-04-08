@@ -24,7 +24,10 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        return ParseResult<AttributeValueSyntax>.Success(new IntegerAttributeValueSyntax(CreateSingleToken(rawText), value));
+        return ParseResult<AttributeValueSyntax>.Success(
+            new IntegerAttributeValueSyntax(
+                CreateSingleToken(rawText),
+                ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
     }
 
     /// <inheritdoc/>
@@ -52,7 +55,7 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     internal static IntegerAttributeValueSyntax CreateSyntax(ApInt value)
     {
         var text = value.ToStringSigned();
-        return new IntegerAttributeValueSyntax(new SyntaxToken(text), BigInteger.Parse(text, CultureInfo.InvariantCulture));
+        return new IntegerAttributeValueSyntax(new SyntaxToken(text), value);
     }
 
     internal static bool TryParseSignedIntegerLiteral(AttributeParsingContext context, out RawSyntaxText rawText, out BigInteger value)

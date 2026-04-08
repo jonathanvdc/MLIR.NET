@@ -1,8 +1,9 @@
 namespace MLIR.Text;
 
-using System.Numerics;
+using System.Globalization;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Primitives;
+using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 
@@ -89,7 +90,9 @@ public sealed class AttributeParsingContext : DialectParsingContext
         }
 
         return ParseResult<AttributeValueSyntax>.Success(
-            new IntegerAttributeValueSyntax(IntegerLiteralAttributeAssemblyFormat.CreateSingleToken(rawText), value));
+            new IntegerAttributeValueSyntax(
+                IntegerLiteralAttributeAssemblyFormat.CreateSingleToken(rawText),
+                ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
     }
 
     /// <summary>

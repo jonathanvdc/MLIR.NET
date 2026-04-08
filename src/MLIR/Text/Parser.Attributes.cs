@@ -1,8 +1,10 @@
 namespace MLIR.Text;
 
+using System.Globalization;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Collections;
 using MLIR.Dialects.Attributes.Primitives;
+using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Attributes.Collections;
@@ -159,7 +161,9 @@ public sealed partial class Parser
         }
 
         var integerSyntax = ParseResult<AttributeValueSyntax>.Success(
-            new IntegerAttributeValueSyntax(IntegerLiteralAttributeAssemblyFormat.CreateSingleToken(rawText), value));
+            new IntegerAttributeValueSyntax(
+                IntegerLiteralAttributeAssemblyFormat.CreateSingleToken(rawText),
+                ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
         if (IsValidAttributeValueTermination(stopAtOperationBoundary, stopBefore))
         {
             return integerSyntax;

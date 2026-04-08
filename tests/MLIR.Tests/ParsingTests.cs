@@ -2,6 +2,7 @@ namespace MLIR.Tests;
 
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
@@ -305,7 +306,7 @@ public sealed class ParsingTests
         var syntax = Parser.ParseAttributeValue(source);
 
         var integerSyntax = Assert.IsType<IntegerAttributeValueSyntax>(syntax);
-        Assert.Equal(expectedValue, (int)integerSyntax.Value);
+        Assert.Equal(expectedValue, (int)integerSyntax.Value.ToBigIntegerSigned());
         Assert.Equal(source, syntax.ToString());
     }
 

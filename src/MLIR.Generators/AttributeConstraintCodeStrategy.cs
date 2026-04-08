@@ -96,7 +96,7 @@ internal abstract class AttributeConstraintCodeStrategy
 
     /// <summary>
     /// Returns the C# type name that represents the unwrapped attribute value for this
-    /// constraint (e.g. <c>"bool"</c>, <c>"BigInteger"</c>, <c>"TypeSyntax"</c>), or
+    /// constraint (e.g. <c>"bool"</c>, <c>"global::MLIR.Numerics.ApInt"</c>, <c>"TypeSyntax"</c>), or
     /// <see langword="null"/> when no specialised type is available.
     /// This type is used for typed-array element types and for primitive property types.
     /// </summary>
@@ -564,7 +564,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         attributeValueTypeName: "global::MLIR.Numerics.ApInt",
         baseType: "IntegerAttributeValue",
         assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, global::MLIR.Numerics.ApInt.Parse(64, ((IntegerAttributeValueSyntax)context.Syntax).Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture), isSigned: true)",
+        primitiveBaseConstructor: "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "global::MLIR.Numerics.ApInt");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
