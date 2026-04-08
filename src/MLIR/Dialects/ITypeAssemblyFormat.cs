@@ -34,3 +34,25 @@ public interface ITypeAssemblyFormat
     /// <returns>The custom assembly type syntax.</returns>
     TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context);
 }
+
+/// <summary>
+/// Marker interface for type assembly format implementations that handle only the
+/// body portion of the type syntax, after the <c>!dialect.type</c> prefix has been
+/// consumed by the parser.
+/// </summary>
+/// <remarks>
+/// <para>
+/// When the parser encounters <c>!dialect.type body</c> and the registered format implements
+/// this interface, the parser consumes the <c>!</c> and name identifier tokens before
+/// delegating to <see cref="ITypeAssemblyFormat.TryParse"/>.  The returned syntax is
+/// a subclass of <see cref="Syntax.DialectPrefixedTypeSyntax"/> that stores the prefix
+/// so that the printer can reproduce the full <c>!name body</c> form.
+/// </para>
+/// <para>
+/// Hand-written formats that consume <c>!name</c> themselves should implement only
+/// <see cref="ITypeAssemblyFormat"/> and leave this marker absent.
+/// </para>
+/// </remarks>
+public interface IBodyOnlyTypeAssemblyFormat : ITypeAssemblyFormat
+{
+}
