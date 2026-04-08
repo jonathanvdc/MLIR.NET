@@ -593,11 +593,27 @@ internal static class AttributeConstraintCodeStrategyFactory
         primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
+    private static readonly PrimitiveAttributeConstraintCodeStrategy F16Strategy = new(
+        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
+        baseType: "FloatingPointAttributeValue",
+        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)",
+        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
+
     private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)",
+        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
+        valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
+
+    private static readonly PrimitiveAttributeConstraintCodeStrategy BF16Strategy = new(
+        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
+        baseType: "FloatingPointAttributeValue",
+        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)",
         primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
@@ -686,9 +702,12 @@ internal static class AttributeConstraintCodeStrategyFactory
     {
         return recordName switch
         {
+            "Builtin_FloatAttr" => GenericFloatingPointLiteralStrategy,
+            "F16Attr" => F16Strategy,
             "F32Attr" => F32Strategy,
+            "BF16Attr" => BF16Strategy,
             "F64Attr" => F64Strategy,
-            _ => GenericFloatingPointLiteralStrategy,
+            _ => throw new System.NotSupportedException($"Unsupported floating-point attribute constraint '{recordName}'."),
         };
     }
 }
