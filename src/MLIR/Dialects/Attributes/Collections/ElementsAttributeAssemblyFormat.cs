@@ -76,11 +76,11 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
         }
 
         return new ElementsAttributeValueSyntax(
-            new SyntaxToken("dense"),
-            new SyntaxToken("<"),
+            SyntaxTokenFactory.Identifier("dense"),
+            SyntaxTokenFactory.LessThan(),
             context.BuildAttributeValueSyntax(elementsAttribute.Payload),
-            new SyntaxToken(">"),
-            new SyntaxToken(":"),
+            SyntaxTokenFactory.GreaterThan(),
+            SyntaxTokenFactory.Colon(),
             elementsAttribute.TypeSyntax);
     }
 

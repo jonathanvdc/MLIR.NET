@@ -17,13 +17,13 @@ public sealed class BlockSyntax : SyntaxNode
     /// <param name="operations">The operations contained in the block.</param>
     public BlockSyntax(string label, IReadOnlyList<BlockArgumentSyntax> arguments, IReadOnlyList<OperationSyntax> operations)
         : this(
-            new SyntaxToken(label),
+            SyntaxTokenFactory.BlockLabel(label),
             new DelimitedSyntaxList<BlockArgumentSyntax>(
-                arguments.Count > 0 ? new SyntaxToken("(") : null,
+                arguments.Count > 0 ? SyntaxTokenFactory.LParen() : null,
                 arguments,
                 CreateDefaultCommaTokens(arguments.Count),
-                arguments.Count > 0 ? new SyntaxToken(")") : null),
-            new SyntaxToken(":"),
+                arguments.Count > 0 ? SyntaxTokenFactory.RParen() : null),
+            SyntaxTokenFactory.Colon(),
             operations)
     {
     }
@@ -122,7 +122,7 @@ public sealed class BlockSyntax : SyntaxNode
         var separators = new List<SyntaxToken>();
         for (var i = 1; i < count; i++)
         {
-            separators.Add(new SyntaxToken(","));
+            separators.Add(SyntaxTokenFactory.Comma());
         }
 
         return separators;

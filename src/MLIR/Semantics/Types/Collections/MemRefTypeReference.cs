@@ -89,25 +89,25 @@ public class MemRefTypeReference : TypeReference
         var xTokens = new List<SyntaxToken>(isUnranked ? 1 : dimensionSyntax.Length);
         for (var i = 0; i < xTokens.Capacity; i++)
         {
-            xTokens.Add(new SyntaxToken("x"));
+            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
         }
 
         var commas = new List<SyntaxToken>(trailingParameters.Count);
         for (var i = 0; i < trailingParameters.Count; i++)
         {
-            commas.Add(new SyntaxToken(","));
+            commas.Add(SyntaxTokenFactory.Comma());
         }
 
         return new MemRefTypeSyntax(
-            new SyntaxToken("memref"),
-            new SyntaxToken("<"),
+            SyntaxTokenFactory.Identifier("memref"),
+            SyntaxTokenFactory.LessThan(),
             dimensionSyntax,
             xTokens,
-            isUnranked ? new SyntaxToken("*") : null,
+            isUnranked ? SyntaxTokenFactory.Star() : null,
             elementType.Syntax ?? throw new InvalidOperationException("MemRef element types must carry syntax."),
             commas,
             trailingParameters,
-            new SyntaxToken(">"));
+            SyntaxTokenFactory.GreaterThan());
     }
 
     private static bool HaveSameDimensions(IReadOnlyList<long?> left, IReadOnlyList<long?> right)

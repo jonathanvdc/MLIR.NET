@@ -29,28 +29,28 @@ public sealed class OperationSyntax : SyntaxNode
         TypeSyntax? typeSignature)
         : this(
             new SeparatedSyntaxList<SyntaxToken>(
-                CreateValueTokens(results),
+                CreateSsaNameTokens(results),
                 CreateDefaultCommaTokens(results.Count)),
-            results.Count > 0 ? new SyntaxToken("=") : null,
-            new SyntaxToken(name),
+            results.Count > 0 ? SyntaxTokenFactory.Equal() : null,
+            SyntaxTokenFactory.Identifier(name),
             new GenericOperationBodySyntax(
                 new DelimitedSyntaxList<SyntaxToken>(
-                    new SyntaxToken("("),
-                    CreateValueTokens(operands),
+                    SyntaxTokenFactory.LParen(),
+                    CreateSsaNameTokens(operands),
                     CreateDefaultCommaTokens(operands.Count),
-                    new SyntaxToken(")")),
+                    SyntaxTokenFactory.RParen()),
                 new DelimitedSyntaxList<SyntaxToken>(
-                    successors.Count > 0 ? new SyntaxToken("[") : null,
-                    CreateValueTokens(successors),
+                    successors.Count > 0 ? SyntaxTokenFactory.LBracket() : null,
+                    CreateBlockLabelTokens(successors),
                     CreateDefaultCommaTokens(successors.Count),
-                    successors.Count > 0 ? new SyntaxToken("]") : null),
+                    successors.Count > 0 ? SyntaxTokenFactory.RBracket() : null),
                 regions,
                 new DelimitedSyntaxList<NamedAttributeSyntax>(
-                    attributes.Count > 0 ? new SyntaxToken("{") : null,
+                    attributes.Count > 0 ? SyntaxTokenFactory.LBrace() : null,
                     attributes,
                     CreateDefaultCommaTokens(attributes.Count),
-                    attributes.Count > 0 ? new SyntaxToken("}") : null),
-                typeSignature != null ? new SyntaxToken(":") : null,
+                    attributes.Count > 0 ? SyntaxTokenFactory.RBrace() : null),
+                typeSignature != null ? SyntaxTokenFactory.Colon() : null,
                 typeSignature != null ? typeSignature : null))
     {
     }
@@ -183,12 +183,23 @@ public sealed class OperationSyntax : SyntaxNode
         Body.WriteTo(writer);
     }
 
-    private static IReadOnlyList<SyntaxToken> CreateValueTokens(IReadOnlyList<string> values)
+    private static IReadOnlyList<SyntaxToken> CreateSsaNameTokens(IReadOnlyList<string> values)
     {
         var tokens = new List<SyntaxToken>();
         foreach (var value in values)
         {
-            tokens.Add(new SyntaxToken(value));
+            tokens.Add(SyntaxTokenFactory.SsaName(value));
+        }
+
+        return tokens;
+    }
+
+    private static IReadOnlyList<SyntaxToken> CreateBlockLabelTokens(IReadOnlyList<string> labels)
+    {
+        var tokens = new List<SyntaxToken>();
+        foreach (var label in labels)
+        {
+            tokens.Add(SyntaxTokenFactory.BlockLabel(label));
         }
 
         return tokens;
@@ -199,7 +210,7 @@ public sealed class OperationSyntax : SyntaxNode
         var separators = new List<SyntaxToken>();
         for (var i = 1; i < count; i++)
         {
-            separators.Add(new SyntaxToken(","));
+            separators.Add(SyntaxTokenFactory.Comma());
         }
 
         return separators;

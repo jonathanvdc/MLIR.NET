@@ -12,7 +12,7 @@ public sealed class DenseBooleanArrayAttributeAssemblyFormat : DenseArrayAttribu
     protected override AttributeValueSyntax ElementToSyntax(bool element)
     {
         var text = element ? "true" : "false";
-        return new BooleanAttributeValueSyntax(new SyntaxToken(text), element);
+        return new BooleanAttributeValueSyntax(SyntaxTokenFactory.Identifier(text), element);
     }
 
     /// <inheritdoc/>

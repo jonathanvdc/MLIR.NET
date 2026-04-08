@@ -497,7 +497,7 @@ public sealed partial class Parser
     /// </summary>
     internal SyntaxToken ToSyntaxToken(Token token)
     {
-        return new SyntaxToken(token.Text, token.LeadingTrivia, document, token.TokenStart, token.End - token.TokenStart);
+        return new SyntaxToken(token.Kind, token.Text, token.LeadingTrivia, document, token.TokenStart, token.End - token.TokenStart);
     }
 
     /// <summary>Bridges <see cref="Is"/> for use by <see cref="DialectParsingContext"/>.</summary>

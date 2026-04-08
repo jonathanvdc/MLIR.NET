@@ -19,7 +19,7 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
     /// </summary>
     /// <param name="operations">The top-level operations in the module.</param>
     public ModuleSyntax(IReadOnlyList<OperationSyntax> operations)
-        : this(operations, new SyntaxToken(string.Empty))
+        : this(operations, SyntaxTokenFactory.EndOfFile())
     {
     }
 

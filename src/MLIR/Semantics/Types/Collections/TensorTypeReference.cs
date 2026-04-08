@@ -89,32 +89,32 @@ public class TensorTypeReference : TypeReference
         var xTokens = new List<SyntaxToken>(isUnranked ? 1 : dimensionSyntax.Length);
         for (var i = 0; i < xTokens.Capacity; i++)
         {
-            xTokens.Add(new SyntaxToken("x"));
+            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
         }
 
         var commas = new List<SyntaxToken>(trailingParameters.Count);
         for (var i = 0; i < trailingParameters.Count; i++)
         {
-            commas.Add(new SyntaxToken(","));
+            commas.Add(SyntaxTokenFactory.Comma());
         }
 
         return new TensorTypeSyntax(
-            new SyntaxToken("tensor"),
-            new SyntaxToken("<"),
+            SyntaxTokenFactory.Identifier("tensor"),
+            SyntaxTokenFactory.LessThan(),
             dimensionSyntax,
             xTokens,
-            isUnranked ? new SyntaxToken("*") : null,
+            isUnranked ? SyntaxTokenFactory.Star() : null,
             elementType.Syntax ?? throw new InvalidOperationException("Tensor element types must carry syntax."),
             commas,
             trailingParameters,
-            new SyntaxToken(">"));
+            SyntaxTokenFactory.GreaterThan());
     }
 
     internal static ShapedTypeDimensionSyntax CreateDimensionSyntax(long? dimension)
     {
         return dimension.HasValue
-            ? new StaticShapedTypeDimensionSyntax(new SyntaxToken(dimension.Value.ToString()), dimension.Value)
-            : new DynamicShapedTypeDimensionSyntax(new SyntaxToken("?"));
+            ? new StaticShapedTypeDimensionSyntax(SyntaxTokenFactory.Integer(dimension.Value.ToString()), dimension.Value)
+            : new DynamicShapedTypeDimensionSyntax(SyntaxTokenFactory.Question());
     }
 
     private static bool HaveSameDimensions(IReadOnlyList<long?> left, IReadOnlyList<long?> right)

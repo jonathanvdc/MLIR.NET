@@ -74,7 +74,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         AssemblyFormatTraversal.ForEachElement(elements, (i, element) => EmitElement(builder, element, indent: "        ", declare: true));
 
         EmitBodyConstruction(builder);
-        builder.AppendLine("        return context.RewriteOperation(operation, body, new SyntaxToken(operation.Name));");
+        builder.AppendLine("        return context.RewriteOperation(operation, body, SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + "));");
         builder.AppendLine("    }");
     }
 
@@ -143,8 +143,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 {
                     var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
                     var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
-                    var text = EmitterHelpers.ToCSharpStringLiteral(EmitterHelpers.GetPunctuationText(punc.TokenKind));
-                    builder.AppendLine(indent + DeclareOrAssign(varName, "new SyntaxToken(" + text + ")", declare, field.CsType) + ";");
+                    var expr = EmitterHelpers.GetSyntaxTokenFactoryExpression(punc.TokenKind);
+                    builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
                     break;
                 }
 
@@ -152,8 +152,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 {
                     var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
                     var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
-                    var text = EmitterHelpers.ToCSharpStringLiteral(kw.Spelling);
-                    builder.AppendLine(indent + DeclareOrAssign(varName, "new SyntaxToken(" + text + ")", declare, field.CsType) + ";");
+                    var expr = "SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) + ")";
+                    builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
                     break;
                 }
 
@@ -204,7 +204,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
         var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         builder.AppendLine(indent + DeclareOrAssign(varName,
-            "new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken(\"(\"), op.OperandValues.Select(v => v.Token ?? new SyntaxToken(v.Name)).ToList(), Enumerable.Repeat(new SyntaxToken(\",\"), global::System.Math.Max(0, op.OperandValues.Count - 1)).ToList(), new SyntaxToken(\")\"))",
+            "new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), op.OperandValues.Select(v => v.Token ?? SyntaxTokenFactory.SsaName(v.Name)).ToList(), Enumerable.Repeat(SyntaxTokenFactory.Comma(), global::System.Math.Max(0, op.OperandValues.Count - 1)).ToList(), SyntaxTokenFactory.RParen())",
             declare, field.CsType) + ";");
     }
 
@@ -342,7 +342,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 builder.AppendLine(indent + "if (" + trigger + ")");
                 builder.AppendLine(indent + "{");
                 fieldIndex++; // advance past keyword field
-                builder.AppendLine(indent + "    " + kwVarName + " = new SyntaxToken(" + EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) + ");");
+                builder.AppendLine(indent + "    " + kwVarName + " = SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) + ");");
 
                 AssemblyFormatTraversal.ForEachElement(clause.Elements, (_, element) => EmitOilistElement(builder, element, indent + "    "));
 
@@ -384,7 +384,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             {
                 var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
                 var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
-                builder.AppendLine(indent + varName + " = new SyntaxToken(" + EmitterHelpers.ToCSharpStringLiteral(literal.Value) + ");");
+                builder.AppendLine(indent + varName + " = SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(literal.Value) + ");");
                 break;
             }
         }
@@ -455,18 +455,18 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         if (IsVariadicOperand(variableName))
         {
             // Produce a List<SyntaxToken> from the variadic value list.
-            return "op." + propName + ".Select(v => v.Token ?? new SyntaxToken(v.Name)).ToList()";
+            return "op." + propName + ".Select(v => v.Token ?? SyntaxTokenFactory.SsaName(v.Name)).ToList()";
         }
 
         if (nullable)
         {
             // Nullable operand: op.Rhs is Value?
-            return "op." + propName + "!.Token ?? new SyntaxToken(op." + propName + "!.Name)";
+            return "op." + propName + "!.Token ?? SyntaxTokenFactory.SsaName(op." + propName + "!.Name)";
         }
         else
         {
             // Required operand/result: op.Lhs is Value (non-nullable)
-            return "op." + propName + ".Token ?? new SyntaxToken(op." + propName + ".Name)";
+            return "op." + propName + ".Token ?? SyntaxTokenFactory.SsaName(op." + propName + ".Name)";
         }
     }
 

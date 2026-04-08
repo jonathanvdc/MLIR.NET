@@ -145,7 +145,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
                     break;
                 }
 
-                resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(new SyntaxToken("("), results, resultCommas, new SyntaxToken(")"));
+                resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(SyntaxTokenFactory.LParen(), results, resultCommas, SyntaxTokenFactory.RParen());
             }
             else
             {
@@ -204,7 +204,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             visibilityToken,
             symbolNameResult.Value,
             lParenResult.Value,
-            new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(new SyntaxToken("("), arguments, argumentCommas, new SyntaxToken(")")),
+            new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(SyntaxTokenFactory.LParen(), arguments, argumentCommas, SyntaxTokenFactory.RParen()),
             arrowToken,
             resultTypes,
             attributesKeyword,
@@ -304,7 +304,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             var visibilityText = GetStringValue(operation.GetAttribute("sym_visibility").Value);
             if (visibilityText != null)
             {
-                visibilityToken = new SyntaxToken(visibilityText);
+                visibilityToken = SyntaxTokenFactory.Identifier(visibilityText);
             }
         }
 
@@ -315,7 +315,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
         {
             if (i > 0)
             {
-                argumentCommas.Add(new SyntaxToken(","));
+                argumentCommas.Add(SyntaxTokenFactory.Comma());
             }
 
             var name = blockArguments != null && i < blockArguments.Count
@@ -323,8 +323,8 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
                 : "%arg" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
             arguments.Add(new FuncFunctionArgumentSyntax(
-                new SyntaxToken(name),
-                new SyntaxToken(":"),
+                SyntaxTokenFactory.SsaName(name),
+                SyntaxTokenFactory.Colon(),
                 functionTypeSyntax.InputTypes.Items[i],
                 new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null)));
         }
@@ -338,7 +338,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             {
                 if (i > 0)
                 {
-                    resultCommas.Add(new SyntaxToken(","));
+                    resultCommas.Add(SyntaxTokenFactory.Comma());
                 }
 
                 results.Add(new FuncFunctionResultSyntax(
@@ -347,10 +347,10 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             }
 
             resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(
-                new SyntaxToken("("),
+                SyntaxTokenFactory.LParen(),
                 results,
                 resultCommas,
-                new SyntaxToken(")"));
+                SyntaxTokenFactory.RParen());
         }
         else if (functionTypeSyntax.ResultType != null)
         {
@@ -374,14 +374,14 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             new FuncOperationBodySyntax(
                 visibilityToken,
                 new RawSyntaxText("@" + symName),
-                new SyntaxToken("("),
-                new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(new SyntaxToken("("), arguments, argumentCommas, new SyntaxToken(")")),
-                resultTypes != null ? new SyntaxToken("->") : null,
+                SyntaxTokenFactory.LParen(),
+                new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(SyntaxTokenFactory.LParen(), arguments, argumentCommas, SyntaxTokenFactory.RParen()),
+                resultTypes != null ? SyntaxTokenFactory.Arrow() : null,
                 resultTypes,
-                explicitAttributes.OpenToken.HasValue ? new SyntaxToken("attributes") : null,
+                explicitAttributes.OpenToken.HasValue ? SyntaxTokenFactory.Identifier("attributes") : null,
                 explicitAttributes,
                 bodyRegion),
-            new SyntaxToken(operation.Name));
+            SyntaxTokenFactory.Identifier(operation.Name));
     }
 
     private static string NormalizeSymbolName(string text)
@@ -461,10 +461,10 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
 
     private static NamedAttributeSyntax CreateStringAttribute(string name, string value)
     {
-        var literal = new SyntaxToken("\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"");
+        var literal = SyntaxTokenFactory.StringLiteral("\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"");
         return new NamedAttributeSyntax(
-            new SyntaxToken(name),
-            new SyntaxToken("="),
+            SyntaxTokenFactory.Identifier(name),
+            SyntaxTokenFactory.Equal(),
             new StringAttributeValueSyntax(literal, value));
     }
 }

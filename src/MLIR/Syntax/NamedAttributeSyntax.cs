@@ -20,7 +20,7 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// <param name="name">The attribute name.</param>
     /// <param name="value">The raw attribute value text.</param>
     public NamedAttributeSyntax(string name, RawSyntaxText value)
-        : this(new SyntaxToken(name), new SyntaxToken("="), new RawAttributeValueSyntax(value))
+        : this(SyntaxTokenFactory.Identifier(name), SyntaxTokenFactory.Equal(), new RawAttributeValueSyntax(value))
     {
     }
 

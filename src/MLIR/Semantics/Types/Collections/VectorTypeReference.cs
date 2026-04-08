@@ -86,15 +86,15 @@ public class VectorTypeReference : TypeReference
         var xTokens = new List<SyntaxToken>(dimensionSyntax.Length);
         for (var i = 0; i < dimensionSyntax.Length; i++)
         {
-            xTokens.Add(new SyntaxToken("x"));
+            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
         }
 
         return new VectorTypeSyntax(
-            new SyntaxToken("vector"),
-            new SyntaxToken("<"),
+            SyntaxTokenFactory.Identifier("vector"),
+            SyntaxTokenFactory.LessThan(),
             dimensionSyntax,
             xTokens,
             elementType.Syntax ?? throw new InvalidOperationException("Vector element types must carry syntax."),
-            new SyntaxToken(">"));
+            SyntaxTokenFactory.GreaterThan());
     }
 }

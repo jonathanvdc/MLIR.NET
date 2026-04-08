@@ -70,7 +70,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// </summary>
     public DelimitedSyntaxList<SyntaxToken> CreateEmptyOperandList()
     {
-        return new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), new List<SyntaxToken>(), new List<SyntaxToken>(), new SyntaxToken(")"));
+        return new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), new List<SyntaxToken>(), new List<SyntaxToken>(), SyntaxTokenFactory.RParen());
     }
 
     /// <summary>
@@ -87,10 +87,10 @@ public sealed class OperationParsingContext : DialectParsingContext
     public DelimitedSyntaxList<NamedAttributeSyntax> CreateAttributeDictionary(IReadOnlyList<NamedAttributeSyntax> attributes)
     {
         return new DelimitedSyntaxList<NamedAttributeSyntax>(
-            attributes.Count > 0 ? new SyntaxToken("{") : null,
+            attributes.Count > 0 ? SyntaxTokenFactory.LBrace() : null,
             attributes,
             CreateCommaTokens(attributes.Count),
-            attributes.Count > 0 ? new SyntaxToken("}") : null);
+            attributes.Count > 0 ? SyntaxTokenFactory.RBrace() : null);
     }
 
     /// <summary>
@@ -101,7 +101,7 @@ public sealed class OperationParsingContext : DialectParsingContext
         var commas = new List<SyntaxToken>();
         for (var i = 1; i < itemCount; i++)
         {
-            commas.Add(new SyntaxToken(","));
+            commas.Add(SyntaxTokenFactory.Comma());
         }
 
         return commas;

@@ -82,14 +82,14 @@ public class TupleTypeReference : TypeReference
         var commas = new List<SyntaxToken>(Math.Max(0, elements.Count - 1));
         for (var i = 1; i < elements.Count; i++)
         {
-            commas.Add(new SyntaxToken(","));
+            commas.Add(SyntaxTokenFactory.Comma());
         }
 
         return new TupleTypeSyntax(
-            new SyntaxToken("tuple"),
-            new SyntaxToken("<"),
+            SyntaxTokenFactory.Identifier("tuple"),
+            SyntaxTokenFactory.LessThan(),
             elements.Select(static element => element.Syntax ?? throw new InvalidOperationException("Tuple elements must carry syntax.")).ToArray(),
             commas,
-            new SyntaxToken(">"));
+            SyntaxTokenFactory.GreaterThan());
     }
 }

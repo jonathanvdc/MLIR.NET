@@ -106,7 +106,10 @@ internal static class AttributeAssemblyFormatEmitter
         {
             if (slot is LiteralTokenSlot lit)
             {
-                builder.Append(", new SyntaxToken(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")");
+                var factoryExpr = lit.IsKeyword
+                    ? "SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
+                    : "SyntaxTokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()";
+                builder.Append(", " + factoryExpr);
             }
             else if (slot is VariableSlot v)
             {

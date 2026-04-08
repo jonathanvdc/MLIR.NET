@@ -41,7 +41,7 @@ public class FloatTypeReference : TypeReference
     /// with an optional preserved syntax node.
     /// </summary>
     protected FloatTypeReference(string name, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? new BuiltinFloatTypeSyntax(new SyntaxToken(name)), location)
+        : base(syntax ?? new BuiltinFloatTypeSyntax(SyntaxTokenFactory.Identifier(name)), location)
     {
         Name = name;
     }

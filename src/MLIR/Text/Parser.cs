@@ -434,7 +434,7 @@ public sealed partial class Parser
                 var count = int.Parse(countToken.Text, CultureInfo.InvariantCulture);
                 for (var i = 1; i < count; i++)
                 {
-                    resultItems.Add(new SyntaxToken(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
+                    resultItems.Add(SyntaxTokenFactory.SsaName(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
                 }
             }
 
@@ -621,10 +621,10 @@ public sealed partial class Parser
 
         return ParseResult<OperationBodySyntax>.Success(new GenericOperationBodySyntax(
             new DelimitedSyntaxList<SyntaxToken>(
-                new SyntaxToken("("),
+                SyntaxTokenFactory.LParen(),
                 operandTokens,
                 operandCommaTokens,
-                new SyntaxToken(")")),
+                SyntaxTokenFactory.RParen()),
             new DelimitedSyntaxList<SyntaxToken>(null, new List<SyntaxToken>(), new List<SyntaxToken>(), null),
             new List<RegionSyntax>(),
             attributeDictResult.Value,
@@ -705,9 +705,9 @@ public sealed partial class Parser
                     // MLIR allows unlabeled operations at the start of a region. Model them as
                     // a synthetic entry block so the CST always has a block-based shape.
                     blocks.Add(new BlockSyntax(
-                        new SyntaxToken("^entry"),
+                        SyntaxTokenFactory.BlockLabel("^entry"),
                         new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<SyntaxToken>(), null),
-                        new SyntaxToken(":"),
+                        SyntaxTokenFactory.Colon(),
                         pendingEntryOperations.ToList()));
                     pendingEntryOperations.Clear();
                 }
@@ -741,9 +741,9 @@ public sealed partial class Parser
         {
             // Keep region bodies uniform even for empty regions and unlabeled entry operations.
             blocks.Insert(0, new BlockSyntax(
-                new SyntaxToken("^entry"),
+                SyntaxTokenFactory.BlockLabel("^entry"),
                 new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<SyntaxToken>(), null),
-                new SyntaxToken(":"),
+                SyntaxTokenFactory.Colon(),
                 pendingEntryOperations.ToList()));
         }
 
