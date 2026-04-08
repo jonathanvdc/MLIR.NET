@@ -46,8 +46,8 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     [Theory]
     [InlineData("DenseI32ArrayAttr", "indices", "global::MLIR.Numerics.ApInt", "DenseIntegerArrayAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
     [InlineData("DenseBoolArrayAttr", "flags", "bool", "DenseBooleanArrayAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "Flags")]
-    [InlineData("DenseF32ArrayAttr", "coeffs", "float", "DenseF32ArrayAttributeValue", "DenseF32ArrayAttributeAssemblyFormat", "Coeffs")]
-    [InlineData("DenseF64ArrayAttr", "weights", "double", "DenseF64ArrayAttributeValue", "DenseF64ArrayAttributeAssemblyFormat", "Weights")]
+    [InlineData("DenseF32ArrayAttr", "coeffs", "global::MLIR.Numerics.ApFloat", "DenseFloatingPointArrayAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Coeffs")]
+    [InlineData("DenseF64ArrayAttr", "weights", "global::MLIR.Numerics.ApFloat", "DenseFloatingPointArrayAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Weights")]
     public void GeneratesDenseArrayAttributePropertyWithTypedItemsList(
         string constraintType,
         string attributeName,

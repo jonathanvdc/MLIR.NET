@@ -250,10 +250,18 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
         builder.Append("        new AttributeConstraintDefinition(");
         builder.Append(EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        var assemblyFormatType = strategy.GetAssemblyFormatType(attributeConstraint.RecordName);
-        if (assemblyFormatType != null)
+        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression(attributeConstraint.RecordName);
+        if (assemblyFormatExpression != null)
         {
-            builder.Append(", new " + assemblyFormatType + "()");
+            builder.Append(", " + assemblyFormatExpression);
+        }
+        else
+        {
+            var assemblyFormatType = strategy.GetAssemblyFormatType(attributeConstraint.RecordName);
+            if (assemblyFormatType != null)
+            {
+                builder.Append(", new " + assemblyFormatType + "()");
+            }
         }
 
         builder.AppendLine(", factory: static context => new " + className + "(context));");

@@ -16,6 +16,10 @@ public sealed class FloatSemanticsTests
         Assert.Equal(8, FloatSemantics.BFloat16.Precision);
         Assert.Equal(16, FloatSemantics.BFloat16.BitWidth);
 
+        Assert.Equal(8, FloatSemantics.TF32.ExponentBits);
+        Assert.Equal(11, FloatSemantics.TF32.Precision);
+        Assert.Equal(19, FloatSemantics.TF32.BitWidth);
+
         Assert.Equal(8, FloatSemantics.IEEESingle.ExponentBits);
         Assert.Equal(24, FloatSemantics.IEEESingle.Precision);
         Assert.Equal(32, FloatSemantics.IEEESingle.BitWidth);
@@ -23,6 +27,14 @@ public sealed class FloatSemanticsTests
         Assert.Equal(11, FloatSemantics.IEEEDouble.ExponentBits);
         Assert.Equal(53, FloatSemantics.IEEEDouble.Precision);
         Assert.Equal(64, FloatSemantics.IEEEDouble.BitWidth);
+
+        Assert.Equal(15, FloatSemantics.IEEEExtended80.ExponentBits);
+        Assert.Equal(64, FloatSemantics.IEEEExtended80.Precision);
+        Assert.Equal(80, FloatSemantics.IEEEExtended80.BitWidth);
+
+        Assert.Equal(15, FloatSemantics.IEEEQuadruple.ExponentBits);
+        Assert.Equal(113, FloatSemantics.IEEEQuadruple.Precision);
+        Assert.Equal(128, FloatSemantics.IEEEQuadruple.BitWidth);
     }
 
     [Fact]

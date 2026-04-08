@@ -60,14 +60,14 @@ public sealed class FloatSemantics : IEquatable<FloatSemantics>
     public int BitWidth { get; }
 
     /// <summary>
-    /// Gets a predefined semantics instance corresponding to IEEE binary16.
-    /// </summary>
-    public static FloatSemantics IEEEHalf { get; } = new FloatSemantics(5, 11, true, true, true, true);
-
-    /// <summary>
     /// Gets a predefined semantics instance corresponding to bfloat16.
     /// </summary>
     public static FloatSemantics BFloat16 { get; } = new FloatSemantics(8, 8, true, true, true, true);
+
+    /// <summary>
+    /// Gets a predefined semantics instance corresponding to TF32.
+    /// </summary>
+    public static FloatSemantics TF32 { get; } = new FloatSemantics(8, 11, true, true, true, true);
 
     /// <summary>
     /// Gets a predefined semantics instance corresponding to IEEE binary32.
@@ -78,6 +78,21 @@ public sealed class FloatSemantics : IEquatable<FloatSemantics>
     /// Gets a predefined semantics instance corresponding to IEEE binary64.
     /// </summary>
     public static FloatSemantics IEEEDouble { get; } = new FloatSemantics(11, 53, true, true, true, true);
+
+    /// <summary>
+    /// Gets a predefined semantics instance corresponding to IEEE binary16.
+    /// </summary>
+    public static FloatSemantics IEEEHalf { get; } = new FloatSemantics(5, 11, true, true, true, true);
+
+    /// <summary>
+    /// Gets a predefined semantics instance corresponding to x87 80-bit extended precision.
+    /// </summary>
+    public static FloatSemantics IEEEExtended80 { get; } = new FloatSemantics(15, 64, false, true, true, true);
+
+    /// <summary>
+    /// Gets a predefined semantics instance corresponding to IEEE binary128.
+    /// </summary>
+    public static FloatSemantics IEEEQuadruple { get; } = new FloatSemantics(15, 113, true, true, true, true);
 
     /// <summary>
     /// Creates a floating-point semantics descriptor.
@@ -168,6 +183,11 @@ public sealed class FloatSemantics : IEquatable<FloatSemantics>
             return "bfloat16";
         }
 
+        if (Equals(TF32))
+        {
+            return "tf32";
+        }
+
         if (Equals(IEEESingle))
         {
             return "binary32";
@@ -177,6 +197,10 @@ public sealed class FloatSemantics : IEquatable<FloatSemantics>
         {
             return "binary64";
         }
+
+        if (Equals(IEEEExtended80)) return "x87extended80";
+
+        if (Equals(IEEEQuadruple)) return "binary128";
 
         return $"FloatSemantics(expBits={ExponentBits}, precision={Precision}, implicitLeadingBit={HasImplicitLeadingBit}, infinity={HasInfinity}, nan={HasNaN}, subnormals={SupportsSubnormals})";
     }

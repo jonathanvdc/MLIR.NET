@@ -61,28 +61,15 @@ public static class StructuredAttributeSemanticDecoder
     }
 
     /// <summary>
-    /// Decodes a list of attribute-value syntax nodes into a list of single-precision <see cref="float"/> values.
+    /// Decodes a list of attribute-value syntax nodes into a list of floating-point values under
+    /// the specified semantics.
     /// </summary>
-    public static IReadOnlyList<float> DecodeSinglePrecisionItems(IReadOnlyList<AttributeValueSyntax> items)
+    public static IReadOnlyList<ApFloat> DecodeFloatingPointItems(IReadOnlyList<AttributeValueSyntax> items, FloatSemantics semantics)
     {
-        var result = new List<float>(items.Count);
+        var result = new List<ApFloat>(items.Count);
         for (var i = 0; i < items.Count; i++)
         {
-            result.Add(DecodeSinglePrecisionValue(items[i]));
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Decodes a list of attribute-value syntax nodes into a list of double-precision <see cref="double"/> values.
-    /// </summary>
-    public static IReadOnlyList<double> DecodeDoublePrecisionItems(IReadOnlyList<AttributeValueSyntax> items)
-    {
-        var result = new List<double>(items.Count);
-        for (var i = 0; i < items.Count; i++)
-        {
-            result.Add(DecodeDoublePrecisionValue(items[i]));
+            result.Add(DecodeFloatingPointValue(items[i], semantics));
         }
 
         return result;
@@ -127,12 +114,15 @@ public static class StructuredAttributeSemanticDecoder
     private static AttributeValue DecodeDenseArrayValue(DenseArrayAttributeValueSyntax syntax)
     {
         var typeText = syntax.ElementTypeSyntax.ToString();
+        if (TryGetFloatingPointSemantics(typeText, out var semantics))
+        {
+            return new DecodedDenseFloatingPointArrayAttributeValue(syntax, semantics);
+        }
+
         return typeText switch
         {
             "i1" => new DecodedDenseBooleanArrayAttributeValue(syntax),
             "i8" or "i16" or "i32" or "i64" => new DecodedDenseIntegerArrayAttributeValue(syntax),
-            "f32" => new DecodedDenseF32ArrayAttributeValue(syntax),
-            "f64" or "bf16" => new DecodedDenseF64ArrayAttributeValue(syntax),
             _ => throw new System.NotSupportedException($"Unsupported dense array element type '{typeText}'."),
         };
     }
@@ -167,36 +157,19 @@ public static class StructuredAttributeSemanticDecoder
         return false;
     }
 
-    private static float DecodeSinglePrecisionValue(AttributeValueSyntax syntax)
+    private static ApFloat DecodeFloatingPointValue(AttributeValueSyntax syntax, FloatSemantics semantics)
     {
         if (syntax is FloatingPointAttributeValueSyntax fpSyntax)
         {
-            return fpSyntax.Value.ToSingle();
+            return fpSyntax.Value.ConvertTo(semantics);
         }
 
-        if (syntax is RawAttributeValueSyntax rawSyntax
-            && FloatingPointLiteralParser.TryParseSingle(rawSyntax.RawText.Text, out var rawParsed))
+        if (syntax is RawAttributeValueSyntax rawSyntax)
         {
-            return rawParsed;
+            return FloatingPointLiteralParser.Parse(semantics, rawSyntax.RawText.Text);
         }
 
-        return 0.0f;
-    }
-
-    private static double DecodeDoublePrecisionValue(AttributeValueSyntax syntax)
-    {
-        if (syntax is FloatingPointAttributeValueSyntax fpSyntax)
-        {
-            return fpSyntax.Value.ToDouble();
-        }
-
-        if (syntax is RawAttributeValueSyntax rawSyntax
-            && FloatingPointLiteralParser.TryParseDouble(rawSyntax.RawText.Text, out var rawParsed))
-        {
-            return rawParsed;
-        }
-
-        return 0.0;
+        return ApFloat.Zero(semantics);
     }
 
     private static AttributeValue DecodeRawValue(RawAttributeValueSyntax syntax)
@@ -234,6 +207,37 @@ public static class StructuredAttributeSemanticDecoder
     private static bool LooksLikeFloatingPointLiteral(string text)
     {
         return FloatingPointLiteralParser.TryParseDouble(text, out _);
+    }
+
+    private static bool TryGetFloatingPointSemantics(string typeText, out FloatSemantics semantics)
+    {
+        switch (typeText)
+        {
+            case "f16":
+                semantics = FloatSemantics.IEEEHalf;
+                return true;
+            case "bf16":
+                semantics = FloatSemantics.BFloat16;
+                return true;
+            case "f32":
+                semantics = FloatSemantics.IEEESingle;
+                return true;
+            case "f64":
+                semantics = FloatSemantics.IEEEDouble;
+                return true;
+            case "tf32":
+                semantics = FloatSemantics.TF32;
+                return true;
+            case "f80":
+                semantics = FloatSemantics.IEEEExtended80;
+                return true;
+            case "f128":
+                semantics = FloatSemantics.IEEEQuadruple;
+                return true;
+            default:
+                semantics = FloatSemantics.IEEEDouble;
+                return false;
+        }
     }
 
     private sealed class DecodedBooleanAttributeValue : BooleanAttributeValue
@@ -344,22 +348,10 @@ public static class StructuredAttributeSemanticDecoder
         public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
-    private sealed class DecodedDenseF32ArrayAttributeValue : DenseF32ArrayAttributeValue
+    private sealed class DecodedDenseFloatingPointArrayAttributeValue : DenseFloatingPointArrayAttributeValue
     {
-        public DecodedDenseF32ArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeSinglePrecisionItems(syntax.Items.Items))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedDenseF64ArrayAttributeValue : DenseF64ArrayAttributeValue
-    {
-        public DecodedDenseF64ArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeDoublePrecisionItems(syntax.Items.Items))
+        public DecodedDenseFloatingPointArrayAttributeValue(DenseArrayAttributeValueSyntax syntax, FloatSemantics semantics)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeFloatingPointItems(syntax.Items.Items, semantics))
         {
         }
 

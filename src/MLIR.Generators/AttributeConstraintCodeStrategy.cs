@@ -158,6 +158,15 @@ internal abstract class AttributeConstraintCodeStrategy
     public virtual string? GetAssemblyFormatType(string constraintRecordName) => null;
 
     /// <summary>
+    /// Returns the full C# expression used to instantiate the assembly-format object
+    /// when registration needs constructor arguments or a custom factory expression.
+    /// Returns <see langword="null"/> when the default <c>new {GetAssemblyFormatType}()</c>
+    /// shape should be used.
+    /// </summary>
+    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
+    public virtual string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => null;
+
+    /// <summary>
     /// Returns the argument list to pass to the base-class constructor from the
     /// <c>AttributeValueConstructionContext</c> constructor, or <see langword="null"/>
     /// to use the default <c>(context.Syntax, context.Location)</c> call.
@@ -219,6 +228,7 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
     public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
     public override string GetBaseType(string constraintRecordName) => baseType;
     public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
+    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => null;
     public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => primitiveBaseConstructor;
     public override string? GetValueConstructorParameter(string constraintRecordName) => valueConstructorParameter;
 }
@@ -228,6 +238,7 @@ internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : Attri
     private readonly string attributeValueTypeName;
     private readonly string baseType;
     private readonly string? assemblyFormatType;
+    private readonly string? assemblyFormatConstructionExpression;
     private readonly string? primitiveBaseConstructor;
     private readonly string? valueConstructorParameter;
     private readonly string typedArrayElementPayloadPropertyName;
@@ -236,6 +247,7 @@ internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : Attri
         string attributeValueTypeName,
         string baseType,
         string? assemblyFormatType,
+        string? assemblyFormatConstructionExpression,
         string? primitiveBaseConstructor,
         string? valueConstructorParameter,
         string typedArrayElementPayloadPropertyName = "Items")
@@ -243,6 +255,7 @@ internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : Attri
         this.attributeValueTypeName = attributeValueTypeName;
         this.baseType = baseType;
         this.assemblyFormatType = assemblyFormatType;
+        this.assemblyFormatConstructionExpression = assemblyFormatConstructionExpression;
         this.primitiveBaseConstructor = primitiveBaseConstructor;
         this.valueConstructorParameter = valueConstructorParameter;
         this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
@@ -255,6 +268,7 @@ internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : Attri
     public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
     public override string GetBaseType(string constraintRecordName) => baseType;
     public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
+    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => assemblyFormatConstructionExpression;
     public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => primitiveBaseConstructor;
     public override string? GetValueConstructorParameter(string constraintRecordName) => valueConstructorParameter;
 }
@@ -598,6 +612,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         attributeValueTypeName: "IReadOnlyList<bool>",
         baseType: "DenseBooleanArrayAttributeValue",
         assemblyFormatType: "DenseBooleanArrayAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeBooleanItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
         valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<bool>");
 
@@ -605,22 +620,25 @@ internal static class AttributeConstraintCodeStrategyFactory
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApInt>",
         baseType: "DenseIntegerArrayAttributeValue",
         assemblyFormatType: "DenseIntegerArrayAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeIntegerItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
         valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>");
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF32ArrayStrategy = new(
-        attributeValueTypeName: "IReadOnlyList<float>",
-        baseType: "DenseF32ArrayAttributeValue",
-        assemblyFormatType: "DenseF32ArrayAttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeSinglePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
-        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<float>");
+        attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
+        baseType: "DenseFloatingPointArrayAttributeValue",
+        assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")",
+        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items, global::MLIR.Numerics.FloatSemantics.IEEESingle)",
+        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApFloat>");
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF64ArrayStrategy = new(
-        attributeValueTypeName: "IReadOnlyList<double>",
-        baseType: "DenseF64ArrayAttributeValue",
-        assemblyFormatType: "DenseF64ArrayAttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeDoublePrecisionItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
-        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<double>");
+        attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
+        baseType: "DenseFloatingPointArrayAttributeValue",
+        assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")",
+        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items, global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
+        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApFloat>");
 
     /// <summary>
     /// Returns the strategy singleton for the given <paramref name="kind"/> and
