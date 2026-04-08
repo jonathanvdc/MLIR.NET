@@ -1,6 +1,7 @@
-namespace MLIR.Generators.Emitters;
+namespace MLIR.Generators.Emitters.Operation;
 
 using System;
+using MLIR.Generators.Emitters.Common;
 
 internal static class OperationAttributeValueHelpers
 {

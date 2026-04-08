@@ -1,7 +1,9 @@
-namespace MLIR.Generators.Emitters;
+namespace MLIR.Generators.Emitters.Operation;
 
 using System;
 using System.Collections.Generic;
+using MLIR.Generators.Emitters;
+using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
 internal sealed class GeneratedMember

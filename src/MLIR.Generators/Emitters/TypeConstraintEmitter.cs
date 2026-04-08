@@ -1,6 +1,7 @@
 namespace MLIR.Generators.Emitters;
 
 using System.Text;
+using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
 internal static class TypeConstraintEmitter

@@ -3,6 +3,7 @@ namespace MLIR.Generators.Emitters;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
 internal static class EnumEmitter

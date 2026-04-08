@@ -1,7 +1,10 @@
-namespace MLIR.Generators.Emitters;
+namespace MLIR.Generators.Emitters.AssemblyFormat;
 
 using System.Collections.Generic;
 using System.Text;
+using MLIR.Generators.Emitters;
+using MLIR.Generators.Emitters.Common;
+using MLIR.Generators.Emitters.Operation;
 using MLIR.ODS.Model;
 using MLIR.ODS.Model.AssemblyFormat;
 using MLIR.Text;

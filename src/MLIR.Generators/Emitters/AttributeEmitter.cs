@@ -1,6 +1,9 @@
 namespace MLIR.Generators.Emitters;
 
 using System.Text;
+using MLIR.Generators.Emitters;
+using MLIR.Generators.Emitters.AssemblyFormat;
+using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
 internal static class AttributeEmitter

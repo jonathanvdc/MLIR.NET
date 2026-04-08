@@ -1,10 +1,12 @@
-namespace MLIR.Generators.Emitters;
+namespace MLIR.Generators.Emitters.Operation;
 
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using MLIR.Generators.Emitters;
+using MLIR.Generators.Emitters.Common;
 
 internal static class OperationConstructorEmitter
 {

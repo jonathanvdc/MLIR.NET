@@ -1,4 +1,4 @@
-namespace MLIR.Generators.Emitters;
+namespace MLIR.Generators.Emitters.Common;
 
 using System;
 using System.Collections.Generic;
