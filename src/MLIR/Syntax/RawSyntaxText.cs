@@ -75,9 +75,22 @@ public sealed class RawSyntaxText
     public bool HasLeadingTrivia => LeadingTrivia.Length > 0;
 
     /// <summary>
-    /// Gets the source location of the first token, if any tokens are present; otherwise, returns an unknown location.
+    /// Gets the merged source location spanning from the first to the last token.
+    /// Returns an unknown location when no tokens are present or no token has a known location.
     /// </summary>
-    public SourceLocation Location => Tokens.Count == 0 ? SourceLocation.Unknown : Tokens[0].Location;
+    public SourceLocation Location
+    {
+        get
+        {
+            var result = SourceLocation.Unknown;
+            foreach (var token in Tokens)
+            {
+                result = SourceLocation.Merge(result, token.Location);
+            }
+
+            return result;
+        }
+    }
 
     /// <summary>
     /// Returns the preserved syntax text.

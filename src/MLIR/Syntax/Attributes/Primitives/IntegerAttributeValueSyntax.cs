@@ -48,7 +48,8 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     public ApInt Value { get; }
 
     /// <inheritdoc/>
-    public override SourceLocation Location => SignToken?.Location ?? IntegerToken.Location;
+    public override SourceLocation Location =>
+        SourceLocation.Merge(SignToken?.Location ?? SourceLocation.Unknown, IntegerToken.Location);
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

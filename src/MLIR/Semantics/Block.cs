@@ -82,9 +82,10 @@ public sealed class Block
     public string Label => label;
 
     /// <summary>
-    /// Gets the source location of the block label, if known.
+    /// Gets the merged source location of the block, spanning from the block label through
+    /// the last operation. Returns an unknown location when the block has no syntax.
     /// </summary>
-    public SourceLocation Location => Syntax != null ? Syntax.LabelToken.Location : SourceLocation.Unknown;
+    public SourceLocation Location => Syntax != null ? Syntax.Location : SourceLocation.Unknown;
 
     /// <summary>
     /// Gets the uses of this block as a successor of an operation.

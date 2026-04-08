@@ -1,5 +1,6 @@
 namespace MLIR.Syntax;
 
+using MLIR.Semantics;
 using MLIR.Text;
 
 /// <summary>
@@ -42,6 +43,13 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// Gets the attribute value syntax.
     /// </summary>
     public AttributeValueSyntax ValueSyntax { get; } = valueSyntax;
+
+    /// <summary>
+    /// Gets the merged source location spanning from the attribute name to the end of the value.
+    /// Returns an unknown location when neither the name token nor the value has source information.
+    /// </summary>
+    public SourceLocation Location =>
+        SourceLocation.Merge(NameToken.Location, ValueSyntax.Location);
 
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)

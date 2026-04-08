@@ -87,4 +87,26 @@ public readonly struct SourceLocation
     /// Equivalent to the <see langword="default"/> value of <see cref="SourceLocation"/>.
     /// </remarks>
     public static SourceLocation Unknown => default;
+
+    /// <summary>
+    /// Merges two source locations into a single span that covers both.
+    /// </summary>
+    /// <param name="first">The first location to merge.</param>
+    /// <param name="second">The second location to merge.</param>
+    /// <returns>
+    /// A <see cref="SourceLocation"/> whose span runs from the earliest start to the latest
+    /// end of the two input spans. If either location is unknown, the other is returned
+    /// unchanged. If both locations are backed by different source documents,
+    /// <paramref name="first"/> is returned unchanged. If both are unknown,
+    /// <see cref="Unknown"/> is returned.
+    /// </returns>
+    public static SourceLocation Merge(SourceLocation first, SourceLocation second)
+    {
+        if (!first.IsKnown) return second;
+        if (!second.IsKnown) return first;
+        if (!ReferenceEquals(first.Document, second.Document)) return first;
+        var start = Math.Min(first.Start, second.Start);
+        var end = Math.Max(first.End, second.End);
+        return new SourceLocation(first.Document!, start, end - start);
+    }
 }

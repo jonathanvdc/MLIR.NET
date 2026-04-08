@@ -554,6 +554,41 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
     public RegionSyntax? BodyRegion { get; }
 
     /// <inheritdoc/>
+    public override SourceLocation Location
+    {
+        get
+        {
+            // Merge all source-backed tokens and subtrees in parse order to cover the full
+            // func.func header from the optional visibility keyword through to the body region
+            // (or to the last result/attribute when no body is present).
+            var result = SourceLocation.Unknown;
+            if (VisibilityToken.HasValue)
+                result = SourceLocation.Merge(result, VisibilityToken.Value.Location);
+            result = SourceLocation.Merge(result, SymbolName.Location);
+            result = SourceLocation.Merge(result, LParenToken.Location);
+            if (Arguments.CloseToken.HasValue)
+                result = SourceLocation.Merge(result, Arguments.CloseToken.Value.Location);
+            if (ArrowToken.HasValue)
+                result = SourceLocation.Merge(result, ArrowToken.Value.Location);
+            if (ResultTypes != null)
+            {
+                if (ResultTypes.CloseToken.HasValue)
+                    result = SourceLocation.Merge(result, ResultTypes.CloseToken.Value.Location);
+                else if (ResultTypes.Items.Count > 0)
+                    result = SourceLocation.Merge(result, ResultTypes.Items[ResultTypes.Items.Count - 1].Type.Location);
+            }
+
+            if (AttributesKeyword.HasValue)
+                result = SourceLocation.Merge(result, AttributesKeyword.Value.Location);
+            if (Attributes.CloseToken.HasValue)
+                result = SourceLocation.Merge(result, Attributes.CloseToken.Value.Location);
+            if (BodyRegion != null)
+                result = SourceLocation.Merge(result, BodyRegion.Location);
+            return result;
+        }
+    }
+
+    /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)
     {
         if (VisibilityToken.HasValue)

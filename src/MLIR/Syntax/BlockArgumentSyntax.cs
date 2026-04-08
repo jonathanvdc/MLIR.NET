@@ -1,5 +1,6 @@
 namespace MLIR.Syntax;
 
+using MLIR.Semantics;
 using MLIR.Text;
 
 /// <summary>
@@ -42,6 +43,13 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     /// Gets the declared type syntax for the block argument.
     /// </summary>
     public TypeSyntax TypeSyntax { get; } = typeSyntax;
+
+    /// <summary>
+    /// Gets the merged source location spanning from the argument name to the end of the type.
+    /// Returns an unknown location when neither token has source information.
+    /// </summary>
+    public SourceLocation Location =>
+        SourceLocation.Merge(NameToken.Location, TypeSyntax.Location);
 
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)

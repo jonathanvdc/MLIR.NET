@@ -52,7 +52,8 @@ public sealed class NamedAttribute
     public AttributeValue Value { get; }
 
     /// <summary>
-    /// Gets the source location of the attribute name, if known.
+    /// Gets the merged source location of the attribute, spanning from the attribute name to
+    /// the end of the value. Returns an unknown location when the attribute has no syntax.
     /// </summary>
-    public SourceLocation Location => Syntax != null ? Syntax.NameToken.Location : SourceLocation.Unknown;
+    public SourceLocation Location => Syntax != null ? Syntax.Location : SourceLocation.Unknown;
 }

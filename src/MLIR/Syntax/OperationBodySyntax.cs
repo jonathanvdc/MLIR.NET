@@ -1,5 +1,7 @@
 namespace MLIR.Syntax;
 
+using MLIR.Semantics;
+
 /// <summary>
 /// Represents the body of an MLIR operation.
 /// </summary>
@@ -11,4 +13,14 @@ namespace MLIR.Syntax;
 /// </remarks>
 public abstract class OperationBodySyntax : SyntaxNode
 {
+    /// <summary>
+    /// Gets the merged source location spanning this operation body, or
+    /// <see cref="SourceLocation.Unknown"/> when no source-backed tokens are present.
+    /// </summary>
+    /// <remarks>
+    /// Overriding classes should compute this by merging the locations of all their
+    /// contributing tokens and subtrees. The default implementation returns
+    /// <see cref="SourceLocation.Unknown"/> for bodies that have not yet been updated.
+    /// </remarks>
+    public virtual SourceLocation Location => SourceLocation.Unknown;
 }

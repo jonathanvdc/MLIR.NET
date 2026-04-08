@@ -1,6 +1,7 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Semantics;
 using MLIR.Text;
 
 /// <summary>
@@ -70,6 +71,25 @@ public sealed class BlockSyntax : SyntaxNode
     /// Gets the block label, including the leading <c>^</c>.
     /// </summary>
     public string Label => LabelToken.Text;
+
+    /// <summary>
+    /// Gets the merged source location spanning from the block label through the last operation.
+    /// Returns the label token location when there are no operations, and an unknown location
+    /// when the label token itself has no source information.
+    /// </summary>
+    public SourceLocation Location
+    {
+        get
+        {
+            var result = LabelToken.Location;
+            foreach (var op in Operations)
+            {
+                result = SourceLocation.Merge(result, op.Location);
+            }
+
+            return result;
+        }
+    }
 
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)

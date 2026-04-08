@@ -258,4 +258,183 @@ public sealed class SourceLocationTests
         Assert.Equal(loc.Line, loc.Line);
         Assert.Equal(loc.Column, loc.Column);
     }
+
+    // -----------------------------------------------------------------------
+    // SourceLocation.Merge – span-merging helper
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void SourceLocation_Merge_BothUnknown_ReturnsUnknown()
+    {
+        var result = SourceLocation.Merge(SourceLocation.Unknown, SourceLocation.Unknown);
+        Assert.False(result.IsKnown);
+    }
+
+    [Fact]
+    public void SourceLocation_Merge_FirstUnknown_ReturnsSecond()
+    {
+        var doc = new SourceDocument("hello world");
+        var second = new SourceLocation(doc, 6, 5);
+
+        var result = SourceLocation.Merge(SourceLocation.Unknown, second);
+
+        Assert.Equal(second, result);
+    }
+
+    [Fact]
+    public void SourceLocation_Merge_SecondUnknown_ReturnsFirst()
+    {
+        var doc = new SourceDocument("hello world");
+        var first = new SourceLocation(doc, 0, 5);
+
+        var result = SourceLocation.Merge(first, SourceLocation.Unknown);
+
+        Assert.Equal(first, result);
+    }
+
+    [Fact]
+    public void SourceLocation_Merge_AdjacentSpans_CoversFullRange()
+    {
+        // "hello world": merge "hello" (0..5) with "world" (6..11) → full string (0..11)
+        var doc = new SourceDocument("hello world");
+        var first = new SourceLocation(doc, 0, 5);  // "hello"
+        var second = new SourceLocation(doc, 6, 5); // "world"
+
+        var result = SourceLocation.Merge(first, second);
+
+        Assert.True(result.IsKnown);
+        Assert.Equal(0, result.Start);
+        Assert.Equal(11, result.End);
+        Assert.Equal(11, result.Length);
+    }
+
+    [Fact]
+    public void SourceLocation_Merge_OverlappingSpans_CoversFullRange()
+    {
+        var doc = new SourceDocument("abcdef");
+        var first = new SourceLocation(doc, 1, 3);  // "bcd" (1..4)
+        var second = new SourceLocation(doc, 2, 3); // "cde" (2..5)
+
+        var result = SourceLocation.Merge(first, second);
+
+        Assert.Equal(1, result.Start);
+        Assert.Equal(5, result.End);
+        Assert.Equal(4, result.Length);
+    }
+
+    [Fact]
+    public void SourceLocation_Merge_DifferentDocuments_ReturnsFirst()
+    {
+        var doc1 = new SourceDocument("abc");
+        var doc2 = new SourceDocument("abc");
+        var first = new SourceLocation(doc1, 0, 1);
+        var second = new SourceLocation(doc2, 0, 1);
+
+        var result = SourceLocation.Merge(first, second);
+
+        // Cannot merge locations from different documents; first is returned unchanged.
+        Assert.Same(doc1, result.Document);
+        Assert.Equal(first.Start, result.Start);
+        Assert.Equal(first.Length, result.Length);
+    }
+
+    // -----------------------------------------------------------------------
+    // CST node merged spans – verified against parsed operations/nodes
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void OperationSyntax_Location_CoversFullSpanWithResult()
+    {
+        // "%0 = \"test.op\"() : () -> i32"
+        // %0 starts at col 1, i32 ends at col 29 → span is 0..29 (length 29)
+        var module = Parser.ParseModule("%0 = \"test.op\"() : () -> i32");
+        var op = module.Operations[0];
+
+        Assert.True(op.Location.IsKnown);
+        // Starts at the first result token (%0 at offset 0)
+        Assert.Equal(0, op.Location.Start);
+        // Ends after the full trailing type signature
+        Assert.Equal(5, module.Operations[0].NameToken.Location.Start); // "test.op" starts at offset 5
+        Assert.True(op.Location.End > op.NameToken.Location.End);
+    }
+
+    [Fact]
+    public void OperationSyntax_Location_NoResults_StartsAtNameToken()
+    {
+        // "\"test.op\"() : () -> ()"
+        // Name token starts at offset 0
+        var module = Parser.ParseModule("\"test.op\"() : () -> ()");
+        var op = module.Operations[0];
+
+        Assert.True(op.Location.IsKnown);
+        Assert.Equal(op.NameToken.Location.Start, op.Location.Start);
+        // End covers the full type signature
+        Assert.True(op.Location.End > op.NameToken.Location.End);
+    }
+
+    [Fact]
+    public void RegionSyntax_Location_CoversOpenToCloseBrace()
+    {
+        // Parse an operation with a region and verify region location spans { to }
+        var src = "\"test.region\"() {\n^bb0:\n  \"test.inner\"() : () -> ()\n} : () -> ()";
+        var module = Parser.ParseModule(src);
+        var op = module.Operations[0];
+        var body = op.Body as MLIR.Syntax.GenericOperationBodySyntax;
+
+        Assert.NotNull(body);
+        Assert.NotEmpty(body.Regions);
+        var region = body.Regions[0];
+
+        Assert.True(region.Location.IsKnown);
+        Assert.Equal(region.OpenBraceToken.Location.Start, region.Location.Start);
+        Assert.Equal(region.CloseBraceToken.Location.End, region.Location.End);
+    }
+
+    [Fact]
+    public void BlockSyntax_Location_CoversLabelThroughLastOperation()
+    {
+        // A block with a label and one operation
+        var src = "\"test.op\"() {\n^bb0:\n  \"test.inner\"() : () -> ()\n} : () -> ()";
+        var module = Parser.ParseModule(src);
+        var op = module.Operations[0];
+        var body = op.Body as MLIR.Syntax.GenericOperationBodySyntax;
+        var block = body!.Regions[0].Blocks[0];
+
+        Assert.True(block.Location.IsKnown);
+        // Block label starts at the '^' token
+        Assert.Equal(block.LabelToken.Location.Start, block.Location.Start);
+        // End extends to the last operation's end
+        var lastOp = block.Operations[0];
+        Assert.Equal(lastOp.Location.End, block.Location.End);
+    }
+
+    [Fact]
+    public void RawSyntaxText_Location_MergesAllTokens()
+    {
+        // Verify that RawSyntaxText.Location covers its full token range
+        var module = Parser.ParseModule("\"test.op\"() : () -> i32");
+        var op = module.Operations[0];
+        var body = op.Body as MLIR.Syntax.GenericOperationBodySyntax;
+        var rawType = body!.TypeSignatureSyntax as MLIR.Syntax.Types.Collections.FunctionTypeSyntax;
+
+        // The function type starts at '(' and ends at 'i32'
+        Assert.NotNull(rawType);
+        Assert.True(rawType.Location.IsKnown);
+        Assert.True(rawType.Location.End > rawType.Location.Start);
+    }
+
+    [Fact]
+    public void SourceLocation_Merge_IsCommutative()
+    {
+        // Merge(a, b) should equal Merge(b, a) for same-document spans.
+        var doc = new SourceDocument("hello world");
+        var a = new SourceLocation(doc, 0, 5);
+        var b = new SourceLocation(doc, 6, 5);
+
+        var ab = SourceLocation.Merge(a, b);
+        var ba = SourceLocation.Merge(b, a);
+
+        Assert.Equal(ab.Start, ba.Start);
+        Assert.Equal(ab.End, ba.End);
+    }
 }

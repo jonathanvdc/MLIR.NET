@@ -50,6 +50,25 @@ internal static class OperationBodySyntaxEmitter
         }
 
         builder.AppendLine();
+        builder.AppendLine("    public override SourceLocation Location");
+        builder.AppendLine("    {");
+        builder.AppendLine("        get");
+        builder.AppendLine("        {");
+        builder.AppendLine("            var result = SourceLocation.Unknown;");
+        foreach (var field in fields)
+        {
+            var locationCode = EmitterHelpers.GetLocationMergeCode(field);
+            foreach (var codeLine in locationCode.Split('\n'))
+            {
+                builder.Append("            ");
+                builder.AppendLine(codeLine);
+            }
+        }
+
+        builder.AppendLine("            return result;");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine();
         builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer)");
         builder.AppendLine("    {");
         foreach (var field in fields)

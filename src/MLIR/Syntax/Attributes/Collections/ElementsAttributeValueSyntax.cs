@@ -45,7 +45,8 @@ public sealed class ElementsAttributeValueSyntax(
     public TypeSyntax TypeSyntax { get; } = typeSyntax;
 
     /// <inheritdoc/>
-    public override SourceLocation Location => KeywordToken.Location;
+    public override SourceLocation Location =>
+        SourceLocation.Merge(KeywordToken.Location, TypeSyntax.Location);
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)
