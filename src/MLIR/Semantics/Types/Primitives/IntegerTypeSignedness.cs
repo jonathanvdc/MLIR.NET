@@ -1,4 +1,4 @@
-namespace MLIR.Syntax.Types.Primitives;
+namespace MLIR.Semantics.Types.Primitives;
 
 /// <summary>
 /// Identifies the signedness marker used by builtin integer types.

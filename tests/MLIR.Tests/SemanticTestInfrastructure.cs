@@ -6,6 +6,7 @@ using System.Linq;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
+using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Types.Primitives;
@@ -298,7 +299,7 @@ public sealed partial class SemanticTests
     {
         public IntegerTypeReference(TypeReferenceConstructionContext context)
             : base(
-                global::MLIR.Syntax.Types.Primitives.IntegerTypeSignedness.Signless,
+                IntegerTypeSignedness.Signless,
                 int.Parse(context.Name![1..]),
                 context.Syntax,
                 context.Location)

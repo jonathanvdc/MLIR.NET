@@ -1,4 +1,5 @@
 using MLIR.Semantics;
+using MLIR.Semantics.Types.Primitives;
 
 namespace MLIR.Syntax.Types.Primitives;
 

@@ -2,6 +2,7 @@ namespace MLIR.Text;
 
 using System.Collections.Generic;
 using MLIR.Dialects;
+using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Syntax.Types.Collections;
