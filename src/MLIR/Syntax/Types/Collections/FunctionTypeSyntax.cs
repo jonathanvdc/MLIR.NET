@@ -7,7 +7,7 @@ namespace MLIR.Syntax.Types.Collections;
 /// </summary>
 public sealed class FunctionTypeSyntax(
     DelimitedSyntaxList<TypeSyntax> inputTypes,
-    SyntaxToken arrowToken,
+    Token arrowToken,
     TypeSyntax? resultType,
     DelimitedSyntaxList<TypeSyntax> resultTypes) : TypeSyntax
 {
@@ -19,7 +19,7 @@ public sealed class FunctionTypeSyntax(
     /// <summary>
     /// Gets the arrow token.
     /// </summary>
-    public SyntaxToken ArrowToken { get; } = arrowToken;
+    public Token ArrowToken { get; } = arrowToken;
 
     /// <summary>
     /// Gets the single bare result type when the result was not parenthesized.
@@ -90,7 +90,7 @@ public sealed class FunctionTypeSyntax(
                 : new DelimitedSyntaxList<TypeSyntax>(null, ResultType != null ? [(TypeSyntax)rewriter.Visit(ResultType)] : [], [], null));
     }
 
-    private static IEnumerable<object> Interleave(IReadOnlyList<TypeSyntax> items, IReadOnlyList<SyntaxToken> separators)
+    private static IEnumerable<object> Interleave(IReadOnlyList<TypeSyntax> items, IReadOnlyList<Token> separators)
     {
         for (var i = 0; i < items.Count; i++)
         {

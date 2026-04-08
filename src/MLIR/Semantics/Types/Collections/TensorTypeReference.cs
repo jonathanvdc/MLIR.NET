@@ -86,35 +86,35 @@ public class TensorTypeReference : TypeReference
     private static TensorTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
     {
         var dimensionSyntax = dimensions.Select(CreateDimensionSyntax).ToArray();
-        var xTokens = new List<SyntaxToken>(isUnranked ? 1 : dimensionSyntax.Length);
+        var xTokens = new List<Token>(isUnranked ? 1 : dimensionSyntax.Length);
         for (var i = 0; i < xTokens.Capacity; i++)
         {
-            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
+            xTokens.Add(TokenFactory.Identifier("x"));
         }
 
-        var commas = new List<SyntaxToken>(trailingParameters.Count);
+        var commas = new List<Token>(trailingParameters.Count);
         for (var i = 0; i < trailingParameters.Count; i++)
         {
-            commas.Add(SyntaxTokenFactory.Comma());
+            commas.Add(TokenFactory.Comma());
         }
 
         return new TensorTypeSyntax(
-            SyntaxTokenFactory.Identifier("tensor"),
-            SyntaxTokenFactory.LessThan(),
+            TokenFactory.Identifier("tensor"),
+            TokenFactory.LessThan(),
             dimensionSyntax,
             xTokens,
-            isUnranked ? SyntaxTokenFactory.Star() : null,
+            isUnranked ? TokenFactory.Star() : null,
             elementType.Syntax ?? throw new InvalidOperationException("Tensor element types must carry syntax."),
             commas,
             trailingParameters,
-            SyntaxTokenFactory.GreaterThan());
+            TokenFactory.GreaterThan());
     }
 
     internal static ShapedTypeDimensionSyntax CreateDimensionSyntax(long? dimension)
     {
         return dimension.HasValue
-            ? new StaticShapedTypeDimensionSyntax(SyntaxTokenFactory.Integer(dimension.Value.ToString()), dimension.Value)
-            : new DynamicShapedTypeDimensionSyntax(SyntaxTokenFactory.Question());
+            ? new StaticShapedTypeDimensionSyntax(TokenFactory.Integer(dimension.Value.ToString()), dimension.Value)
+            : new DynamicShapedTypeDimensionSyntax(TokenFactory.Question());
     }
 
     private static bool HaveSameDimensions(IReadOnlyList<long?> left, IReadOnlyList<long?> right)

@@ -158,7 +158,7 @@ internal static class OperationAttributeValueHelpers
 
     public static string GetUnitAttributeValueExpression()
     {
-        return "new UnknownAttributeValue(new UnitAttributeValueSyntax(SyntaxTokenFactory.Identifier(\"unit\")), null, null, SourceLocation.Unknown)";
+        return "new UnknownAttributeValue(new UnitAttributeValueSyntax(TokenFactory.Identifier(\"unit\")), null, null, SourceLocation.Unknown)";
     }
 
     private static bool IsOptionalMember(GeneratedMember member)

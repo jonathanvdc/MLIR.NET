@@ -75,7 +75,7 @@ internal sealed class TryParseEmitter
 
     private void EmitMethod(StringBuilder builder)
     {
-        builder.AppendLine("    public ParseResult<OperationBodySyntax> TryParse(SyntaxToken nameToken, SeparatedSyntaxList<SyntaxToken> resultList, SyntaxToken? equalsToken, OperationParsingContext context)");
+        builder.AppendLine("    public ParseResult<OperationBodySyntax> TryParse(Token nameToken, SeparatedSyntaxList<Token> resultList, Token? equalsToken, OperationParsingContext context)");
         builder.AppendLine("    {");
 
         var format = operation.AssemblyFormat!;
@@ -343,7 +343,7 @@ internal sealed class TryParseEmitter
         for (var i = 0; i < thenFieldCount + elseFieldCount; i++)
         {
             var f = metadata.Fields[groupStart + i];
-            // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
+            // Variadic SSA-list fields use IReadOnlyList<Token>; initialize to an empty
             // array rather than null so callers can always iterate over the result safely.
             var defaultExpr = GetFieldDefaultExpression(f.CsType);
             builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
@@ -701,9 +701,9 @@ internal sealed class TryParseEmitter
 
     private static string GetFieldDefaultExpression(string csType)
     {
-        if (csType.Contains("IReadOnlyList<SyntaxToken>", System.StringComparison.Ordinal))
+        if (csType.Contains("IReadOnlyList<Token>", System.StringComparison.Ordinal))
         {
-            return "global::System.Array.Empty<SyntaxToken>()";
+            return "global::System.Array.Empty<Token>()";
         }
 
         if (csType.Contains("IReadOnlyList<TypeSyntax>", System.StringComparison.Ordinal))

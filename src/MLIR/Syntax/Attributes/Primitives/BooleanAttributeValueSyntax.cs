@@ -13,7 +13,7 @@ public sealed class BooleanAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Initializes a new instance of the <see cref="BooleanAttributeValueSyntax"/> class.
     /// </summary>
-    public BooleanAttributeValueSyntax(SyntaxToken literalToken, bool value)
+    public BooleanAttributeValueSyntax(Token literalToken, bool value)
     {
         LiteralToken = literalToken;
         Value = value;
@@ -23,7 +23,7 @@ public sealed class BooleanAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Gets the literal token.
     /// </summary>
-    public SyntaxToken LiteralToken { get; }
+    public Token LiteralToken { get; }
 
     /// <summary>
     /// Gets the parsed boolean value.

@@ -5,12 +5,12 @@ namespace MLIR.Syntax.Types.Primitives;
 /// <summary>
 /// Represents the builtin <c>none</c> type.
 /// </summary>
-public sealed class BuiltinNoneTypeSyntax(SyntaxToken keywordToken) : TypeSyntax
+public sealed class BuiltinNoneTypeSyntax(Token keywordToken) : TypeSyntax
 {
     /// <summary>
     /// Gets the keyword token.
     /// </summary>
-    public SyntaxToken KeywordToken { get; } = keywordToken;
+    public Token KeywordToken { get; } = keywordToken;
 
     /// <inheritdoc/>
     public override SourceLocation Location => KeywordToken.Location;

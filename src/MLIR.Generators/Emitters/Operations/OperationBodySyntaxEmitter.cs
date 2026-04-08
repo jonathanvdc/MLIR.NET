@@ -122,8 +122,8 @@ internal static class OperationBodySyntaxEmitter
         var name = field.Name;
         var type = field.CsType;
 
-        if (string.Equals(type, "SyntaxToken", StringComparison.Ordinal) ||
-            string.Equals(type, "SyntaxToken?", StringComparison.Ordinal))
+        if (string.Equals(type, "Token", StringComparison.Ordinal) ||
+            string.Equals(type, "Token?", StringComparison.Ordinal))
         {
             return "rewriter.VisitToken(" + name + ")";
         }
@@ -144,21 +144,21 @@ internal static class OperationBodySyntaxEmitter
 
         if (type.StartsWith("DelimitedSyntaxList<", StringComparison.Ordinal))
         {
-            return type.Contains("SyntaxToken", StringComparison.Ordinal)
+            return type.Contains("Token", StringComparison.Ordinal)
                 ? "rewriter.VisitDelimitedTokenList(" + name + ")"
                 : "rewriter.VisitDelimitedList(" + name + ")";
         }
 
         if (type.StartsWith("SeparatedSyntaxList<", StringComparison.Ordinal))
         {
-            return type.Contains("SyntaxToken", StringComparison.Ordinal)
+            return type.Contains("Token", StringComparison.Ordinal)
                 ? "rewriter.VisitSeparatedTokenList(" + name + ")"
                 : "rewriter.VisitSeparatedList(" + name + ")";
         }
 
         if (type.StartsWith("IReadOnlyList<", StringComparison.Ordinal))
         {
-            if (type.Contains("SyntaxToken", StringComparison.Ordinal))
+            if (type.Contains("Token", StringComparison.Ordinal))
             {
                 return "rewriter.VisitTokenList(" + name + ")";
             }

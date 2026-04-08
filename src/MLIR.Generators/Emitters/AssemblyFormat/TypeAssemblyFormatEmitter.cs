@@ -29,7 +29,7 @@ internal static class TypeAssemblyFormatEmitter
         {
             if (slot is LiteralTokenSlot lit)
             {
-                builder.Append(", SyntaxToken " + lit.LocalName);
+                builder.Append(", Token " + lit.LocalName);
             }
             else if (slot is VariableSlot v)
             {
@@ -77,8 +77,8 @@ internal static class TypeAssemblyFormatEmitter
             if (slot is LiteralTokenSlot lit)
             {
                 builder.Append(", " + (lit.IsKeyword
-                    ? "SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
-                    : "SyntaxTokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()"));
+                    ? "TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
+                    : "TokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()"));
             }
             else if (slot is VariableSlot v)
             {
@@ -94,7 +94,7 @@ internal static class TypeAssemblyFormatEmitter
             {
                 if (slot is LiteralTokenSlot lit)
                 {
-                    builder.AppendLine("    public SyntaxToken " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " { get; }");
+                    builder.AppendLine("    public Token " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " { get; }");
                 }
             }
         }
@@ -275,8 +275,8 @@ internal static class TypeAssemblyFormatEmitter
             if (slot is LiteralTokenSlot lit)
             {
                 builder.Append(", " + (lit.IsKeyword
-                    ? "SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
-                    : "SyntaxTokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()"));
+                    ? "TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
+                    : "TokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()"));
             }
             else if (slot is VariableSlot v)
             {
@@ -302,8 +302,8 @@ internal static class TypeAssemblyFormatEmitter
         var propertyExpr = EmitterHelpers.CapitalizeFirst(slot.Name) + "Syntax";
         var syntaxType = slot.SyntaxType;
 
-        if (string.Equals(syntaxType, "SyntaxToken", System.StringComparison.Ordinal) ||
-            string.Equals(syntaxType, "SyntaxToken?", System.StringComparison.Ordinal))
+        if (string.Equals(syntaxType, "Token", System.StringComparison.Ordinal) ||
+            string.Equals(syntaxType, "Token?", System.StringComparison.Ordinal))
         {
             return "rewriter.VisitToken(" + propertyExpr + ")";
         }
@@ -324,21 +324,21 @@ internal static class TypeAssemblyFormatEmitter
 
         if (syntaxType.StartsWith("DelimitedSyntaxList<", System.StringComparison.Ordinal))
         {
-            return syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal)
+            return syntaxType.Contains("Token", System.StringComparison.Ordinal)
                 ? "rewriter.VisitDelimitedTokenList(" + propertyExpr + ")"
                 : "rewriter.VisitDelimitedList(" + propertyExpr + ")";
         }
 
         if (syntaxType.StartsWith("SeparatedSyntaxList<", System.StringComparison.Ordinal))
         {
-            return syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal)
+            return syntaxType.Contains("Token", System.StringComparison.Ordinal)
                 ? "rewriter.VisitSeparatedTokenList(" + propertyExpr + ")"
                 : "rewriter.VisitSeparatedList(" + propertyExpr + ")";
         }
 
         if (syntaxType.StartsWith("IReadOnlyList<", System.StringComparison.Ordinal))
         {
-            if (syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal))
+            if (syntaxType.Contains("Token", System.StringComparison.Ordinal))
             {
                 return "rewriter.VisitTokenList(" + propertyExpr + ")";
             }

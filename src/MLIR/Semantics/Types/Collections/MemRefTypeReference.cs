@@ -86,28 +86,28 @@ public class MemRefTypeReference : TypeReference
     private static MemRefTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
     {
         var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
-        var xTokens = new List<SyntaxToken>(isUnranked ? 1 : dimensionSyntax.Length);
+        var xTokens = new List<Token>(isUnranked ? 1 : dimensionSyntax.Length);
         for (var i = 0; i < xTokens.Capacity; i++)
         {
-            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
+            xTokens.Add(TokenFactory.Identifier("x"));
         }
 
-        var commas = new List<SyntaxToken>(trailingParameters.Count);
+        var commas = new List<Token>(trailingParameters.Count);
         for (var i = 0; i < trailingParameters.Count; i++)
         {
-            commas.Add(SyntaxTokenFactory.Comma());
+            commas.Add(TokenFactory.Comma());
         }
 
         return new MemRefTypeSyntax(
-            SyntaxTokenFactory.Identifier("memref"),
-            SyntaxTokenFactory.LessThan(),
+            TokenFactory.Identifier("memref"),
+            TokenFactory.LessThan(),
             dimensionSyntax,
             xTokens,
-            isUnranked ? SyntaxTokenFactory.Star() : null,
+            isUnranked ? TokenFactory.Star() : null,
             elementType.Syntax ?? throw new InvalidOperationException("MemRef element types must carry syntax."),
             commas,
             trailingParameters,
-            SyntaxTokenFactory.GreaterThan());
+            TokenFactory.GreaterThan());
     }
 
     private static bool HaveSameDimensions(IReadOnlyList<long?> left, IReadOnlyList<long?> right)

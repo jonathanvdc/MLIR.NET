@@ -66,7 +66,7 @@ class MLIRNet_OpExtension {
 //     let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
 //     let csharpExtractor = "$_syntax.Value";
 //     let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
-//     let csharpPrinter = "new IntegerAttributeValueSyntax(SyntaxTokenFactory.Integer($_self.ToStringSigned()), $_self)";
+//     let csharpPrinter = "new IntegerAttributeValueSyntax(TokenFactory.Integer($_self.ToStringSigned()), $_self)";
 //   }
 // Extension schema for AttrDef and TypeDef records.
 //

@@ -27,17 +27,17 @@ public readonly struct DialectTypePrefix
     /// </summary>
     /// <param name="bangToken">The <c>!</c> token.</param>
     /// <param name="nameToken">The <c>dialect.type</c> identifier token.</param>
-    public DialectTypePrefix(SyntaxToken bangToken, SyntaxToken nameToken)
+    public DialectTypePrefix(Token bangToken, Token nameToken)
     {
         BangToken = bangToken;
         NameToken = nameToken;
     }
 
     /// <summary>Gets the <c>!</c> token.</summary>
-    public SyntaxToken BangToken { get; }
+    public Token BangToken { get; }
 
     /// <summary>Gets the <c>dialect.type</c> identifier token.</summary>
-    public SyntaxToken NameToken { get; }
+    public Token NameToken { get; }
 
     /// <summary>Gets the source location spanning the prefix tokens.</summary>
     public SourceLocation Location => SourceLocation.Merge(BangToken.Location, NameToken.Location);
@@ -48,7 +48,7 @@ public readonly struct DialectTypePrefix
     /// </summary>
     /// <param name="dialectTypeName">The canonical type name, e.g. <c>"typed.opaque"</c>.</param>
     public static DialectTypePrefix Synthetic(string dialectTypeName)
-        => new DialectTypePrefix(SyntaxTokenFactory.Bang(), SyntaxTokenFactory.Identifier(dialectTypeName));
+        => new DialectTypePrefix(TokenFactory.Bang(), TokenFactory.Identifier(dialectTypeName));
 
     /// <summary>
     /// Writes the <c>!dialect.type</c> prefix tokens to the supplied writer.

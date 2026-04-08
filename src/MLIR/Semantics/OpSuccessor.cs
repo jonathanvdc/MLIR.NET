@@ -31,7 +31,7 @@ public sealed class OpSuccessor
     /// Gets the syntax token for the block label at the use site, derived from the owning operation's
     /// generic body syntax, or null if no such token is available.
     /// </summary>
-    public SyntaxToken? LabelToken
+    public Token? LabelToken
     {
         get
         {

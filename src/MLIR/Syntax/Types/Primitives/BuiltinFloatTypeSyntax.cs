@@ -5,12 +5,12 @@ namespace MLIR.Syntax.Types.Primitives;
 /// <summary>
 /// Represents a builtin floating-point type such as <c>f32</c> or <c>bf16</c>.
 /// </summary>
-public sealed class BuiltinFloatTypeSyntax(SyntaxToken nameToken) : TypeSyntax
+public sealed class BuiltinFloatTypeSyntax(Token nameToken) : TypeSyntax
 {
     /// <summary>
     /// Gets the original identifier token.
     /// </summary>
-    public SyntaxToken NameToken { get; } = nameToken;
+    public Token NameToken { get; } = nameToken;
 
     /// <summary>
     /// Gets the canonical builtin type name.

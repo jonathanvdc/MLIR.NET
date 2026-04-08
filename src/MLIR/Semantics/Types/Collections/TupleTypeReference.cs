@@ -79,17 +79,17 @@ public class TupleTypeReference : TypeReference
 
     private static TupleTypeSyntax BuildSyntax(IReadOnlyList<TypeReference> elements)
     {
-        var commas = new List<SyntaxToken>(Math.Max(0, elements.Count - 1));
+        var commas = new List<Token>(Math.Max(0, elements.Count - 1));
         for (var i = 1; i < elements.Count; i++)
         {
-            commas.Add(SyntaxTokenFactory.Comma());
+            commas.Add(TokenFactory.Comma());
         }
 
         return new TupleTypeSyntax(
-            SyntaxTokenFactory.Identifier("tuple"),
-            SyntaxTokenFactory.LessThan(),
+            TokenFactory.Identifier("tuple"),
+            TokenFactory.LessThan(),
             elements.Select(static element => element.Syntax ?? throw new InvalidOperationException("Tuple elements must carry syntax.")).ToArray(),
             commas,
-            SyntaxTokenFactory.GreaterThan());
+            TokenFactory.GreaterThan());
     }
 }

@@ -129,7 +129,7 @@ public static class ConcreteSyntaxBuilder
         public OperationSyntax RewriteOperation(
             Operation operation,
             OperationBodySyntax body,
-            SyntaxToken? nameToken = null,
+            Token? nameToken = null,
             bool preserveOuterTokens = true)
         {
             if (preserveOuterTokens && operation.Syntax != null)
@@ -142,30 +142,30 @@ public static class ConcreteSyntaxBuilder
             }
 
             var results = operation.Results;
-            var resultItems = new List<SyntaxToken>(results.Count);
+            var resultItems = new List<Token>(results.Count);
             foreach (var result in results)
             {
-                resultItems.Add(SyntaxTokenFactory.SsaName(result.Name));
+                resultItems.Add(TokenFactory.SsaName(result.Name));
             }
 
-            var resultSeparators = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
+            var resultSeparators = new List<Token>(Math.Max(0, results.Count - 1));
             for (var i = 1; i < results.Count; i++)
             {
-                resultSeparators.Add(SyntaxTokenFactory.Comma());
+                resultSeparators.Add(TokenFactory.Comma());
             }
 
-            var equalsToken = results.Count > 0 ? (SyntaxToken?)SyntaxTokenFactory.Equal() : null;
+            var equalsToken = results.Count > 0 ? (Token?)TokenFactory.Equal() : null;
             return new OperationSyntax(
-                new SeparatedSyntaxList<SyntaxToken>(resultItems, resultSeparators),
+                new SeparatedSyntaxList<Token>(resultItems, resultSeparators),
                 equalsToken,
-                nameToken ?? SyntaxTokenFactory.StringLiteral(QuoteIfNeeded(operation.Name)),
+                nameToken ?? TokenFactory.StringLiteral(QuoteIfNeeded(operation.Name)),
                 body);
         }
 
-        public SyntaxToken NormalizeToken(SyntaxToken token)
+        public Token NormalizeToken(Token token)
         {
             return options.ExistingSyntaxHandling == ExistingSyntaxHandling.ReplaceExistingSyntax
-                ? new SyntaxToken(token.TokenKind, token.Text)
+                ? new Token(token.TokenKind, token.Text)
                 : token;
         }
 
@@ -220,8 +220,8 @@ public static class ConcreteSyntaxBuilder
             }
 
             return new NamedAttributeSyntax(
-                SyntaxTokenFactory.Identifier(attribute.Name),
-                SyntaxTokenFactory.Equal(),
+                TokenFactory.Identifier(attribute.Name),
+                TokenFactory.Equal(),
                 BuildAttributeValue(attribute.Value));
         }
 
@@ -275,18 +275,18 @@ public static class ConcreteSyntaxBuilder
             }
 
             var items = new List<NamedAttributeSyntax>(attributes.Count);
-            var separators = new List<SyntaxToken>(attributes.Count - 1);
+            var separators = new List<Token>(attributes.Count - 1);
             for (var i = 0; i < attributes.Count; i++)
             {
                 if (i > 0)
                 {
-                    separators.Add(SyntaxTokenFactory.Comma());
+                    separators.Add(TokenFactory.Comma());
                 }
 
                 items.Add(BuildNamedAttribute(attributes[i]));
             }
 
-            return new DelimitedSyntaxList<NamedAttributeSyntax>(SyntaxTokenFactory.LBrace(), items, separators, SyntaxTokenFactory.RBrace());
+            return new DelimitedSyntaxList<NamedAttributeSyntax>(TokenFactory.LBrace(), items, separators, TokenFactory.RBrace());
         }
 
         public RegionSyntax BuildRegion(Region region)
@@ -298,9 +298,9 @@ public static class ConcreteSyntaxBuilder
             }
 
             return RewriteIfNeeded(new RegionSyntax(
-                region.Syntax?.OpenBraceToken ?? SyntaxTokenFactory.LBrace(),
+                region.Syntax?.OpenBraceToken ?? TokenFactory.LBrace(),
                 blocks,
-                region.Syntax?.CloseBraceToken ?? SyntaxTokenFactory.RBrace()));
+                region.Syntax?.CloseBraceToken ?? TokenFactory.RBrace()));
         }
 
         public BlockSyntax BuildBlock(Block block)
@@ -342,7 +342,7 @@ public static class ConcreteSyntaxBuilder
             var syntheticArguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
             foreach (var argument in block.Arguments)
             {
-                syntheticArguments.Add(new BlockArgumentSyntax(SyntaxTokenFactory.SsaName(argument.Name), SyntaxTokenFactory.Colon(), BuildTypeReference(argument.Type)));
+                syntheticArguments.Add(new BlockArgumentSyntax(TokenFactory.SsaName(argument.Name), TokenFactory.Colon(), BuildTypeReference(argument.Type)));
             }
 
             return RewriteIfNeeded(new BlockSyntax(block.Label, syntheticArguments, operations));

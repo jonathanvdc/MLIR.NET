@@ -27,13 +27,13 @@ public sealed class UnitAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
-        var normalizedSyntax = syntax as UnitAttributeValueSyntax ?? new UnitAttributeValueSyntax(SyntaxTokenFactory.Identifier("unit"));
+        var normalizedSyntax = syntax as UnitAttributeValueSyntax ?? new UnitAttributeValueSyntax(TokenFactory.Identifier("unit"));
         return definition.Factory(new AttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
     }
 
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        return attribute.Syntax ?? new UnitAttributeValueSyntax(SyntaxTokenFactory.Identifier("unit"));
+        return attribute.Syntax ?? new UnitAttributeValueSyntax(TokenFactory.Identifier("unit"));
     }
 }

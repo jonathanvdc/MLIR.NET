@@ -17,13 +17,13 @@ public sealed class BlockSyntax : SyntaxNode
     /// <param name="operations">The operations contained in the block.</param>
     public BlockSyntax(string label, IReadOnlyList<BlockArgumentSyntax> arguments, IReadOnlyList<OperationSyntax> operations)
         : this(
-            SyntaxTokenFactory.BlockLabel(label),
+            TokenFactory.BlockLabel(label),
             new DelimitedSyntaxList<BlockArgumentSyntax>(
-                arguments.Count > 0 ? SyntaxTokenFactory.LParen() : null,
+                arguments.Count > 0 ? TokenFactory.LParen() : null,
                 arguments,
                 CreateDefaultCommaTokens(arguments.Count),
-                arguments.Count > 0 ? SyntaxTokenFactory.RParen() : null),
-            SyntaxTokenFactory.Colon(),
+                arguments.Count > 0 ? TokenFactory.RParen() : null),
+            TokenFactory.Colon(),
             operations)
     {
     }
@@ -36,9 +36,9 @@ public sealed class BlockSyntax : SyntaxNode
     /// <param name="colonToken">The colon token after the block header.</param>
     /// <param name="operations">The operations contained in the block.</param>
     public BlockSyntax(
-        SyntaxToken labelToken,
+        Token labelToken,
         DelimitedSyntaxList<BlockArgumentSyntax> arguments,
-        SyntaxToken colonToken,
+        Token colonToken,
         IReadOnlyList<OperationSyntax> operations)
     {
         LabelToken = labelToken;
@@ -50,7 +50,7 @@ public sealed class BlockSyntax : SyntaxNode
     /// <summary>
     /// Gets the block label token.
     /// </summary>
-    public SyntaxToken LabelToken { get; }
+    public Token LabelToken { get; }
 
     /// <summary>
     /// Gets the delimited block argument list.
@@ -60,7 +60,7 @@ public sealed class BlockSyntax : SyntaxNode
     /// <summary>
     /// Gets the colon token after the block header.
     /// </summary>
-    public SyntaxToken ColonToken { get; }
+    public Token ColonToken { get; }
 
     /// <summary>
     /// Gets the operations contained in the block.
@@ -127,12 +127,12 @@ public sealed class BlockSyntax : SyntaxNode
             rewriter.VisitList(Operations));
     }
 
-    private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)
+    private static IReadOnlyList<Token> CreateDefaultCommaTokens(int count)
     {
-        var separators = new List<SyntaxToken>();
+        var separators = new List<Token>();
         for (var i = 1; i < count; i++)
         {
-            separators.Add(SyntaxTokenFactory.Comma());
+            separators.Add(TokenFactory.Comma());
         }
 
         return separators;

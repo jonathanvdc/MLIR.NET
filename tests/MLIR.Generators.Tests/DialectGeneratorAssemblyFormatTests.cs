@@ -29,10 +29,10 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             "public sealed class MiniArith_ConstantOpBodySyntax : OperationBodySyntax",
             "public sealed class MiniArith_AddIOpBodySyntax : OperationBodySyntax",
             "public AttributeValueSyntax Value { get; }",
-            "public SyntaxToken Lhs { get; }",
-            "public SyntaxToken CommaToken { get; }",
-            "public SyntaxToken Rhs { get; }",
-            "public SyntaxToken ColonToken { get; }",
+            "public Token Lhs { get; }",
+            "public Token CommaToken { get; }",
+            "public Token Rhs { get; }",
+            "public Token ColonToken { get; }",
             "public TypeSyntax ResultType { get; }",
             "public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }",
             "public override void WriteTo(Text.SyntaxWriter writer)");
@@ -214,7 +214,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            "SyntaxToken?",
+            "Token?",
             "context.TryMatch(TokenKind.Comma,",
             "return ParseResult<OperationBodySyntax>.Success(");
     }
@@ -232,7 +232,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            "SyntaxToken?",
+            "Token?",
             "AttributeValueSyntax?",
             "bool foundOilist;",
             "while (foundOilist);",

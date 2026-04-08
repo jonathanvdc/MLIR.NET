@@ -444,7 +444,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "extends MyStrParam : MLIRNet_AttrOrTypeParameterExtension {",
             "  let csharpType = \"string\";",
             "  let csharpParser = \"$_parser.TryMatch(TokenKind.Identifier, out var idTok_) ? ParseResult<AttributeValueSyntax>.Success(new StringAttributeValueSyntax(idTok_, idTok_.Text)) : ParseResult<AttributeValueSyntax>.NoMatch()\";",
-            "  let csharpPrinter = \"new StringAttributeValueSyntax(SyntaxTokenFactory.Identifier($_self), $_self)\";",
+            "  let csharpPrinter = \"new StringAttributeValueSyntax(TokenFactory.Identifier($_self), $_self)\";",
             "}",
             string.Empty,
             "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
@@ -466,7 +466,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
 
         // Custom printer expression should be used (with $_self replaced by attr.Name)
         Assert.Contains(
-            "new StringAttributeValueSyntax(SyntaxTokenFactory.Identifier(attr.Name), attr.Name)",
+            "new StringAttributeValueSyntax(TokenFactory.Identifier(attr.Name), attr.Name)",
             registrationSource);
     }
 }

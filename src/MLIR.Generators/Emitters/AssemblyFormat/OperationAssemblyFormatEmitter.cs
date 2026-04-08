@@ -42,14 +42,14 @@ internal static class OperationAssemblyFormatEmitter
     /// <summary>
     /// Returns an expression for reading <paramref name="fieldName"/> from <c>body</c> in
     /// a way that is safe regardless of whether the field is a nullable value type
-    /// (<c>SyntaxToken?</c>) or a nullable reference type (<c>TypeSyntax?</c>, etc.).
+    /// (<c>Token?</c>) or a nullable reference type (<c>TypeSyntax?</c>, etc.).
     /// This helper is used for directives that always expect a value (e.g. type directives).
     /// </summary>
     /// <remarks>
     /// <list type="bullet">
     /// <item>
-    ///   <c>SyntaxToken?</c> — a nullable value type — cannot be implicitly passed where a
-    ///   non-nullable <c>SyntaxToken</c> is expected (CS1503).  We unwrap with <c>?? default</c>.
+    ///   <c>Token?</c> — a nullable value type — cannot be implicitly passed where a
+    ///   non-nullable <c>Token</c> is expected (CS1503).  We unwrap with <c>?? default</c>.
     /// </item>
     /// <item>
     ///   Nullable reference types (<c>AttributeValueSyntax?</c>, <c>TypeSyntax?</c>) generate
@@ -62,9 +62,9 @@ internal static class OperationAssemblyFormatEmitter
     {
         var csType = GetFieldCsType(metadata, fieldName);
 
-        if (csType == "SyntaxToken?")
+        if (csType == "Token?")
         {
-            // Nullable value type: unwrap with ?? default so the expression has type SyntaxToken.
+            // Nullable value type: unwrap with ?? default so the expression has type Token.
             return "(body." + fieldName + " ?? default)";
         }
 
@@ -87,7 +87,7 @@ internal static class OperationAssemblyFormatEmitter
         if (plan.OperandFields.TryGetValue(operandName, out var fieldName))
         {
             // Check if this operand is variadic by inspecting the body field type.
-            // Variadic fields have type IReadOnlyList<SyntaxToken>.
+            // Variadic fields have type IReadOnlyList<Token>.
             var field = metadata.Fields.FirstOrDefault(f => f.Name == fieldName);
             if (field != null && field.CsType.Contains("IReadOnlyList", StringComparison.Ordinal))
             {
@@ -95,7 +95,7 @@ internal static class OperationAssemblyFormatEmitter
                 return "body." + fieldName + ".Select(t => (Value)binder.BindValueReference(t)).ToList()";
             }
 
-            // When the body field is nullable (e.g. SyntaxToken? for an optional group operand),
+            // When the body field is nullable (e.g. Token? for an optional group operand),
             // emit a conditional expression that produces null when the operand is absent.
             if (IsNullableField(metadata, fieldName))
             {

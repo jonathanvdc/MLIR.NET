@@ -18,12 +18,12 @@ using System.Collections.Generic;
 /// <c>Count - 1</c> separator tokens for a non-empty list, or zero tokens for an empty list.</param>
 public sealed class SeparatedSyntaxList<T>(
     IReadOnlyList<T> items,
-    IReadOnlyList<SyntaxToken> separatorTokens) : IReadOnlyList<T>
+    IReadOnlyList<Token> separatorTokens) : IReadOnlyList<T>
 {
     /// <summary>
     /// Gets an empty list instance.
     /// </summary>
-    public static SeparatedSyntaxList<T> Empty { get; } = new(System.Array.Empty<T>(), System.Array.Empty<SyntaxToken>());
+    public static SeparatedSyntaxList<T> Empty { get; } = new(System.Array.Empty<T>(), System.Array.Empty<Token>());
 
     /// <summary>
     /// Gets the list items.
@@ -34,7 +34,7 @@ public sealed class SeparatedSyntaxList<T>(
     /// Gets the separator tokens between items. Contains exactly <c>Count - 1</c> tokens for a
     /// non-empty list and zero tokens for an empty list.
     /// </summary>
-    public IReadOnlyList<SyntaxToken> SeparatorTokens { get; } = separatorTokens;
+    public IReadOnlyList<Token> SeparatorTokens { get; } = separatorTokens;
 
     /// <summary>
     /// Gets the number of items in the list.

@@ -13,21 +13,21 @@ using MLIR.Text;
 /// <param name="openBraceToken">The opening brace token.</param>
 /// <param name="blocks">The blocks contained in the region.</param>
 /// <param name="closeBraceToken">The closing brace token.</param>
-public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<BlockSyntax> blocks, SyntaxToken closeBraceToken) : SyntaxNode
+public sealed class RegionSyntax(Token openBraceToken, IReadOnlyList<BlockSyntax> blocks, Token closeBraceToken) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="RegionSyntax"/> class.
     /// </summary>
     /// <param name="blocks">The blocks contained in the region.</param>
     public RegionSyntax(IReadOnlyList<BlockSyntax> blocks)
-        : this(SyntaxTokenFactory.LBrace(), blocks, SyntaxTokenFactory.RBrace())
+        : this(TokenFactory.LBrace(), blocks, TokenFactory.RBrace())
     {
     }
 
     /// <summary>
     /// Gets the opening brace token.
     /// </summary>
-    public SyntaxToken OpenBraceToken { get; } = openBraceToken;
+    public Token OpenBraceToken { get; } = openBraceToken;
 
     /// <summary>
     /// Gets the blocks contained in the region.
@@ -37,7 +37,7 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
     /// <summary>
     /// Gets the closing brace token.
     /// </summary>
-    public SyntaxToken CloseBraceToken { get; } = closeBraceToken;
+    public Token CloseBraceToken { get; } = closeBraceToken;
 
     /// <summary>
     /// Gets the merged source location spanning from the opening brace to the closing brace.

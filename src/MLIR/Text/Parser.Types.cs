@@ -62,8 +62,8 @@ public sealed partial class Parser
         bool allowUnranked,
         int minimumDimensionCount,
         out List<ShapedTypeDimensionSyntax> dimensions,
-        out List<SyntaxToken> xTokens,
-        out SyntaxToken? unrankedToken,
+        out List<Token> xTokens,
+        out Token? unrankedToken,
         out string elementTypeText)
     {
         dimensions = [];
@@ -73,8 +73,8 @@ public sealed partial class Parser
 
         if (allowUnranked && text.StartsWith("*x", System.StringComparison.Ordinal))
         {
-            unrankedToken = SyntaxTokenFactory.Star();
-            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
+            unrankedToken = TokenFactory.Star();
+            xTokens.Add(TokenFactory.Identifier("x"));
             elementTypeText = text.Substring(2);
             return elementTypeText.Length > 0;
         }
@@ -84,7 +84,7 @@ public sealed partial class Parser
         {
             if (text[index] == '?')
             {
-                dimensions.Add(new DynamicShapedTypeDimensionSyntax(SyntaxTokenFactory.Question()));
+                dimensions.Add(new DynamicShapedTypeDimensionSyntax(TokenFactory.Question()));
                 index++;
             }
             else if (char.IsDigit(text[index]))
@@ -96,7 +96,7 @@ public sealed partial class Parser
                 }
 
                 var digits = text.Substring(start, index - start);
-                dimensions.Add(new StaticShapedTypeDimensionSyntax(SyntaxTokenFactory.Integer(digits), long.Parse(digits)));
+                dimensions.Add(new StaticShapedTypeDimensionSyntax(TokenFactory.Integer(digits), long.Parse(digits)));
             }
             else
             {
@@ -108,7 +108,7 @@ public sealed partial class Parser
                 return false;
             }
 
-            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
+            xTokens.Add(TokenFactory.Identifier("x"));
             index++;
         }
 
@@ -281,7 +281,7 @@ public sealed partial class Parser
             return ParseResult<TypeSyntax>.NoMatch();
         }
 
-        var token = ToSyntaxToken(ConsumeToken());
+        var token = ConsumeToken();
         if (TryParseBuiltinIntegerName(token.Text, out var signedness, out var width))
         {
             return ParseResult<TypeSyntax>.Success(new BuiltinIntegerTypeSyntax(token, signedness, width));
@@ -355,7 +355,7 @@ public sealed partial class Parser
             resultType = resultTypeResult.Value;
         }
 
-        return ParseResult<TypeSyntax>.Success(new FunctionTypeSyntax(inputsResult.Value, ToSyntaxToken(arrowToken), resultType, resultTypes));
+        return ParseResult<TypeSyntax>.Success(new FunctionTypeSyntax(inputsResult.Value, arrowToken, resultType, resultTypes));
     }
 
     /// <summary>
@@ -431,11 +431,11 @@ public sealed partial class Parser
             return elementTypeResult;
         }
 
-        var trailingCommaTokens = new List<SyntaxToken>();
+        var trailingCommaTokens = new List<Token>();
         var trailingParameters = new List<RawSyntaxText>();
         while (TryMatch(TokenKind.Comma, out var comma))
         {
-            trailingCommaTokens.Add(ToSyntaxToken(comma));
+            trailingCommaTokens.Add(comma);
             var trailingResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
             if (!trailingResult.IsSuccess)
             {
@@ -549,11 +549,11 @@ public sealed partial class Parser
             return elementTypeParse;
         }
 
-        var trailingCommaTokens = new List<SyntaxToken>();
+        var trailingCommaTokens = new List<Token>();
         var trailingParameters = new List<RawSyntaxText>();
         while (TryMatch(TokenKind.Comma, out var comma))
         {
-            trailingCommaTokens.Add(ToSyntaxToken(comma));
+            trailingCommaTokens.Add(comma);
             var trailingResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
             if (!trailingResult.IsSuccess)
             {

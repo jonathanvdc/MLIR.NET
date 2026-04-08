@@ -15,20 +15,20 @@ using System.Collections.Generic;
 /// <param name="separatorTokens">The separator tokens between items.</param>
 /// <param name="closeToken">The closing delimiter token.</param>
 public sealed class DelimitedSyntaxList<T>(
-    SyntaxToken? openToken,
+    Token? openToken,
     IReadOnlyList<T> items,
-    IReadOnlyList<SyntaxToken> separatorTokens,
-    SyntaxToken? closeToken) : IReadOnlyList<T>
+    IReadOnlyList<Token> separatorTokens,
+    Token? closeToken) : IReadOnlyList<T>
 {
     /// <summary>
     /// Gets an empty list instance with no opening or closing delimiters.
     /// </summary>
-    public static DelimitedSyntaxList<T> Empty { get; } = new(null, Array.Empty<T>(), Array.Empty<SyntaxToken>(), null);
+    public static DelimitedSyntaxList<T> Empty { get; } = new(null, Array.Empty<T>(), Array.Empty<Token>(), null);
 
     /// <summary>
     /// Gets the opening delimiter token.
     /// </summary>
-    public SyntaxToken? OpenToken { get; } = openToken;
+    public Token? OpenToken { get; } = openToken;
 
     /// <summary>
     /// Gets the list items.
@@ -38,12 +38,12 @@ public sealed class DelimitedSyntaxList<T>(
     /// <summary>
     /// Gets the separator tokens between items.
     /// </summary>
-    public IReadOnlyList<SyntaxToken> SeparatorTokens { get; } = separatorTokens;
+    public IReadOnlyList<Token> SeparatorTokens { get; } = separatorTokens;
 
     /// <summary>
     /// Gets the closing delimiter token.
     /// </summary>
-    public SyntaxToken? CloseToken { get; } = closeToken;
+    public Token? CloseToken { get; } = closeToken;
 
     /// <summary>
     /// Gets a value indicating whether this list is present in the source, i.e., has an opening delimiter token.

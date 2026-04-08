@@ -12,7 +12,7 @@ using MLIR.Text;
 /// <param name="nameToken">The attribute name token.</param>
 /// <param name="equalsToken">The equals token.</param>
 /// <param name="valueSyntax">The attribute value syntax.</param>
-public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equalsToken, AttributeValueSyntax valueSyntax) : SyntaxNode
+public sealed class NamedAttributeSyntax(Token nameToken, Token equalsToken, AttributeValueSyntax valueSyntax) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="NamedAttributeSyntax"/> class.
@@ -20,19 +20,19 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// <param name="name">The attribute name.</param>
     /// <param name="value">The raw attribute value text.</param>
     public NamedAttributeSyntax(string name, RawSyntaxText value)
-        : this(SyntaxTokenFactory.Identifier(name), SyntaxTokenFactory.Equal(), new RawAttributeValueSyntax(value))
+        : this(TokenFactory.Identifier(name), TokenFactory.Equal(), new RawAttributeValueSyntax(value))
     {
     }
 
     /// <summary>
     /// Gets the attribute name token.
     /// </summary>
-    public SyntaxToken NameToken { get; } = nameToken;
+    public Token NameToken { get; } = nameToken;
 
     /// <summary>
     /// Gets the equals token.
     /// </summary>
-    public SyntaxToken EqualsToken { get; } = equalsToken;
+    public Token EqualsToken { get; } = equalsToken;
 
     /// <summary>
     /// Gets the attribute name.

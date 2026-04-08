@@ -50,25 +50,25 @@ public sealed partial class Parser
         // A '{' can start either a region or an attribute dictionary. Peek ahead to decide
         // which production we are looking at without consuming any tokens.
         var lookahead = position + 1;
-        if (tokens[lookahead].Kind == TokenKind.RBrace)
+        if (tokens[lookahead].TokenKind == TokenKind.RBrace)
         {
             return false;
         }
 
-        if (tokens[lookahead].Kind == TokenKind.BlockLabel || tokens[lookahead].Kind == TokenKind.StringLiteral || tokens[lookahead].Kind == TokenKind.SsaName)
+        if (tokens[lookahead].TokenKind == TokenKind.BlockLabel || tokens[lookahead].TokenKind == TokenKind.StringLiteral || tokens[lookahead].TokenKind == TokenKind.SsaName)
         {
             return true;
         }
 
-        if (tokens[lookahead].Kind != TokenKind.Identifier)
+        if (tokens[lookahead].TokenKind != TokenKind.Identifier)
         {
             return false;
         }
 
         var secondLookahead = tokens[lookahead + 1];
-        return secondLookahead.Kind != TokenKind.Equal
-            && secondLookahead.Kind != TokenKind.Colon
-            && secondLookahead.Kind != TokenKind.Comma;
+        return secondLookahead.TokenKind != TokenKind.Equal
+            && secondLookahead.TokenKind != TokenKind.Colon
+            && secondLookahead.TokenKind != TokenKind.Comma;
     }
 
     /// <summary>
@@ -103,17 +103,17 @@ public sealed partial class Parser
     /// </remarks>
     private bool IsOperationBoundary(Token token, bool allowBlockStart)
     {
-        if (token.Kind == TokenKind.EndOfFile || token.Kind == TokenKind.RBrace)
+        if (token.TokenKind == TokenKind.EndOfFile || token.TokenKind == TokenKind.RBrace)
         {
             return true;
         }
 
-        if (allowBlockStart && token.Kind == TokenKind.BlockLabel && token.LeadingTrivia.Contains('\n'))
+        if (allowBlockStart && token.TokenKind == TokenKind.BlockLabel && token.LeadingTrivia?.Contains('\n') == true)
         {
             return true;
         }
 
-        return token.LeadingTrivia.Contains('\n');
+        return token.LeadingTrivia?.Contains('\n') == true;
     }
 
     /// <summary>
@@ -153,17 +153,17 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Converts a contiguous sub-range of the raw token list into <see cref="SyntaxToken"/> instances.
+    /// Copies a contiguous sub-range of the token list into a new <see cref="List{T}"/>.
     /// </summary>
     /// <param name="tokens">The full token list from the lexer.</param>
     /// <param name="start">Inclusive start index in <paramref name="tokens"/>.</param>
     /// <param name="end">Exclusive end index in <paramref name="tokens"/>.</param>
-    private List<SyntaxToken> CreateSyntaxTokenList(IReadOnlyList<Token> tokens, int start, int end)
+    private static List<Token> CreateSyntaxTokenList(IReadOnlyList<Token> tokens, int start, int end)
     {
-        var result = new List<SyntaxToken>(end - start);
+        var result = new List<Token>(end - start);
         for (var i = start; i < end; i++)
         {
-            result.Add(ToSyntaxToken(tokens[i]));
+            result.Add(tokens[i]);
         }
 
         return result;
@@ -176,7 +176,7 @@ public sealed partial class Parser
     /// </summary>
     private bool TryMatch(TokenKind kind, out Token token)
     {
-        if (Current.Kind != kind)
+        if (Current.TokenKind != kind)
         {
             token = default;
             return false;
@@ -187,24 +187,11 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Expects the current token to have the supplied <paramref name="kind"/> and converts it to a
-    /// <see cref="SyntaxToken"/> on success. Returns a failure diagnostic with <paramref name="message"/>
-    /// when the token does not match.
-    /// </summary>
-    private ParseResult<SyntaxToken> ExpectTokenResult(TokenKind kind, string message)
-    {
-        var rawTokenResult = ExpectRawTokenResult(kind, message);
-        return rawTokenResult.IsSuccess
-            ? ParseResult<SyntaxToken>.Success(ToSyntaxToken(rawTokenResult.Value))
-            : ParseResult<SyntaxToken>.Failure(rawTokenResult.Diagnostic!);
-    }
-
-    /// <summary>
-    /// Expects the current token to have the supplied <paramref name="kind"/> and returns it as a raw
+    /// Expects the current token to have the supplied <paramref name="kind"/> and returns it as a
     /// <see cref="Token"/> on success. Returns a failure diagnostic with <paramref name="message"/>
     /// when the token does not match.
     /// </summary>
-    private ParseResult<Token> ExpectRawTokenResult(TokenKind kind, string message)
+    private ParseResult<Token> ExpectTokenResult(TokenKind kind, string message)
     {
         if (!TryMatch(kind, out var token))
         {
@@ -217,7 +204,7 @@ public sealed partial class Parser
     /// <summary>Returns <see langword="true"/> when the current token has the supplied <paramref name="kind"/>.</summary>
     private bool Is(TokenKind kind)
     {
-        return Current.Kind == kind;
+        return Current.TokenKind == kind;
     }
 
     /// <summary>
@@ -257,7 +244,7 @@ public sealed partial class Parser
             return ParseResult<DelimitedSyntaxList<T>>.Success(EmptyDelimitedSyntaxList<T>());
         }
 
-        return TryParseCommaSeparatedDelimitedListCore(ToSyntaxToken(openToken), closeKind, parseElement, closeMessage);
+        return TryParseCommaSeparatedDelimitedListCore(openToken, closeKind, parseElement, closeMessage);
     }
 
     /// <summary>
@@ -281,13 +268,13 @@ public sealed partial class Parser
     /// then wraps the result in a <see cref="DelimitedSyntaxList{T}"/>.
     /// </summary>
     private ParseResult<DelimitedSyntaxList<T>> TryParseCommaSeparatedDelimitedListCore<T>(
-        SyntaxToken openToken,
+        Token openToken,
         TokenKind closeKind,
         Func<ParseResult<T>> parseElement,
         string closeMessage)
     {
         var items = new List<T>();
-        var separators = new List<SyntaxToken>();
+        var separators = new List<Token>();
         if (!TryMatch(closeKind, out var closeToken))
         {
             var itemsResult = TryParseCommaSeparatedItems(items, separators, parseElement);
@@ -296,14 +283,14 @@ public sealed partial class Parser
                 return ParseResult<DelimitedSyntaxList<T>>.Failure(itemsResult.Diagnostic!);
             }
 
-            var closeTokenResult = ExpectRawTokenResult(closeKind, closeMessage);
+            var closeTokenResult = ExpectTokenResult(closeKind, closeMessage);
             if (!closeTokenResult.TryGetValue(out closeToken))
             {
                 return ParseResult<DelimitedSyntaxList<T>>.Failure(closeTokenResult.Diagnostic!);
             }
         }
 
-        return ParseResult<DelimitedSyntaxList<T>>.Success(new DelimitedSyntaxList<T>(openToken, items, separators, ToSyntaxToken(closeToken)));
+        return ParseResult<DelimitedSyntaxList<T>>.Success(new DelimitedSyntaxList<T>(openToken, items, separators, closeToken));
     }
 
     /// <summary>
@@ -339,12 +326,12 @@ public sealed partial class Parser
         {
             if (depthParen == 0 && depthBrace == 0 && depthBracket == 0 && depthAngle == 0)
             {
-                if (IsAnyDelimiter(delimiters, Current.Kind))
+                if (IsAnyDelimiter(delimiters, Current.TokenKind))
                 {
                     break;
                 }
 
-                if (Current.Kind == TokenKind.Identifier && IsAnyKeyword(keywords, Current.Text))
+                if (Current.TokenKind == TokenKind.Identifier && IsAnyKeyword(keywords, Current.Text))
                 {
                     break;
                 }
@@ -365,19 +352,20 @@ public sealed partial class Parser
                 break;
             }
 
-            UpdateDepth(Current.Kind, ref depthParen, ref depthBrace, ref depthBracket, ref depthAngle);
+            UpdateDepth(Current.TokenKind, ref depthParen, ref depthBrace, ref depthBracket, ref depthAngle);
             ConsumeToken();
         }
 
         if (position == firstTokenIndex)
         {
             return allowEmpty
-                ? ParseResult<RawSyntaxText>.Success(new RawSyntaxText(new List<SyntaxToken>(), string.Empty))
+                ? ParseResult<RawSyntaxText>.Success(new RawSyntaxText(new List<Token>(), string.Empty))
                 : ParseResult<RawSyntaxText>.Failure(CreateDiagnostic("Expected raw syntax."));
         }
 
         var firstToken = tokens[firstTokenIndex];
-        var end = tokens[position - 1].End;
+        var lastToken = tokens[position - 1];
+        var end = lastToken.TokenStart + lastToken.TokenLength;
 
         return ParseResult<RawSyntaxText>.Success(new RawSyntaxText(
             CreateSyntaxTokenList(tokens, firstTokenIndex, position),
@@ -419,7 +407,7 @@ public sealed partial class Parser
     /// </summary>
     private static DelimitedSyntaxList<T> EmptyDelimitedSyntaxList<T>()
     {
-        return new DelimitedSyntaxList<T>(null, new List<T>(), new List<SyntaxToken>(), null);
+        return new DelimitedSyntaxList<T>(null, new List<T>(), new List<Token>(), null);
     }
 
     /// <summary>
@@ -429,7 +417,7 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<bool> TryParseCommaSeparatedItems<T>(
         List<T> items,
-        List<SyntaxToken> separators,
+        List<Token> separators,
         Func<ParseResult<T>> parseElement)
     {
         var firstItem = parseElement();
@@ -441,7 +429,7 @@ public sealed partial class Parser
         items.Add(firstItem.Value);
         while (TryMatch(TokenKind.Comma, out var comma))
         {
-            separators.Add(ToSyntaxToken(comma));
+            separators.Add(comma);
             var item = parseElement();
             if (!item.IsSuccess)
             {
@@ -471,7 +459,8 @@ public sealed partial class Parser
     /// </summary>
     private static ParseResult<Parser> TryCreateParser(string source, DialectRegistry? dialectRegistry)
     {
-        var lexResult = Lexer.TryLexCore(source);
+        var document = new MLIR.Syntax.SourceDocument(source);
+        var lexResult = Lexer.TryLexCore(source, document);
         if (!lexResult.IsSuccess)
         {
             return ParseResult<Parser>.Failure(lexResult.Diagnostic!);
@@ -485,19 +474,8 @@ public sealed partial class Parser
     /// </summary>
     private Diagnostic CreateDiagnostic(string message)
     {
-        return new Diagnostic(message, Current.Line, Current.Column);
-    }
-
-    /// <summary>
-    /// Converts an internal <see cref="Token"/> (produced by the lexer) to a public
-    /// <see cref="SyntaxToken"/> (part of the CST) by copying its text, leading trivia, and
-    /// attaching the owning <see cref="MLIR.Syntax.SourceDocument"/> together with the token's
-    /// character offsets. Line/column are no longer stored directly; they are resolved on demand
-    /// through the document.
-    /// </summary>
-    internal SyntaxToken ToSyntaxToken(Token token)
-    {
-        return new SyntaxToken(token.Kind, token.Text, token.LeadingTrivia, document, token.TokenStart, token.End - token.TokenStart);
+        var location = Current.Location;
+        return new Diagnostic(message, location.Line, location.Column);
     }
 
     /// <summary>Bridges <see cref="Is"/> for use by <see cref="DialectParsingContext"/>.</summary>
@@ -530,13 +508,13 @@ public sealed partial class Parser
     }
 
     /// <summary>Bridges <see cref="ExpectTokenResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
-    internal ParseResult<SyntaxToken> ExpectTokenInternal(TokenKind kind, string message)
+    internal ParseResult<Token> ExpectTokenInternal(TokenKind kind, string message)
     {
         return ExpectTokenResult(kind, message);
     }
 
     /// <summary>Bridges <see cref="TryParseSsaTokenResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
-    internal ParseResult<SyntaxToken> TryParseSsaTokenInternal()
+    internal ParseResult<Token> TryParseSsaTokenInternal()
     {
         return TryParseSsaTokenResult();
     }
@@ -547,16 +525,16 @@ public sealed partial class Parser
     /// Stops as soon as a non-SSA, non-comma token is encountered.
     /// Returns a failed result with a diagnostic if an SSA token that was expected to parse fails.
     /// </summary>
-    internal ParseResult<SeparatedSyntaxList<SyntaxToken>> TryParseSsaTokenListInternal()
+    internal ParseResult<SeparatedSyntaxList<Token>> TryParseSsaTokenListInternal()
     {
-        var items = new List<SyntaxToken>();
-        var separators = new List<SyntaxToken>();
+        var items = new List<Token>();
+        var separators = new List<Token>();
         while (Is(TokenKind.SsaName))
         {
             var tokenResult = TryParseSsaTokenResult();
             if (!tokenResult.IsSuccess)
             {
-                return ParseResult<SeparatedSyntaxList<SyntaxToken>>.Failure(tokenResult.Diagnostic!);
+                return ParseResult<SeparatedSyntaxList<Token>>.Failure(tokenResult.Diagnostic!);
             }
 
             items.Add(tokenResult.Value);
@@ -565,14 +543,14 @@ public sealed partial class Parser
                 break;
             }
 
-            separators.Add(ToSyntaxToken(comma));
+            separators.Add(comma);
         }
 
-        return ParseResult<SeparatedSyntaxList<SyntaxToken>>.Success(new SeparatedSyntaxList<SyntaxToken>(items, separators));
+        return ParseResult<SeparatedSyntaxList<Token>>.Success(new SeparatedSyntaxList<Token>(items, separators));
     }
 
     /// <summary>Bridges <see cref="TryParseBlockLabelTokenResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
-    internal ParseResult<SyntaxToken> TryParseBlockLabelTokenInternal()
+    internal ParseResult<Token> TryParseBlockLabelTokenInternal()
     {
         return TryParseBlockLabelTokenResult();
     }
@@ -636,7 +614,7 @@ public sealed partial class Parser
     }
 
     /// <summary>Bridges <see cref="ExpectKeywordResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
-    internal ParseResult<SyntaxToken> ExpectKeywordInternal(string spelling, string message)
+    internal ParseResult<Token> ExpectKeywordInternal(string spelling, string message)
     {
         return ExpectKeywordResult(spelling, message);
     }
@@ -646,14 +624,14 @@ public sealed partial class Parser
     /// Returns a failure diagnostic with <paramref name="message"/> when the current token
     /// does not match.
     /// </summary>
-    private ParseResult<SyntaxToken> ExpectKeywordResult(string spelling, string message)
+    private ParseResult<Token> ExpectKeywordResult(string spelling, string message)
     {
         if (!Is(TokenKind.Identifier) || !string.Equals(Current.Text, spelling, System.StringComparison.Ordinal))
         {
-            return ParseResult<SyntaxToken>.Failure(CreateDiagnostic(message));
+            return ParseResult<Token>.Failure(CreateDiagnostic(message));
         }
 
-        return ParseResult<SyntaxToken>.Success(ToSyntaxToken(ConsumeToken()));
+        return ParseResult<Token>.Success(ConsumeToken());
     }
 
     /// <summary>
@@ -678,10 +656,10 @@ public sealed partial class Parser
     }
 
     /// <summary>Bridges <see cref="TryParseSuccessorsResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
-    internal ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseSuccessorsInternal() => TryParseSuccessorsResult();
+    internal ParseResult<DelimitedSyntaxList<Token>> TryParseSuccessorsInternal() => TryParseSuccessorsResult();
 
     /// <summary>Bridges <see cref="TryParseOperandsResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
-    internal ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseOperandsInternal() => TryParseOperandsResult();
+    internal ParseResult<DelimitedSyntaxList<Token>> TryParseOperandsInternal() => TryParseOperandsResult();
 
     /// <summary>
     /// Returns <see langword="true"/> when the current token is an identifier whose text
@@ -706,7 +684,7 @@ public sealed partial class Parser
         }
 
         var lookahead = position + 1;
-        return lookahead < tokens.Count && tokens[lookahead].Kind == TokenKind.Identifier
+        return lookahead < tokens.Count && tokens[lookahead].TokenKind == TokenKind.Identifier
             ? tokens[lookahead].Text
             : null;
     }
@@ -727,7 +705,7 @@ public sealed partial class Parser
         if (Is(TokenKind.Bang))
         {
             var lookahead = position + 1;
-            return lookahead < tokens.Count && tokens[lookahead].Kind == TokenKind.Identifier
+            return lookahead < tokens.Count && tokens[lookahead].TokenKind == TokenKind.Identifier
                 ? tokens[lookahead].Text
                 : null;
         }

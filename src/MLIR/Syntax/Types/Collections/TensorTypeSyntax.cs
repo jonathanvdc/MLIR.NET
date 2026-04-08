@@ -6,34 +6,34 @@ namespace MLIR.Syntax.Types.Collections;
 /// Represents a builtin tensor type.
 /// </summary>
 public sealed class TensorTypeSyntax(
-    SyntaxToken keywordToken,
-    SyntaxToken lessThanToken,
+    Token keywordToken,
+    Token lessThanToken,
     IReadOnlyList<ShapedTypeDimensionSyntax> dimensions,
-    IReadOnlyList<SyntaxToken> xTokens,
-    SyntaxToken? unrankedToken,
+    IReadOnlyList<Token> xTokens,
+    Token? unrankedToken,
     TypeSyntax elementType,
-    IReadOnlyList<SyntaxToken> trailingCommaTokens,
+    IReadOnlyList<Token> trailingCommaTokens,
     IReadOnlyList<RawSyntaxText> trailingParameters,
-    SyntaxToken greaterThanToken) : TypeSyntax
+    Token greaterThanToken) : TypeSyntax
 {
     /// <summary>Gets the keyword token.</summary>
-    public SyntaxToken KeywordToken { get; } = keywordToken;
+    public Token KeywordToken { get; } = keywordToken;
     /// <summary>Gets the opening angle-bracket token.</summary>
-    public SyntaxToken LessThanToken { get; } = lessThanToken;
+    public Token LessThanToken { get; } = lessThanToken;
     /// <summary>Gets the ranked dimensions.</summary>
     public IReadOnlyList<ShapedTypeDimensionSyntax> Dimensions { get; } = dimensions;
     /// <summary>Gets the preserved <c>x</c> separators.</summary>
-    public IReadOnlyList<SyntaxToken> XTokens { get; } = xTokens;
+    public IReadOnlyList<Token> XTokens { get; } = xTokens;
     /// <summary>Gets the unranked marker when present.</summary>
-    public SyntaxToken? UnrankedToken { get; } = unrankedToken;
+    public Token? UnrankedToken { get; } = unrankedToken;
     /// <summary>Gets the element type.</summary>
     public TypeSyntax ElementType { get; } = elementType;
     /// <summary>Gets comma tokens for trailing parameters.</summary>
-    public IReadOnlyList<SyntaxToken> TrailingCommaTokens { get; } = trailingCommaTokens;
+    public IReadOnlyList<Token> TrailingCommaTokens { get; } = trailingCommaTokens;
     /// <summary>Gets trailing parameters such as encoding attributes.</summary>
     public IReadOnlyList<RawSyntaxText> TrailingParameters { get; } = trailingParameters;
     /// <summary>Gets the closing angle-bracket token.</summary>
-    public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
+    public Token GreaterThanToken { get; } = greaterThanToken;
 
     /// <summary>
     /// Gets a value indicating whether the tensor is unranked.

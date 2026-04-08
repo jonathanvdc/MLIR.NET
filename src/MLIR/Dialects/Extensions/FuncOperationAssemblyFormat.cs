@@ -27,9 +27,9 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
 
     /// <inheritdoc/>
     public ParseResult<OperationBodySyntax> TryParse(
-        SyntaxToken nameToken,
-        SeparatedSyntaxList<SyntaxToken> resultList,
-        SyntaxToken? equalsToken,
+        Token nameToken,
+        SeparatedSyntaxList<Token> resultList,
+        Token? equalsToken,
         OperationParsingContext context)
     {
         if (resultList.Count != 0 || equalsToken.HasValue)
@@ -38,7 +38,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
                 new Diagnostic("func.func cannot have SSA results.", nameToken.Location.Line, nameToken.Location.Column));
         }
 
-        SyntaxToken? visibilityToken = null;
+        Token? visibilityToken = null;
         if (context.IsKeyword("public"))
         {
             var visibilityResult = context.ExpectKeyword("public", "Expected 'public'.");
@@ -83,7 +83,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
         }
 
         var arguments = new List<FuncFunctionArgumentSyntax>();
-        var argumentCommas = new List<SyntaxToken>();
+        var argumentCommas = new List<Token>();
         while (!context.TryMatch(TokenKind.RParen, out var _))
         {
             var argumentResult = TryParseArgument(context);
@@ -109,7 +109,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             break;
         }
 
-        SyntaxToken? arrowToken = null;
+        Token? arrowToken = null;
         DelimitedSyntaxList<FuncFunctionResultSyntax>? resultTypes = null;
         if (context.TryMatch(TokenKind.Arrow, out var parsedArrowToken))
         {
@@ -118,7 +118,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             if (context.TryMatch(TokenKind.LParen, out var _))
             {
                 var results = new List<FuncFunctionResultSyntax>();
-                var resultCommas = new List<SyntaxToken>();
+                var resultCommas = new List<Token>();
 
                 while (!context.TryMatch(TokenKind.RParen, out var _))
                 {
@@ -145,7 +145,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
                     break;
                 }
 
-                resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(SyntaxTokenFactory.LParen(), results, resultCommas, SyntaxTokenFactory.RParen());
+                resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(TokenFactory.LParen(), results, resultCommas, TokenFactory.RParen());
             }
             else
             {
@@ -160,7 +160,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             }
         }
 
-        SyntaxToken? attributesKeyword = null;
+        Token? attributesKeyword = null;
         DelimitedSyntaxList<NamedAttributeSyntax> attributes = new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null);
         if (context.IsKeyword("attributes"))
         {
@@ -204,7 +204,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             visibilityToken,
             symbolNameResult.Value,
             lParenResult.Value,
-            new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(SyntaxTokenFactory.LParen(), arguments, argumentCommas, SyntaxTokenFactory.RParen()),
+            new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(TokenFactory.LParen(), arguments, argumentCommas, TokenFactory.RParen()),
             arrowToken,
             resultTypes,
             attributesKeyword,
@@ -291,31 +291,31 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        SyntaxToken? visibilityToken = null;
+        Token? visibilityToken = null;
         if (operation.HasAttribute("sym_visibility"))
         {
             var visibilityText = GetStringValue(operation.GetAttribute("sym_visibility").Value);
             if (visibilityText != null)
             {
-                visibilityToken = SyntaxTokenFactory.Identifier(visibilityText);
+                visibilityToken = TokenFactory.Identifier(visibilityText);
             }
         }
 
         var arguments = new List<FuncFunctionArgumentSyntax>(functionTypeSyntax.InputTypes.Items.Count);
-        var argumentCommas = new List<SyntaxToken>(Math.Max(0, functionTypeSyntax.InputTypes.Items.Count - 1));
+        var argumentCommas = new List<Token>(Math.Max(0, functionTypeSyntax.InputTypes.Items.Count - 1));
         var blockArguments = operation.Regions.FirstOrDefault()?.Blocks.FirstOrDefault()?.Arguments;
         for (var i = 0; i < functionTypeSyntax.InputTypes.Items.Count; i++)
         {
             if (i > 0)
             {
-                argumentCommas.Add(SyntaxTokenFactory.Comma());
+                argumentCommas.Add(TokenFactory.Comma());
             }
 
             var nameToken = sourceBody != null && i < sourceBody.Arguments.Items.Count
                 ? context.NormalizeToken(sourceBody.Arguments.Items[i].Name)
                 : blockArguments != null && i < blockArguments.Count
                     ? context.NormalizeToken(blockArguments[i].Syntax.NameToken)
-                    : SyntaxTokenFactory.SsaName("%arg" + i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    : TokenFactory.SsaName("%arg" + i.ToString(System.Globalization.CultureInfo.InvariantCulture));
 
             var attrDict = sourceBody != null && i < sourceBody.Arguments.Items.Count
                 ? sourceBody.Arguments.Items[i].AttrDict
@@ -323,7 +323,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
 
             arguments.Add(new FuncFunctionArgumentSyntax(
                 nameToken,
-                SyntaxTokenFactory.Colon(),
+                TokenFactory.Colon(),
                 functionTypeSyntax.InputTypes.Items[i],
                 attrDict));
         }
@@ -332,12 +332,12 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
         if (functionTypeSyntax.HasDelimitedResults)
         {
             var results = new List<FuncFunctionResultSyntax>(functionTypeSyntax.ResultTypes.Items.Count);
-            var resultCommas = new List<SyntaxToken>(Math.Max(0, functionTypeSyntax.ResultTypes.Items.Count - 1));
+            var resultCommas = new List<Token>(Math.Max(0, functionTypeSyntax.ResultTypes.Items.Count - 1));
             for (var i = 0; i < functionTypeSyntax.ResultTypes.Items.Count; i++)
             {
                 if (i > 0)
                 {
-                    resultCommas.Add(SyntaxTokenFactory.Comma());
+                    resultCommas.Add(TokenFactory.Comma());
                 }
 
                 var attrDict = sourceBody != null
@@ -352,10 +352,10 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             }
 
             resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(
-                SyntaxTokenFactory.LParen(),
+                TokenFactory.LParen(),
                 results,
                 resultCommas,
-                SyntaxTokenFactory.RParen());
+                TokenFactory.RParen());
         }
         else if (functionTypeSyntax.ResultType != null)
         {
@@ -383,14 +383,14 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             new FuncOperationBodySyntax(
                 visibilityToken,
                 new RawSyntaxText("@" + symName),
-                SyntaxTokenFactory.LParen(),
-                new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(SyntaxTokenFactory.LParen(), arguments, argumentCommas, SyntaxTokenFactory.RParen()),
-                resultTypes != null ? SyntaxTokenFactory.Arrow() : null,
+                TokenFactory.LParen(),
+                new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(TokenFactory.LParen(), arguments, argumentCommas, TokenFactory.RParen()),
+                resultTypes != null ? TokenFactory.Arrow() : null,
                 resultTypes,
-                explicitAttributes.OpenToken.HasValue ? SyntaxTokenFactory.Identifier("attributes") : null,
+                explicitAttributes.OpenToken.HasValue ? TokenFactory.Identifier("attributes") : null,
                 explicitAttributes,
                 bodyRegion),
-            SyntaxTokenFactory.Identifier(operation.Name));
+            TokenFactory.Identifier(operation.Name));
     }
 
     private static string NormalizeSymbolName(string text)
@@ -470,10 +470,10 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
 
     private static NamedAttributeSyntax CreateStringAttribute(string name, string value)
     {
-        var literal = SyntaxTokenFactory.StringLiteral("\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"");
+        var literal = TokenFactory.StringLiteral("\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"");
         return new NamedAttributeSyntax(
-            SyntaxTokenFactory.Identifier(name),
-            SyntaxTokenFactory.Equal(),
+            TokenFactory.Identifier(name),
+            TokenFactory.Equal(),
             new StringAttributeValueSyntax(literal, value));
     }
 
@@ -497,13 +497,13 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
     /// <param name="attributes">The parsed attribute dictionary.</param>
     /// <param name="bodyRegion">The optional function body region.</param>
     public FuncOperationBodySyntax(
-        SyntaxToken? visibilityToken,
+        Token? visibilityToken,
         RawSyntaxText symbolName,
-        SyntaxToken lParenToken,
+        Token lParenToken,
         DelimitedSyntaxList<FuncFunctionArgumentSyntax> arguments,
-        SyntaxToken? arrowToken,
+        Token? arrowToken,
         DelimitedSyntaxList<FuncFunctionResultSyntax>? resultTypes,
-        SyntaxToken? attributesKeyword,
+        Token? attributesKeyword,
         DelimitedSyntaxList<NamedAttributeSyntax> attributes,
         RegionSyntax? bodyRegion)
     {
@@ -521,7 +521,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
     /// <summary>
     /// Gets the optional visibility keyword token.
     /// </summary>
-    public SyntaxToken? VisibilityToken { get; }
+    public Token? VisibilityToken { get; }
 
     /// <summary>
     /// Gets the raw symbol name token sequence.
@@ -531,7 +531,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
     /// <summary>
     /// Gets the opening parenthesis token for the argument list.
     /// </summary>
-    public SyntaxToken LParenToken { get; }
+    public Token LParenToken { get; }
 
     /// <summary>
     /// Gets the parsed function arguments.
@@ -541,7 +541,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
     /// <summary>
     /// Gets the optional arrow token introducing the result list.
     /// </summary>
-    public SyntaxToken? ArrowToken { get; }
+    public Token? ArrowToken { get; }
 
     /// <summary>
     /// Gets the optional function result list.
@@ -551,7 +551,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
     /// <summary>
     /// Gets the optional <c>attributes</c> keyword token.
     /// </summary>
-    public SyntaxToken? AttributesKeyword { get; }
+    public Token? AttributesKeyword { get; }
 
     /// <summary>
     /// Gets the parsed attribute dictionary.
@@ -742,8 +742,8 @@ public sealed class FuncFunctionArgumentSyntax
     /// <param name="type">The argument type syntax.</param>
     /// <param name="attrDict">The optional argument attribute dictionary.</param>
     public FuncFunctionArgumentSyntax(
-        SyntaxToken name,
-        SyntaxToken colonToken,
+        Token name,
+        Token colonToken,
         TypeSyntax type,
         DelimitedSyntaxList<NamedAttributeSyntax> attrDict)
     {
@@ -756,12 +756,12 @@ public sealed class FuncFunctionArgumentSyntax
     /// <summary>
     /// Gets the argument name token.
     /// </summary>
-    public SyntaxToken Name { get; }
+    public Token Name { get; }
 
     /// <summary>
     /// Gets the colon token separating the argument name from the type.
     /// </summary>
-    public SyntaxToken ColonToken { get; }
+    public Token ColonToken { get; }
 
     /// <summary>
     /// Gets the argument type syntax.

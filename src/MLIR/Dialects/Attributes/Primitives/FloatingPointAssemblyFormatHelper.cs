@@ -18,7 +18,7 @@ internal static class FloatingPointAssemblyFormatHelper
 
     public static ParseResult<AttributeValueSyntax> TryParseDecimalLiteral(DialectParsingContext context, FloatSemantics semantics)
     {
-        var tokens = new List<SyntaxToken>();
+        var tokens = new List<Token>();
         if (context.TryMatch(TokenKind.Plus, out var plusToken))
         {
             tokens.Add(plusToken);
@@ -62,7 +62,7 @@ internal static class FloatingPointAssemblyFormatHelper
                 FloatingPointLiteralParser.Parse(semantics, literalText)));
     }
 
-    private static ParseResult<AttributeValueSyntax> TryParseSpecialLiteral(DialectParsingContext context, FloatSemantics semantics, List<SyntaxToken> tokens)
+    private static ParseResult<AttributeValueSyntax> TryParseSpecialLiteral(DialectParsingContext context, FloatSemantics semantics, List<Token> tokens)
     {
         if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Identifier)
         {
@@ -83,7 +83,7 @@ internal static class FloatingPointAssemblyFormatHelper
                 FloatingPointLiteralParser.Parse(semantics, literalText)));
     }
 
-    private static ParseResult<AttributeValueSyntax> TryParseHexLiteral(DialectParsingContext context, FloatSemantics semantics, List<SyntaxToken> tokens)
+    private static ParseResult<AttributeValueSyntax> TryParseHexLiteral(DialectParsingContext context, FloatSemantics semantics, List<Token> tokens)
     {
         if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Integer || text != "0")
         {
@@ -105,7 +105,7 @@ internal static class FloatingPointAssemblyFormatHelper
         return ParseResult<AttributeValueSyntax>.Success(new FloatingPointAttributeValueSyntax(new RawSyntaxText(tokens, literalText), ApFloat.FromBits(semantics, bits)));
     }
 
-    private static bool TryParseDecimalLiteralBody(DialectParsingContext context, List<SyntaxToken> tokens)
+    private static bool TryParseDecimalLiteralBody(DialectParsingContext context, List<Token> tokens)
     {
         if (context.Is(TokenKind.Dot))
         {
@@ -142,7 +142,7 @@ internal static class FloatingPointAssemblyFormatHelper
         return true;
     }
 
-    private static bool TryParseExponent(DialectParsingContext context, List<SyntaxToken> tokens)
+    private static bool TryParseExponent(DialectParsingContext context, List<Token> tokens)
     {
         if (!context.TryPeekToken(0, out var kind, out var text) || kind != TokenKind.Identifier)
         {

@@ -42,18 +42,18 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
         }
 
         var items = new List<NamedAttributeSyntax>(dictionaryAttribute.Attributes.Count);
-        var separators = new List<SyntaxToken>(dictionaryAttribute.Attributes.Count > 0 ? dictionaryAttribute.Attributes.Count - 1 : 0);
+        var separators = new List<Token>(dictionaryAttribute.Attributes.Count > 0 ? dictionaryAttribute.Attributes.Count - 1 : 0);
         for (var i = 0; i < dictionaryAttribute.Attributes.Count; i++)
         {
             items.Add(context.BuildNamedAttributeSyntax(dictionaryAttribute.Attributes[i]));
             if (i > 0)
             {
-                separators.Add(SyntaxTokenFactory.Comma());
+                separators.Add(TokenFactory.Comma());
             }
         }
 
         return new DictionaryAttributeValueSyntax(
-            new DelimitedSyntaxList<NamedAttributeSyntax>(SyntaxTokenFactory.LBrace(), items, separators, SyntaxTokenFactory.RBrace()));
+            new DelimitedSyntaxList<NamedAttributeSyntax>(TokenFactory.LBrace(), items, separators, TokenFactory.RBrace()));
     }
 
     private static DictionaryAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)

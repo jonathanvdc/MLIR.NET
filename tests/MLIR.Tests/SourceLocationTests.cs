@@ -7,7 +7,7 @@ using Xunit;
 
 /// <summary>
 /// Tests for the offset-based source location model: <see cref="SourceDocument"/>,
-/// <see cref="SourceLocation"/>, and the updated <see cref="SyntaxToken"/> API.
+/// <see cref="SourceLocation"/>, and the updated <see cref="Token"/> API.
 /// </summary>
 public sealed class SourceLocationTests
 {
@@ -143,13 +143,13 @@ public sealed class SourceLocationTests
     }
 
     // -----------------------------------------------------------------------
-    // SyntaxToken – synthetic vs. source-backed tokens
+    // Token – synthetic vs. source-backed tokens
     // -----------------------------------------------------------------------
 
     [Fact]
     public void SyntaxToken_Synthetic_HasNoSourceLocation()
     {
-        var token = SyntaxTokenFactory.Identifier("hello");
+        var token = TokenFactory.Identifier("hello");
 
         Assert.False(token.HasSourceLocation);
         Assert.False(token.Location.IsKnown);
@@ -159,7 +159,7 @@ public sealed class SourceLocationTests
     [Fact]
     public void SyntaxToken_Synthetic_WithLeadingTrivia_HasNoSourceLocation()
     {
-        var token = SyntaxTokenFactory.Identifier("world", "  ");
+        var token = TokenFactory.Identifier("world", "  ");
 
         Assert.False(token.HasSourceLocation);
         Assert.Equal("  ", token.LeadingTrivia);
@@ -169,14 +169,14 @@ public sealed class SourceLocationTests
     [Fact]
     public void SyntaxToken_FullText_CombinesTriviaAndText()
     {
-        var token = SyntaxTokenFactory.Identifier("op", " ");
+        var token = TokenFactory.Identifier("op", " ");
         Assert.Equal(" op", token.FullText);
     }
 
     [Fact]
     public void SyntaxToken_WithText_PreservesLeadingTrivia()
     {
-        var original = SyntaxTokenFactory.Identifier("old", "  ");
+        var original = TokenFactory.Identifier("old", "  ");
         var updated = original.WithText("new");
 
         Assert.Equal("new", updated.Text);
@@ -187,7 +187,7 @@ public sealed class SourceLocationTests
     [Fact]
     public void SyntaxToken_WithText_OnSyntheticToken_ProducesSyntheticToken()
     {
-        var token = SyntaxTokenFactory.Identifier("foo");
+        var token = TokenFactory.Identifier("foo");
         var copy = token.WithText("bar");
 
         Assert.Equal("bar", copy.Text);

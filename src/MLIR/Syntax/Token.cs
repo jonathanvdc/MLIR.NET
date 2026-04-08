@@ -8,14 +8,14 @@ namespace MLIR.Syntax;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="SyntaxToken"/> is the leaf node of the concrete syntax tree.
+/// <see cref="Token"/> is the leaf node of the concrete syntax tree.
 /// It carries the token kind, the token text, the whitespace/comment trivia that precedes it,
 /// and an optional reference back to its owning <see cref="SourceDocument"/> together with the
 /// character offset and length of the token text.
 /// </para>
 /// <para>
 /// <strong>Synthetic tokens</strong> (tokens created without a source document) have no
-/// location information. Use <see cref="SyntaxTokenFactory"/> for convenient construction of
+/// location information. Use <see cref="TokenFactory"/> for convenient construction of
 /// synthetic tokens with the correct <see cref="TokenKind"/> already set.
 /// </para>
 /// <para>
@@ -24,15 +24,15 @@ namespace MLIR.Syntax;
 /// resolve back to line/column on demand.
 /// </para>
 /// </remarks>
-public readonly struct SyntaxToken
+public readonly struct Token
 {
     /// <summary>
-    /// Initializes a synthetic <see cref="SyntaxToken"/> without source location information.
+    /// Initializes a synthetic <see cref="Token"/> without source location information.
     /// </summary>
     /// <param name="tokenKind">The lexical kind of the token.</param>
     /// <param name="text">The token text.</param>
     /// <param name="leadingTrivia">The whitespace and comments that precede the token, or <see langword="null"/> when none were captured.</param>
-    public SyntaxToken(TokenKind tokenKind, string text, string? leadingTrivia = null)
+    public Token(TokenKind tokenKind, string text, string? leadingTrivia = null)
     {
         TokenKind = tokenKind;
         Text = text ?? string.Empty;
@@ -43,7 +43,7 @@ public readonly struct SyntaxToken
     }
 
     /// <summary>
-    /// Initializes a source-backed <see cref="SyntaxToken"/> with document-relative offset information.
+    /// Initializes a source-backed <see cref="Token"/> with document-relative offset information.
     /// </summary>
     /// <param name="tokenKind">The lexical kind of the token.</param>
     /// <param name="text">The token text.</param>
@@ -51,7 +51,7 @@ public readonly struct SyntaxToken
     /// <param name="document">The source document that owns the token.</param>
     /// <param name="tokenStart">The zero-based start offset of the token text in the document.</param>
     /// <param name="tokenLength">The length of the token text in characters.</param>
-    internal SyntaxToken(TokenKind tokenKind, string text, string? leadingTrivia, SourceDocument document, int tokenStart, int tokenLength)
+    internal Token(TokenKind tokenKind, string text, string? leadingTrivia, SourceDocument document, int tokenStart, int tokenLength)
     {
         TokenKind = tokenKind;
         Text = text ?? string.Empty;
@@ -117,7 +117,7 @@ public readonly struct SyntaxToken
     public string FullText => (LeadingTrivia ?? string.Empty) + Text;
 
     /// <summary>
-    /// Returns a new <see cref="SyntaxToken"/> with the given <paramref name="newText"/> but with
+    /// Returns a new <see cref="Token"/> with the given <paramref name="newText"/> but with
     /// all other fields (token kind, leading trivia and source location) copied from this instance.
     /// </summary>
     /// <param name="newText">The replacement token text.</param>
@@ -126,11 +126,11 @@ public readonly struct SyntaxToken
     /// token has no source location; otherwise a source-backed token pointing at the same span in
     /// the document.
     /// </returns>
-    public SyntaxToken WithText(string newText)
+    public Token WithText(string newText)
     {
         return HasSourceLocation
-            ? new SyntaxToken(TokenKind, newText, LeadingTrivia, Document!, TokenStart, TokenLength)
-            : new SyntaxToken(TokenKind, newText, LeadingTrivia);
+            ? new Token(TokenKind, newText, LeadingTrivia, Document!, TokenStart, TokenLength)
+            : new Token(TokenKind, newText, LeadingTrivia);
     }
 
     /// <summary>
