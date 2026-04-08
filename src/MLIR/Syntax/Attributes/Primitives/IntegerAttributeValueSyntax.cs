@@ -9,8 +9,6 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
 {
-    private readonly RawSyntaxText rawText;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="IntegerAttributeValueSyntax"/> class.
     /// </summary>
@@ -20,7 +18,6 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     {
         LiteralToken = literalToken;
         Value = value;
-        rawText = new RawSyntaxText([literalToken]);
     }
 
     /// <summary>
