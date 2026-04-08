@@ -79,14 +79,14 @@ public class FunctionTypeReference : TypeReference
         var inputCommas = new List<SyntaxToken>(Math.Max(0, inputs.Count - 1));
         for (var i = 1; i < inputs.Count; i++)
         {
-            inputCommas.Add(new SyntaxToken(","));
+            inputCommas.Add(SyntaxTokenFactory.Comma());
         }
 
         if (results.Count == 1)
         {
             return new FunctionTypeSyntax(
-                new DelimitedSyntaxList<TypeSyntax>(new SyntaxToken("("), inputs.Select(GetSyntax).ToArray(), inputCommas, new SyntaxToken(")")),
-                new SyntaxToken("->"),
+                new DelimitedSyntaxList<TypeSyntax>(SyntaxTokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, SyntaxTokenFactory.RParen()),
+                SyntaxTokenFactory.Arrow(),
                 GetSyntax(results[0]),
                 new DelimitedSyntaxList<TypeSyntax>(null, [], [], null));
         }
@@ -94,14 +94,14 @@ public class FunctionTypeReference : TypeReference
         var resultCommas = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
         for (var i = 1; i < results.Count; i++)
         {
-            resultCommas.Add(new SyntaxToken(","));
+            resultCommas.Add(SyntaxTokenFactory.Comma());
         }
 
         return new FunctionTypeSyntax(
-            new DelimitedSyntaxList<TypeSyntax>(new SyntaxToken("("), inputs.Select(GetSyntax).ToArray(), inputCommas, new SyntaxToken(")")),
-            new SyntaxToken("->"),
+            new DelimitedSyntaxList<TypeSyntax>(SyntaxTokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, SyntaxTokenFactory.RParen()),
+            SyntaxTokenFactory.Arrow(),
             null,
-            new DelimitedSyntaxList<TypeSyntax>(new SyntaxToken("("), results.Select(GetSyntax).ToArray(), resultCommas, new SyntaxToken(")")));
+            new DelimitedSyntaxList<TypeSyntax>(SyntaxTokenFactory.LParen(), results.Select(GetSyntax).ToArray(), resultCommas, SyntaxTokenFactory.RParen()));
     }
 
     private static TypeSyntax GetSyntax(TypeReference type)

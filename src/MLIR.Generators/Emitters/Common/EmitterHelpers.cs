@@ -154,6 +154,44 @@ internal static class EmitterHelpers
         };
     }
 
+    /// <summary>
+    /// Returns the C# expression used to synthesize a token of the supplied kind.
+    /// Fixed-text punctuation maps to the dedicated <c>SyntaxTokenFactory</c> methods, while
+    /// variable-text tokens use the corresponding factory method that accepts text.
+    /// </summary>
+    public static string GetSyntaxTokenFactoryExpression(TokenKind kind, string? textLiteral = null)
+    {
+        return kind switch
+        {
+            TokenKind.Comma => "SyntaxTokenFactory.Comma()",
+            TokenKind.LParen => "SyntaxTokenFactory.LParen()",
+            TokenKind.RParen => "SyntaxTokenFactory.RParen()",
+            TokenKind.LBracket => "SyntaxTokenFactory.LBracket()",
+            TokenKind.RBracket => "SyntaxTokenFactory.RBracket()",
+            TokenKind.LBrace => "SyntaxTokenFactory.LBrace()",
+            TokenKind.RBrace => "SyntaxTokenFactory.RBrace()",
+            TokenKind.LessThan => "SyntaxTokenFactory.LessThan()",
+            TokenKind.GreaterThan => "SyntaxTokenFactory.GreaterThan()",
+            TokenKind.Question => "SyntaxTokenFactory.Question()",
+            TokenKind.Star => "SyntaxTokenFactory.Star()",
+            TokenKind.Plus => "SyntaxTokenFactory.Plus()",
+            TokenKind.Minus => "SyntaxTokenFactory.Minus()",
+            TokenKind.Dot => "SyntaxTokenFactory.Dot()",
+            TokenKind.Colon => "SyntaxTokenFactory.Colon()",
+            TokenKind.Equal => "SyntaxTokenFactory.Equal()",
+            TokenKind.At => "SyntaxTokenFactory.At()",
+            TokenKind.Hash => "SyntaxTokenFactory.Hash()",
+            TokenKind.Arrow => "SyntaxTokenFactory.Arrow()",
+            TokenKind.Identifier => "SyntaxTokenFactory.Identifier(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.Integer => "SyntaxTokenFactory.Integer(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.StringLiteral => "SyntaxTokenFactory.StringLiteral(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.SsaName => "SyntaxTokenFactory.SsaName(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.BlockLabel => "SyntaxTokenFactory.BlockLabel(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.EndOfFile => "SyntaxTokenFactory.EndOfFile()",
+            _ => throw new NotSupportedException("Unsupported token kind: " + kind),
+        };
+    }
+
     public static BodySyntaxField NextBodySyntaxField(IReadOnlyList<BodySyntaxField> fields, ref int fieldIndex)
     {
         return fields[fieldIndex++];
@@ -608,7 +646,7 @@ internal static class EmitterHelpers
             const string csType = "global::System.Collections.Generic.IReadOnlyList<SyntaxToken>";
             var writeStmt =
                 "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
-                "if (_i > 0) writer.WriteToken(new SyntaxToken(\",\"), \"\"); " +
+                "if (_i > 0) writer.WriteToken(SyntaxTokenFactory.Comma(), \"\"); " +
                 "writer.WriteToken(" + name + "[_i], _i > 0 ? \" \" : \"\"); }";
             var field = new BodySyntaxField(name, csType, writeStmt);
             metadata.AddField(field);
@@ -671,7 +709,7 @@ internal static class EmitterHelpers
                 "{\n" +
                 "    if (i > 0)\n" +
                 "    {\n" +
-                "        writer.WriteToken(new SyntaxToken(\",\"));\n" +
+                "        writer.WriteToken(SyntaxTokenFactory.Comma());\n" +
                 "    }\n" +
                 "\n" +
                 "    writer.SuggestTrivia(\" \");\n" +

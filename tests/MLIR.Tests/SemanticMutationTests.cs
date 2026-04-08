@@ -153,7 +153,7 @@ public sealed partial class SemanticTests
         var block = new Block("^entry", [], []);
         var typeSyntax = new RawTypeSyntax(new RawSyntaxText("i32"));
         var argument = new BlockArgument(
-            new BlockArgumentSyntax(new SyntaxToken("%arg0"), new SyntaxToken(":"), typeSyntax),
+            new BlockArgumentSyntax(SyntaxTokenFactory.SsaName("%arg0"), SyntaxTokenFactory.Colon(), typeSyntax),
             new UnknownTypeReference(typeSyntax, "i32", null, SourceLocation.Unknown));
         var operation = new GenericOperation(
             new OperationSyntax([], "\"test.op\"", [], [], [], [], null),

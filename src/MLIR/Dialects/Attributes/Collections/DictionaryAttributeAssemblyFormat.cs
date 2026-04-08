@@ -48,12 +48,12 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
             items.Add(context.BuildNamedAttributeSyntax(dictionaryAttribute.Attributes[i]));
             if (i > 0)
             {
-                separators.Add(new SyntaxToken(","));
+                separators.Add(SyntaxTokenFactory.Comma());
             }
         }
 
         return new DictionaryAttributeValueSyntax(
-            new DelimitedSyntaxList<NamedAttributeSyntax>(new SyntaxToken("{"), items, separators, new SyntaxToken("}")));
+            new DelimitedSyntaxList<NamedAttributeSyntax>(SyntaxTokenFactory.LBrace(), items, separators, SyntaxTokenFactory.RBrace()));
     }
 
     private static DictionaryAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)

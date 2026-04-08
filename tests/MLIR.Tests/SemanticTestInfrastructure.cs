@@ -79,7 +79,7 @@ public sealed partial class SemanticTests
             ColonToken = colonToken;
             TypeSignature = typeSignature;
             genericBody = new GenericOperationBodySyntax(
-                new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), [], [], new SyntaxToken(")")),
+                new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), [], [], SyntaxTokenFactory.RParen()),
                 new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
                 [],
                 attributes,
@@ -439,7 +439,7 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), valueAttrSyntax)]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(SyntaxTokenFactory.Identifier("value"), SyntaxTokenFactory.Equal(), valueAttrSyntax)]);
 
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, new RawTypeSyntax(typeResult.Value), attributes));
         }
@@ -461,7 +461,7 @@ public sealed partial class SemanticTests
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
             var body = new PrefixConstantBodySyntax(
                 valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value) : new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)),
-                genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
+                genericBody.TypeSignatureColonToken ?? SyntaxTokenFactory.Colon(),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax!.NameToken;
@@ -508,7 +508,7 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), valueResult.Value)]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(SyntaxTokenFactory.Identifier("value"), SyntaxTokenFactory.Equal(), valueResult.Value)]);
 
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
@@ -531,7 +531,7 @@ public sealed partial class SemanticTests
             var attrSyntax = context.BuildAttributeValueSyntax(valueAttr?.Value ?? new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)), null, null, SourceLocation.Unknown));
             var body = new PrefixConstantBodySyntax(
                 attrSyntax,
-                genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"),
+                genericBody.TypeSignatureColonToken ?? SyntaxTokenFactory.Colon(),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax!.NameToken;
@@ -646,7 +646,7 @@ public sealed partial class SemanticTests
         {
             if (type is IntegerTypeReference integerType)
             {
-                return new BuiltinIntegerTypeSyntax(new SyntaxToken("i" + integerType.Width));
+                return new BuiltinIntegerTypeSyntax(SyntaxTokenFactory.Identifier("i" + integerType.Width));
             }
 
             return type.Syntax ?? throw new InvalidOperationException("Integer test types require syntax to rebuild their assembly form.");
@@ -676,7 +676,7 @@ public sealed partial class SemanticTests
         {
             if (attribute is I32AttributeValue i32 && i32.Value.HasValue)
             {
-                return new IntegerLiteralAttributeSyntax(new SyntaxToken(i32.Value.Value.ToString()));
+                return new IntegerLiteralAttributeSyntax(SyntaxTokenFactory.Integer(i32.Value.Value.ToString()));
             }
 
             return attribute.Syntax ?? throw new InvalidOperationException("i32 attributes require syntax to rebuild their assembly form.");

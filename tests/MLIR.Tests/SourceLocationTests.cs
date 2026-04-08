@@ -149,7 +149,7 @@ public sealed class SourceLocationTests
     [Fact]
     public void SyntaxToken_Synthetic_HasNoSourceLocation()
     {
-        var token = new SyntaxToken("hello");
+        var token = SyntaxTokenFactory.Identifier("hello");
 
         Assert.False(token.HasSourceLocation);
         Assert.False(token.Location.IsKnown);
@@ -159,7 +159,7 @@ public sealed class SourceLocationTests
     [Fact]
     public void SyntaxToken_Synthetic_WithLeadingTrivia_HasNoSourceLocation()
     {
-        var token = new SyntaxToken("world", "  ");
+        var token = SyntaxTokenFactory.Identifier("world", "  ");
 
         Assert.False(token.HasSourceLocation);
         Assert.Equal("  ", token.LeadingTrivia);
@@ -169,14 +169,14 @@ public sealed class SourceLocationTests
     [Fact]
     public void SyntaxToken_FullText_CombinesTriviaAndText()
     {
-        var token = new SyntaxToken("op", " ");
+        var token = SyntaxTokenFactory.Identifier("op", " ");
         Assert.Equal(" op", token.FullText);
     }
 
     [Fact]
     public void SyntaxToken_WithText_PreservesLeadingTrivia()
     {
-        var original = new SyntaxToken("old", "  ");
+        var original = SyntaxTokenFactory.Identifier("old", "  ");
         var updated = original.WithText("new");
 
         Assert.Equal("new", updated.Text);
@@ -187,7 +187,7 @@ public sealed class SourceLocationTests
     [Fact]
     public void SyntaxToken_WithText_OnSyntheticToken_ProducesSyntheticToken()
     {
-        var token = new SyntaxToken("foo");
+        var token = SyntaxTokenFactory.Identifier("foo");
         var copy = token.WithText("bar");
 
         Assert.Equal("bar", copy.Text);

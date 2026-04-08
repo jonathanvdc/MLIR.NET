@@ -135,4 +135,5 @@ public readonly struct SyntaxToken
     {
         return FullText;
     }
+
 }

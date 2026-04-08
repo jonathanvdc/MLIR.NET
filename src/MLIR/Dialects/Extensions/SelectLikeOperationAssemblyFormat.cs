@@ -164,21 +164,21 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        var condition = new SyntaxToken(operands[0].Name);
-        var trueValue = new SyntaxToken(operands[1].Name);
-        var falseValue = new SyntaxToken(operands[2].Name);
+        var condition = SyntaxTokenFactory.SsaName(operands[0].Name);
+        var trueValue = SyntaxTokenFactory.SsaName(operands[1].Name);
+        var falseValue = SyntaxTokenFactory.SsaName(operands[2].Name);
         var body = new SelectLikeOperationBodySyntax(
             condition,
-            new SyntaxToken(","),
+            SyntaxTokenFactory.Comma(),
             trueValue,
-            new SyntaxToken(","),
+            SyntaxTokenFactory.Comma(),
             falseValue,
             context.BuildAttrDict(operation.Attributes),
-            new SyntaxToken(":"),
+            SyntaxTokenFactory.Colon(),
             includeConditionType ? conditionType! : valueType!,
-            includeConditionType ? new SyntaxToken(",") : null,
+            includeConditionType ? SyntaxTokenFactory.Comma() : null,
             includeConditionType ? valueType : null);
-        return context.RewriteOperation(operation, body, new SyntaxToken(operation.Name));
+        return context.RewriteOperation(operation, body, SyntaxTokenFactory.Identifier(operation.Name));
     }
 
     private static bool TryGetPrintedTypes(

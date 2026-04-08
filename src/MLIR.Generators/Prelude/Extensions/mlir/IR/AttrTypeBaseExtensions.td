@@ -20,7 +20,7 @@ extends StringRefParameter : MLIRNet_AttrOrTypeParameterExtension {
   // Default to an empty string when no syntax is available.
   let csharpDefault = "string.Empty";
   // Build a quoted StringAttributeValueSyntax from the typed string value.
-  let csharpPrinter = "new StringAttributeValueSyntax(new SyntaxToken(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)";
+  let csharpPrinter = "new StringAttributeValueSyntax(SyntaxTokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)";
 }
 
 extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
@@ -35,7 +35,7 @@ extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
   // Default to signless i64 zero when no syntax is available.
   let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
   // Build an IntegerAttributeValueSyntax from the typed APInt value using signed decimal text.
-  let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), $_self)";
+  let csharpPrinter = "new IntegerAttributeValueSyntax(SyntaxTokenFactory.Integer($_self.ToStringSigned()), $_self)";
 }
 
 extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {

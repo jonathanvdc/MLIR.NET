@@ -177,20 +177,20 @@ public static class StructuredAttributeSemanticDecoder
         var text = syntax.RawText.Text;
         if (text == "true" || text == "false")
         {
-            return new DecodedBooleanAttributeValue(new BooleanAttributeValueSyntax(new SyntaxToken(text), text == "true"));
+            return new DecodedBooleanAttributeValue(new BooleanAttributeValueSyntax(SyntaxTokenFactory.Identifier(text), text == "true"));
         }
 
         if (text.Length >= 2 && text[0] == '"' && text[text.Length - 1] == '"')
         {
             return new DecodedStringAttributeValue(
-                new StringAttributeValueSyntax(new SyntaxToken(text), StringLiteralAttributeAssemblyFormat.Unescape(text)));
+                new StringAttributeValueSyntax(SyntaxTokenFactory.StringLiteral(text), StringLiteralAttributeAssemblyFormat.Unescape(text)));
         }
 
         if (BigInteger.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integerValue))
         {
             return new DecodedIntegerAttributeValue(
                 new IntegerAttributeValueSyntax(
-                    new SyntaxToken(text),
+                    SyntaxTokenFactory.Integer(text),
                     ApInt.Parse(64, integerValue.ToString(CultureInfo.InvariantCulture), isSigned: true)));
         }
 

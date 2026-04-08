@@ -29,7 +29,7 @@ public sealed class ParsingTests
             this.value = value;
             this.typeSignature = typeSignature;
             genericBody = new GenericOperationBodySyntax(
-                new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), [], [], new SyntaxToken(")")),
+                new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), [], [], SyntaxTokenFactory.RParen()),
                 new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
                 [],
                 attributes,
@@ -40,7 +40,7 @@ public sealed class ParsingTests
         public override void WriteTo(SyntaxWriter writer)
         {
             writer.WriteRaw(value, " ");
-            writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? new SyntaxToken(":"), " ");
+            writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? SyntaxTokenFactory.Colon(), " ");
             writer.WriteRaw(typeSignature, " ");
         }
     }
@@ -76,7 +76,7 @@ public sealed class ParsingTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(new SyntaxToken("value"), new SyntaxToken("="), new RawAttributeValueSyntax(valueResult.Value))]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(SyntaxTokenFactory.Identifier("value"), SyntaxTokenFactory.Equal(), new RawAttributeValueSyntax(valueResult.Value))]);
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
@@ -110,7 +110,7 @@ public sealed class ParsingTests
             {
                 if (i > 0)
                 {
-                    writer.WriteToken(new SyntaxToken(","));
+                    writer.WriteToken(SyntaxTokenFactory.Comma());
                 }
 
                 writer.WriteToken(Inputs[i], " ");

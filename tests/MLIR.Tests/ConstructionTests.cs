@@ -23,7 +23,7 @@ public sealed class ConstructionTests
             ColonToken = colonToken;
             this.typeSignature = typeSignature;
             genericBody = new GenericOperationBodySyntax(
-                new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken("("), [], [], new SyntaxToken(")")),
+                new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), [], [], SyntaxTokenFactory.RParen()),
                 new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
                 [],
                 attributes,
@@ -100,8 +100,8 @@ public sealed class ConstructionTests
     [Fact]
     public void SyntaxTokenAndRawSyntaxTextExposeFullText()
     {
-        var token = new SyntaxToken("value", "  ");
-        var raw = new RawSyntaxText([new SyntaxToken("i32", leadingTrivia: " ")]);
+        var token = SyntaxTokenFactory.Identifier("value", "  ");
+        var raw = new RawSyntaxText([SyntaxTokenFactory.Identifier("i32", leadingTrivia: " ")]);
 
         Assert.Equal("  value", token.FullText);
         Assert.Equal("  value", token.ToString());
@@ -179,18 +179,18 @@ public sealed class ConstructionTests
         var module = new ModuleSyntax(
             [
                 new OperationSyntax(
-                    new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%0")], []),
-                    new SyntaxToken("="),
-                    new SyntaxToken("arith.constant"),
+                    new SeparatedSyntaxList<SyntaxToken>([SyntaxTokenFactory.SsaName("%0")], []),
+                    SyntaxTokenFactory.Equal(),
+                    SyntaxTokenFactory.Identifier("arith.constant"),
                     new PrefixConstantBodySyntax(
                         new RawSyntaxText("0"),
-                        new SyntaxToken(":"),
+                        SyntaxTokenFactory.Colon(),
                         new RawSyntaxText("i32"),
                         new DelimitedSyntaxList<NamedAttributeSyntax>(
-                            new SyntaxToken("{"),
+                            SyntaxTokenFactory.LBrace(),
                             [new NamedAttributeSyntax("value", new RawSyntaxText("0"))],
                             [],
-                            new SyntaxToken("}")))),
+                            SyntaxTokenFactory.RBrace()))),
             ]);
 
         var text = Printer.Print(module);
@@ -203,13 +203,13 @@ public sealed class ConstructionTests
     public void DelimitedSyntaxListWriteToWritesAllTokensAndElements()
     {
         var list = new DelimitedSyntaxList<BlockArgumentSyntax>(
-            new SyntaxToken("("),
+            SyntaxTokenFactory.LParen(),
             [
-                new BlockArgumentSyntax(new SyntaxToken("%arg0"), new SyntaxToken(":"), new RawTypeSyntax(new RawSyntaxText("i32"))),
-                new BlockArgumentSyntax(new SyntaxToken("%arg1"), new SyntaxToken(":"), new RawTypeSyntax(new RawSyntaxText("i64"))),
+                new BlockArgumentSyntax(SyntaxTokenFactory.SsaName("%arg0"), SyntaxTokenFactory.Colon(), new RawTypeSyntax(new RawSyntaxText("i32"))),
+                new BlockArgumentSyntax(SyntaxTokenFactory.SsaName("%arg1"), SyntaxTokenFactory.Colon(), new RawTypeSyntax(new RawSyntaxText("i64"))),
             ],
-            [new SyntaxToken(",")],
-            new SyntaxToken(")"));
+            [SyntaxTokenFactory.Comma()],
+            SyntaxTokenFactory.RParen());
 
         var writer = new SyntaxWriter();
         writer.WriteDelimitedList(list);
@@ -238,8 +238,8 @@ public sealed class ConstructionTests
     public void SeparatedSyntaxListWritesToWritesAllTokensAndSeparators()
     {
         var list = new SeparatedSyntaxList<SyntaxToken>(
-            [new SyntaxToken("%a"), new SyntaxToken("%b"), new SyntaxToken("%c")],
-            [new SyntaxToken(","), new SyntaxToken(",")]);
+            [SyntaxTokenFactory.SsaName("%a"), SyntaxTokenFactory.SsaName("%b"), SyntaxTokenFactory.SsaName("%c")],
+            [SyntaxTokenFactory.Comma(), SyntaxTokenFactory.Comma()]);
 
         var writer = new SyntaxWriter();
         writer.WriteSeparatedList(list);
@@ -264,8 +264,8 @@ public sealed class ConstructionTests
     {
         // Separator tokens with stored leading trivia override the default spacing.
         var list = new SeparatedSyntaxList<SyntaxToken>(
-            [new SyntaxToken("%a", string.Empty), new SyntaxToken("%b", string.Empty)],
-            [new SyntaxToken(",", string.Empty)]);
+            [SyntaxTokenFactory.SsaName("%a", string.Empty), SyntaxTokenFactory.SsaName("%b", string.Empty)],
+            [SyntaxTokenFactory.Comma(string.Empty)]);
 
         Assert.Equal(2, list.Count);
         Assert.Equal(",", list.SeparatorTokens[0].Text);

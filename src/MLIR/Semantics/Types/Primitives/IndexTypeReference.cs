@@ -41,7 +41,7 @@ public class IndexTypeReference : TypeReference
     /// with an optional preserved syntax node.
     /// </summary>
     protected IndexTypeReference(TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? new BuiltinIndexTypeSyntax(new SyntaxToken("index")), location)
+        : base(syntax ?? new BuiltinIndexTypeSyntax(SyntaxTokenFactory.Identifier("index")), location)
     {
     }
 

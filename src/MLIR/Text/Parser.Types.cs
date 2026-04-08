@@ -73,8 +73,8 @@ public sealed partial class Parser
 
         if (allowUnranked && text.StartsWith("*x", System.StringComparison.Ordinal))
         {
-            unrankedToken = new SyntaxToken("*");
-            xTokens.Add(new SyntaxToken("x"));
+            unrankedToken = SyntaxTokenFactory.Star();
+            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
             elementTypeText = text.Substring(2);
             return elementTypeText.Length > 0;
         }
@@ -84,7 +84,7 @@ public sealed partial class Parser
         {
             if (text[index] == '?')
             {
-                dimensions.Add(new DynamicShapedTypeDimensionSyntax(new SyntaxToken("?")));
+                dimensions.Add(new DynamicShapedTypeDimensionSyntax(SyntaxTokenFactory.Question()));
                 index++;
             }
             else if (char.IsDigit(text[index]))
@@ -96,7 +96,7 @@ public sealed partial class Parser
                 }
 
                 var digits = text.Substring(start, index - start);
-                dimensions.Add(new StaticShapedTypeDimensionSyntax(new SyntaxToken(digits), long.Parse(digits)));
+                dimensions.Add(new StaticShapedTypeDimensionSyntax(SyntaxTokenFactory.Integer(digits), long.Parse(digits)));
             }
             else
             {
@@ -108,7 +108,7 @@ public sealed partial class Parser
                 return false;
             }
 
-            xTokens.Add(new SyntaxToken("x"));
+            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
             index++;
         }
 

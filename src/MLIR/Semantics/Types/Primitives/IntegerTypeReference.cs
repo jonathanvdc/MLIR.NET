@@ -89,6 +89,6 @@ public class IntegerTypeReference : TypeReference
             IntegerTypeSignedness.Unsigned => "ui" + width,
             _ => "i" + width,
         };
-        return new BuiltinIntegerTypeSyntax(new SyntaxToken(text), signedness, width);
+        return new BuiltinIntegerTypeSyntax(SyntaxTokenFactory.Identifier(text), signedness, width);
     }
 }

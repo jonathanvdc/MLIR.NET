@@ -72,17 +72,17 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
     public void GeneratedAssemblyFormatBindProducesTypedAddIOpFromCustomBodySyntax()
     {
         var body = new MiniArith_AddIOpBodySyntax(
-            new SyntaxToken("%lhs"),
-            new SyntaxToken(","),
-            new SyntaxToken("%rhs"),
+            SyntaxTokenFactory.SsaName("%lhs"),
+            SyntaxTokenFactory.Comma(),
+            SyntaxTokenFactory.SsaName("%rhs"),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null),
-            new SyntaxToken(":"),
+            SyntaxTokenFactory.Colon(),
             new RawTypeSyntax(new RawSyntaxText("i32")));
 
         var syntax = new OperationSyntax(
-            resultList: new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%result")], []),
-            equalsToken: new SyntaxToken("="),
-            nameToken: new SyntaxToken("miniarith.addi"),
+            resultList: new SeparatedSyntaxList<SyntaxToken>([SyntaxTokenFactory.SsaName("%result")], []),
+            equalsToken: SyntaxTokenFactory.Equal(),
+            nameToken: SyntaxTokenFactory.Identifier("miniarith.addi"),
             body: body);
 
         var module = Binder.BindModule(new ModuleSyntax([syntax]), CreateMiniArithRegistry());
@@ -100,13 +100,13 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
     public void GeneratedAssemblyFormatBindProducesTypedConstantOpFromCustomBodySyntax()
     {
         var body = new MiniArith_ConstantOpBodySyntax(
-            new IntegerAttributeValueSyntax(new SyntaxToken("42"), ApInt.Parse(64, "42")),
+            new IntegerAttributeValueSyntax(SyntaxTokenFactory.Integer("42"), ApInt.Parse(64, "42")),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
         var syntax = new OperationSyntax(
-            resultList: new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%result")], []),
-            equalsToken: new SyntaxToken("="),
-            nameToken: new SyntaxToken("miniarith.constant"),
+            resultList: new SeparatedSyntaxList<SyntaxToken>([SyntaxTokenFactory.SsaName("%result")], []),
+            equalsToken: SyntaxTokenFactory.Equal(),
+            nameToken: SyntaxTokenFactory.Identifier("miniarith.constant"),
             body: body);
 
         var module = Binder.BindModule(new ModuleSyntax([syntax]), CreateMiniArithRegistry());
@@ -127,9 +127,9 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
         var syntax = new OperationSyntax(
-            resultList: new SeparatedSyntaxList<SyntaxToken>([new SyntaxToken("%result")], []),
-            equalsToken: new SyntaxToken("="),
-            nameToken: new SyntaxToken("miniarith.addi"),
+            resultList: new SeparatedSyntaxList<SyntaxToken>([SyntaxTokenFactory.SsaName("%result")], []),
+            equalsToken: SyntaxTokenFactory.Equal(),
+            nameToken: SyntaxTokenFactory.Identifier("miniarith.addi"),
             body: body);
 
         var module = Binder.BindModule(new ModuleSyntax([syntax]), CreateMiniArithRegistry());
@@ -142,17 +142,17 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
     public void GeneratedAssemblyFormatBindReportsDiagnosticForWrongResultCount()
     {
         var body = new MiniArith_AddIOpBodySyntax(
-            new SyntaxToken("%lhs"),
-            new SyntaxToken(","),
-            new SyntaxToken("%rhs"),
+            SyntaxTokenFactory.SsaName("%lhs"),
+            SyntaxTokenFactory.Comma(),
+            SyntaxTokenFactory.SsaName("%rhs"),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null),
-            new SyntaxToken(":"),
+            SyntaxTokenFactory.Colon(),
             new RawTypeSyntax(new RawSyntaxText("i32")));
 
         var syntax = new OperationSyntax(
             resultList: SeparatedSyntaxList<SyntaxToken>.Empty,
             equalsToken: null,
-            nameToken: new SyntaxToken("miniarith.addi"),
+            nameToken: SyntaxTokenFactory.Identifier("miniarith.addi"),
             body: body);
 
         var module = Binder.BindModule(new ModuleSyntax([syntax]), CreateMiniArithRegistry());

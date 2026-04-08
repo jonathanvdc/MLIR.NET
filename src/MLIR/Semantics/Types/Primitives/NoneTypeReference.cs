@@ -41,7 +41,7 @@ public class NoneTypeReference : TypeReference
     /// with an optional preserved syntax node.
     /// </summary>
     protected NoneTypeReference(TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? new BuiltinNoneTypeSyntax(new SyntaxToken("none")), location)
+        : base(syntax ?? new BuiltinNoneTypeSyntax(SyntaxTokenFactory.Identifier("none")), location)
     {
     }
 
