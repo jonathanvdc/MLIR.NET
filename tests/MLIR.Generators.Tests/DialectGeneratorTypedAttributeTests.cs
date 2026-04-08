@@ -18,7 +18,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            "public BigInteger IntVal",
+            "public global::MLIR.Numerics.ApInt IntVal",
             "I32AttrConstraintAttributeValue)Attributes[\"intVal\"].Value).Value;",
             "public bool BoolVal",
             "BoolAttrConstraintAttributeValue)Attributes[\"boolVal\"].Value).Value;",
@@ -28,7 +28,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "F32AttrConstraintAttributeValue)Attributes[\"floatVal\"].Value).Value;",
             "public double DoubleVal",
             "F64AttrConstraintAttributeValue)Attributes[\"doubleVal\"].Value).Value;",
-            "BigInteger intVal,",
+            "global::MLIR.Numerics.ApInt intVal,",
             "bool boolVal,",
             "string strVal,",
             "float floatVal,",
@@ -44,7 +44,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Theory]
-    [InlineData("DenseI32ArrayAttr", "indices", "BigInteger", "DenseIntegerArrayAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
+    [InlineData("DenseI32ArrayAttr", "indices", "global::MLIR.Numerics.ApInt", "DenseIntegerArrayAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
     [InlineData("DenseBoolArrayAttr", "flags", "bool", "DenseBooleanArrayAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "Flags")]
     [InlineData("DenseF32ArrayAttr", "coeffs", "float", "DenseF32ArrayAttributeValue", "DenseF32ArrayAttributeAssemblyFormat", "Coeffs")]
     [InlineData("DenseF64ArrayAttr", "weights", "double", "DenseF64ArrayAttributeValue", "DenseF64ArrayAttributeAssemblyFormat", "Weights")]
@@ -101,11 +101,11 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public IReadOnlyList<string> Strings",
             "public IReadOnlyList<TypeSyntax> Types",
             "public IReadOnlyList<NamedAttributeCollection> Dicts",
-            "public IReadOnlyList<IReadOnlyList<BigInteger>> IndexLists",
+            "public IReadOnlyList<IReadOnlyList<global::MLIR.Numerics.ApInt>> IndexLists",
             "IReadOnlyList<string> strings,",
             "IReadOnlyList<TypeSyntax> types,",
             "IReadOnlyList<NamedAttributeCollection> dicts,",
-            "IReadOnlyList<IReadOnlyList<BigInteger>> indexLists,",
+            "IReadOnlyList<IReadOnlyList<global::MLIR.Numerics.ApInt>> indexLists,",
             "StrArrayAttrConstraintAttributeValue",
             "TypeArrayAttrConstraintAttributeValue",
             "DictArrayAttrConstraintAttributeValue",
@@ -296,7 +296,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Fact]
-    public void AttrDefWithBigIntegerParametersAndAssemblyFormatGeneratesTwoProperties()
+    public void AttrDefWithApIntParametersAndAssemblyFormatGeneratesTwoProperties()
     {
         var source = ComposeSource(
         [
@@ -331,9 +331,9 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "public sealed class PairAttr : AttributeValue",
-            "public global::System.Numerics.BigInteger First { get; }",
-            "public global::System.Numerics.BigInteger Second { get; }",
-            "public PairAttr(global::System.Numerics.BigInteger first, global::System.Numerics.BigInteger second)");
+            "public global::MLIR.Numerics.ApInt First { get; }",
+            "public global::MLIR.Numerics.ApInt Second { get; }",
+            "public PairAttr(global::MLIR.Numerics.ApInt first, global::MLIR.Numerics.ApInt second)");
 
         // Assembly format class uses the APIntParameter.csharpParser helper for both parameters
         AssertContainsAll(

@@ -46,7 +46,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(" + enumTypeName + " value)");
-        builder.AppendLine("        : base((global::System.Numerics.BigInteger)(ulong)value)");
+        builder.AppendLine("        : base(global::MLIR.Numerics.ApInt.FromUInt64(64, (ulong)value))");
         builder.AppendLine("    {");
         builder.AppendLine("        EnumValue = value;");
         builder.AppendLine("    }");
@@ -72,9 +72,9 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine();
 
         // Integer value parser (to feed IntegerAttributeValue base constructor)
-        builder.AppendLine("    private static global::System.Numerics.BigInteger ParseValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
+        builder.AppendLine("    private static global::MLIR.Numerics.ApInt ParseValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return (global::System.Numerics.BigInteger)global::System.Convert.ToUInt64(ParseEnumValue(syntax));");
+        builder.AppendLine("        return global::MLIR.Numerics.ApInt.FromUInt64(64, global::System.Convert.ToUInt64(ParseEnumValue(syntax)));");
         builder.AppendLine("    }");
         builder.AppendLine();
 

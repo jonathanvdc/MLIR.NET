@@ -3,6 +3,7 @@ namespace DialectTests;
 using System.Numerics;
 using MLIR;
 using MLIR.Miniarith;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
 using MLIR.Semantics.Attributes.Collections;
@@ -114,7 +115,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var operation = Assert.IsType<MiniArith_ConstantOp>(Assert.Single(module.Operations));
         Assert.Equal("miniarith.constant", operation.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
-        Assert.Equal((BigInteger)42, operation.Value);
+        Assert.Equal(ApInt.Parse(64, "42"), operation.Value);
         Assert.Null(operation.TypeSignatureReference);
     }
 
@@ -168,7 +169,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             CreateMiniArithRegistry());
 
         Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal((BigInteger)1, operation.Value);
+        Assert.Equal(ApInt.Parse(64, "1"), operation.Value);
     }
 
     [Fact]
@@ -232,8 +233,8 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var value = operation.Value;
         Assert.IsType<DenseArrayAttributeValueSyntax>(operation.Attributes["value"].Value.Syntax);
         Assert.Equal(2, value.Count);
-        Assert.Equal((BigInteger)1, value[0]);
-        Assert.Equal((BigInteger)2, value[1]);
+        Assert.Equal(ApInt.Parse(64, "1"), value[0]);
+        Assert.Equal(ApInt.Parse(64, "2"), value[1]);
     }
 
     [Fact]
@@ -248,8 +249,8 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var payload = Assert.IsAssignableFrom<ArrayAttributeValue>(value.Payload);
         var first = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[0]);
         var second = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[1]);
-        Assert.Equal((BigInteger)1, first.Value);
-        Assert.Equal((BigInteger)2, second.Value);
+        Assert.Equal(ApInt.Parse(64, "1"), first.Value);
+        Assert.Equal(ApInt.Parse(64, "2"), second.Value);
         Assert.Equal("tensor<2xi32>", value.TypeSyntax.ToString());
     }
 
@@ -265,7 +266,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var inner = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Attributes["inner"].Value);
         var nested = Assert.IsAssignableFrom<DictionaryAttributeValue>(value.Attributes["nested"].Value);
         var flag = Assert.IsAssignableFrom<BooleanAttributeValue>(nested.Attributes["flag"].Value);
-        Assert.Equal((BigInteger)1, inner.Value);
+        Assert.Equal(ApInt.Parse(64, "1"), inner.Value);
         Assert.True(flag.Value);
     }
 }

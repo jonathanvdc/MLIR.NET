@@ -1,8 +1,8 @@
 namespace DialectTests;
 
-using System.Numerics;
 using MLIR;
 using MLIR.Minitest;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using Xunit;
 
@@ -100,8 +100,8 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         var operation = BindSingleOperation<MiniTest_ConfigOp>(source, CreateMiniTestRegistry());
 
         Assert.Equal("minitest.config", operation.Name);
-        Assert.Equal(stride is null ? null : (BigInteger?)stride.Value, operation.Stride);
-        Assert.Equal(padding is null ? null : (BigInteger?)padding.Value, operation.Padding);
+        Assert.Equal(stride is null ? null : ApInt.Parse(64, stride.Value.ToString()), operation.Stride);
+        Assert.Equal(padding is null ? null : ApInt.Parse(64, padding.Value.ToString()), operation.Padding);
     }
 
     [Fact]
@@ -133,9 +133,9 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         var module = ParseAndBind("minitest.config {}", CreateMiniTestRegistry());
         var operation = Assert.IsType<MiniTest_ConfigOp>(Assert.Single(module.Operations));
 
-        operation.Stride = (BigInteger)4;
+        operation.Stride = ApInt.Parse(64, "4");
 
-        Assert.Equal((BigInteger)4, operation.Stride);
+        Assert.Equal(ApInt.Parse(64, "4"), operation.Stride);
         Assert.Contains("stride 4", module.ToText(CustomAssemblyOptions));
 
         operation.Stride = null;

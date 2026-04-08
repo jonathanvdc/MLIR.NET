@@ -3,6 +3,7 @@ namespace MLIR.Dialects.Attributes.Primitives;
 using System.Globalization;
 using System.Numerics;
 using MLIR.Dialects;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
@@ -48,10 +49,10 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive integer attributes require syntax to rebuild their assembly form.");
     }
 
-    internal static IntegerAttributeValueSyntax CreateSyntax(BigInteger value)
+    internal static IntegerAttributeValueSyntax CreateSyntax(ApInt value)
     {
-        var text = value.ToString(CultureInfo.InvariantCulture);
-        return new IntegerAttributeValueSyntax(new SyntaxToken(text), value);
+        var text = value.ToStringSigned();
+        return new IntegerAttributeValueSyntax(new SyntaxToken(text), BigInteger.Parse(text, CultureInfo.InvariantCulture));
     }
 
     internal static bool TryParseSignedIntegerLiteral(AttributeParsingContext context, out RawSyntaxText rawText, out BigInteger value)

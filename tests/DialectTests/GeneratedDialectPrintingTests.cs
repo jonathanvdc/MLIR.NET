@@ -3,6 +3,7 @@ namespace DialectTests;
 using System.Numerics;
 using MLIR.Miniarith;
 using MLIR.Minitest;
+using MLIR.Numerics;
 using Xunit;
 
 public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
@@ -32,7 +33,7 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
 
         Assert.DoesNotContain("\"miniarith.constant\"", printed);
         Assert.Contains("miniarith.constant", printed);
-        Assert.Equal((BigInteger)42, operation.Value);
+        Assert.Equal(ApInt.Parse(64, "42"), operation.Value);
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 

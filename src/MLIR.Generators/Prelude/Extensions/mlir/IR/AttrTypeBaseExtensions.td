@@ -24,18 +24,18 @@ extends StringRefParameter : MLIRNet_AttrOrTypeParameterExtension {
 }
 
 extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
-  // APInt has arbitrary precision; BigInteger is the lossless C# equivalent.
-  let csharpType = "global::System.Numerics.BigInteger";
+  // MLIR APInt values are represented as bitvectors in MLIR.NET.
+  let csharpType = "global::MLIR.Numerics.ApInt";
   // The parser returns an IntegerAttributeValueSyntax, so the property can be strongly typed.
   let csharpSyntaxType = "IntegerAttributeValueSyntax";
   // Parse a signed integer literal and return it as IntegerAttributeValueSyntax.
   let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
-  // The property is already IntegerAttributeValueSyntax; directly access its Value.
-  let csharpExtractor = "$_syntax.Value";
-  // Default to zero when no syntax is available.
-  let csharpDefault = "default(global::System.Numerics.BigInteger)";
-  // Build an IntegerAttributeValueSyntax from the typed BigInteger value.
-  let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToString(global::System.Globalization.CultureInfo.InvariantCulture)), $_self)";
+  // Interpret the stored literal as a signless i64 when no context provides more specific width.
+  let csharpExtractor = "global::MLIR.Numerics.ApInt.Parse(64, $_syntax.Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture), isSigned: true)";
+  // Default to signless i64 zero when no syntax is available.
+  let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
+  // Build an IntegerAttributeValueSyntax from the typed APInt value using signed decimal text.
+  let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), global::System.Numerics.BigInteger.Parse($_self.ToStringSigned(), global::System.Globalization.CultureInfo.InvariantCulture))";
 }
 
 extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {

@@ -61,12 +61,12 @@ class MLIRNet_OpExtension {
 // Example for a user-defined parameter class:
 //   class MyIntParam<string desc> : AttrOrTypeParameter<"MyIntType", desc>;
 //   extends MyIntParam : MLIRNet_AttrOrTypeParameterExtension {
-//     let csharpType = "global::MyNamespace.MyInt";
+//     let csharpType = "global::MLIR.Numerics.ApInt";
 //     let csharpSyntaxType = "IntegerAttributeValueSyntax";
 //     let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
-//     let csharpExtractor = "(global::MyNamespace.MyInt)$_syntax.Value";
-//     let csharpDefault = "default(global::MyNamespace.MyInt)";
-//     let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToString()), (global::System.Numerics.BigInteger)$_self)";
+//     let csharpExtractor = "$_syntax.Value";
+//     let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
+//     let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), global::System.Numerics.BigInteger.Parse($_self.ToStringSigned(), global::System.Globalization.CultureInfo.InvariantCulture))";
 //   }
 class MLIRNet_AttrOrTypeParameterExtension {
   // The C# type used for the generated typed property.

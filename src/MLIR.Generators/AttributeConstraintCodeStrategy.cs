@@ -561,11 +561,11 @@ internal static class AttributeConstraintCodeStrategyFactory
         valueConstructorParameter: "bool");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy IntegerLiteralStrategy = new(
-        attributeValueTypeName: "BigInteger",
+        attributeValueTypeName: "global::MLIR.Numerics.ApInt",
         baseType: "IntegerAttributeValue",
         assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::System.Numerics.BigInteger");
+        primitiveBaseConstructor: "context, global::MLIR.Numerics.ApInt.Parse(64, ((IntegerAttributeValueSyntax)context.Syntax).Value.ToString(global::System.Globalization.CultureInfo.InvariantCulture), isSigned: true)",
+        valueConstructorParameter: "global::MLIR.Numerics.ApInt");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
         attributeValueTypeName: "string",
@@ -604,11 +604,11 @@ internal static class AttributeConstraintCodeStrategyFactory
         valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<bool>");
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseIntegerArrayStrategy = new(
-        attributeValueTypeName: "IReadOnlyList<BigInteger>",
+        attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApInt>",
         baseType: "DenseIntegerArrayAttributeValue",
         assemblyFormatType: "DenseIntegerArrayAttributeAssemblyFormat",
         primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeIntegerItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
-        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::System.Numerics.BigInteger>");
+        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>");
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF32ArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<float>",

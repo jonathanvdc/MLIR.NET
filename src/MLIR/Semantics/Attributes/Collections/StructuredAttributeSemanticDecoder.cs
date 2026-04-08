@@ -3,6 +3,7 @@ namespace MLIR.Semantics.Attributes.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
 using MLIR.Semantics.Attributes.Primitives;
@@ -32,11 +33,11 @@ public static class StructuredAttributeSemanticDecoder
     }
 
     /// <summary>
-    /// Decodes a list of attribute-value syntax nodes into a list of <see cref="BigInteger"/> values.
+    /// Decodes a list of attribute-value syntax nodes into a list of <see cref="ApInt"/> values.
     /// </summary>
-    public static IReadOnlyList<BigInteger> DecodeIntegerItems(IReadOnlyList<AttributeValueSyntax> items)
+    public static IReadOnlyList<ApInt> DecodeIntegerItems(IReadOnlyList<AttributeValueSyntax> items)
     {
-        var result = new List<BigInteger>(items.Count);
+        var result = new List<ApInt>(items.Count);
         for (var i = 0; i < items.Count; i++)
         {
             result.Add(DecodeIntegerValue(items[i]));
@@ -136,20 +137,20 @@ public static class StructuredAttributeSemanticDecoder
         };
     }
 
-    private static BigInteger DecodeIntegerValue(AttributeValueSyntax syntax)
+    private static ApInt DecodeIntegerValue(AttributeValueSyntax syntax)
     {
         if (syntax is IntegerAttributeValueSyntax intSyntax)
         {
-            return intSyntax.Value;
+            return ApInt.Parse(64, intSyntax.Value.ToString(CultureInfo.InvariantCulture), isSigned: true);
         }
 
         if (syntax is RawAttributeValueSyntax rawSyntax
             && BigInteger.TryParse(rawSyntax.RawText.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
         {
-            return parsed;
+            return ApInt.Parse(64, parsed.ToString(CultureInfo.InvariantCulture), isSigned: true);
         }
 
-        return BigInteger.Zero;
+        return ApInt.Zero(64);
     }
 
     private static bool DecodeBooleanValue(AttributeValueSyntax syntax)
@@ -248,7 +249,7 @@ public static class StructuredAttributeSemanticDecoder
     private sealed class DecodedIntegerAttributeValue : IntegerAttributeValue
     {
         public DecodedIntegerAttributeValue(IntegerAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.Value)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeIntegerValue(syntax))
         {
         }
 
