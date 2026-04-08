@@ -46,6 +46,8 @@ internal static class ProgramMain
 
         foreach (var @case in cases)
         {
+            ForceFullGc();
+
             var warmupSamples = options.WarmupCount is not null
                 ? BenchmarkSampling.RunForCount(() => RunIteration(@case.Action), options.WarmupCount.Value)
                 : BenchmarkSampling.RunForDuration(() => RunIteration(@case.Action), warmupDuration);
@@ -91,14 +93,17 @@ internal static class ProgramMain
 
     private static double RunIteration(Action action)
     {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
         var stopwatch = Stopwatch.StartNew();
         action();
         stopwatch.Stop();
         return stopwatch.Elapsed.TotalMilliseconds;
+    }
+
+    private static void ForceFullGc()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
     }
 
     private static void WriteRunSummary(BenchmarkReport report)
