@@ -20,7 +20,7 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
     /// </summary>
     /// <param name="blocks">The blocks contained in the region.</param>
     public RegionSyntax(IReadOnlyList<BlockSyntax> blocks)
-        : this(new SyntaxToken("{"), blocks, new SyntaxToken("}"))
+        : this(SyntaxTokenFactory.LBrace(), blocks, SyntaxTokenFactory.RBrace())
     {
     }
 

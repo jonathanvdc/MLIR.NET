@@ -144,20 +144,20 @@ public static class ConcreteSyntaxBuilder
             var resultItems = new List<SyntaxToken>(results.Count);
             foreach (var result in results)
             {
-                resultItems.Add(new SyntaxToken(result.Name));
+                resultItems.Add(SyntaxTokenFactory.SsaName(result.Name));
             }
 
             var resultSeparators = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
             for (var i = 1; i < results.Count; i++)
             {
-                resultSeparators.Add(new SyntaxToken(","));
+                resultSeparators.Add(SyntaxTokenFactory.Comma());
             }
 
-            var equalsToken = results.Count > 0 ? (SyntaxToken?)new SyntaxToken("=") : null;
+            var equalsToken = results.Count > 0 ? (SyntaxToken?)SyntaxTokenFactory.Equal() : null;
             return new OperationSyntax(
                 new SeparatedSyntaxList<SyntaxToken>(resultItems, resultSeparators),
                 equalsToken,
-                nameToken ?? new SyntaxToken(QuoteIfNeeded(operation.Name)),
+                nameToken ?? SyntaxTokenFactory.StringLiteral(QuoteIfNeeded(operation.Name)),
                 body);
         }
 
@@ -212,8 +212,8 @@ public static class ConcreteSyntaxBuilder
             }
 
             return new NamedAttributeSyntax(
-                new SyntaxToken(attribute.Name),
-                new SyntaxToken("="),
+                SyntaxTokenFactory.Identifier(attribute.Name),
+                SyntaxTokenFactory.Equal(),
                 BuildAttributeValue(attribute.Value));
         }
 
@@ -272,13 +272,13 @@ public static class ConcreteSyntaxBuilder
             {
                 if (i > 0)
                 {
-                    separators.Add(new SyntaxToken(","));
+                    separators.Add(SyntaxTokenFactory.Comma());
                 }
 
                 items.Add(BuildNamedAttribute(attributes[i]));
             }
 
-            return new DelimitedSyntaxList<NamedAttributeSyntax>(new SyntaxToken("{"), items, separators, new SyntaxToken("}"));
+            return new DelimitedSyntaxList<NamedAttributeSyntax>(SyntaxTokenFactory.LBrace(), items, separators, SyntaxTokenFactory.RBrace());
         }
 
         public RegionSyntax BuildRegion(Region region)
@@ -290,9 +290,9 @@ public static class ConcreteSyntaxBuilder
             }
 
             return new RegionSyntax(
-                region.Syntax?.OpenBraceToken ?? new SyntaxToken("{"),
+                region.Syntax?.OpenBraceToken ?? SyntaxTokenFactory.LBrace(),
                 blocks,
-                region.Syntax?.CloseBraceToken ?? new SyntaxToken("}"));
+                region.Syntax?.CloseBraceToken ?? SyntaxTokenFactory.RBrace());
         }
 
         public BlockSyntax BuildBlock(Block block)
@@ -334,7 +334,7 @@ public static class ConcreteSyntaxBuilder
             var syntheticArguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
             foreach (var argument in block.Arguments)
             {
-                syntheticArguments.Add(new BlockArgumentSyntax(new SyntaxToken(argument.Name), new SyntaxToken(":"), BuildTypeReference(argument.Type)));
+                syntheticArguments.Add(new BlockArgumentSyntax(SyntaxTokenFactory.SsaName(argument.Name), SyntaxTokenFactory.Colon(), BuildTypeReference(argument.Type)));
             }
 
             return new BlockSyntax(block.Label, syntheticArguments, operations);

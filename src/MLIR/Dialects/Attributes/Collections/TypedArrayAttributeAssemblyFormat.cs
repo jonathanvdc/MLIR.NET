@@ -85,14 +85,14 @@ public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAs
         var separators = new List<SyntaxToken>(items.Count > 0 ? items.Count - 1 : 0);
         for (var i = 1; i < items.Count; i++)
         {
-            separators.Add(new SyntaxToken(","));
+            separators.Add(SyntaxTokenFactory.Comma());
         }
 
         return new ArrayAttributeValueSyntax(
-            new SyntaxToken("["),
+            SyntaxTokenFactory.LBracket(),
             items,
             separators,
-            new SyntaxToken("]"));
+            SyntaxTokenFactory.RBracket());
     }
 
     /// <summary>

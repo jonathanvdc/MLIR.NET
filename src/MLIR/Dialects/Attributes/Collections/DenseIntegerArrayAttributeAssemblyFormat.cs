@@ -13,7 +13,7 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
     protected override AttributeValueSyntax ElementToSyntax(ApInt element)
     {
         var text = element.ToStringSigned();
-        return new IntegerAttributeValueSyntax(new SyntaxToken(text), element);
+        return new IntegerAttributeValueSyntax(SyntaxTokenFactory.Integer(text), element);
     }
 
     /// <inheritdoc/>

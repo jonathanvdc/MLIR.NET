@@ -13,7 +13,7 @@ public sealed class RawSyntaxText
     /// <param name="text">The preserved syntax text without leading trivia.</param>
     public RawSyntaxText(string text)
     {
-        Tokens = [new SyntaxToken(text)];
+        Tokens = [SyntaxTokenFactory.Identifier(text)];
         Text = text;
     }
 

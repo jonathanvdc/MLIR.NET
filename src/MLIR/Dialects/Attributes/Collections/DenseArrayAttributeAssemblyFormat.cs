@@ -109,16 +109,16 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
         var separators = new List<SyntaxToken>(itemSyntax.Count > 0 ? itemSyntax.Count - 1 : 0);
         for (var i = 1; i < itemSyntax.Count; i++)
         {
-            separators.Add(new SyntaxToken(","));
+            separators.Add(SyntaxTokenFactory.Comma());
         }
 
         return new DenseArrayAttributeValueSyntax(
-            new SyntaxToken("array"),
-            new SyntaxToken("<"),
+            SyntaxTokenFactory.Identifier("array"),
+            SyntaxTokenFactory.LessThan(),
             GetElementTypeSyntax(attribute.Definition?.Name ?? attribute.Name),
-            new SyntaxToken(":"),
+            SyntaxTokenFactory.Colon(),
             new SeparatedSyntaxList<AttributeValueSyntax>(itemSyntax, separators),
-            new SyntaxToken(">"));
+            SyntaxTokenFactory.GreaterThan());
     }
 
     /// <summary>

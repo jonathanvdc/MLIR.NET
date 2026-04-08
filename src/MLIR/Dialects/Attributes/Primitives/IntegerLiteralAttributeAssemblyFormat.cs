@@ -56,7 +56,7 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     internal static IntegerAttributeValueSyntax CreateSyntax(ApInt value)
     {
         var text = value.ToStringSigned();
-        return new IntegerAttributeValueSyntax(new SyntaxToken(text), value);
+        return new IntegerAttributeValueSyntax(SyntaxTokenFactory.Integer(text), value);
     }
 
     internal static bool TryParseSignedIntegerLiteral(

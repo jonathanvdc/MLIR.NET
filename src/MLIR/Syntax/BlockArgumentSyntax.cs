@@ -20,7 +20,7 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     /// <param name="name">The SSA name of the block argument.</param>
     /// <param name="type">The declared argument type.</param>
     public BlockArgumentSyntax(string name, RawSyntaxText type)
-        : this(new SyntaxToken(name), new SyntaxToken(":"), new RawTypeSyntax(type))
+        : this(SyntaxTokenFactory.SsaName(name), SyntaxTokenFactory.Colon(), new RawTypeSyntax(type))
     {
     }
 

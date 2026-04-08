@@ -42,7 +42,7 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
         if (attribute is StringAttributeValue stringAttribute)
         {
             var quoted = Quote(stringAttribute.Value);
-            return new StringAttributeValueSyntax(new SyntaxToken(quoted), stringAttribute.Value);
+            return new StringAttributeValueSyntax(SyntaxTokenFactory.StringLiteral(quoted), stringAttribute.Value);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive string attributes require syntax to rebuild their assembly form.");

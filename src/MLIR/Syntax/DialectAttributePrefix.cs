@@ -49,7 +49,7 @@ public readonly struct DialectAttributePrefix
     /// The canonical attribute name, e.g. <c>"miniemitc.opaque"</c>.
     /// </param>
     public static DialectAttributePrefix Synthetic(string dialectAttributeName)
-        => new DialectAttributePrefix(new SyntaxToken("#"), new SyntaxToken(dialectAttributeName));
+        => new DialectAttributePrefix(SyntaxTokenFactory.Hash(), SyntaxTokenFactory.Identifier(dialectAttributeName));
 
     /// <summary>
     /// Writes the <c>#dialect.mnemonic</c> prefix tokens to the supplied writer.
