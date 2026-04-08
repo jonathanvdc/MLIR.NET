@@ -578,7 +578,9 @@ public sealed partial class SemanticTests
         var operation = module.Operations[0];
 
         Assert.Equal(1, operation.Location.Line);
-        Assert.Equal(6, operation.Location.Column);
+        // Location now spans from the first result token (%0) to the end of the type signature,
+        // so the column is 1 (the start of %0) rather than 6 (the start of "arith.addi").
+        Assert.Equal(1, operation.Location.Column);
         Assert.Equal(1, operation.Results[0].Location.Line);
         Assert.Equal(1, operation.Results[0].Location.Column);
         Assert.Equal(1, operation.OperandValues[0]?.Location.Line);

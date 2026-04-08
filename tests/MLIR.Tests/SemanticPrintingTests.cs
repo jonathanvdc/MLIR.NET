@@ -276,7 +276,9 @@ public sealed partial class SemanticTests
         Assert.Equal("arith.constant expects a 'value' required attribute.", module.AssemblyDiagnostics[0].Message);
         Assert.True(module.AssemblyDiagnostics[0].Location.IsKnown);
         Assert.Equal(1, module.AssemblyDiagnostics[0].Location.Line);
-        Assert.Equal(6, module.AssemblyDiagnostics[0].Location.Column);
+        // Location now spans from the first result token (%0) to the end of the type signature,
+        // so the column is 1 (the start of %0) rather than 6 (the start of "arith.constant").
+        Assert.Equal(1, module.AssemblyDiagnostics[0].Location.Column);
     }
 
     [Fact]

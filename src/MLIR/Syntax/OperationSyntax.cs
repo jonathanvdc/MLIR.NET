@@ -146,9 +146,23 @@ public sealed class OperationSyntax : SyntaxNode
     public bool HasCustomAssemblyBody => Body is not GenericOperationBodySyntax;
 
     /// <summary>
-    /// Gets the source location of the operation name.
+    /// Gets the merged source location spanning the entire operation, from the first result
+    /// token (or the name token when there are no results) through to the end of the body.
+    /// Returns an unknown location when no source-backed tokens are present.
     /// </summary>
-    public SourceLocation Location => NameToken.Location;
+    public SourceLocation Location
+    {
+        get
+        {
+            // Start at the first result token when results are present; fall back to the
+            // name token for operations that produce no results.
+            var result = ResultList.Count > 0
+                ? SourceLocation.Merge(ResultList[0].Location, NameToken.Location)
+                : NameToken.Location;
+            result = SourceLocation.Merge(result, Body.Location);
+            return result;
+        }
+    }
 
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)

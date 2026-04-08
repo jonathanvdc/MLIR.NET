@@ -301,6 +301,19 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
     public TypeSyntax? SecondType { get; }
 
     /// <inheritdoc/>
+    public override SourceLocation Location
+    {
+        get
+        {
+            // Cover from the condition operand through to the last type token.
+            var result = Condition.Location;
+            var lastType = SecondType ?? FirstType;
+            result = SourceLocation.Merge(result, lastType.Location);
+            return result;
+        }
+    }
+
+    /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)
     {
         writer.WriteToken(Condition, " ");

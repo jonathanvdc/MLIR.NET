@@ -27,7 +27,10 @@ public sealed class ArrayAttributeValueSyntax : AttributeValueSyntax
     public DelimitedSyntaxList<AttributeValueSyntax> Items { get; }
 
     /// <inheritdoc/>
-    public override SourceLocation Location => Items.OpenToken.HasValue ? Items.OpenToken.Value.Location : SourceLocation.Unknown;
+    public override SourceLocation Location =>
+        SourceLocation.Merge(
+            Items.OpenToken.HasValue ? Items.OpenToken.Value.Location : SourceLocation.Unknown,
+            Items.CloseToken.HasValue ? Items.CloseToken.Value.Location : SourceLocation.Unknown);
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

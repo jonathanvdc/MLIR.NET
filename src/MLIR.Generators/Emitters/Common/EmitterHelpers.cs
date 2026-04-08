@@ -734,4 +734,51 @@ internal static class EmitterHelpers
             _ => "Token",
         };
     }
+
+    /// <summary>
+    /// Returns the C# statement(s) that merge the source location contribution of a
+    /// generated body-syntax field into a local variable named <c>result</c>.
+    /// </summary>
+    /// <param name="field">The body syntax field whose location is to be merged.</param>
+    /// <returns>One or more C# statements, each terminated with a semicolon.</returns>
+    public static string GetLocationMergeCode(BodySyntaxField field)
+    {
+        var name = field.Name;
+        var type = field.CsType;
+
+        // Nullable SyntaxToken
+        if (string.Equals(type, "SyntaxToken?", StringComparison.Ordinal))
+        {
+            return "if (" + name + ".HasValue) result = SourceLocation.Merge(result, " + name + ".Value.Location);";
+        }
+
+        // Non-nullable SyntaxToken
+        if (string.Equals(type, "SyntaxToken", StringComparison.Ordinal))
+        {
+            return "result = SourceLocation.Merge(result, " + name + ".Location);";
+        }
+
+        // DelimitedSyntaxList<T> – merge the open and close delimiter tokens
+        if (type.StartsWith("DelimitedSyntaxList<", StringComparison.Ordinal))
+        {
+            return
+                "if (" + name + ".OpenToken.HasValue) result = SourceLocation.Merge(result, " + name + ".OpenToken.Value.Location);\n" +
+                "if (" + name + ".CloseToken.HasValue) result = SourceLocation.Merge(result, " + name + ".CloseToken.Value.Location);";
+        }
+
+        // IReadOnlyList<T> (regions, tokens, types, etc.) – merge every element
+        if (type.Contains("IReadOnlyList<"))
+        {
+            return "foreach (var _loc_item in " + name + ") result = SourceLocation.Merge(result, _loc_item.Location);";
+        }
+
+        // Nullable reference types (TypeSyntax?, RegionSyntax?, AttributeValueSyntax?, …)
+        if (type.EndsWith("?", StringComparison.Ordinal))
+        {
+            return "if (" + name + " != null) result = SourceLocation.Merge(result, " + name + ".Location);";
+        }
+
+        // Non-nullable reference types with a Location property (TypeSyntax, RegionSyntax, …)
+        return "result = SourceLocation.Merge(result, " + name + ".Location);";
+    }
 }

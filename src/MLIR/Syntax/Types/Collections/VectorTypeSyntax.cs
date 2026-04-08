@@ -27,7 +27,8 @@ public sealed class VectorTypeSyntax(
     public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
 
     /// <inheritdoc/>
-    public override SourceLocation Location => KeywordToken.Location;
+    public override SourceLocation Location =>
+        SourceLocation.Merge(KeywordToken.Location, GreaterThanToken.Location);
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)

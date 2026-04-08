@@ -14,7 +14,10 @@ public sealed class DictionaryAttributeValueSyntax(DelimitedSyntaxList<NamedAttr
     public DelimitedSyntaxList<NamedAttributeSyntax> Attributes { get; } = attributes;
 
     /// <inheritdoc/>
-    public override SourceLocation Location => Attributes.OpenToken.HasValue ? Attributes.OpenToken.Value.Location : SourceLocation.Unknown;
+    public override SourceLocation Location =>
+        SourceLocation.Merge(
+            Attributes.OpenToken.HasValue ? Attributes.OpenToken.Value.Location : SourceLocation.Unknown,
+            Attributes.CloseToken.HasValue ? Attributes.CloseToken.Value.Location : SourceLocation.Unknown);
 
     /// <inheritdoc/>
     public override void WriteTo(Text.SyntaxWriter writer)
