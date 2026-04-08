@@ -45,8 +45,9 @@ extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpSyntaxType = "FloatingPointAttributeValueSyntax";
   // Parse a decimal floating-point literal and return it as FloatingPointAttributeValueSyntax.
   let csharpParser = "$_parser.TryParseFloatingPointLiteralSyntax()";
-  // The property is already FloatingPointAttributeValueSyntax; access LiteralText and parse.
-  let csharpExtractor = "double.TryParse($_syntax.LiteralText, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var fpVal) ? fpVal : default(double)";
+  // Parse the stored literal text; throw if the text is not a valid IEEE 754 value so the
+  // error surfaces immediately at bind time rather than silently producing a zero default.
+  let csharpExtractor = "double.TryParse($_syntax.LiteralText, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var fpVal) ? fpVal : throw new global::System.InvalidOperationException(\"Could not parse floating-point literal '\" + $_syntax.LiteralText + \"'.\")";
   // Default to zero when no syntax is available.
   let csharpDefault = "default(double)";
   // Build a FloatingPointAttributeValueSyntax from the typed double value.
