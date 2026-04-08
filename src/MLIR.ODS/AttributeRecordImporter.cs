@@ -30,7 +30,12 @@ internal static class AttributeRecordImporter
 
             var parameters = index.GetAttrOrTypeParameters(record);
 
-            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel, parameters));
+            var assemblyFormatString = index.GetOptionalStringField(record, "assemblyFormat");
+            var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
+                ? AssemblyFormatParser.Parse(assemblyFormatString!)
+                : null;
+
+            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel, parameters, assemblyFormat));
         }
     }
 }

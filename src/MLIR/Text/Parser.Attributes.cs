@@ -344,6 +344,14 @@ public sealed partial class Parser
     /// and looking the name up in the dialect registry. Returns <see cref="ParseOutcome.NoMatch"/> when no
     /// registry is available or the name is not registered.
     /// </summary>
+    /// <remarks>
+    /// When the dialect's custom format is responsible only for the body of the attribute (i.e. the
+    /// tokens that appear after <c>#dialect.attr</c>), the method consumes the <c>#</c> and the name
+    /// token before delegating to the format so that the format sees only what it needs to parse.
+    /// The result is wrapped in a <see cref="Syntax.DialectPrefixedAttributeValueSyntax"/> so that the
+    /// full <c>#name body</c> form is re-emitted correctly on the print path.
+    /// If the format does not match, the tokens are put back via checkpoint reset.
+    /// </remarks>
     private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeSyntaxResult()
     {
         if (dialectRegistry == null)
@@ -357,7 +365,38 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        return TryParseCustomAttributeSyntaxResult(definition);
+        if (definition.AssemblyFormat == null)
+        {
+            // No custom format: fall through to raw syntax (the attribute will be bound later).
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        if (!(definition.AssemblyFormat is IBodyOnlyAttributeAssemblyFormat))
+        {
+            // Legacy format that consumes '#name' itself: delegate without stripping the prefix.
+            return TryParseCustomAttributeSyntaxResult(definition);
+        }
+
+        // Body-only format (generated from AttrDef): consume '#' and name, then delegate.
+        // The format sees only the body (e.g. `<"NULL">`).
+        // Both consumed tokens are passed to TryParse via the context's Prefix property so
+        // that the generated syntax class can store and replay the original source tokens.
+        var outerCheckpoint = Mark();
+        var hashToken = ToSyntaxToken(ConsumeToken());   // '#'
+        var nameToken = ToSyntaxToken(ConsumeToken());   // 'dialect.attr' (lexed as a single identifier with the dot)
+        var prefix = new Syntax.DialectAttributePrefix(hashToken, nameToken);
+
+        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition, prefix));
+        if (result.IsSuccess)
+        {
+            // The generated syntax class is itself a DialectPrefixedAttributeValueSyntax and
+            // already stores the prefix; no additional wrapping is needed.
+            return result;
+        }
+
+        // Format returned NoMatch or Error — restore position to before '#name'.
+        Reset(outerCheckpoint);
+        return result.IsError ? result : ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     /// <summary>

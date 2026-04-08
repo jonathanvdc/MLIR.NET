@@ -89,7 +89,19 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
         return builder.ToString();
     }
 
-    internal static string Quote(string value)
+    /// <summary>
+    /// Returns the supplied string wrapped in double-quote characters with internal special
+    /// characters (<c>\</c>, <c>"</c>, newlines, carriage returns, and tabs) escaped using
+    /// the MLIR string-literal escape conventions.
+    /// </summary>
+    /// <remarks>
+    /// The inverse operation is <see cref="Unescape"/>.  This method is public so that
+    /// generated attribute assembly-format printers can produce correct quoted string literals
+    /// for <c>StringRefParameter</c>-backed attribute parameters.
+    /// </remarks>
+    /// <param name="value">The raw (unescaped) string to quote.</param>
+    /// <returns>A quoted MLIR string literal, including the surrounding double-quote characters.</returns>
+    public static string Quote(string value)
     {
         return "\"" + value
             .Replace("\\", "\\\\")

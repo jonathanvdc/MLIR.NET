@@ -13,6 +13,16 @@ internal static class AttributeEmitter
         {
             EmitEnumAttributeClass(builder, attribute, className);
         }
+        else if (attribute.AssemblyFormat != null && attribute.Parameters.Count > 0)
+        {
+            // Parametrised attribute with a declarative assembly format: emit the structured
+            // syntax class, the typed attribute-value class, and the assembly format class.
+            AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
+            builder.AppendLine();
+            EmitParametrisedAttributeClass(builder, attribute, className);
+            builder.AppendLine();
+            AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
+        }
         else
         {
             EmitPlainAttributeClass(builder, attribute, className);
@@ -34,6 +44,168 @@ internal static class AttributeEmitter
         builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
         builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
         builder.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits the typed <c>AttributeValue</c> subclass for a parametrised attribute whose
+    /// assembly format is given by a declarative <c>assemblyFormat</c> string.
+    /// </summary>
+    /// <remarks>
+    /// The generated class exposes:
+    /// <list type="bullet">
+    ///   <item>A context-based constructor that extracts each parameter from the parsed syntax.</item>
+    ///   <item>A typed constructor that accepts each parameter as a plain C# value.</item>
+    ///   <item>One read-only property per parameter.</item>
+    /// </list>
+    /// </remarks>
+    private static void EmitParametrisedAttributeClass(StringBuilder builder, AttributeModel attribute, string className)
+    {
+        var parameters = attribute.Parameters;
+        var syntaxClassName = className + "Syntax";
+        var formatClassName = className + "AssemblyFormat";
+
+        builder.AppendLine("public sealed class " + className + " : AttributeValue");
+        builder.AppendLine("{");
+
+        // AttributeDefinition static property
+        builder.AppendLine("    public static AttributeDefinition AttributeDefinition { get; } =");
+        builder.AppendLine("        new AttributeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(attribute.Name) + ", new " + formatClassName + "(), factory: static context => new " + className + "(context));");
+        builder.AppendLine();
+
+        // Context-based constructor — used by the factory fallback when no assembly format
+        // is active.  Each BindXxxParam helper extracts the value from the structured syntax
+        // and throws if the extraction fails (e.g. a floating-point literal cannot be parsed).
+        builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
+        builder.AppendLine("        : base(context.Syntax, context.Location)");
+        builder.AppendLine("    {");
+        foreach (var param in parameters)
+        {
+            var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+            var helperName = "Bind" + propertyName + "Param";
+            builder.AppendLine("        " + propertyName + " = " + helperName + "(context.Syntax);");
+        }
+
+        builder.AppendLine("    }");
+        builder.AppendLine();
+
+        // Typed constructor
+        builder.Append("    public " + className + "(");
+        for (var i = 0; i < parameters.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
+            builder.Append(csharpType + " " + EmitterHelpers.LowerFirst(parameters[i].Name));
+        }
+
+        builder.AppendLine(")");
+        builder.AppendLine("        : base(null, MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("    {");
+        foreach (var param in parameters)
+        {
+            var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+            builder.AppendLine("        " + propertyName + " = " + EmitterHelpers.LowerFirst(param.Name) + ";");
+        }
+
+        builder.AppendLine("    }");
+        builder.AppendLine();
+
+        // Parameter properties
+        foreach (var param in parameters)
+        {
+            var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+            var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+            builder.AppendLine("    public " + csharpType + " " + propertyName + " { get; }");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
+        builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
+        builder.AppendLine();
+
+        // Private bind helpers
+        foreach (var param in parameters)
+        {
+            EmitBindParamHelper(builder, attribute, param, syntaxClassName);
+        }
+
+        builder.AppendLine("}");
+    }
+
+    /// <summary>
+    /// Emits a private helper method that extracts the typed value for <paramref name="param"/>
+    /// from the enclosing attribute's syntax node at bind time.
+    /// </summary>
+    /// <remarks>
+    /// The generated helper checks whether the syntax is the expected structured syntax class
+    /// and applies the parameter's <c>csharpExtractor</c> expression from the ODS model.
+    /// If the extractor expression throws (e.g. a floating-point literal cannot be parsed) the
+    /// exception propagates to the caller.  When the syntax is absent or of an unexpected type
+    /// the <c>csharpDefault</c> expression is returned as a fallback.
+    /// </remarks>
+    private static void EmitBindParamHelper(
+        StringBuilder builder,
+        AttributeModel attribute,
+        AttrOrTypeParameterModel param,
+        string syntaxClassName)
+    {
+        var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+        var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+        var helperName = "Bind" + propertyName + "Param";
+
+        builder.AppendLine("    private static " + csharpType + " " + helperName + "(MLIR.Syntax.AttributeValueSyntax? syntax)");
+        builder.AppendLine("    {");
+        // The generated syntax class extends DialectPrefixedAttributeValueSyntax directly,
+        // so a plain pattern match is enough — no wrapper unwrapping is needed.
+        builder.AppendLine("        if (syntax is " + syntaxClassName + " structured)");
+        builder.AppendLine("        {");
+        var accessExpr = "structured." + propertyName + "Syntax";
+        var extractExpr = BuildExtractValueExpression(param, accessExpr);
+        builder.AppendLine("            return " + extractExpr + ";");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+
+        // Fallback when structured syntax is not available (e.g. factory-only construction).
+        var fallbackExpr = BuildFallbackExtractExpression(csharpType, param);
+        builder.AppendLine("        return " + fallbackExpr + ";");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+    }
+
+    /// <summary>
+    /// Returns a C# expression that extracts a typed value from a parsed <c>AttributeValueSyntax</c>
+    /// field exposed by the structured syntax class, using the parameter's <c>csharpExtractor</c>
+    /// expression from the ODS model.
+    /// </summary>
+    private static string BuildExtractValueExpression(AttrOrTypeParameterModel param, string syntaxExpr)
+    {
+        if (!string.IsNullOrEmpty(param.CsharpExtractor))
+        {
+            return param.CsharpExtractor!.Replace("$_syntax", syntaxExpr);
+        }
+
+        // No extractor defined: pass the syntax node through unchanged.
+        // This is only valid when csharpType is AttributeValueSyntax.
+        return syntaxExpr;
+    }
+
+    /// <summary>
+    /// Returns a fallback C# expression that produces the default value for the parameter
+    /// when the syntax node is not of the expected structured type, using the parameter's
+    /// <c>csharpDefault</c> expression from the ODS model.
+    /// </summary>
+    private static string BuildFallbackExtractExpression(string csharpType, AttrOrTypeParameterModel param)
+    {
+        if (!string.IsNullOrEmpty(param.CsharpDefault))
+        {
+            return param.CsharpDefault!;
+        }
+
+        // No default defined: return a raw empty syntax node as best-effort fallback.
+        return "syntax ?? new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(string.Empty))";
     }
 
     private static void EmitEnumAttributeClass(StringBuilder builder, AttributeModel attribute, string className)

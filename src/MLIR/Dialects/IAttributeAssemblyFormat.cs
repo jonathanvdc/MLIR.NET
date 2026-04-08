@@ -34,3 +34,25 @@ public interface IAttributeAssemblyFormat
     /// <returns>The custom assembly attribute syntax.</returns>
     AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context);
 }
+
+/// <summary>
+/// Marker interface for attribute assembly format implementations that handle only the
+/// body portion of the attribute syntax, after the <c>#dialect.attr</c> prefix has been
+/// consumed by the parser.
+/// </summary>
+/// <remarks>
+/// <para>
+/// When the parser encounters <c>#dialect.attr body</c> and the registered format implements
+/// this interface, the parser consumes the <c>#</c> and name identifier tokens before
+/// delegating to <see cref="IAttributeAssemblyFormat.TryParse"/>.  The returned syntax is
+/// wrapped in a <see cref="Syntax.DialectPrefixedAttributeValueSyntax"/> so that the printer
+/// can reproduce the full <c>#name body</c> form.
+/// </para>
+/// <para>
+/// Hand-written formats that consume <c>#name</c> themselves should implement only
+/// <see cref="IAttributeAssemblyFormat"/> and leave this marker absent.
+/// </para>
+/// </remarks>
+public interface IBodyOnlyAttributeAssemblyFormat : IAttributeAssemblyFormat
+{
+}

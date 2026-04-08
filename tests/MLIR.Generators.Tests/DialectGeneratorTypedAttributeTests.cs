@@ -240,4 +240,147 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "CmpPredicate",
             "MyArithCmpPredicateAttr");
     }
+
+    [Fact]
+    public void AttrDefWithStringParameterAndAssemblyFormatGeneratesSyntaxAndValueClasses()
+    {
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_FooAttr : Test_Attr<\"Foo\", \"foo\"> {",
+            "  let parameters = (ins StringRefParameter<\"the opaque value\">:$value);",
+            "  let assemblyFormat = \"`<` $value `>`\";",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        // Syntax class
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class FooAttrSyntax : DialectPrefixedAttributeValueSyntax",
+            "public StringAttributeValueSyntax ValueSyntax { get; }",
+            "ValueSyntax.WriteTo(writer)");
+
+        // Attribute value class
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class FooAttr : AttributeValue",
+            "public static AttributeDefinition AttributeDefinition",
+            "new FooAttrAssemblyFormat()",
+            "public string Value { get; }",
+            "public FooAttr(string value)");
+
+        // Assembly format class
+        AssertContainsAll(
+            registrationSource,
+            // Body-only marker so the parser strips '#name' before calling TryParse
+            "internal sealed class FooAttrAssemblyFormat : IBodyOnlyAttributeAssemblyFormat",
+            "ParseResult<AttributeValueSyntax> TryParse",
+            // StringRefParameter.csharpParser delegates to the string-literal helper
+            "context.TryParseStringLiteralSyntax()",
+            "AttributeValue Bind(",
+            "AttributeValueSyntax BuildCustomAssemblySyntax(",
+            // StringRefParameter.csharpPrinter wraps the string value in a quoted literal
+            "StringLiteralAttributeAssemblyFormat.Quote(attr.Value)");
+    }
+
+    [Fact]
+    public void AttrDefWithBigIntegerParametersAndAssemblyFormatGeneratesTwoProperties()
+    {
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_PairAttr : Test_Attr<\"Pair\", \"pair\"> {",
+            "  let parameters = (ins APIntParameter<\"first\">:$first,",
+            "                        APIntParameter<\"second\">:$second);",
+            "  let assemblyFormat = \"`<` $first `,` $second `>`\";",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        // Syntax class
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class PairAttrSyntax : DialectPrefixedAttributeValueSyntax",
+            "public IntegerAttributeValueSyntax FirstSyntax { get; }",
+            "public IntegerAttributeValueSyntax SecondSyntax { get; }");
+
+        // Attribute value class
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class PairAttr : AttributeValue",
+            "public global::System.Numerics.BigInteger First { get; }",
+            "public global::System.Numerics.BigInteger Second { get; }",
+            "public PairAttr(global::System.Numerics.BigInteger first, global::System.Numerics.BigInteger second)");
+
+        // Assembly format class uses the APIntParameter.csharpParser helper for both parameters
+        AssertContainsAll(
+            registrationSource,
+            // APIntParameter.csharpParser delegates to the integer-literal helper
+            "context.TryParseIntegerLiteralSyntax()");
+    }
+
+    [Fact]
+    public void AttrDefWithCustomParserAndPrinterUsesProvidedExpressions()
+    {
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class MyStrParam<string desc> : AttrOrTypeParameter<\"std::string\", desc>;",
+            "extends MyStrParam : MLIRNet_AttrOrTypeParameterExtension {",
+            "  let csharpType = \"string\";",
+            "  let csharpParser = \"$_parser.TryMatch(TokenKind.Identifier, out var idTok_) ? ParseResult<AttributeValueSyntax>.Success(new StringAttributeValueSyntax(idTok_, idTok_.Text)) : ParseResult<AttributeValueSyntax>.NoMatch()\";",
+            "  let csharpPrinter = \"new StringAttributeValueSyntax(new SyntaxToken($_self), $_self)\";",
+            "}",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_IdAttr : Test_Attr<\"Id\", \"id\"> {",
+            "  let parameters = (ins MyStrParam<\"the identifier\">:$name);",
+            "  let assemblyFormat = \"`<` $name `>`\";",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        // Custom parser expression should be used (with $_parser replaced by context)
+        Assert.Contains(
+            "context.TryMatch(TokenKind.Identifier, out var idTok_)",
+            registrationSource);
+
+        // Custom printer expression should be used (with $_self replaced by attr.Name)
+        Assert.Contains(
+            "new StringAttributeValueSyntax(new SyntaxToken(attr.Name), attr.Name)",
+            registrationSource);
+    }
 }
