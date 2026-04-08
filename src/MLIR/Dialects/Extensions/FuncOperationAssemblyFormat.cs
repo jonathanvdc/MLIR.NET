@@ -35,7 +35,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
         if (resultList.Count != 0 || equalsToken.HasValue)
         {
             return ParseResult<OperationBodySyntax>.Failure(
-                new Diagnostic("func.func cannot have SSA results.", nameToken.Line, nameToken.Column));
+                new Diagnostic("func.func cannot have SSA results.", nameToken.Location.Line, nameToken.Location.Column));
         }
 
         SyntaxToken? visibilityToken = null;
@@ -180,7 +180,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             if (!attrDictResult.Value.OpenToken.HasValue)
             {
                 return ParseResult<OperationBodySyntax>.Failure(
-                    new Diagnostic("Expected '{' after 'attributes'.", keywordResult.Value.Line, keywordResult.Value.Column));
+                    new Diagnostic("Expected '{' after 'attributes'.", keywordResult.Value.Location.Line, keywordResult.Value.Location.Column));
             }
 
             attributes = attrDictResult.Value;

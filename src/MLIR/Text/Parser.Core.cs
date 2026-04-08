@@ -158,7 +158,7 @@ public sealed partial class Parser
     /// <param name="tokens">The full token list from the lexer.</param>
     /// <param name="start">Inclusive start index in <paramref name="tokens"/>.</param>
     /// <param name="end">Exclusive end index in <paramref name="tokens"/>.</param>
-    private static List<SyntaxToken> CreateSyntaxTokenList(IReadOnlyList<Token> tokens, int start, int end)
+    private List<SyntaxToken> CreateSyntaxTokenList(IReadOnlyList<Token> tokens, int start, int end)
     {
         var result = new List<SyntaxToken>(end - start);
         for (var i = start; i < end; i++)
@@ -490,11 +490,14 @@ public sealed partial class Parser
 
     /// <summary>
     /// Converts an internal <see cref="Token"/> (produced by the lexer) to a public
-    /// <see cref="SyntaxToken"/> (part of the CST) by copying its text, leading trivia, and source location.
+    /// <see cref="SyntaxToken"/> (part of the CST) by copying its text, leading trivia, and
+    /// attaching the owning <see cref="MLIR.Syntax.SourceDocument"/> together with the token's
+    /// character offsets. Line/column are no longer stored directly; they are resolved on demand
+    /// through the document.
     /// </summary>
-    internal static SyntaxToken ToSyntaxToken(Token token)
+    internal SyntaxToken ToSyntaxToken(Token token)
     {
-        return new SyntaxToken(token.Text, token.LeadingTrivia, token.Line, token.Column);
+        return new SyntaxToken(token.Text, token.LeadingTrivia, document, token.TokenStart, token.End - token.TokenStart);
     }
 
     /// <summary>Bridges <see cref="Is"/> for use by <see cref="DialectParsingContext"/>.</summary>
