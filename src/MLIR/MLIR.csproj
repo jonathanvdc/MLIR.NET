@@ -18,8 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="Dialects\BuiltinOps.td" />
-    <AdditionalFiles Include="Dialects\ArithOps.td" />
-    <AdditionalFiles Include="Dialects\FuncOps.td" />
+    <AdditionalFiles Include="Dialects\Builtin\BuiltinOps.td" />
+    <AdditionalFiles Include="Dialects\Arith\ArithOps.td" />
+    <AdditionalFiles Include="Dialects\Func\FuncOps.td" />
   </ItemGroup>
 </Project>
