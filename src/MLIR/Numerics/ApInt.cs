@@ -126,28 +126,28 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     /// <param name="bitWidth">The number of bits in the result.</param>
     /// <returns>An <see cref="ApInt"/> of the specified width containing all zero bits.</returns>
-    public static ApInt Zero(int bitWidth) => new ApInt(bitWidth, BigInteger.Zero);
+    public static ApInt Zero(int bitWidth) => new(bitWidth, BigInteger.Zero);
 
     /// <summary>
     /// Creates a fixed-width value equal to one.
     /// </summary>
     /// <param name="bitWidth">The number of bits in the result.</param>
     /// <returns>An <see cref="ApInt"/> of the specified width representing the value one.</returns>
-    public static ApInt One(int bitWidth) => new ApInt(bitWidth, BigInteger.One);
+    public static ApInt One(int bitWidth) => new(bitWidth, BigInteger.One);
 
     /// <summary>
     /// Creates a fixed-width value whose bits are all set.
     /// </summary>
     /// <param name="bitWidth">The number of bits in the result.</param>
     /// <returns>An <see cref="ApInt"/> of the specified width containing all one bits.</returns>
-    public static ApInt AllOnes(int bitWidth) => new ApInt(bitWidth, Mask(bitWidth));
+    public static ApInt AllOnes(int bitWidth) => new(bitWidth, Mask(bitWidth));
 
     /// <summary>
     /// Creates a fixed-width value with a single bit set.
     /// </summary>
     /// <param name="bitWidth">The width of the resulting value.</param>
     /// <param name="bitNo">The zero-based bit index to set.</param>
-    public static ApInt GetOneBitSet(int bitWidth, int bitNo) => new ApInt(bitWidth, SingleBitMask(bitWidth, bitNo));
+    public static ApInt GetOneBitSet(int bitWidth, int bitNo) => new(bitWidth, SingleBitMask(bitWidth, bitNo));
 
     /// <summary>
     /// Creates a zero-width value.

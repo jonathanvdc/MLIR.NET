@@ -3,7 +3,7 @@ namespace MLIR.Numerics;
 /// <summary>
 /// Identifies the high-level classification of a floating-point value.
 /// </summary>
-public enum ApFloatCategory
+public enum FloatCategory
 {
     /// <summary>
     /// The value is zero, either positive or negative.

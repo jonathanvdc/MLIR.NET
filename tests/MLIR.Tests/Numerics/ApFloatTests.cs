@@ -1,4 +1,4 @@
-namespace MLIR.Tests;
+namespace MLIR.Tests.Numerics;
 
 using System;
 using System.Numerics;

@@ -41,7 +41,7 @@ public readonly struct ApFloat : IEquatable<ApFloat>
     /// <summary>
     /// Gets the high-level classification of this value.
     /// </summary>
-    public ApFloatCategory Category => Classify();
+    public FloatCategory Category => Classify();
 
     /// <summary>
     /// Gets whether the sign bit is set.
@@ -55,34 +55,34 @@ public readonly struct ApFloat : IEquatable<ApFloat>
     /// <summary>
     /// Gets whether this value is zero.
     /// </summary>
-    public bool IsZero => Category == ApFloatCategory.Zero;
+    public bool IsZero => Category == FloatCategory.Zero;
 
     /// <summary>
     /// Gets whether this value is finite.
     /// </summary>
-    public bool IsFinite => Category == ApFloatCategory.Zero
-        || Category == ApFloatCategory.Normal
-        || Category == ApFloatCategory.Subnormal;
+    public bool IsFinite => Category == FloatCategory.Zero
+        || Category == FloatCategory.Normal
+        || Category == FloatCategory.Subnormal;
 
     /// <summary>
     /// Gets whether this value is infinite.
     /// </summary>
-    public bool IsInfinity => Category == ApFloatCategory.Infinity;
+    public bool IsInfinity => Category == FloatCategory.Infinity;
 
     /// <summary>
     /// Gets whether this value is NaN.
     /// </summary>
-    public bool IsNaN => Category == ApFloatCategory.NaN;
+    public bool IsNaN => Category == FloatCategory.NaN;
 
     /// <summary>
     /// Gets whether this value is a normal finite number.
     /// </summary>
-    public bool IsNormal => Category == ApFloatCategory.Normal;
+    public bool IsNormal => Category == FloatCategory.Normal;
 
     /// <summary>
     /// Gets whether this value is a subnormal finite number.
     /// </summary>
-    public bool IsSubnormal => Category == ApFloatCategory.Subnormal;
+    public bool IsSubnormal => Category == FloatCategory.Subnormal;
 
     /// <summary>
     /// Gets whether this value is negative zero.
@@ -469,6 +469,123 @@ public readonly struct ApFloat : IEquatable<ApFloat>
     }
 
     /// <summary>
+    /// Computes the fused multiply-add of this value and two other operands.
+    /// </summary>
+    /// <param name="multiplicand">The value to multiply by this one.</param>
+    /// <param name="addend">The value to add after multiplication.</param>
+    /// <param name="roundingMode">The rounding mode used if the result is inexact.</param>
+    /// <returns>The rounded fused multiply-add result.</returns>
+    ///
+    /// <remarks>
+    /// This method models LLVM-style fused multiply-add semantics at the value level.
+    /// </remarks>
+    public ApFloat FusedMultiplyAdd(
+        ApFloat multiplicand,
+        ApFloat addend,
+        FloatingRoundingMode roundingMode = FloatingRoundingMode.NearestTiesToEven)
+    {
+        EnsureCompatibleSemantics(multiplicand);
+        EnsureCompatibleSemantics(addend);
+
+        double result = DecodeToDouble() * multiplicand.DecodeToDouble() + addend.DecodeToDouble();
+        ApFloat rounded = FromDouble(Semantics, result, roundingMode);
+
+        if (rounded.IsZero && roundingMode == FloatingRoundingMode.TowardNegative && !rounded.Sign)
+        {
+            return Zero(Semantics, negative: true);
+        }
+
+        return rounded;
+    }
+
+    /// <summary>
+    /// Returns the next representable value in the requested direction.
+    /// </summary>
+    /// <param name="towardNegative">
+    /// <see langword="true"/> to move toward negative infinity; otherwise, move toward positive infinity.
+    /// </param>
+    /// <returns>The adjacent representable value, or this value when no adjacent value exists.</returns>
+    public ApFloat Next(bool towardNegative)
+    {
+        if (IsNaN)
+        {
+            return this;
+        }
+
+        if (IsInfinity)
+        {
+            if (Sign)
+            {
+                return towardNegative ? this : MaxFinite(Semantics, negative: true);
+            }
+
+            return towardNegative ? MaxFinite(Semantics, negative: false) : this;
+        }
+
+        if (IsZero)
+        {
+            return towardNegative
+                ? NegativeSmallestValue(Semantics)
+                : PositiveSmallestValue(Semantics);
+        }
+
+        BigInteger rawBits = RawBits;
+        BigInteger rawMask = RawMask(Semantics);
+
+        if (Sign)
+        {
+            if (towardNegative)
+            {
+                if (!Semantics.HasInfinity && rawBits == MaxFiniteRawBits(Semantics, negative: true))
+                {
+                    return this;
+                }
+
+                if (Semantics.HasInfinity && rawBits == MaxFiniteRawBits(Semantics, negative: true))
+                {
+                    return Infinity(Semantics, negative: true);
+                }
+
+                return rawBits == rawMask ? this : CreateFromRawBits(Semantics, rawBits + BigInteger.One);
+            }
+
+            return rawBits == SignMask(Semantics) ? PositiveSmallestValue(Semantics) : CreateFromRawBits(Semantics, rawBits - BigInteger.One);
+        }
+
+        if (towardNegative)
+        {
+            return rawBits == BigInteger.Zero ? NegativeSmallestValue(Semantics) : CreateFromRawBits(Semantics, rawBits - BigInteger.One);
+        }
+
+        if (!Semantics.HasInfinity && rawBits == MaxFiniteRawBits(Semantics, negative: false))
+        {
+            return this;
+        }
+
+        if (rawBits == rawMask)
+        {
+            return this;
+        }
+
+        if (Semantics.HasInfinity && rawBits == MaxFiniteRawBits(Semantics, negative: false))
+        {
+            return Infinity(Semantics, negative: false);
+        }
+
+        return CreateFromRawBits(Semantics, rawBits + BigInteger.One);
+    }
+
+    /// <summary>
+    /// Returns the next representable value toward positive infinity.
+    /// </summary>
+    public ApFloat NextUp() => Next(towardNegative: false);
+
+    /// <summary>
+    /// Returns the next representable value toward negative infinity.
+    /// </summary>
+    public ApFloat NextDown() => Next(towardNegative: true);
+
+    /// <summary>
     /// Compares this value with <paramref name="other"/> using floating-point comparison rules.
     /// </summary>
     /// <param name="other">The value to compare against.</param>
@@ -574,21 +691,21 @@ public readonly struct ApFloat : IEquatable<ApFloat>
         ApFloat value = new ApFloat(semantics, bits);
         switch (value.Category)
         {
-            case ApFloatCategory.Subnormal:
+            case FloatCategory.Subnormal:
                 if (!semantics.SupportsSubnormals)
                 {
                     throw new NotSupportedException("The requested semantics do not support subnormal values.");
                 }
 
                 break;
-            case ApFloatCategory.Infinity:
+            case FloatCategory.Infinity:
                 if (!semantics.HasInfinity)
                 {
                     throw new NotSupportedException("The requested semantics do not support infinity values.");
                 }
 
                 break;
-            case ApFloatCategory.NaN:
+            case FloatCategory.NaN:
                 if (!semantics.HasNaN)
                 {
                     throw new NotSupportedException("The requested semantics do not support NaN values.");
@@ -642,11 +759,11 @@ public readonly struct ApFloat : IEquatable<ApFloat>
     {
         switch (Category)
         {
-            case ApFloatCategory.Zero:
+            case FloatCategory.Zero:
                 return Sign ? "-0" : "0";
-            case ApFloatCategory.Infinity:
+            case FloatCategory.Infinity:
                 return Sign ? "-Infinity" : "Infinity";
-            case ApFloatCategory.NaN:
+            case FloatCategory.NaN:
                 return Sign ? "-NaN" : "NaN";
             default:
                 return DecodeToDouble().ToString("R", CultureInfo.InvariantCulture);
@@ -660,6 +777,8 @@ public readonly struct ApFloat : IEquatable<ApFloat>
 
     private static BigInteger SignMask(FloatSemantics semantics) => BigInteger.One << (semantics.BitWidth - 1);
 
+    private static BigInteger RawMask(FloatSemantics semantics) => (BigInteger.One << semantics.BitWidth) - 1;
+
     private static BigInteger ExponentMask(FloatSemantics semantics) => (BigInteger.One << semantics.ExponentBits) - BigInteger.One;
 
     private BigInteger RawBits => bits.ToBigIntegerUnsigned();
@@ -668,19 +787,27 @@ public readonly struct ApFloat : IEquatable<ApFloat>
 
     private BigInteger ExponentBitsRaw => GetField(Semantics.FractionBits, Semantics.ExponentBits);
 
-    private ApFloatCategory Classify()
+    private FloatCategory Classify()
     {
         if (ExponentBitsRaw.IsZero)
         {
-            return FractionBitsRaw.IsZero ? ApFloatCategory.Zero : ApFloatCategory.Subnormal;
+            return FractionBitsRaw.IsZero ? FloatCategory.Zero : FloatCategory.Subnormal;
         }
 
         if (ExponentBitsRaw == ExponentMask(Semantics))
         {
-            return FractionBitsRaw.IsZero ? ApFloatCategory.Infinity : ApFloatCategory.NaN;
+            if (Semantics.HasInfinity && FractionBitsRaw.IsZero)
+            {
+                return FloatCategory.Infinity;
+            }
+
+            if (Semantics.HasNaN && !FractionBitsRaw.IsZero)
+            {
+                return FloatCategory.NaN;
+            }
         }
 
-        return ApFloatCategory.Normal;
+        return FloatCategory.Normal;
     }
 
     private BigInteger GetField(int startBit, int bitCount)
@@ -698,11 +825,11 @@ public readonly struct ApFloat : IEquatable<ApFloat>
     {
         switch (Category)
         {
-            case ApFloatCategory.Zero:
+            case FloatCategory.Zero:
                 return Sign ? -0.0d : 0.0d;
-            case ApFloatCategory.Infinity:
+            case FloatCategory.Infinity:
                 return Sign ? double.NegativeInfinity : double.PositiveInfinity;
-            case ApFloatCategory.NaN:
+            case FloatCategory.NaN:
                 return double.NaN;
         }
 
@@ -711,7 +838,7 @@ public readonly struct ApFloat : IEquatable<ApFloat>
         int exponent = (int)ExponentBitsRaw;
         double significand;
 
-        if (Category == ApFloatCategory.Subnormal)
+        if (Category == FloatCategory.Subnormal)
         {
             significand = (double)FractionBitsRaw / Math.Pow(2.0, fractionBits);
             exponent = 1 - bias;
@@ -849,7 +976,8 @@ public readonly struct ApFloat : IEquatable<ApFloat>
         int fractionBits = semantics.FractionBits;
         int bias = GetExponentBias(semantics.ExponentBits);
         int minimumNormalExponent = 1 - bias;
-        int maximumNormalExponent = (1 << semantics.ExponentBits) - 2 - bias;
+        int maxExponentField = (int)GetMaxExponentField(semantics);
+        int maximumNormalExponent = maxExponentField - bias;
         int actualExponent = GetBitLength(mantissa) - 1 + exponent2;
 
         if (actualExponent > maximumNormalExponent)
@@ -990,8 +1118,7 @@ public readonly struct ApFloat : IEquatable<ApFloat>
     private static ApFloat MaxFinite(FloatSemantics semantics, bool negative)
     {
         int fractionBits = semantics.FractionBits;
-        int exponentBits = semantics.ExponentBits;
-        BigInteger exponentField = (BigInteger.One << exponentBits) - 2;
+        BigInteger exponentField = GetMaxExponentField(semantics);
         BigInteger fractionField = (BigInteger.One << fractionBits) - 1;
         return CreateFromRawBits(semantics, ComposeRawBits(semantics, negative, exponentField, fractionField));
     }
@@ -1020,6 +1147,37 @@ public readonly struct ApFloat : IEquatable<ApFloat>
         }
 
         return (1 << (exponentBits - 1)) - 1;
+    }
+
+    private static BigInteger GetMaxExponentField(FloatSemantics semantics)
+    {
+        if (semantics.ExponentBits == 0)
+        {
+            return BigInteger.Zero;
+        }
+
+        BigInteger allOnes = (BigInteger.One << semantics.ExponentBits) - 1;
+        return semantics.HasInfinity || semantics.HasNaN ? allOnes - BigInteger.One : allOnes;
+    }
+
+    private static BigInteger MaxFiniteRawBits(FloatSemantics semantics, bool negative)
+    {
+        BigInteger rawBits = ComposeRawBits(
+            semantics,
+            negative,
+            GetMaxExponentField(semantics),
+            (BigInteger.One << semantics.FractionBits) - 1);
+        return rawBits;
+    }
+
+    private static ApFloat PositiveSmallestValue(FloatSemantics semantics)
+    {
+        return CreateFromRawBits(semantics, BigInteger.One);
+    }
+
+    private static ApFloat NegativeSmallestValue(FloatSemantics semantics)
+    {
+        return CreateFromRawBits(semantics, SignMask(semantics) | BigInteger.One);
     }
 
     private static int GetBitLength(BigInteger value)
