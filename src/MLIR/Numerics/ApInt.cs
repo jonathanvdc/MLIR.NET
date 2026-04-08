@@ -1,0 +1,885 @@
+using System;
+using System.Globalization;
+using System.Numerics;
+using System.Text;
+
+namespace MLIR.Numerics;
+
+/// <summary>
+/// Represents an immutable fixed-width integer value.
+///
+/// <para>
+/// <see cref="ApInt"/> models a bitvector of exactly <see cref="BitWidth"/> bits.
+/// It does not have an intrinsic signedness: the same underlying bits may be
+/// interpreted as either signed or unsigned depending on the operation being used.
+/// </para>
+///
+/// <para>
+/// For example, the 8-bit pattern <c>11111111</c> represents:
+/// </para>
+/// <list type="bullet">
+/// <item><description><c>255</c> when interpreted as unsigned</description></item>
+/// <item><description><c>-1</c> when interpreted as signed two's-complement</description></item>
+/// </list>
+///
+/// <para>
+/// This matches the way integer values are typically modeled in compiler IRs,
+/// where signedness is part of an operation such as signed division or unsigned
+/// comparison rather than part of the value itself.
+/// </para>
+/// </summary>
+public readonly struct ApInt : IEquatable<ApInt>
+{
+    private readonly BigInteger value;
+
+    /// <summary>
+    /// Initializes a new normalized fixed-width integer value.
+    /// </summary>
+    private ApInt(int bitWidth, BigInteger value)
+    {
+        BitWidth = ValidateBitWidth(bitWidth);
+        this.value = Normalize(bitWidth, value);
+    }
+
+    /// <summary>
+    /// Gets the exact number of bits in this value.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// Arithmetic and bitwise operations are defined over exactly this many bits.
+    /// Arithmetic results wrap modulo <c>2^BitWidth</c>.
+    /// </remarks>
+    public int BitWidth { get; }
+
+    /// <summary>
+    /// Gets whether this value is equal to zero.
+    /// </summary>
+    public bool IsZero => value.IsZero;
+
+    /// <summary>
+    /// Gets whether this value is equal to one.
+    /// </summary>
+    public bool IsOne => BitWidth > 0 && value.IsOne;
+
+    /// <summary>
+    /// Gets whether all bits in this value are set.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// For an N-bit integer, this is the value <c>2^N - 1</c>.
+    /// Under signed two's-complement interpretation, this corresponds to <c>-1</c>.
+    /// </remarks>
+    public bool IsAllOnes => BitWidth == 0 || value == Mask(BitWidth);
+
+    /// <summary>
+    /// Gets the most significant bit.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// This property does not imply that the value is signed. It simply exposes the
+    /// highest-order bit, which would act as the sign bit under signed interpretation.
+    /// </remarks>
+    public bool SignBit => BitWidth > 0 && TestBitUnchecked(value, BitWidth - 1);
+
+    /// <summary>
+    /// Creates a fixed-width zero value.
+    /// </summary>
+    /// <param name="bitWidth">The number of bits in the result.</param>
+    /// <returns>An <see cref="ApInt"/> of the specified width containing all zero bits.</returns>
+    public static ApInt Zero(int bitWidth) => new ApInt(bitWidth, BigInteger.Zero);
+
+    /// <summary>
+    /// Creates a fixed-width value equal to one.
+    /// </summary>
+    /// <param name="bitWidth">The number of bits in the result.</param>
+    /// <returns>An <see cref="ApInt"/> of the specified width representing the value one.</returns>
+    public static ApInt One(int bitWidth) => new ApInt(bitWidth, BigInteger.One);
+
+    /// <summary>
+    /// Creates a fixed-width value whose bits are all set.
+    /// </summary>
+    /// <param name="bitWidth">The number of bits in the result.</param>
+    /// <returns>An <see cref="ApInt"/> of the specified width containing all one bits.</returns>
+    public static ApInt AllOnes(int bitWidth) => new ApInt(bitWidth, Mask(bitWidth));
+
+    /// <summary>
+    /// Creates a fixed-width value from an unsigned 64-bit integer.
+    /// </summary>
+    /// <param name="bitWidth">The width of the resulting bitvector.</param>
+    /// <param name="value">The source unsigned value.</param>
+    /// <returns>
+    /// An <see cref="ApInt"/> whose low bits are taken from <paramref name="value"/>,
+    /// truncated to <paramref name="bitWidth"/> if necessary.
+    /// </returns>
+    public static ApInt FromUInt64(int bitWidth, ulong value) => new ApInt(bitWidth, new BigInteger(value));
+
+    /// <summary>
+    /// Creates a fixed-width value from a signed 64-bit integer.
+    /// </summary>
+    /// <param name="bitWidth">The width of the resulting bitvector.</param>
+    /// <param name="value">The source signed value.</param>
+    /// <returns>
+    /// An <see cref="ApInt"/> whose bit pattern is the two's-complement representation
+    /// of <paramref name="value"/>, truncated to <paramref name="bitWidth"/> if necessary.
+    /// </returns>
+    public static ApInt FromInt64(int bitWidth, long value) => new ApInt(bitWidth, new BigInteger(value));
+
+    /// <summary>
+    /// Parses a textual integer literal into a fixed-width bitvector.
+    /// </summary>
+    /// <param name="bitWidth">The width of the resulting bitvector.</param>
+    /// <param name="text">The textual representation to parse.</param>
+    /// <param name="radix">The base of the textual representation, typically 2, 10, or 16.</param>
+    /// <param name="isSigned">
+    /// <see langword="true"/> to interpret the input text as a signed integer literal;
+    /// otherwise, interpret it as unsigned.
+    /// </param>
+    /// <returns>The parsed value, encoded into exactly <paramref name="bitWidth"/> bits.</returns>
+    ///
+    /// <remarks>
+    /// The <paramref name="isSigned"/> parameter affects parsing only. It does not attach
+    /// permanent signedness to the resulting <see cref="ApInt"/>.
+    /// </remarks>
+    public static ApInt Parse(int bitWidth, string text, int radix = 10, bool isSigned = false)
+    {
+        if (text is null)
+        {
+            throw new ArgumentNullException(nameof(text));
+        }
+
+        BigInteger parsed = ParseText(text, radix, isSigned);
+        return new ApInt(bitWidth, parsed);
+    }
+
+    /// <summary>
+    /// Converts this value to an unsigned 64-bit integer.
+    /// </summary>
+    /// <returns>The current bit pattern interpreted as an unsigned integer.</returns>
+    /// <exception cref="OverflowException">
+    /// Thrown if the value cannot be represented as an unsigned 64-bit integer without loss.
+    /// </exception>
+    public ulong ToUInt64() => (ulong)value;
+
+    /// <summary>
+    /// Converts this value to a signed 64-bit integer using two's-complement interpretation.
+    /// </summary>
+    /// <returns>The current bit pattern interpreted as a signed integer.</returns>
+    /// <exception cref="OverflowException">
+    /// Thrown if the value cannot be represented as a signed 64-bit integer without loss.
+    /// </exception>
+    public long ToInt64() => (long)ToBigIntegerSigned();
+
+    /// <summary>
+    /// Converts this value to an arbitrarily large unsigned integer.
+    /// </summary>
+    /// <returns>The current bit pattern interpreted as an unsigned integer.</returns>
+    public BigInteger ToBigIntegerUnsigned() => value;
+
+    /// <summary>
+    /// Converts this value to an arbitrarily large signed integer using two's-complement interpretation.
+    /// </summary>
+    /// <returns>The current bit pattern interpreted as a signed integer.</returns>
+    public BigInteger ToBigIntegerSigned()
+    {
+        if (!SignBit)
+        {
+            return value;
+        }
+
+        return value - (BigInteger.One << BitWidth);
+    }
+
+    /// <summary>
+    /// Determines whether this value is less than <paramref name="other"/> under unsigned interpretation.
+    /// </summary>
+    public bool ULessThan(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return value < other.value;
+    }
+
+    /// <summary>
+    /// Determines whether this value is less than or equal to <paramref name="other"/> under unsigned interpretation.
+    /// </summary>
+    public bool ULessThanOrEqual(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return value <= other.value;
+    }
+
+    /// <summary>
+    /// Determines whether this value is greater than <paramref name="other"/> under unsigned interpretation.
+    /// </summary>
+    public bool UGreaterThan(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return value > other.value;
+    }
+
+    /// <summary>
+    /// Determines whether this value is greater than or equal to <paramref name="other"/> under unsigned interpretation.
+    /// </summary>
+    public bool UGreaterThanOrEqual(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return value >= other.value;
+    }
+
+    /// <summary>
+    /// Determines whether this value is less than <paramref name="other"/> under signed two's-complement interpretation.
+    /// </summary>
+    public bool SLessThan(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return ToBigIntegerSigned() < other.ToBigIntegerSigned();
+    }
+
+    /// <summary>
+    /// Determines whether this value is less than or equal to <paramref name="other"/> under signed two's-complement interpretation.
+    /// </summary>
+    public bool SLessThanOrEqual(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return ToBigIntegerSigned() <= other.ToBigIntegerSigned();
+    }
+
+    /// <summary>
+    /// Determines whether this value is greater than <paramref name="other"/> under signed two's-complement interpretation.
+    /// </summary>
+    public bool SGreaterThan(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return ToBigIntegerSigned() > other.ToBigIntegerSigned();
+    }
+
+    /// <summary>
+    /// Determines whether this value is greater than or equal to <paramref name="other"/> under signed two's-complement interpretation.
+    /// </summary>
+    public bool SGreaterThanOrEqual(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return ToBigIntegerSigned() >= other.ToBigIntegerSigned();
+    }
+
+    /// <summary>
+    /// Narrows this value to the specified bit width by discarding high-order bits.
+    /// </summary>
+    /// <param name="bitWidth">
+    /// The width of the resulting value. Must be less than or equal to <see cref="BitWidth"/>.
+    /// </param>
+    /// <returns>A truncated value with the specified width.</returns>
+    public ApInt Trunc(int bitWidth)
+    {
+        bitWidth = ValidateBitWidth(bitWidth);
+        if (bitWidth > BitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitWidth), "The requested width must not exceed the current bit width.");
+        }
+
+        return new ApInt(bitWidth, value);
+    }
+
+    /// <summary>
+    /// Widens this value to the specified bit width by inserting zero bits on the left.
+    /// </summary>
+    /// <param name="bitWidth">
+    /// The width of the resulting value. Must be greater than or equal to <see cref="BitWidth"/>.
+    /// </param>
+    /// <returns>A zero-extended value with the specified width.</returns>
+    public ApInt ZeroExtend(int bitWidth)
+    {
+        bitWidth = ValidateBitWidth(bitWidth);
+        if (bitWidth < BitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitWidth), "The requested width must not be smaller than the current bit width.");
+        }
+
+        return new ApInt(bitWidth, value);
+    }
+
+    /// <summary>
+    /// Widens this value to the specified bit width by replicating the most significant bit.
+    /// </summary>
+    /// <param name="bitWidth">
+    /// The width of the resulting value. Must be greater than or equal to <see cref="BitWidth"/>.
+    /// </param>
+    /// <returns>A sign-extended value with the specified width.</returns>
+    ///
+    /// <remarks>
+    /// This operation uses signed interpretation only to determine how the new high bits
+    /// are filled. It does not attach permanent signedness to the result.
+    /// </remarks>
+    public ApInt SignExtend(int bitWidth)
+    {
+        bitWidth = ValidateBitWidth(bitWidth);
+        if (bitWidth < BitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitWidth), "The requested width must not be smaller than the current bit width.");
+        }
+
+        return new ApInt(bitWidth, ToBigIntegerSigned());
+    }
+
+    /// <summary>
+    /// Shifts this value left by the specified number of bit positions.
+    /// </summary>
+    /// <param name="amount">The number of bits to shift.</param>
+    /// <returns>The shifted value, truncated back to the original width.</returns>
+    public ApInt Shl(int amount)
+    {
+        ValidateShiftAmount(amount);
+        if (amount >= BitWidth)
+        {
+            return Zero(BitWidth);
+        }
+
+        return new ApInt(BitWidth, value << amount);
+    }
+
+    /// <summary>
+    /// Shifts this value right by the specified number of bit positions, inserting zero bits from the left.
+    /// </summary>
+    /// <param name="amount">The number of bits to shift.</param>
+    /// <returns>The logically shifted value.</returns>
+    public ApInt LShr(int amount)
+    {
+        ValidateShiftAmount(amount);
+        if (amount >= BitWidth)
+        {
+            return Zero(BitWidth);
+        }
+
+        return new ApInt(BitWidth, value >> amount);
+    }
+
+    /// <summary>
+    /// Shifts this value right by the specified number of bit positions, replicating the most significant bit.
+    /// </summary>
+    /// <param name="amount">The number of bits to shift.</param>
+    /// <returns>The arithmetically shifted value.</returns>
+    public ApInt AShr(int amount)
+    {
+        ValidateShiftAmount(amount);
+        if (amount >= BitWidth)
+        {
+            return SignBit ? AllOnes(BitWidth) : Zero(BitWidth);
+        }
+
+        return new ApInt(BitWidth, ToBigIntegerSigned() >> amount);
+    }
+
+    /// <summary>
+    /// Counts the number of one bits in this value.
+    /// </summary>
+    public int PopCount()
+    {
+        int count = 0;
+        byte[] bytes = value.ToByteArray();
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            count += PopCountByte(bytes[i]);
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Counts the number of consecutive zero bits starting at the most significant bit.
+    /// </summary>
+    public int CountLeadingZeros()
+    {
+        if (BitWidth == 0)
+        {
+            return 0;
+        }
+
+        if (IsZero)
+        {
+            return BitWidth;
+        }
+
+        int bitLength = GetBitLength(value);
+        return BitWidth - bitLength;
+    }
+
+    /// <summary>
+    /// Counts the number of consecutive zero bits starting at the least significant bit.
+    /// </summary>
+    public int CountTrailingZeros()
+    {
+        if (BitWidth == 0)
+        {
+            return 0;
+        }
+
+        if (IsZero)
+        {
+            return BitWidth;
+        }
+
+        int count = 0;
+        byte[] bytes = value.ToByteArray();
+        for (int i = 0; i < bytes.Length; i++)
+        {
+            byte b = bytes[i];
+            if (b == 0)
+            {
+                count += 8;
+                continue;
+            }
+
+            count += TrailingZeroCountByte(b);
+            return count;
+        }
+
+        return count;
+    }
+
+    /// <summary>
+    /// Determines whether the bit at the specified index is set.
+    /// </summary>
+    /// <param name="bitIndex">The zero-based bit index, where 0 is the least significant bit.</param>
+    public bool TestBit(int bitIndex)
+    {
+        ValidateBitIndex(bitIndex);
+        return TestBitUnchecked(value, bitIndex);
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the bit at <paramref name="bitIndex"/> is set.
+    /// </summary>
+    public ApInt SetBit(int bitIndex)
+    {
+        ValidateBitIndex(bitIndex);
+        return new ApInt(BitWidth, value | (BigInteger.One << bitIndex));
+    }
+
+    /// <summary>
+    /// Returns a value equal to this one except that the bit at <paramref name="bitIndex"/> is cleared.
+    /// </summary>
+    public ApInt ClearBit(int bitIndex)
+    {
+        ValidateBitIndex(bitIndex);
+        BigInteger cleared = value & ~ (BigInteger.One << bitIndex);
+        return new ApInt(BitWidth, cleared);
+    }
+
+    /// <summary>
+    /// Formats this value as an unsigned integer string.
+    /// </summary>
+    /// <param name="radix">The output base, typically 2, 10, or 16.</param>
+    /// <returns>A textual representation using unsigned interpretation.</returns>
+    public string ToStringUnsigned(int radix = 10) => FormatBigInteger(value, radix);
+
+    /// <summary>
+    /// Formats this value as a signed integer string using two's-complement interpretation.
+    /// </summary>
+    /// <param name="radix">The output base, typically 2, 10, or 16.</param>
+    /// <returns>A textual representation using signed interpretation.</returns>
+    public string ToStringSigned(int radix = 10) => FormatBigInteger(ToBigIntegerSigned(), radix);
+
+    /// <summary>
+    /// Adds two values of the same bit width.
+    /// </summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>The sum modulo <c>2^BitWidth</c>.</returns>
+    public static ApInt operator +(ApInt left, ApInt right)
+    {
+        EnsureCompatibleWidth(left, right);
+        return new ApInt(left.BitWidth, left.value + right.value);
+    }
+
+    /// <summary>
+    /// Subtracts one value from another.
+    /// </summary>
+    /// <returns>The difference modulo <c>2^BitWidth</c>.</returns>
+    public static ApInt operator -(ApInt left, ApInt right)
+    {
+        EnsureCompatibleWidth(left, right);
+        return new ApInt(left.BitWidth, left.value - right.value);
+    }
+
+    /// <summary>
+    /// Multiplies two values of the same bit width.
+    /// </summary>
+    /// <returns>The product modulo <c>2^BitWidth</c>.</returns>
+    public static ApInt operator *(ApInt left, ApInt right)
+    {
+        EnsureCompatibleWidth(left, right);
+        return new ApInt(left.BitWidth, left.value * right.value);
+    }
+
+    /// <summary>
+    /// Computes the bitwise AND of two values.
+    /// </summary>
+    public static ApInt operator &(ApInt left, ApInt right)
+    {
+        EnsureCompatibleWidth(left, right);
+        return new ApInt(left.BitWidth, left.value & right.value);
+    }
+
+    /// <summary>
+    /// Computes the bitwise OR of two values.
+    /// </summary>
+    public static ApInt operator |(ApInt left, ApInt right)
+    {
+        EnsureCompatibleWidth(left, right);
+        return new ApInt(left.BitWidth, left.value | right.value);
+    }
+
+    /// <summary>
+    /// Computes the bitwise exclusive OR of two values.
+    /// </summary>
+    public static ApInt operator ^(ApInt left, ApInt right)
+    {
+        EnsureCompatibleWidth(left, right);
+        return new ApInt(left.BitWidth, left.value ^ right.value);
+    }
+
+    /// <summary>
+    /// Computes the bitwise complement of a value.
+    /// </summary>
+    public static ApInt operator ~(ApInt value)
+    {
+        return new ApInt(value.BitWidth, Mask(value.BitWidth) ^ value.value);
+    }
+
+    /// <summary>
+    /// Divides this value by <paramref name="other"/> using unsigned interpretation.
+    /// </summary>
+    /// <param name="other">The divisor.</param>
+    /// <returns>The unsigned quotient.</returns>
+    public ApInt UDiv(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        if (other.value.IsZero)
+        {
+            throw new DivideByZeroException();
+        }
+
+        return new ApInt(BitWidth, value / other.value);
+    }
+
+    /// <summary>
+    /// Computes the remainder of unsigned division by <paramref name="other"/>.
+    /// </summary>
+    /// <param name="other">The divisor.</param>
+    /// <returns>The unsigned remainder.</returns>
+    public ApInt URem(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        if (other.value.IsZero)
+        {
+            throw new DivideByZeroException();
+        }
+
+        return new ApInt(BitWidth, value % other.value);
+    }
+
+    /// <summary>
+    /// Divides this value by <paramref name="other"/> using signed two's-complement interpretation.
+    /// </summary>
+    /// <param name="other">The divisor.</param>
+    /// <returns>The signed quotient.</returns>
+    public ApInt SDiv(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        BigInteger divisor = other.ToBigIntegerSigned();
+        if (divisor.IsZero)
+        {
+            throw new DivideByZeroException();
+        }
+
+        return new ApInt(BitWidth, BigInteger.DivRem(ToBigIntegerSigned(), divisor, out _));
+    }
+
+    /// <summary>
+    /// Computes the remainder of signed division by <paramref name="other"/>.
+    /// </summary>
+    /// <param name="other">The divisor.</param>
+    /// <returns>The signed remainder.</returns>
+    public ApInt SRem(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        BigInteger divisor = other.ToBigIntegerSigned();
+        if (divisor.IsZero)
+        {
+            throw new DivideByZeroException();
+        }
+
+        BigInteger.DivRem(ToBigIntegerSigned(), divisor, out BigInteger remainder);
+        return new ApInt(BitWidth, remainder);
+    }
+
+    /// <summary>
+    /// Determines whether two values are bitwise equal and have the same bit width.
+    /// </summary>
+    public bool Equals(ApInt other)
+    {
+        return BitWidth == other.BitWidth && value.Equals(other.value);
+    }
+
+    /// <summary>
+    /// Determines whether the specified object is equal to the current value.
+    /// </summary>
+    public override bool Equals(object? obj) => obj is ApInt other && Equals(other);
+
+    /// <summary>
+    /// Returns a hash code for this value.
+    /// </summary>
+    public override int GetHashCode()
+    {
+        unchecked
+        {
+            return (BitWidth * 397) ^ value.GetHashCode();
+        }
+    }
+
+    /// <summary>
+    /// Determines whether two values are bitwise equal and have the same bit width.
+    /// </summary>
+    public static bool operator ==(ApInt left, ApInt right) => left.Equals(right);
+
+    /// <summary>
+    /// Determines whether two values differ in bits or bit width.
+    /// </summary>
+    public static bool operator !=(ApInt left, ApInt right) => !left.Equals(right);
+
+    /// <summary>
+    /// Returns a diagnostic string representation of this value.
+    /// </summary>
+    ///
+    /// <remarks>
+    /// Prefer <see cref="ToStringUnsigned(int)"/> or <see cref="ToStringSigned(int)"/> when
+    /// the intended interpretation must be explicit.
+    /// </remarks>
+    public override string ToString() => ToStringUnsigned();
+
+    private static int ValidateBitWidth(int bitWidth)
+    {
+        if (bitWidth < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitWidth));
+        }
+
+        return bitWidth;
+    }
+
+    private static void ValidateShiftAmount(int amount)
+    {
+        if (amount < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(amount));
+        }
+    }
+
+    private void ValidateBitIndex(int bitIndex)
+    {
+        if (bitIndex < 0 || bitIndex >= BitWidth)
+        {
+            throw new ArgumentOutOfRangeException(nameof(bitIndex));
+        }
+    }
+
+    private static void EnsureCompatibleWidth(ApInt left, ApInt right)
+    {
+        if (left.BitWidth != right.BitWidth)
+        {
+            throw new ArgumentException("ApInt values must have the same bit width.", nameof(right));
+        }
+    }
+
+    private void EnsureCompatibleWidth(ApInt other) => EnsureCompatibleWidth(this, other);
+
+    private static BigInteger Normalize(int bitWidth, BigInteger value)
+    {
+        if (bitWidth == 0)
+        {
+            return BigInteger.Zero;
+        }
+
+        BigInteger mask = Mask(bitWidth);
+        BigInteger normalized = value & mask;
+        if (normalized.Sign < 0)
+        {
+            normalized += mask + BigInteger.One;
+        }
+
+        return normalized;
+    }
+
+    private static BigInteger Mask(int bitWidth)
+    {
+        if (bitWidth == 0)
+        {
+            return BigInteger.Zero;
+        }
+
+        return (BigInteger.One << bitWidth) - BigInteger.One;
+    }
+
+    private static bool TestBitUnchecked(BigInteger value, int bitIndex)
+    {
+        return ((value >> bitIndex) & BigInteger.One) == BigInteger.One;
+    }
+
+    private static int GetBitLength(BigInteger value)
+    {
+        if (value.IsZero)
+        {
+            return 0;
+        }
+
+        byte[] bytes = value.ToByteArray();
+        int length = bytes.Length;
+        while (length > 1 && bytes[length - 1] == 0)
+        {
+            length--;
+        }
+
+        byte msb = bytes[length - 1];
+        int bitsInMsb = 8;
+        while ((msb & 0x80) == 0)
+        {
+            msb <<= 1;
+            bitsInMsb--;
+        }
+
+        return (length - 1) * 8 + bitsInMsb;
+    }
+
+    private static int PopCountByte(byte value)
+    {
+        int count = 0;
+        while (value != 0)
+        {
+            value = (byte)(value & (value - 1));
+            count++;
+        }
+
+        return count;
+    }
+
+    private static int TrailingZeroCountByte(byte value)
+    {
+        int count = 0;
+        while ((value & 1) == 0)
+        {
+            value >>= 1;
+            count++;
+        }
+
+        return count;
+    }
+
+    private static BigInteger ParseText(string text, int radix, bool isSigned)
+    {
+        if (radix < 2 || radix > 36)
+        {
+            throw new ArgumentOutOfRangeException(nameof(radix));
+        }
+
+        if (text.Length == 0)
+        {
+            throw new FormatException("The input text is empty.");
+        }
+
+        int index = 0;
+        bool negative = false;
+
+        if (text[index] == '+' || text[index] == '-')
+        {
+            negative = text[index] == '-';
+            index++;
+        }
+
+        if (index >= text.Length)
+        {
+            throw new FormatException("The input text does not contain any digits.");
+        }
+
+        if (negative && !isSigned)
+        {
+            throw new FormatException("Unsigned ApInt values cannot be parsed from negative text.");
+        }
+
+        BigInteger result = BigInteger.Zero;
+        for (; index < text.Length; index++)
+        {
+            int digit = ParseDigit(text[index]);
+            if (digit >= radix)
+            {
+                throw new FormatException("The input text contains a digit that is invalid for the requested radix.");
+            }
+
+            result = (result * radix) + digit;
+        }
+
+        return negative ? BigInteger.Negate(result) : result;
+    }
+
+    private static int ParseDigit(char c)
+    {
+        if (c >= '0' && c <= '9')
+        {
+            return c - '0';
+        }
+
+        if (c >= 'a' && c <= 'z')
+        {
+            return 10 + (c - 'a');
+        }
+
+        if (c >= 'A' && c <= 'Z')
+        {
+            return 10 + (c - 'A');
+        }
+
+        throw new FormatException("The input text contains a non-digit character.");
+    }
+
+    private static string FormatBigInteger(BigInteger value, int radix)
+    {
+        if (radix < 2 || radix > 36)
+        {
+            throw new ArgumentOutOfRangeException(nameof(radix));
+        }
+
+        if (value.IsZero)
+        {
+            return "0";
+        }
+
+        if (radix == 10)
+        {
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        bool negative = value.Sign < 0;
+        BigInteger remaining = BigInteger.Abs(value);
+        StringBuilder builder = new StringBuilder();
+
+        while (remaining > BigInteger.Zero)
+        {
+            remaining = BigInteger.DivRem(remaining, radix, out BigInteger remainder);
+            builder.Append(DigitToChar((int)remainder));
+        }
+
+        if (negative)
+        {
+            builder.Append('-');
+        }
+
+        char[] chars = builder.ToString().ToCharArray();
+        Array.Reverse(chars);
+        return new string(chars);
+    }
+
+    private static char DigitToChar(int digit)
+    {
+        return digit < 10
+            ? (char)('0' + digit)
+            : (char)('a' + (digit - 10));
+    }
+}
