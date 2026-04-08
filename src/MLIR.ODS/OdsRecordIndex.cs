@@ -797,6 +797,8 @@ internal sealed class OdsRecordIndex
     /// Carries the C# metadata extracted from a single <c>csharpParameters</c>
     /// DAG entry, to be applied as an override on top of a parameter model derived from the
     /// upstream <c>parameters</c> DAG.
+    /// A <c>null</c> value for any field means "no override for this field"; the corresponding
+    /// field from the original parameter model is preserved when the override is applied.
     /// </summary>
     private sealed class CsharpParameterOverride
     {
