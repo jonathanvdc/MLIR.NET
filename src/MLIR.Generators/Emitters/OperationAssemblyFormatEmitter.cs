@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using MLIR.ODS.Model;
 
-internal static class AssemblyFormatEmitter
+internal static class OperationAssemblyFormatEmitter
 {
     /// <summary>
     /// Returns the C# type of the body field with the given name, or <c>null</c> if the field
