@@ -647,14 +647,9 @@ public sealed class Binder
                 return "vector";
             case MemRefTypeSyntax:
                 return "memref";
+            case DialectNamedTypeSyntax namedTypeSyntax:
+                return namedTypeSyntax.Name;
             default:
-                // Generated dialect type syntax nodes implement ITypeNameSyntax so we can recover
-                // their canonical registered name without teaching the binder about each concrete class.
-                if (syntax is ITypeNameSyntax typedNameSyntax)
-                {
-                    return typedNameSyntax.NameToken.Text;
-                }
-
                 return null;
         }
     }

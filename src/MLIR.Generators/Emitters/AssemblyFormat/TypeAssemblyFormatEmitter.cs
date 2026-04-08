@@ -24,7 +24,7 @@ internal static class TypeAssemblyFormatEmitter
         builder.AppendLine("{");
         builder.AppendLine();
 
-        builder.Append("    public " + syntaxClassName + "(SyntaxToken nameToken");
+        builder.Append("    public " + syntaxClassName + "(DialectTypePrefix prefix");
         foreach (var slot in slots)
         {
             if (slot is LiteralTokenSlot lit)
@@ -38,7 +38,7 @@ internal static class TypeAssemblyFormatEmitter
         }
 
         builder.AppendLine(")");
-        builder.AppendLine("    : base(nameToken)");
+        builder.AppendLine("        : base(prefix)");
         builder.AppendLine("    {");
         foreach (var slot in slots)
         {
@@ -71,7 +71,7 @@ internal static class TypeAssemblyFormatEmitter
         }
 
         builder.AppendLine(")");
-        builder.Append("        : this(SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ")");
+        builder.Append("        : this(DialectTypePrefix.Synthetic(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ")");
         foreach (var slot in slots)
         {
             if (slot is LiteralTokenSlot lit)
@@ -112,23 +112,23 @@ internal static class TypeAssemblyFormatEmitter
         builder.AppendLine();
         if (variableSlots.Length > 0)
         {
-            builder.AppendLine("    public override SourceLocation Location => " + DialectGeneratorNaming.ToPascalCase(variableSlots[0].Name) + "Syntax.Location;");
+            builder.AppendLine("    public override SourceLocation Location => SourceLocation.Merge(Prefix.Location, " + DialectGeneratorNaming.ToPascalCase(variableSlots[0].Name) + "Syntax.Location);");
         }
         else
         {
-            builder.AppendLine("    public override SourceLocation Location => NameToken.Location;");
+            builder.AppendLine("    public override SourceLocation Location => Prefix.Location;");
         }
 
         builder.AppendLine();
         builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer)");
         builder.AppendLine("    {");
-        builder.AppendLine("        WriteName(writer);");
+        builder.AppendLine("        WritePrefix(writer);");
         EmitWriteToBody(builder, slots);
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)");
         builder.AppendLine("    {");
-        builder.Append("        return new " + syntaxClassName + "(rewriter.VisitToken(NameToken)");
+        builder.Append("        return new " + syntaxClassName + "(new DialectTypePrefix(rewriter.VisitToken(Prefix.BangToken), rewriter.VisitToken(Prefix.NameToken))");
         foreach (var slot in slots)
         {
             if (slot is LiteralTokenSlot lit)
@@ -180,6 +180,8 @@ internal static class TypeAssemblyFormatEmitter
         IReadOnlyList<FormatSlot> slots,
         string syntaxClassName)
     {
+        builder.AppendLine("        if (!context.TryMatch(TokenKind.Bang, out var bangToken))");
+        builder.AppendLine("            return ParseResult<TypeSyntax>.NoMatch();");
         builder.AppendLine("        if (!context.TryMatch(TokenKind.Identifier, out var nameToken))");
         builder.AppendLine("            return ParseResult<TypeSyntax>.NoMatch();");
         foreach (var slot in slots)
@@ -195,7 +197,7 @@ internal static class TypeAssemblyFormatEmitter
             }
         }
 
-        builder.Append("        return ParseResult<TypeSyntax>.Success(new " + syntaxClassName + "(nameToken");
+        builder.Append("        return ParseResult<TypeSyntax>.Success(new " + syntaxClassName + "(new DialectTypePrefix(bangToken, nameToken)");
         foreach (var slot in slots)
         {
             if (slot is LiteralTokenSlot lit)
@@ -267,7 +269,7 @@ internal static class TypeAssemblyFormatEmitter
             builder.AppendLine("        var " + localSyntaxName + " = " + buildExpr + ";");
         }
 
-        builder.Append("        return new " + syntaxClassName + "(SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(type.Name ?? string.Empty) + ")");
+        builder.Append("        return new " + syntaxClassName + "(DialectTypePrefix.Synthetic(" + EmitterHelpers.ToCSharpStringLiteral(type.Name ?? string.Empty) + ")");
         foreach (var slot in slots)
         {
             if (slot is LiteralTokenSlot lit)

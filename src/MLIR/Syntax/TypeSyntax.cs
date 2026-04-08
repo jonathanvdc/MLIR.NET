@@ -10,9 +10,9 @@ namespace MLIR.Syntax;
 /// <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/> for the first token to consume
 /// any pending suggested trivia, and use explicit-trivia overloads for subsequent tokens.
 ///
-/// Dialect-defined custom type syntax nodes that carry a canonical type-name token should
-/// also implement <see cref="ITypeNameSyntax"/> so the binder can recover the registered
-/// type definition from the parsed syntax.
+/// Dialect-defined custom type syntax nodes that carry a canonical <c>!dialect.type</c>
+/// prefix should derive from <see cref="DialectNamedTypeSyntax"/> so the binder can recover
+/// the registered type definition from the parsed syntax.
 /// </remarks>
 public abstract class TypeSyntax : SyntaxNode
 {
