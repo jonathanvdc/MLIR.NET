@@ -150,7 +150,7 @@ public sealed class OperationSyntax : SyntaxNode
     /// token (or the name token when there are no results) through to the end of the body.
     /// Returns an unknown location when no source-backed tokens are present.
     /// </summary>
-    public SourceLocation Location
+    public override SourceLocation Location
     {
         get
         {

@@ -7,8 +7,4 @@ namespace MLIR.Syntax;
 /// </summary>
 public abstract class AttributeValueSyntax : SyntaxNode
 {
-    /// <summary>
-    /// Gets the source location of this attribute value, if known.
-    /// </summary>
-    public abstract SourceLocation Location { get; }
 }

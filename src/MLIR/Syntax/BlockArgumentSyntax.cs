@@ -48,7 +48,7 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     /// Gets the merged source location spanning from the argument name to the end of the type.
     /// Returns an unknown location when neither token has source information.
     /// </summary>
-    public SourceLocation Location =>
+    public override SourceLocation Location =>
         SourceLocation.Merge(NameToken.Location, TypeSyntax.Location);
 
     /// <inheritdoc/>

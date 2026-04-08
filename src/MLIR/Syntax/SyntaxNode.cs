@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Syntax;
 
 /// <summary>
@@ -8,6 +10,11 @@ namespace MLIR.Syntax;
 /// </summary>
 public abstract class SyntaxNode
 {
+    /// <summary>
+    /// Gets the source location of this syntax node, if known.
+    /// </summary>
+    public abstract SourceLocation Location { get; }
+
     /// <summary>
     /// Writes this syntax node to the supplied writer using default formatting.
     /// </summary>

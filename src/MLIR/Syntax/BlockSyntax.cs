@@ -77,7 +77,7 @@ public sealed class BlockSyntax : SyntaxNode
     /// Returns the label token location when there are no operations, and an unknown location
     /// when the label token itself has no source information.
     /// </summary>
-    public SourceLocation Location
+    public override SourceLocation Location
     {
         get
         {

@@ -1,6 +1,7 @@
 namespace MLIR.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Semantics;
 using MLIR.Text;
 
 /// <summary>
@@ -31,6 +32,24 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
     /// Gets the end-of-file token that carries trailing trivia.
     /// </summary>
     public SyntaxToken EndOfFileToken { get; } = endOfFileToken;
+
+    /// <inheritdoc/>
+    public override SourceLocation Location
+    {
+        get
+        {
+            if (Operations.Count > 0)
+            {
+                var firstOpLocation = Operations[0].Location;
+                var lastOpLocation = Operations[Operations.Count - 1].Location;
+                return SourceLocation.Merge(firstOpLocation, lastOpLocation);
+            }
+            else
+            {
+                return EndOfFileToken.Location;
+            }
+        }
+    }
 
     /// <summary>
     /// Writes this module to the supplied syntax writer.

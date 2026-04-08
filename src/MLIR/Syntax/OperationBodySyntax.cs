@@ -22,5 +22,5 @@ public abstract class OperationBodySyntax : SyntaxNode
     /// contributing tokens and subtrees. The default implementation returns
     /// <see cref="SourceLocation.Unknown"/> for bodies that have not yet been updated.
     /// </remarks>
-    public virtual SourceLocation Location => SourceLocation.Unknown;
+    public override SourceLocation Location => SourceLocation.Unknown;
 }

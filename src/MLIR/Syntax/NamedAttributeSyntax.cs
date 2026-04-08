@@ -48,7 +48,7 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
     /// Gets the merged source location spanning from the attribute name to the end of the value.
     /// Returns an unknown location when neither the name token nor the value has source information.
     /// </summary>
-    public SourceLocation Location =>
+    public override SourceLocation Location =>
         SourceLocation.Merge(NameToken.Location, ValueSyntax.Location);
 
     /// <inheritdoc/>

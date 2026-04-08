@@ -43,7 +43,7 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
     /// Gets the merged source location spanning from the opening brace to the closing brace.
     /// Returns an unknown location when neither brace token has source information.
     /// </summary>
-    public SourceLocation Location =>
+    public override SourceLocation Location =>
         SourceLocation.Merge(OpenBraceToken.Location, CloseBraceToken.Location);
 
     /// <summary>

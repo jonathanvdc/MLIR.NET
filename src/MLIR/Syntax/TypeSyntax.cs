@@ -12,8 +12,4 @@ namespace MLIR.Syntax;
 /// </remarks>
 public abstract class TypeSyntax : SyntaxNode
 {
-    /// <summary>
-    /// Gets the source location of this type syntax, if available.
-    /// </summary>
-    public abstract SourceLocation Location { get; }
 }

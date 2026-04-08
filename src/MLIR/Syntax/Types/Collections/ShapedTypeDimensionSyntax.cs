@@ -12,8 +12,4 @@ namespace MLIR.Syntax.Types.Collections;
 /// </remarks>
 public abstract class ShapedTypeDimensionSyntax : SyntaxNode
 {
-    /// <summary>
-    /// Gets the source location of this dimension syntax, if available.
-    /// </summary>
-    public abstract SourceLocation Location { get; }
 }
