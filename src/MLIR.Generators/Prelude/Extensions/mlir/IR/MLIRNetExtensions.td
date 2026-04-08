@@ -68,6 +68,46 @@ class MLIRNet_OpExtension {
 //     let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
 //     let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), $_self)";
 //   }
+// Extension schema for AttrDef and TypeDef records.
+//
+// Applying this class to an AttrDef or TypeDef record via a record-level `extends` lets
+// MLIR.NET's ODS importer use a declarative C# parameter list instead of inferring C#
+// types from the upstream `parameters` DAG.
+//
+// Fields:
+//
+//   csharpParameters – A DAG mirroring the `parameters` field but interpreted for C#.
+//                      Each argument name ($name) must match a name in `parameters`.
+//
+//                      Two forms are accepted per argument:
+//
+//                        "CSharpType":$argName
+//                          The string literal is used directly as the C# type.
+//
+//                        SomeParamClass<...>:$argName
+//                          The argument is an AttrOrTypeParameter subclass instance;
+//                          C# metadata (csharpType, csharpSyntaxType, csharpParser,
+//                          csharpExtractor, csharpDefault, csharpPrinter) is resolved
+//                          from the class via MLIRNet_AttrOrTypeParameterExtension
+//                          annotations (including class-level extends).
+//
+//                      When `csharpParameters` is present it overrides the C# type
+//                      inference that would otherwise be performed on the `parameters`
+//                      DAG.  The upstream `parameters` field remains the source of
+//                      truth for C++ semantics (cppType, storage, accessors, defaults).
+//
+// Example:
+//   extends MyAttr : MLIRNet_AttrOrTypeDefExtension {
+//     let csharpParameters = (ins
+//       StringRefParameter<"desc">:$name,
+//       "System.Numerics.BigInteger":$value
+//     );
+//   }
+class MLIRNet_AttrOrTypeDefExtension {
+  // DAG of C# parameter overrides, keyed by the same names as the `parameters` dag.
+  dag csharpParameters = ?;
+}
+
 class MLIRNet_AttrOrTypeParameterExtension {
   // The C# type used for the generated typed property.
   string csharpType = ?;

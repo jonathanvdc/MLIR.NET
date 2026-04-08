@@ -738,6 +738,14 @@ internal sealed class OdsRecordIndex
     /// are either specified as plain C++ type strings (e.g., <c>"unsigned":$width</c>) or as
     /// instantiations of <c>AttrOrTypeParameter</c> subclasses (e.g.,
     /// <c>StringRefParameter&lt;"desc"&gt;:$name</c>). Both forms are supported.
+    ///
+    /// When a <c>csharpParameters</c> dag is also present (contributed directly or via a
+    /// record-level <c>extends MLIRNet_AttrOrTypeDefExtension</c> overlay), its entries
+    /// override the C# type information inferred from the upstream <c>parameters</c> dag.
+    /// String literals in <c>csharpParameters</c> are used directly as C# type names;
+    /// class instances are resolved through their <c>MLIRNet_AttrOrTypeParameterExtension</c>
+    /// fields.  The upstream <c>parameters</c> field remains the source of truth for C++
+    /// semantics (cppType, storage types, default values, etc.).
     /// </remarks>
     public IReadOnlyList<Model.AttrOrTypeParameterModel> GetAttrOrTypeParameters(Record record)
     {
@@ -761,7 +769,197 @@ internal sealed class OdsRecordIndex
             }
         }
 
+        // Check for a csharpParameters DAG that overrides C# type info per parameter.
+        // This field may be present directly on the record or contributed by a
+        // record-level `extends MLIRNet_AttrOrTypeDefExtension` overlay; in both cases
+        // it is visible through the extension-aware Fields view.
+        if (parameters.Count > 0
+            && record.Fields.TryGetValue("csharpParameters", out var csharpParamsField)
+            && csharpParamsField is DagValue csharpParamsDag)
+        {
+            var overrides = BuildCsharpParameterOverrides(csharpParamsDag);
+            if (overrides.Count > 0)
+            {
+                for (var i = 0; i < parameters.Count; i++)
+                {
+                    if (overrides.TryGetValue(parameters[i].Name, out var csharpOverride))
+                    {
+                        parameters[i] = ApplyCsharpOverride(parameters[i], csharpOverride);
+                    }
+                }
+            }
+        }
+
         return parameters;
+    }
+
+    /// <summary>
+    /// Carries the C# metadata extracted from a single <c>csharpParameters</c>
+    /// DAG entry, to be applied as an override on top of a parameter model derived from the
+    /// upstream <c>parameters</c> DAG.
+    /// </summary>
+    private sealed class CsharpParameterOverride
+    {
+        internal CsharpParameterOverride(
+            string? csharpType,
+            string? csharpSyntaxType,
+            string? csharpParser,
+            string? csharpExtractor,
+            string? csharpDefault,
+            string? csharpPrinter)
+        {
+            CsharpType = csharpType;
+            CsharpSyntaxType = csharpSyntaxType;
+            CsharpParser = csharpParser;
+            CsharpExtractor = csharpExtractor;
+            CsharpDefault = csharpDefault;
+            CsharpPrinter = csharpPrinter;
+        }
+
+        internal string? CsharpType { get; }
+        internal string? CsharpSyntaxType { get; }
+        internal string? CsharpParser { get; }
+        internal string? CsharpExtractor { get; }
+        internal string? CsharpDefault { get; }
+        internal string? CsharpPrinter { get; }
+    }
+
+    /// <summary>
+    /// Parses the <c>csharpParameters</c> DAG and returns a lookup from parameter name to
+    /// the C# override data extracted from each entry.
+    /// </summary>
+    /// <remarks>
+    /// Each named DAG argument is handled as follows:
+    /// <list type="bullet">
+    ///   <item>
+    ///     <description>
+    ///       String literal value (<c>"CSharpType":$name</c>): the string is used directly
+    ///       as the C# type.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       Anonymous record value (<c>SomeParamClass&lt;...&gt;:$name</c>): the C# metadata
+    ///       fields (<c>csharpType</c>, <c>csharpSyntaxType</c>, <c>csharpParser</c>,
+    ///       <c>csharpExtractor</c>, <c>csharpDefault</c>, <c>csharpPrinter</c>) are read
+    ///       from the record's extension-aware field view.
+    ///     </description>
+    ///   </item>
+    ///   <item>
+    ///     <description>
+    ///       Record reference: resolved to the target record's fields and processed the same
+    ///       way as an anonymous record value.
+    ///     </description>
+    ///   </item>
+    /// </list>
+    /// Entries whose value cannot be resolved are silently skipped.
+    /// </remarks>
+    private Dictionary<string, CsharpParameterOverride> BuildCsharpParameterOverrides(DagValue dag)
+    {
+        var result = new Dictionary<string, CsharpParameterOverride>(dag.Arguments.Count, StringComparer.Ordinal);
+        foreach (var argument in dag.Arguments)
+        {
+            if (argument.Name == null)
+            {
+                continue;
+            }
+
+            var csharpOverride = TryBuildCsharpParameterOverride(argument.Value);
+            if (csharpOverride != null)
+            {
+                result[argument.Name] = csharpOverride;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Attempts to extract a <see cref="CsharpParameterOverride"/> from a single
+    /// <c>csharpParameters</c> DAG argument value.
+    /// </summary>
+    private CsharpParameterOverride? TryBuildCsharpParameterOverride(Value value)
+    {
+        switch (value)
+        {
+            case StringValue str:
+                // "CSharpType":$name — the string is used directly as the C# type name.
+                if (string.IsNullOrEmpty(str.Value))
+                {
+                    return null;
+                }
+
+                return new CsharpParameterOverride(str.Value, null, null, null, null, null);
+
+            case AnonymousRecordValue anonymous:
+                return TryBuildCsharpParameterOverrideFromFields(anonymous.Fields);
+
+            case RecordReferenceValue recordRef:
+                if (TryGetRecord(recordRef.RecordName, out var referencedRecord))
+                {
+                    return TryBuildCsharpParameterOverrideFromFields(referencedRecord.Fields);
+                }
+
+                return null;
+
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Extracts a <see cref="CsharpParameterOverride"/> from a field dictionary that may
+    /// carry <c>MLIRNet_AttrOrTypeParameterExtension</c> fields.
+    /// </summary>
+    private static CsharpParameterOverride? TryBuildCsharpParameterOverrideFromFields(
+        IReadOnlyDictionary<string, Value> fields)
+    {
+        var csharpType = GetStringFromValueDictionary(fields, "csharpType");
+        var csharpSyntaxType = GetStringFromValueDictionary(fields, "csharpSyntaxType");
+        var csharpParser = GetStringFromValueDictionary(fields, "csharpParser");
+        var csharpExtractor = GetStringFromValueDictionary(fields, "csharpExtractor");
+        var csharpDefault = GetStringFromValueDictionary(fields, "csharpDefault");
+        var csharpPrinter = GetStringFromValueDictionary(fields, "csharpPrinter");
+
+        // Return null if no C# metadata was found — the entry is not useful as an override.
+        if (csharpType == null && csharpSyntaxType == null && csharpParser == null
+            && csharpExtractor == null && csharpDefault == null && csharpPrinter == null)
+        {
+            return null;
+        }
+
+        return new CsharpParameterOverride(
+            csharpType,
+            csharpSyntaxType,
+            csharpParser,
+            csharpExtractor,
+            csharpDefault,
+            csharpPrinter);
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="Model.AttrOrTypeParameterModel"/> that is identical to
+    /// <paramref name="parameter"/> except that its C# metadata fields are replaced by
+    /// the values from <paramref name="csharpOverride"/>.
+    /// </summary>
+    private static Model.AttrOrTypeParameterModel ApplyCsharpOverride(
+        Model.AttrOrTypeParameterModel parameter,
+        CsharpParameterOverride csharpOverride)
+    {
+        return new Model.AttrOrTypeParameterModel(
+            parameter.Name,
+            parameter.ConstraintRecordName,
+            parameter.CppType,
+            parameter.CppStorageType,
+            parameter.CppAccessorType,
+            parameter.Summary,
+            parameter.DefaultValue,
+            csharpOverride.CsharpType,
+            csharpOverride.CsharpSyntaxType,
+            csharpOverride.CsharpParser,
+            csharpOverride.CsharpExtractor,
+            csharpOverride.CsharpDefault,
+            csharpOverride.CsharpPrinter);
     }
 
     /// <summary>

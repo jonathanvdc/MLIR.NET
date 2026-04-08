@@ -343,6 +343,92 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Fact]
+    public void AttrDefWithCsharpParametersStringLiteralOverridesInferredType()
+    {
+        // When csharpParameters provides a string literal for a parameter, the generated
+        // C# property uses that type instead of what would be inferred from the parameters dag.
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_SizedAttr : Test_Attr<\"Sized\", \"sized\"> {",
+            "  let parameters = (ins APIntParameter<\"the width\">:$width);",
+            "  let assemblyFormat = \"`<` $width `>`\";",
+            "}",
+            string.Empty,
+            // Override: use ulong instead of the default ApInt type.
+            "extends Test_SizedAttr : MLIRNet_AttrOrTypeDefExtension {",
+            "  let csharpParameters = (ins \"ulong\":$width);",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        // The property type must be the overridden C# type.
+        AssertContainsAll(
+            registrationSource,
+            "public ulong Width { get; }",
+            "public SizedAttr(ulong width)");
+
+        // The inferred ApInt type must not appear.
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public global::MLIR.Numerics.ApInt Width",
+            "global::MLIR.Numerics.ApInt width,");
+    }
+
+    [Fact]
+    public void AttrDefWithCsharpParametersRecordEntryUsesExtensionMetadata()
+    {
+        // When csharpParameters provides a parameter class instance, the generated code uses
+        // the C# metadata from that class's MLIRNet_AttrOrTypeParameterExtension annotations.
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            // Use a plain C++ string parameter in the upstream parameters dag...
+            "def Test_LabelAttr : Test_Attr<\"Label\", \"label\"> {",
+            "  let parameters = (ins \"std::string\":$label);",
+            "  let assemblyFormat = \"`<` $label `>`\";",
+            "}",
+            string.Empty,
+            // ...but map it to the richer StringRefParameter C# metadata via csharpParameters.
+            "extends Test_LabelAttr : MLIRNet_AttrOrTypeDefExtension {",
+            "  let csharpParameters = (ins StringRefParameter<\"the label\">:$label);",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        // The C# type and syntax type come from StringRefParameter's extension metadata.
+        AssertContainsAll(
+            registrationSource,
+            "public string Label { get; }",
+            "public LabelAttr(string label)",
+            "public StringAttributeValueSyntax LabelSyntax { get; }",
+            // StringRefParameter.csharpParser is used.
+            "context.TryParseStringLiteralSyntax()");
+    }
+
+    [Fact]
     public void AttrDefWithCustomParserAndPrinterUsesProvidedExpressions()
     {
         var source = ComposeSource(
