@@ -26,16 +26,9 @@ public abstract class DialectParsingContext
     /// <summary>
     /// Attempts to match the current token.
     /// </summary>
-    public bool TryMatch(TokenKind kind, out SyntaxToken token)
+    public bool TryMatch(TokenKind kind, out Token token)
     {
-        if (Parser.TryMatchToken(kind, out var rawToken))
-        {
-            token = Parser.ToSyntaxToken(rawToken);
-            return true;
-        }
-
-        token = default;
-        return false;
+        return Parser.TryMatchToken(kind, out token);
     }
 
     /// <summary>
@@ -45,7 +38,7 @@ public abstract class DialectParsingContext
     {
         if (Parser.TryPeekToken(offset, out var token))
         {
-            kind = token.Kind;
+            kind = token.TokenKind;
             text = token.Text;
             return true;
         }
@@ -58,7 +51,7 @@ public abstract class DialectParsingContext
     /// <summary>
     /// Expects a token of the supplied kind.
     /// </summary>
-    public ParseResult<SyntaxToken> Expect(TokenKind kind, string message)
+    public ParseResult<Token> Expect(TokenKind kind, string message)
     {
         return Parser.ExpectTokenInternal(kind, message);
     }

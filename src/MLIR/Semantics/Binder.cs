@@ -166,7 +166,7 @@ public sealed class Binder
         TypeReference? typeSignatureReference,
         IReadOnlyList<OperationResult> resultValues,
         IReadOnlyList<Value> operandValues,
-        IReadOnlyList<SyntaxToken> successorTokens)
+        IReadOnlyList<Token> successorTokens)
     {
         var isValid = true;
         if (definition.RegionCount.HasValue && regions.Count != definition.RegionCount.Value)
@@ -329,7 +329,7 @@ public sealed class Binder
     /// </summary>
     /// <param name="token">The syntax token to bind.</param>
     /// <returns>The semantic value.</returns>
-    public Value BindValueReference(SyntaxToken token)
+    public Value BindValueReference(Token token)
     {
         if (TryLookupValue(token.Text, out var value))
         {
@@ -344,7 +344,7 @@ public sealed class Binder
     /// </summary>
     /// <param name="tokens">The tokens for which to create values.</param>
     /// <returns>The list of semantic values.</returns>
-    public IReadOnlyList<Value> BindValueUses(IReadOnlyList<SyntaxToken> tokens)
+    public IReadOnlyList<Value> BindValueUses(IReadOnlyList<Token> tokens)
     {
         var values = new List<Value>(tokens.Count);
         foreach (var token in tokens)
@@ -360,7 +360,7 @@ public sealed class Binder
     /// </summary>
     /// <param name="tokens">The result tokens.</param>
     /// <returns>The unbound operation results.</returns>
-    public IReadOnlyList<OperationResult> BindOperationResults(IReadOnlyList<SyntaxToken> tokens)
+    public IReadOnlyList<OperationResult> BindOperationResults(IReadOnlyList<Token> tokens)
     {
         var values = new List<OperationResult>(tokens.Count);
         foreach (var token in tokens)

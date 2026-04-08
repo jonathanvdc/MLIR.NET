@@ -56,13 +56,13 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     internal static IntegerAttributeValueSyntax CreateSyntax(ApInt value)
     {
         var text = value.ToStringSigned();
-        return new IntegerAttributeValueSyntax(SyntaxTokenFactory.Integer(text), value);
+        return new IntegerAttributeValueSyntax(TokenFactory.Integer(text), value);
     }
 
     internal static bool TryParseSignedIntegerLiteral(
         AttributeParsingContext context,
-        out SyntaxToken? signToken,
-        out SyntaxToken integerToken,
+        out Token? signToken,
+        out Token integerToken,
         out BigInteger value)
     {
         signToken = null;

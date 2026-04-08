@@ -187,7 +187,7 @@ public sealed partial class Parser
 
         for (var i = 0; i < stopBefore.Length; i++)
         {
-            if (Current.Kind == stopBefore[i])
+            if (Current.TokenKind == stopBefore[i])
             {
                 return true;
             }
@@ -275,24 +275,24 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<NamedAttributeSyntax> TryParseAttributeResult()
     {
-        SyntaxToken nameToken;
+        Token nameToken;
         if (Is(TokenKind.Identifier) || Is(TokenKind.StringLiteral))
         {
-            nameToken = ToSyntaxToken(ConsumeToken());
+            nameToken = ConsumeToken();
         }
         else
         {
             return ParseResult<NamedAttributeSyntax>.Failure(CreateDiagnostic("Expected an attribute name."));
         }
 
-        SyntaxToken separatorToken;
+        Token separatorToken;
         if (TryMatch(TokenKind.Equal, out var equalsToken))
         {
-            separatorToken = ToSyntaxToken(equalsToken);
+            separatorToken = equalsToken;
         }
         else if (TryMatch(TokenKind.Colon, out var colonToken))
         {
-            separatorToken = ToSyntaxToken(colonToken);
+            separatorToken = colonToken;
         }
         else
         {
@@ -387,8 +387,8 @@ public sealed partial class Parser
         // Both consumed tokens are passed to TryParse via the context's Prefix property so
         // that the generated syntax class can store and replay the original source tokens.
         var outerCheckpoint = Mark();
-        var hashToken = ToSyntaxToken(ConsumeToken());   // '#'
-        var nameToken = ToSyntaxToken(ConsumeToken());   // 'dialect.attr' (lexed as a single identifier with the dot)
+        var hashToken = ConsumeToken();   // '#'
+        var nameToken = ConsumeToken();   // 'dialect.attr' (lexed as a single identifier with the dot)
         var prefix = new Syntax.DialectAttributePrefix(hashToken, nameToken);
 
         var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition, prefix));

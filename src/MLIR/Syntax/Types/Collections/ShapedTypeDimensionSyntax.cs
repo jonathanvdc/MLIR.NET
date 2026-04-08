@@ -7,7 +7,7 @@ namespace MLIR.Syntax.Types.Collections;
 /// </summary>
 /// <remarks>
 /// Implementations of <see cref="SyntaxNode.WriteTo(Text.SyntaxWriter)"/> should call
-/// <see cref="Text.SyntaxWriter.WriteToken(SyntaxToken)"/> for the first token to consume
+/// <see cref="Text.SyntaxWriter.WriteToken(Token)"/> for the first token to consume
 /// any pending suggested trivia.
 /// </remarks>
 public abstract class ShapedTypeDimensionSyntax : SyntaxNode

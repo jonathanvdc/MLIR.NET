@@ -12,14 +12,14 @@ using MLIR.Text;
 /// </remarks>
 /// <param name="operations">The top-level operations in the module.</param>
 /// <param name="endOfFileToken">The end-of-file token that carries any trailing trivia.</param>
-public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, SyntaxToken endOfFileToken) : SyntaxNode
+public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Token endOfFileToken) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ModuleSyntax"/> class.
     /// </summary>
     /// <param name="operations">The top-level operations in the module.</param>
     public ModuleSyntax(IReadOnlyList<OperationSyntax> operations)
-        : this(operations, SyntaxTokenFactory.EndOfFile())
+        : this(operations, TokenFactory.EndOfFile())
     {
     }
 
@@ -31,7 +31,7 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
     /// <summary>
     /// Gets the end-of-file token that carries trailing trivia.
     /// </summary>
-    public SyntaxToken EndOfFileToken { get; } = endOfFileToken;
+    public Token EndOfFileToken { get; } = endOfFileToken;
 
     /// <inheritdoc/>
     public override SourceLocation Location

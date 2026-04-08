@@ -28,29 +28,29 @@ public sealed class OperationSyntax : SyntaxNode
         IReadOnlyList<NamedAttributeSyntax> attributes,
         TypeSyntax? typeSignature)
         : this(
-            new SeparatedSyntaxList<SyntaxToken>(
+            new SeparatedSyntaxList<Token>(
                 CreateSsaNameTokens(results),
                 CreateDefaultCommaTokens(results.Count)),
-            results.Count > 0 ? SyntaxTokenFactory.Equal() : null,
-            SyntaxTokenFactory.Identifier(name),
+            results.Count > 0 ? TokenFactory.Equal() : null,
+            TokenFactory.Identifier(name),
             new GenericOperationBodySyntax(
-                new DelimitedSyntaxList<SyntaxToken>(
-                    SyntaxTokenFactory.LParen(),
+                new DelimitedSyntaxList<Token>(
+                    TokenFactory.LParen(),
                     CreateSsaNameTokens(operands),
                     CreateDefaultCommaTokens(operands.Count),
-                    SyntaxTokenFactory.RParen()),
-                new DelimitedSyntaxList<SyntaxToken>(
-                    successors.Count > 0 ? SyntaxTokenFactory.LBracket() : null,
+                    TokenFactory.RParen()),
+                new DelimitedSyntaxList<Token>(
+                    successors.Count > 0 ? TokenFactory.LBracket() : null,
                     CreateBlockLabelTokens(successors),
                     CreateDefaultCommaTokens(successors.Count),
-                    successors.Count > 0 ? SyntaxTokenFactory.RBracket() : null),
+                    successors.Count > 0 ? TokenFactory.RBracket() : null),
                 regions,
                 new DelimitedSyntaxList<NamedAttributeSyntax>(
-                    attributes.Count > 0 ? SyntaxTokenFactory.LBrace() : null,
+                    attributes.Count > 0 ? TokenFactory.LBrace() : null,
                     attributes,
                     CreateDefaultCommaTokens(attributes.Count),
-                    attributes.Count > 0 ? SyntaxTokenFactory.RBrace() : null),
-                typeSignature != null ? SyntaxTokenFactory.Colon() : null,
+                    attributes.Count > 0 ? TokenFactory.RBrace() : null),
+                typeSignature != null ? TokenFactory.Colon() : null,
                 typeSignature != null ? typeSignature : null))
     {
     }
@@ -63,9 +63,9 @@ public sealed class OperationSyntax : SyntaxNode
     /// <param name="nameToken">The operation name token.</param>
     /// <param name="body">The operation body.</param>
     public OperationSyntax(
-        SeparatedSyntaxList<SyntaxToken> resultList,
-        SyntaxToken? equalsToken,
-        SyntaxToken nameToken,
+        SeparatedSyntaxList<Token> resultList,
+        Token? equalsToken,
+        Token nameToken,
         OperationBodySyntax body)
     {
         ResultList = resultList;
@@ -87,14 +87,14 @@ public sealed class OperationSyntax : SyntaxNode
     /// <param name="typeSignatureColonToken">The colon token that introduces the type signature, if present.</param>
     /// <param name="typeSignature">The raw trailing type signature, if present.</param>
     public OperationSyntax(
-        SeparatedSyntaxList<SyntaxToken> resultList,
-        SyntaxToken? equalsToken,
-        SyntaxToken nameToken,
-        DelimitedSyntaxList<SyntaxToken> operandList,
-        DelimitedSyntaxList<SyntaxToken> successorList,
+        SeparatedSyntaxList<Token> resultList,
+        Token? equalsToken,
+        Token nameToken,
+        DelimitedSyntaxList<Token> operandList,
+        DelimitedSyntaxList<Token> successorList,
         IReadOnlyList<RegionSyntax> regions,
         DelimitedSyntaxList<NamedAttributeSyntax> attributes,
-        SyntaxToken? typeSignatureColonToken,
+        Token? typeSignatureColonToken,
         TypeSyntax? typeSignature)
         : this(
             resultList,
@@ -113,17 +113,17 @@ public sealed class OperationSyntax : SyntaxNode
     /// <summary>
     /// Gets the SSA result list, containing both the result tokens and the comma tokens between them.
     /// </summary>
-    public SeparatedSyntaxList<SyntaxToken> ResultList { get; }
+    public SeparatedSyntaxList<Token> ResultList { get; }
 
     /// <summary>
     /// Gets the equals token, if present.
     /// </summary>
-    public SyntaxToken? EqualsToken { get; }
+    public Token? EqualsToken { get; }
 
     /// <summary>
     /// Gets the operation name token.
     /// </summary>
-    public SyntaxToken NameToken { get; }
+    public Token NameToken { get; }
 
     /// <summary>
     /// Gets the operation body.
@@ -193,40 +193,40 @@ public sealed class OperationSyntax : SyntaxNode
             (OperationBodySyntax)rewriter.Visit(Body));
     }
 
-    private static IReadOnlyList<SyntaxToken> CreateSsaNameTokens(IReadOnlyList<string> values)
+    private static IReadOnlyList<Token> CreateSsaNameTokens(IReadOnlyList<string> values)
     {
-        var tokens = new List<SyntaxToken>();
+        var tokens = new List<Token>();
         foreach (var value in values)
         {
-            tokens.Add(SyntaxTokenFactory.SsaName(value));
+            tokens.Add(TokenFactory.SsaName(value));
         }
 
         return tokens;
     }
 
-    private static IReadOnlyList<SyntaxToken> CreateBlockLabelTokens(IReadOnlyList<string> labels)
+    private static IReadOnlyList<Token> CreateBlockLabelTokens(IReadOnlyList<string> labels)
     {
-        var tokens = new List<SyntaxToken>();
+        var tokens = new List<Token>();
         foreach (var label in labels)
         {
-            tokens.Add(SyntaxTokenFactory.BlockLabel(label));
+            tokens.Add(TokenFactory.BlockLabel(label));
         }
 
         return tokens;
     }
 
-    private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)
+    private static IReadOnlyList<Token> CreateDefaultCommaTokens(int count)
     {
-        var separators = new List<SyntaxToken>();
+        var separators = new List<Token>();
         for (var i = 1; i < count; i++)
         {
-            separators.Add(SyntaxTokenFactory.Comma());
+            separators.Add(TokenFactory.Comma());
         }
 
         return separators;
     }
 
-    private static IReadOnlyList<string> GetTexts(SeparatedSyntaxList<SyntaxToken> tokens)
+    private static IReadOnlyList<string> GetTexts(SeparatedSyntaxList<Token> tokens)
     {
         var values = new List<string>();
         foreach (var token in tokens)

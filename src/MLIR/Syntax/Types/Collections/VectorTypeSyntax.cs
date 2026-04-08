@@ -6,25 +6,25 @@ namespace MLIR.Syntax.Types.Collections;
 /// Represents a builtin vector type.
 /// </summary>
 public sealed class VectorTypeSyntax(
-    SyntaxToken keywordToken,
-    SyntaxToken lessThanToken,
+    Token keywordToken,
+    Token lessThanToken,
     IReadOnlyList<ShapedTypeDimensionSyntax> dimensions,
-    IReadOnlyList<SyntaxToken> xTokens,
+    IReadOnlyList<Token> xTokens,
     TypeSyntax elementType,
-    SyntaxToken greaterThanToken) : TypeSyntax
+    Token greaterThanToken) : TypeSyntax
 {
     /// <summary>Gets the keyword token.</summary>
-    public SyntaxToken KeywordToken { get; } = keywordToken;
+    public Token KeywordToken { get; } = keywordToken;
     /// <summary>Gets the opening angle-bracket token.</summary>
-    public SyntaxToken LessThanToken { get; } = lessThanToken;
+    public Token LessThanToken { get; } = lessThanToken;
     /// <summary>Gets the ranked dimensions.</summary>
     public IReadOnlyList<ShapedTypeDimensionSyntax> Dimensions { get; } = dimensions;
     /// <summary>Gets the preserved <c>x</c> separators.</summary>
-    public IReadOnlyList<SyntaxToken> XTokens { get; } = xTokens;
+    public IReadOnlyList<Token> XTokens { get; } = xTokens;
     /// <summary>Gets the element type.</summary>
     public TypeSyntax ElementType { get; } = elementType;
     /// <summary>Gets the closing angle-bracket token.</summary>
-    public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
+    public Token GreaterThanToken { get; } = greaterThanToken;
 
     /// <inheritdoc/>
     public override SourceLocation Location =>

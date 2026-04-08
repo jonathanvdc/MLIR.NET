@@ -12,7 +12,7 @@ using MLIR.Text;
 /// <param name="nameToken">The SSA name token.</param>
 /// <param name="colonToken">The separating colon token.</param>
 /// <param name="typeSyntax">The declared argument type syntax.</param>
-public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colonToken, TypeSyntax typeSyntax) : SyntaxNode
+public sealed class BlockArgumentSyntax(Token nameToken, Token colonToken, TypeSyntax typeSyntax) : SyntaxNode
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="BlockArgumentSyntax"/> class.
@@ -20,19 +20,19 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
     /// <param name="name">The SSA name of the block argument.</param>
     /// <param name="type">The declared argument type.</param>
     public BlockArgumentSyntax(string name, RawSyntaxText type)
-        : this(SyntaxTokenFactory.SsaName(name), SyntaxTokenFactory.Colon(), new RawTypeSyntax(type))
+        : this(TokenFactory.SsaName(name), TokenFactory.Colon(), new RawTypeSyntax(type))
     {
     }
 
     /// <summary>
     /// Gets the SSA name token.
     /// </summary>
-    public SyntaxToken NameToken { get; } = nameToken;
+    public Token NameToken { get; } = nameToken;
 
     /// <summary>
     /// Gets the separating colon token.
     /// </summary>
-    public SyntaxToken ColonToken { get; } = colonToken;
+    public Token ColonToken { get; } = colonToken;
 
     /// <summary>
     /// Gets the SSA name of the block argument.

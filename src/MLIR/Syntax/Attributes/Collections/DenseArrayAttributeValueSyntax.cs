@@ -7,22 +7,22 @@ using MLIR.Syntax;
 /// Represents a dense array attribute value such as <c>array&lt;i32: 1, 2&gt;</c>.
 /// </summary>
 public sealed class DenseArrayAttributeValueSyntax(
-    SyntaxToken keywordToken,
-    SyntaxToken lessThanToken,
+    Token keywordToken,
+    Token lessThanToken,
     TypeSyntax elementTypeSyntax,
-    SyntaxToken colonToken,
+    Token colonToken,
     SeparatedSyntaxList<AttributeValueSyntax> items,
-    SyntaxToken greaterThanToken) : AttributeValueSyntax
+    Token greaterThanToken) : AttributeValueSyntax
 {
     /// <summary>
     /// Gets the leading keyword token.
     /// </summary>
-    public SyntaxToken KeywordToken { get; } = keywordToken;
+    public Token KeywordToken { get; } = keywordToken;
 
     /// <summary>
     /// Gets the opening angle token.
     /// </summary>
-    public SyntaxToken LessThanToken { get; } = lessThanToken;
+    public Token LessThanToken { get; } = lessThanToken;
 
     /// <summary>
     /// Gets the element type syntax.
@@ -32,7 +32,7 @@ public sealed class DenseArrayAttributeValueSyntax(
     /// <summary>
     /// Gets the colon token that separates the type from the values.
     /// </summary>
-    public SyntaxToken ColonToken { get; } = colonToken;
+    public Token ColonToken { get; } = colonToken;
 
     /// <summary>
     /// Gets the dense array items.
@@ -42,7 +42,7 @@ public sealed class DenseArrayAttributeValueSyntax(
     /// <summary>
     /// Gets the closing angle token.
     /// </summary>
-    public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
+    public Token GreaterThanToken { get; } = greaterThanToken;
 
     /// <inheritdoc/>
     public override SourceLocation Location =>

@@ -15,7 +15,7 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     /// <param name="signToken">The optional source token for the sign.</param>
     /// <param name="integerToken">The source token for the digits.</param>
     /// <param name="value">The parsed integer value.</param>
-    public IntegerAttributeValueSyntax(SyntaxToken? signToken, SyntaxToken integerToken, ApInt value)
+    public IntegerAttributeValueSyntax(Token? signToken, Token integerToken, ApInt value)
     {
         SignToken = signToken;
         IntegerToken = integerToken;
@@ -27,7 +27,7 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     /// </summary>
     /// <param name="integerToken">The source token for the integer literal.</param>
     /// <param name="value">The parsed integer value.</param>
-    public IntegerAttributeValueSyntax(SyntaxToken integerToken, ApInt value)
+    public IntegerAttributeValueSyntax(Token integerToken, ApInt value)
         : this(null, integerToken, value)
     {
     }
@@ -35,12 +35,12 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Gets the optional sign token.
     /// </summary>
-    public SyntaxToken? SignToken { get; }
+    public Token? SignToken { get; }
 
     /// <summary>
     /// Gets the digits token.
     /// </summary>
-    public SyntaxToken IntegerToken { get; }
+    public Token IntegerToken { get; }
 
     /// <summary>
     /// Gets the parsed integer value.

@@ -42,7 +42,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
         }
 
         var items = new List<AttributeValueSyntax>();
-        var separators = new List<SyntaxToken>();
+        var separators = new List<Token>();
         if (!context.Is(TokenKind.GreaterThan))
         {
             var firstItemResult = context.TryParseAttributeValueSyntax(TokenKind.Comma, TokenKind.GreaterThan);
@@ -106,19 +106,19 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             itemSyntax.Add(ElementToSyntax(denseArray.Items[i]));
         }
 
-        var separators = new List<SyntaxToken>(itemSyntax.Count > 0 ? itemSyntax.Count - 1 : 0);
+        var separators = new List<Token>(itemSyntax.Count > 0 ? itemSyntax.Count - 1 : 0);
         for (var i = 1; i < itemSyntax.Count; i++)
         {
-            separators.Add(SyntaxTokenFactory.Comma());
+            separators.Add(TokenFactory.Comma());
         }
 
         return new DenseArrayAttributeValueSyntax(
-            SyntaxTokenFactory.Identifier("array"),
-            SyntaxTokenFactory.LessThan(),
+            TokenFactory.Identifier("array"),
+            TokenFactory.LessThan(),
             GetElementTypeSyntax(attribute.Definition?.Name ?? attribute.Name),
-            SyntaxTokenFactory.Colon(),
+            TokenFactory.Colon(),
             new SeparatedSyntaxList<AttributeValueSyntax>(itemSyntax, separators),
-            SyntaxTokenFactory.GreaterThan());
+            TokenFactory.GreaterThan());
     }
 
     /// <summary>

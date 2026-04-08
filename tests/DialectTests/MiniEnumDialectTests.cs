@@ -35,8 +35,8 @@ public sealed class MiniEnumDialectTests : DialectIntegrationTestBase
     public void GeneratedEnumOperationPrintsBitEnumsUsingConfiguredSeparatorAndAlias()
     {
         var operation = new MiniEnum_FlagsOp(
-            input: new UnresolvedValue(SyntaxTokenFactory.SsaName("%input")),
-            resultValue: new OperationResult(SyntaxTokenFactory.SsaName("%result")),
+            input: new UnresolvedValue(TokenFactory.SsaName("%input")),
+            resultValue: new OperationResult(TokenFactory.SsaName("%result")),
             flags: Flags.X | Flags.Y,
             typeSignatureReference: TypeFactory.I32);
 

@@ -71,7 +71,7 @@ public sealed partial class SemanticTests
 
         public PrefixConstantBodySyntax(
             AttributeValueSyntax value,
-            SyntaxToken colonToken,
+            Token colonToken,
             TypeSyntax typeSignature,
             DelimitedSyntaxList<NamedAttributeSyntax> attributes)
         {
@@ -79,8 +79,8 @@ public sealed partial class SemanticTests
             ColonToken = colonToken;
             TypeSignature = typeSignature;
             genericBody = new GenericOperationBodySyntax(
-                new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), [], [], SyntaxTokenFactory.RParen()),
-                new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
+                new DelimitedSyntaxList<Token>(TokenFactory.LParen(), [], [], TokenFactory.RParen()),
+                new DelimitedSyntaxList<Token>(null, [], [], null),
                 [],
                 attributes,
                 colonToken,
@@ -89,7 +89,7 @@ public sealed partial class SemanticTests
 
         public AttributeValueSyntax Value { get; }
 
-        public SyntaxToken ColonToken { get; }
+        public Token ColonToken { get; }
 
         public TypeSyntax TypeSignature { get; }
 
@@ -256,12 +256,12 @@ public sealed partial class SemanticTests
     private sealed class DenseAttributeValueSyntax : AttributeValueSyntax
     {
         public DenseAttributeValueSyntax(
-            SyntaxToken hashToken,
-            SyntaxToken nameToken,
-            SyntaxToken lessThanToken,
+            Token hashToken,
+            Token nameToken,
+            Token lessThanToken,
             RawSyntaxText payload,
-            SyntaxToken greaterThanToken,
-            SyntaxToken? colonToken = null,
+            Token greaterThanToken,
+            Token? colonToken = null,
             TypeSyntax? typeSyntax = null)
         {
             HashToken = hashToken;
@@ -273,17 +273,17 @@ public sealed partial class SemanticTests
             TypeSyntax = typeSyntax;
         }
 
-        public SyntaxToken HashToken { get; }
+        public Token HashToken { get; }
 
-        public SyntaxToken NameToken { get; }
+        public Token NameToken { get; }
 
-        public SyntaxToken LessThanToken { get; }
+        public Token LessThanToken { get; }
 
         public RawSyntaxText Payload { get; }
 
-        public SyntaxToken GreaterThanToken { get; }
+        public Token GreaterThanToken { get; }
 
-        public SyntaxToken? ColonToken { get; }
+        public Token? ColonToken { get; }
 
         public TypeSyntax? TypeSyntax { get; }
 
@@ -396,12 +396,12 @@ public sealed partial class SemanticTests
 
     private sealed class BuiltinIntegerTypeSyntax : TypeSyntax
     {
-        public BuiltinIntegerTypeSyntax(SyntaxToken nameToken)
+        public BuiltinIntegerTypeSyntax(Token nameToken)
         {
             NameToken = nameToken;
         }
 
-        public SyntaxToken NameToken { get; }
+        public Token NameToken { get; }
 
         public override SourceLocation Location => NameToken.Location;
 
@@ -418,12 +418,12 @@ public sealed partial class SemanticTests
 
     private sealed class IntegerLiteralAttributeSyntax : AttributeValueSyntax
     {
-        public IntegerLiteralAttributeSyntax(SyntaxToken literalToken)
+        public IntegerLiteralAttributeSyntax(Token literalToken)
         {
             LiteralToken = literalToken;
         }
 
-        public SyntaxToken LiteralToken { get; }
+        public Token LiteralToken { get; }
 
         public override SourceLocation Location => LiteralToken.Location;
 
@@ -441,9 +441,9 @@ public sealed partial class SemanticTests
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
     {
         public ParseResult<OperationBodySyntax> TryParse(
-            SyntaxToken nameToken,
-            SeparatedSyntaxList<SyntaxToken> resultList,
-            SyntaxToken? equalsToken,
+            Token nameToken,
+            SeparatedSyntaxList<Token> resultList,
+            Token? equalsToken,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -470,7 +470,7 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(SyntaxTokenFactory.Identifier("value"), SyntaxTokenFactory.Equal(), valueAttrSyntax)]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueAttrSyntax)]);
 
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, new RawTypeSyntax(typeResult.Value), attributes));
         }
@@ -492,7 +492,7 @@ public sealed partial class SemanticTests
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
             var body = new PrefixConstantBodySyntax(
                 valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value) : new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)),
-                genericBody.TypeSignatureColonToken ?? SyntaxTokenFactory.Colon(),
+                genericBody.TypeSignatureColonToken ?? TokenFactory.Colon(),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax!.NameToken;
@@ -511,9 +511,9 @@ public sealed partial class SemanticTests
         }
 
         public ParseResult<OperationBodySyntax> TryParse(
-            SyntaxToken nameToken,
-            SeparatedSyntaxList<SyntaxToken> resultList,
-            SyntaxToken? equalsToken,
+            Token nameToken,
+            SeparatedSyntaxList<Token> resultList,
+            Token? equalsToken,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -539,7 +539,7 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(SyntaxTokenFactory.Identifier("value"), SyntaxTokenFactory.Equal(), valueResult.Value)]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueResult.Value)]);
 
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
@@ -562,7 +562,7 @@ public sealed partial class SemanticTests
             var attrSyntax = context.BuildAttributeValueSyntax(valueAttr?.Value ?? new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)), null, null, SourceLocation.Unknown));
             var body = new PrefixConstantBodySyntax(
                 attrSyntax,
-                genericBody.TypeSignatureColonToken ?? SyntaxTokenFactory.Colon(),
+                genericBody.TypeSignatureColonToken ?? TokenFactory.Colon(),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax!.NameToken;
@@ -603,7 +603,7 @@ public sealed partial class SemanticTests
                 return ParseResult<AttributeValueSyntax>.Failure(greaterThanTokenResult.Diagnostic!);
             }
 
-            SyntaxToken? colonToken = null;
+            Token? colonToken = null;
             TypeSyntax? typeSyntax = null;
             if (context.Is(TokenKind.Colon))
             {
@@ -677,7 +677,7 @@ public sealed partial class SemanticTests
         {
             if (type is IntegerTypeReference integerType)
             {
-                return new BuiltinIntegerTypeSyntax(SyntaxTokenFactory.Identifier("i" + integerType.Width));
+                return new BuiltinIntegerTypeSyntax(TokenFactory.Identifier("i" + integerType.Width));
             }
 
             return type.Syntax ?? throw new InvalidOperationException("Integer test types require syntax to rebuild their assembly form.");
@@ -707,7 +707,7 @@ public sealed partial class SemanticTests
         {
             if (attribute is I32AttributeValue i32 && i32.Value.HasValue)
             {
-                return new IntegerLiteralAttributeSyntax(SyntaxTokenFactory.Integer(i32.Value.Value.ToString()));
+                return new IntegerLiteralAttributeSyntax(TokenFactory.Integer(i32.Value.Value.ToString()));
             }
 
             return attribute.Syntax ?? throw new InvalidOperationException("i32 attributes require syntax to rebuild their assembly form.");

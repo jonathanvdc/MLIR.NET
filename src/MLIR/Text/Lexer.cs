@@ -1,18 +1,22 @@
 namespace MLIR.Text;
 
 using System.Collections.Generic;
+using MLIR.Syntax;
 
 /// <summary>
 /// Tokenizes generic MLIR syntax while preserving leading trivia on every token.
 /// </summary>
 internal static class Lexer
 {
-    internal static ParseResult<IReadOnlyList<Token>> TryLexCore(string source)
+    /// <summary>
+    /// Core lexing routine. Produces <see cref="Token"/> instances backed by
+    /// <paramref name="document"/> so that every token carries document-relative offset
+    /// information for on-demand line/column resolution.
+    /// </summary>
+    internal static ParseResult<IReadOnlyList<Token>> TryLexCore(string source, SourceDocument document)
     {
         var tokens = new List<Token>();
         var index = 0;
-        var line = 1;
-        var column = 1;
 
         while (true)
         {
@@ -25,7 +29,7 @@ internal static class Lexer
                 var ch = source[index];
                 if (ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n')
                 {
-                    Advance(ch, ref index, ref line, ref column);
+                    index++;
                     continue;
                 }
 
@@ -33,7 +37,7 @@ internal static class Lexer
                 {
                     while (index < source.Length && source[index] != '\n')
                     {
-                        Advance(source[index], ref index, ref line, ref column);
+                        index++;
                     }
 
                     continue;
@@ -45,65 +49,64 @@ internal static class Lexer
             var leadingTrivia = source.Substring(triviaStart, index - triviaStart);
             if (index >= source.Length)
             {
-                tokens.Add(new Token(TokenKind.EndOfFile, leadingTrivia, string.Empty, triviaStart, index, index, line, column));
+                tokens.Add(new Token(TokenKind.EndOfFile, string.Empty, leadingTrivia, document, index, 0));
                 return ParseResult<IReadOnlyList<Token>>.Success(tokens);
             }
 
             var tokenStart = index;
-            var tokenLine = line;
-            var tokenColumn = column;
             var chAtToken = source[index];
 
             if (chAtToken == '%' || chAtToken == '^')
             {
                 var tokenKind = chAtToken == '%' ? TokenKind.SsaName : TokenKind.BlockLabel;
-                Advance(chAtToken, ref index, ref line, ref column);
+                index++;
                 if (index >= source.Length || (!IsIdentifierStart(source[index]) && !char.IsDigit(source[index])))
                 {
-                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Expected a name after '{chAtToken}'.", tokenLine, tokenColumn));
+                    var (line, column) = document.GetLineColumn(tokenStart);
+                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Expected a name after '{chAtToken}'.", line, column));
                 }
 
                 while (index < source.Length && IsIdentifierPart(source[index]))
                 {
-                    Advance(source[index], ref index, ref line, ref column);
+                    index++;
                 }
 
-                tokens.Add(new Token(tokenKind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(tokenKind, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
                 continue;
             }
 
             if (IsIdentifierStart(chAtToken))
             {
-                Advance(chAtToken, ref index, ref line, ref column);
+                index++;
                 while (index < source.Length && IsIdentifierPart(source[index]))
                 {
-                    Advance(source[index], ref index, ref line, ref column);
+                    index++;
                 }
 
-                tokens.Add(new Token(TokenKind.Identifier, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(TokenKind.Identifier, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
                 continue;
             }
 
             if (char.IsDigit(chAtToken))
             {
-                Advance(chAtToken, ref index, ref line, ref column);
+                index++;
                 while (index < source.Length && char.IsDigit(source[index]))
                 {
-                    Advance(source[index], ref index, ref line, ref column);
+                    index++;
                 }
 
-                tokens.Add(new Token(TokenKind.Integer, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(TokenKind.Integer, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
                 continue;
             }
 
             if (chAtToken == '"')
             {
-                Advance(chAtToken, ref index, ref line, ref column);
+                index++;
                 var escaped = false;
                 while (index < source.Length)
                 {
                     var current = source[index];
-                    Advance(current, ref index, ref line, ref column);
+                    index++;
                     if (escaped)
                     {
                         escaped = false;
@@ -124,10 +127,11 @@ internal static class Lexer
 
                 if (index == tokenStart + 1 || source[index - 1] != '"')
                 {
-                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic("Unterminated string literal.", tokenLine, tokenColumn));
+                    var (line, column) = document.GetLineColumn(tokenStart);
+                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic("Unterminated string literal.", line, column));
                 }
 
-                tokens.Add(new Token(TokenKind.StringLiteral, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+                tokens.Add(new Token(TokenKind.StringLiteral, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
                 continue;
             }
 
@@ -158,18 +162,19 @@ internal static class Lexer
 
             if (kind == TokenKind.EndOfFile)
             {
-                return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Unexpected character '{chAtToken}'.", tokenLine, tokenColumn));
+                var (line, column) = document.GetLineColumn(tokenStart);
+                return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Unexpected character '{chAtToken}'.", line, column));
             }
 
-            Advance(chAtToken, ref index, ref line, ref column);
+            index++;
             if (kind == TokenKind.Arrow)
             {
                 // The switch only classifies '-' as an arrow when the next character is '>',
                 // so it is safe to consume the second character here.
-                Advance(source[index], ref index, ref line, ref column);
+                index++;
             }
 
-            tokens.Add(new Token(kind, leadingTrivia, source.Substring(tokenStart, index - tokenStart), triviaStart, tokenStart, index, tokenLine, tokenColumn));
+            tokens.Add(new Token(kind, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
         }
     }
 
@@ -182,7 +187,8 @@ internal static class Lexer
     /// <returns><see langword="true"/> when lexing succeeded; otherwise, <see langword="false"/>.</returns>
     public static bool TryLex(string source, out IReadOnlyList<Token> tokens, out Diagnostic? diagnostic)
     {
-        var result = TryLexCore(source);
+        var document = new SourceDocument(source);
+        var result = TryLexCore(source, document);
         if (result.IsSuccess)
         {
             tokens = result.Value;
@@ -203,7 +209,8 @@ internal static class Lexer
     /// <exception cref="ParseException">Thrown when the source contains invalid lexical syntax.</exception>
     public static IReadOnlyList<Token> Lex(string source)
     {
-        var result = TryLexCore(source);
+        var document = new SourceDocument(source);
+        var result = TryLexCore(source, document);
         if (result.IsSuccess)
         {
             return result.Value;
@@ -220,19 +227,5 @@ internal static class Lexer
     private static bool IsIdentifierPart(char ch)
     {
         return char.IsLetterOrDigit(ch) || ch == '_' || ch == '$' || ch == '.' || ch == '-';
-    }
-
-    private static void Advance(char ch, ref int index, ref int line, ref int column)
-    {
-        index++;
-        if (ch == '\n')
-        {
-            line++;
-            column = 1;
-        }
-        else
-        {
-            column++;
-        }
     }
 }

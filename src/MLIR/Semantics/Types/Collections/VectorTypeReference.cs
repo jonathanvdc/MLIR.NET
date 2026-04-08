@@ -83,18 +83,18 @@ public class VectorTypeReference : TypeReference
     private static VectorTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, TypeReference elementType)
     {
         var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
-        var xTokens = new List<SyntaxToken>(dimensionSyntax.Length);
+        var xTokens = new List<Token>(dimensionSyntax.Length);
         for (var i = 0; i < dimensionSyntax.Length; i++)
         {
-            xTokens.Add(SyntaxTokenFactory.Identifier("x"));
+            xTokens.Add(TokenFactory.Identifier("x"));
         }
 
         return new VectorTypeSyntax(
-            SyntaxTokenFactory.Identifier("vector"),
-            SyntaxTokenFactory.LessThan(),
+            TokenFactory.Identifier("vector"),
+            TokenFactory.LessThan(),
             dimensionSyntax,
             xTokens,
             elementType.Syntax ?? throw new InvalidOperationException("Vector element types must carry syntax."),
-            SyntaxTokenFactory.GreaterThan());
+            TokenFactory.GreaterThan());
     }
 }

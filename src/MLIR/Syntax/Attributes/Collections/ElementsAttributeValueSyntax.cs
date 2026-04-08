@@ -7,22 +7,22 @@ using MLIR.Syntax;
 /// Represents a dense elements attribute value.
 /// </summary>
 public sealed class ElementsAttributeValueSyntax(
-    SyntaxToken keywordToken,
-    SyntaxToken lessThanToken,
+    Token keywordToken,
+    Token lessThanToken,
     AttributeValueSyntax payload,
-    SyntaxToken greaterThanToken,
-    SyntaxToken colonToken,
+    Token greaterThanToken,
+    Token colonToken,
     TypeSyntax typeSyntax) : AttributeValueSyntax
 {
     /// <summary>
     /// Gets the leading keyword token, such as <c>dense</c>.
     /// </summary>
-    public SyntaxToken KeywordToken { get; } = keywordToken;
+    public Token KeywordToken { get; } = keywordToken;
 
     /// <summary>
     /// Gets the opening angle token.
     /// </summary>
-    public SyntaxToken LessThanToken { get; } = lessThanToken;
+    public Token LessThanToken { get; } = lessThanToken;
 
     /// <summary>
     /// Gets the payload syntax.
@@ -32,12 +32,12 @@ public sealed class ElementsAttributeValueSyntax(
     /// <summary>
     /// Gets the closing angle token.
     /// </summary>
-    public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
+    public Token GreaterThanToken { get; } = greaterThanToken;
 
     /// <summary>
     /// Gets the colon token.
     /// </summary>
-    public SyntaxToken ColonToken { get; } = colonToken;
+    public Token ColonToken { get; } = colonToken;
 
     /// <summary>
     /// Gets the trailing type syntax.

@@ -50,7 +50,7 @@ public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     {
         if (attribute is BooleanAttributeValue booleanAttribute)
         {
-            return new BooleanAttributeValueSyntax(SyntaxTokenFactory.Identifier(booleanAttribute.Value ? "true" : "false"), booleanAttribute.Value);
+            return new BooleanAttributeValueSyntax(TokenFactory.Identifier(booleanAttribute.Value ? "true" : "false"), booleanAttribute.Value);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive boolean attributes require syntax to rebuild their assembly form.");
