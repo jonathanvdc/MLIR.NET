@@ -60,7 +60,7 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     }
 
     internal static bool TryParseSignedIntegerLiteral(
-        AttributeParsingContext context,
+        DialectParsingContext context,
         out SyntaxToken? signToken,
         out SyntaxToken integerToken,
         out BigInteger value)

@@ -6,6 +6,7 @@ using MLIR.Dialects;
 using MLIR.Miniarith;
 using MLIR.Minienum;
 using MLIR.Minitest;
+using MLIR.Typedtype;
 using MLIR.Semantics;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -47,6 +48,13 @@ public abstract class DialectIntegrationTestBase
     {
         var registry = new DialectRegistry();
         registry.RegisterDialect(MinienumDialectRegistration.Create());
+        return registry;
+    }
+
+    protected static DialectRegistry CreateTypedTypeRegistry()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(TypedtypeDialectRegistration.Create());
         return registry;
     }
 
