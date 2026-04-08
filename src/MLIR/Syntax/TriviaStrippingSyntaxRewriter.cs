@@ -5,6 +5,15 @@ namespace MLIR.Syntax;
 /// </summary>
 public sealed class TriviaStrippingSyntaxRewriter : SyntaxRewriter
 {
+    private TriviaStrippingSyntaxRewriter()
+    {
+    }
+
+    /// <summary>
+    /// Gets a singleton instance of the <see cref="TriviaStrippingSyntaxRewriter"/>.
+    /// </summary>
+    public static readonly TriviaStrippingSyntaxRewriter Instance = new();
+
     /// <inheritdoc/>
     public override SyntaxToken VisitToken(SyntaxToken token)
     {

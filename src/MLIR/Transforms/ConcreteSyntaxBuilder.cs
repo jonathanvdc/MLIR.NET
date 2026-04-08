@@ -82,7 +82,6 @@ public static class ConcreteSyntaxBuilder
     internal sealed class Builder
     {
         private readonly ConcreteSyntaxBuilderOptions options;
-        private readonly TriviaStrippingSyntaxRewriter triviaStrippingRewriter = new();
 
         internal Builder(ConcreteSyntaxBuilderOptions options)
         {
@@ -358,7 +357,7 @@ public static class ConcreteSyntaxBuilder
             where TNode : SyntaxNode
         {
             return options.ExistingSyntaxHandling == ExistingSyntaxHandling.ReplaceExistingSyntax
-                ? triviaStrippingRewriter.Visit(node)
+                ? TriviaStrippingSyntaxRewriter.Instance.Visit(node)
                 : node;
         }
     }
