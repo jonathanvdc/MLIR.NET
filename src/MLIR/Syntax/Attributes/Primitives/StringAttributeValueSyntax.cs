@@ -11,7 +11,7 @@ public sealed class StringAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Initializes a new instance of the <see cref="StringAttributeValueSyntax"/> class.
     /// </summary>
-    public StringAttributeValueSyntax(SyntaxToken literalToken, string value)
+    public StringAttributeValueSyntax(Token literalToken, string value)
     {
         LiteralToken = literalToken;
         Value = value;
@@ -20,7 +20,7 @@ public sealed class StringAttributeValueSyntax : AttributeValueSyntax
     /// <summary>
     /// Gets the literal token.
     /// </summary>
-    public SyntaxToken LiteralToken { get; }
+    public Token LiteralToken { get; }
 
     /// <summary>
     /// Gets the unescaped string value.

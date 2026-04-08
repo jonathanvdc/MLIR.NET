@@ -6,12 +6,12 @@ namespace MLIR.Syntax.Types.Primitives;
 /// <summary>
 /// Represents a builtin integer type such as <c>i32</c>, <c>si64</c>, or <c>ui8</c>.
 /// </summary>
-public sealed class BuiltinIntegerTypeSyntax(SyntaxToken nameToken, IntegerTypeSignedness signedness, int width) : TypeSyntax
+public sealed class BuiltinIntegerTypeSyntax(Token nameToken, IntegerTypeSignedness signedness, int width) : TypeSyntax
 {
     /// <summary>
     /// Gets the original identifier token.
     /// </summary>
-    public SyntaxToken NameToken { get; } = nameToken;
+    public Token NameToken { get; } = nameToken;
 
     /// <summary>
     /// Gets the signedness marker.

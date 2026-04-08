@@ -6,10 +6,10 @@ namespace MLIR.Syntax;
 public sealed class TriviaStrippingSyntaxRewriter : SyntaxRewriter
 {
     /// <inheritdoc/>
-    public override SyntaxToken VisitToken(SyntaxToken token)
+    public override Token VisitToken(Token token)
     {
         return token.HasSourceLocation
-            ? new SyntaxToken(token.TokenKind, token.Text, null, token.Document!, token.TokenStart, token.TokenLength)
-            : new SyntaxToken(token.TokenKind, token.Text);
+            ? new Token(token.TokenKind, token.Text, null, token.Document!, token.TokenStart, token.TokenLength)
+            : new Token(token.TokenKind, token.Text);
     }
 }

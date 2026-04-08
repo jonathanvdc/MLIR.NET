@@ -23,7 +23,7 @@ public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAs
         }
 
         var items = new List<AttributeValueSyntax>();
-        var separators = new List<SyntaxToken>();
+        var separators = new List<Token>();
         if (!context.Is(TokenKind.RBracket))
         {
             var firstItemResult = context.TryParseAttributeValueSyntax(TokenKind.Comma, TokenKind.RBracket);
@@ -82,17 +82,17 @@ public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             items.Add(ElementToSyntax(typedArray.Items[i], context));
         }
 
-        var separators = new List<SyntaxToken>(items.Count > 0 ? items.Count - 1 : 0);
+        var separators = new List<Token>(items.Count > 0 ? items.Count - 1 : 0);
         for (var i = 1; i < items.Count; i++)
         {
-            separators.Add(SyntaxTokenFactory.Comma());
+            separators.Add(TokenFactory.Comma());
         }
 
         return new ArrayAttributeValueSyntax(
-            SyntaxTokenFactory.LBracket(),
+            TokenFactory.LBracket(),
             items,
             separators,
-            SyntaxTokenFactory.RBracket());
+            TokenFactory.RBracket());
     }
 
     /// <summary>

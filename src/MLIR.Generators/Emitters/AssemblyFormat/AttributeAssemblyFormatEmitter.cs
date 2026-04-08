@@ -21,7 +21,7 @@ using MLIR.Text;
 ///   <item>
 ///     <c>{ClassName}Syntax</c> — a sealed subclass of
 ///     <c>DialectPrefixedAttributeValueSyntax</c> that stores one typed property per
-///     parameter and one <c>SyntaxToken</c> per literal element in the format.  Its
+///     parameter and one <c>Token</c> per literal element in the format.  Its
 ///     <c>WriteTo</c> method replays the stored tokens verbatim, preserving the source
 ///     form seen during parsing.  A synthetic convenience constructor is also emitted
 ///     that creates placeholder tokens from hard-coded format strings, so that callers
@@ -54,7 +54,7 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine("{");
         builder.AppendLine();
 
-        // Full constructor — takes prefix + all format elements in order (literals as SyntaxToken,
+        // Full constructor — takes prefix + all format elements in order (literals as Token,
         // variables as their concrete csharpSyntaxType).  Used when constructing from parsed tokens
         // so that the exact source text is preserved.
         builder.Append("    public " + syntaxClassName + "(DialectAttributePrefix prefix");
@@ -62,7 +62,7 @@ internal static class AttributeAssemblyFormatEmitter
         {
             if (slot is LiteralTokenSlot lit)
             {
-                builder.Append(", SyntaxToken " + lit.LocalName);
+                builder.Append(", Token " + lit.LocalName);
             }
             else if (slot is VariableSlot v)
             {
@@ -107,8 +107,8 @@ internal static class AttributeAssemblyFormatEmitter
             if (slot is LiteralTokenSlot lit)
             {
                 var factoryExpr = lit.IsKeyword
-                    ? "SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
-                    : "SyntaxTokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()";
+                    ? "TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
+                    : "TokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()";
                 builder.Append(", " + factoryExpr);
             }
             else if (slot is VariableSlot v)
@@ -137,7 +137,7 @@ internal static class AttributeAssemblyFormatEmitter
             {
                 if (slot is LiteralTokenSlot lit)
                 {
-                    builder.AppendLine("    public SyntaxToken " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " { get; }");
+                    builder.AppendLine("    public Token " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " { get; }");
                 }
             }
         }
@@ -491,8 +491,8 @@ internal static class AttributeAssemblyFormatEmitter
         var propertyExpr = EmitterHelpers.CapitalizeFirst(slot.Name) + "Syntax";
         var syntaxType = slot.SyntaxType;
 
-        if (string.Equals(syntaxType, "SyntaxToken", System.StringComparison.Ordinal) ||
-            string.Equals(syntaxType, "SyntaxToken?", System.StringComparison.Ordinal))
+        if (string.Equals(syntaxType, "Token", System.StringComparison.Ordinal) ||
+            string.Equals(syntaxType, "Token?", System.StringComparison.Ordinal))
         {
             return "rewriter.VisitToken(" + propertyExpr + ")";
         }
@@ -513,21 +513,21 @@ internal static class AttributeAssemblyFormatEmitter
 
         if (syntaxType.StartsWith("DelimitedSyntaxList<", System.StringComparison.Ordinal))
         {
-            return syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal)
+            return syntaxType.Contains("Token", System.StringComparison.Ordinal)
                 ? "rewriter.VisitDelimitedTokenList(" + propertyExpr + ")"
                 : "rewriter.VisitDelimitedList(" + propertyExpr + ")";
         }
 
         if (syntaxType.StartsWith("SeparatedSyntaxList<", System.StringComparison.Ordinal))
         {
-            return syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal)
+            return syntaxType.Contains("Token", System.StringComparison.Ordinal)
                 ? "rewriter.VisitSeparatedTokenList(" + propertyExpr + ")"
                 : "rewriter.VisitSeparatedList(" + propertyExpr + ")";
         }
 
         if (syntaxType.StartsWith("IReadOnlyList<", System.StringComparison.Ordinal))
         {
-            if (syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal))
+            if (syntaxType.Contains("Token", System.StringComparison.Ordinal))
             {
                 return "rewriter.VisitTokenList(" + propertyExpr + ")";
             }

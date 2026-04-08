@@ -5,12 +5,12 @@ namespace MLIR.Syntax.Types.Collections;
 /// <summary>
 /// Represents a dynamic dimension marker (<c>?</c>) in a shaped type.
 /// </summary>
-public sealed class DynamicShapedTypeDimensionSyntax(SyntaxToken questionToken) : ShapedTypeDimensionSyntax
+public sealed class DynamicShapedTypeDimensionSyntax(Token questionToken) : ShapedTypeDimensionSyntax
 {
     /// <summary>
     /// Gets the question-mark token.
     /// </summary>
-    public SyntaxToken QuestionToken { get; } = questionToken;
+    public Token QuestionToken { get; } = questionToken;
 
     /// <inheritdoc/>
     public override SourceLocation Location => QuestionToken.Location;

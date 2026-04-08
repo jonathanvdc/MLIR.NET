@@ -15,22 +15,22 @@ using MLIR.Semantics;
 /// <param name="typeSignatureColonToken">The colon token that introduces the type signature, if present.</param>
 /// <param name="typeSignatureSyntax">The trailing type signature syntax, if present.</param>
 public sealed class GenericOperationBodySyntax(
-    DelimitedSyntaxList<SyntaxToken> operandList,
-    DelimitedSyntaxList<SyntaxToken> successorList,
+    DelimitedSyntaxList<Token> operandList,
+    DelimitedSyntaxList<Token> successorList,
     IReadOnlyList<RegionSyntax> regions,
     DelimitedSyntaxList<NamedAttributeSyntax> attributes,
-    SyntaxToken? typeSignatureColonToken,
+    Token? typeSignatureColonToken,
     TypeSyntax? typeSignatureSyntax) : OperationBodySyntax
 {
     /// <summary>
     /// Gets the delimited operand list.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> OperandList { get; } = operandList;
+    public DelimitedSyntaxList<Token> OperandList { get; } = operandList;
 
     /// <summary>
     /// Gets the delimited successor list.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> SuccessorList { get; } = successorList;
+    public DelimitedSyntaxList<Token> SuccessorList { get; } = successorList;
 
     /// <summary>
     /// Gets the regions nested under the operation.
@@ -45,7 +45,7 @@ public sealed class GenericOperationBodySyntax(
     /// <summary>
     /// Gets the colon token that introduces the type signature, if present.
     /// </summary>
-    public SyntaxToken? TypeSignatureColonToken { get; } = typeSignatureColonToken;
+    public Token? TypeSignatureColonToken { get; } = typeSignatureColonToken;
 
     /// <summary>
     /// Gets the trailing type signature syntax, if present.

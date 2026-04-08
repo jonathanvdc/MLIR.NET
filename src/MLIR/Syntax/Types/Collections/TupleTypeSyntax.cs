@@ -6,21 +6,21 @@ namespace MLIR.Syntax.Types.Collections;
 /// Represents a tuple type such as <c>tuple&lt;i32, f32&gt;</c>.
 /// </summary>
 public sealed class TupleTypeSyntax(
-    SyntaxToken keywordToken,
-    SyntaxToken lessThanToken,
+    Token keywordToken,
+    Token lessThanToken,
     IReadOnlyList<TypeSyntax> elements,
-    IReadOnlyList<SyntaxToken> commaTokens,
-    SyntaxToken greaterThanToken) : TypeSyntax
+    IReadOnlyList<Token> commaTokens,
+    Token greaterThanToken) : TypeSyntax
 {
     /// <summary>
     /// Gets the keyword token.
     /// </summary>
-    public SyntaxToken KeywordToken { get; } = keywordToken;
+    public Token KeywordToken { get; } = keywordToken;
 
     /// <summary>
     /// Gets the opening angle-bracket token.
     /// </summary>
-    public SyntaxToken LessThanToken { get; } = lessThanToken;
+    public Token LessThanToken { get; } = lessThanToken;
 
     /// <summary>
     /// Gets the tuple element types.
@@ -30,12 +30,12 @@ public sealed class TupleTypeSyntax(
     /// <summary>
     /// Gets the separator tokens between tuple elements.
     /// </summary>
-    public IReadOnlyList<SyntaxToken> CommaTokens { get; } = commaTokens;
+    public IReadOnlyList<Token> CommaTokens { get; } = commaTokens;
 
     /// <summary>
     /// Gets the closing angle-bracket token.
     /// </summary>
-    public SyntaxToken GreaterThanToken { get; } = greaterThanToken;
+    public Token GreaterThanToken { get; } = greaterThanToken;
 
     /// <inheritdoc/>
     public override SourceLocation Location =>
@@ -61,7 +61,7 @@ public sealed class TupleTypeSyntax(
             rewriter.VisitToken(GreaterThanToken));
     }
 
-    private static IEnumerable<object> Interleave(IReadOnlyList<TypeSyntax> items, IReadOnlyList<SyntaxToken> separators)
+    private static IEnumerable<object> Interleave(IReadOnlyList<TypeSyntax> items, IReadOnlyList<Token> separators)
     {
         for (var i = 0; i < items.Count; i++)
         {
@@ -74,7 +74,7 @@ public sealed class TupleTypeSyntax(
         }
     }
 
-    private static void WriteSeparatedTypes(Text.SyntaxWriter writer, IReadOnlyList<TypeSyntax> items, IReadOnlyList<SyntaxToken> separators)
+    private static void WriteSeparatedTypes(Text.SyntaxWriter writer, IReadOnlyList<TypeSyntax> items, IReadOnlyList<Token> separators)
     {
         for (var i = 0; i < items.Count; i++)
         {

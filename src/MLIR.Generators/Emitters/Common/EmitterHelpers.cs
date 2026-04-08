@@ -156,38 +156,38 @@ internal static class EmitterHelpers
 
     /// <summary>
     /// Returns the C# expression used to synthesize a token of the supplied kind.
-    /// Fixed-text punctuation maps to the dedicated <c>SyntaxTokenFactory</c> methods, while
+    /// Fixed-text punctuation maps to the dedicated <c>TokenFactory</c> methods, while
     /// variable-text tokens use the corresponding factory method that accepts text.
     /// </summary>
     public static string GetSyntaxTokenFactoryExpression(TokenKind kind, string? textLiteral = null)
     {
         return kind switch
         {
-            TokenKind.Comma => "SyntaxTokenFactory.Comma()",
-            TokenKind.LParen => "SyntaxTokenFactory.LParen()",
-            TokenKind.RParen => "SyntaxTokenFactory.RParen()",
-            TokenKind.LBracket => "SyntaxTokenFactory.LBracket()",
-            TokenKind.RBracket => "SyntaxTokenFactory.RBracket()",
-            TokenKind.LBrace => "SyntaxTokenFactory.LBrace()",
-            TokenKind.RBrace => "SyntaxTokenFactory.RBrace()",
-            TokenKind.LessThan => "SyntaxTokenFactory.LessThan()",
-            TokenKind.GreaterThan => "SyntaxTokenFactory.GreaterThan()",
-            TokenKind.Question => "SyntaxTokenFactory.Question()",
-            TokenKind.Star => "SyntaxTokenFactory.Star()",
-            TokenKind.Plus => "SyntaxTokenFactory.Plus()",
-            TokenKind.Minus => "SyntaxTokenFactory.Minus()",
-            TokenKind.Dot => "SyntaxTokenFactory.Dot()",
-            TokenKind.Colon => "SyntaxTokenFactory.Colon()",
-            TokenKind.Equal => "SyntaxTokenFactory.Equal()",
-            TokenKind.At => "SyntaxTokenFactory.At()",
-            TokenKind.Hash => "SyntaxTokenFactory.Hash()",
-            TokenKind.Arrow => "SyntaxTokenFactory.Arrow()",
-            TokenKind.Identifier => "SyntaxTokenFactory.Identifier(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.Integer => "SyntaxTokenFactory.Integer(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.StringLiteral => "SyntaxTokenFactory.StringLiteral(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.SsaName => "SyntaxTokenFactory.SsaName(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.BlockLabel => "SyntaxTokenFactory.BlockLabel(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.EndOfFile => "SyntaxTokenFactory.EndOfFile()",
+            TokenKind.Comma => "TokenFactory.Comma()",
+            TokenKind.LParen => "TokenFactory.LParen()",
+            TokenKind.RParen => "TokenFactory.RParen()",
+            TokenKind.LBracket => "TokenFactory.LBracket()",
+            TokenKind.RBracket => "TokenFactory.RBracket()",
+            TokenKind.LBrace => "TokenFactory.LBrace()",
+            TokenKind.RBrace => "TokenFactory.RBrace()",
+            TokenKind.LessThan => "TokenFactory.LessThan()",
+            TokenKind.GreaterThan => "TokenFactory.GreaterThan()",
+            TokenKind.Question => "TokenFactory.Question()",
+            TokenKind.Star => "TokenFactory.Star()",
+            TokenKind.Plus => "TokenFactory.Plus()",
+            TokenKind.Minus => "TokenFactory.Minus()",
+            TokenKind.Dot => "TokenFactory.Dot()",
+            TokenKind.Colon => "TokenFactory.Colon()",
+            TokenKind.Equal => "TokenFactory.Equal()",
+            TokenKind.At => "TokenFactory.At()",
+            TokenKind.Hash => "TokenFactory.Hash()",
+            TokenKind.Arrow => "TokenFactory.Arrow()",
+            TokenKind.Identifier => "TokenFactory.Identifier(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.Integer => "TokenFactory.Integer(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.StringLiteral => "TokenFactory.StringLiteral(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.SsaName => "TokenFactory.SsaName(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.BlockLabel => "TokenFactory.BlockLabel(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.EndOfFile => "TokenFactory.EndOfFile()",
             _ => throw new NotSupportedException("Unsupported token kind: " + kind),
         };
     }
@@ -393,7 +393,7 @@ internal static class EmitterHelpers
     /// <param name="metadata">Accumulates the generated fields and component descriptors.</param>
     /// <param name="nullable">
     /// When <see langword="true"/> every field is generated with a nullable C# type
-    /// (e.g. <c>SyntaxToken?</c> instead of <c>SyntaxToken</c>).  This is used for
+    /// (e.g. <c>Token?</c> instead of <c>Token</c>).  This is used for
     /// elements that live inside optional groups.
     /// </param>
     public static void AppendBodySyntaxFields(HashSet<string> usedNames, Element element, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable = false)
@@ -473,7 +473,7 @@ internal static class EmitterHelpers
             case SuccessorsDirectiveChunk _:
             {
                 var name = MakeUnique("Successors", usedNames);
-                var field = new BodySyntaxField(name, "DelimitedSyntaxList<SyntaxToken>",
+                var field = new BodySyntaxField(name, "DelimitedSyntaxList<Token>",
                     "writer.WriteDelimitedList(" + name + ", \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Successors, "Successors", field.Name));
@@ -483,7 +483,7 @@ internal static class EmitterHelpers
             case OperandsDirectiveChunk _:
             {
                 var name = MakeUnique("Operands", usedNames);
-                var field = new BodySyntaxField(name, "DelimitedSyntaxList<SyntaxToken>",
+                var field = new BodySyntaxField(name, "DelimitedSyntaxList<Token>",
                     "writer.WriteDelimitedList(" + name + ", \" \");");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Operands, "Operands", field.Name));
@@ -563,7 +563,7 @@ internal static class EmitterHelpers
             case OilistLiteralElement literal:
             {
                 var name = MakeUnique(DialectGeneratorNaming.ToPascalCase(literal.Value) + "Token", usedNames);
-                var field = new BodySyntaxField(name, "SyntaxToken?",
+                var field = new BodySyntaxField(name, "Token?",
                     "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value);");
                 metadata.AddField(field);
                 metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "OilistLiteral:" + literal.Value, field.Name));
@@ -581,8 +581,8 @@ internal static class EmitterHelpers
         var name = MakeUnique(GetPunctuationFieldName(tokenKind), usedNames);
         var leadingTrivia = GetPunctuationLeadingTrivia(tokenKind);
         var (csType, writeStmt) = nullable
-            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
-            : ("SyntaxToken", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
+            ? ("Token?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
+            : ("Token", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Punctuation:" + tokenKind, field.Name));
@@ -607,8 +607,8 @@ internal static class EmitterHelpers
         // the first clause's raw value would greedily consume the next clause's keyword.
         var leadingTrivia = isOilistKeyword ? "\\n    " : " ";
         var (csType, writeStmt) = nullable
-            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
-            : ("SyntaxToken", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
+            ? ("Token?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
+            : ("Token", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Keyword:" + spelling, field.Name));
@@ -655,10 +655,10 @@ internal static class EmitterHelpers
         {
             // Variadic operands use a list of SSA tokens.  The write statement iterates over
             // the list and inserts commas between items.
-            const string csType = "global::System.Collections.Generic.IReadOnlyList<SyntaxToken>";
+            const string csType = "global::System.Collections.Generic.IReadOnlyList<Token>";
             var writeStmt =
                 "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
-                "if (_i > 0) writer.WriteToken(SyntaxTokenFactory.Comma(), \"\"); " +
+                "if (_i > 0) writer.WriteToken(TokenFactory.Comma(), \"\"); " +
                 "writer.WriteToken(" + name + "[_i], \" \"); }";
             var field = new BodySyntaxField(name, csType, writeStmt);
             metadata.AddField(field);
@@ -670,8 +670,8 @@ internal static class EmitterHelpers
         else
         {
             var (csType, writeStmt) = nullable
-                ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \" \");")
-                : ("SyntaxToken", "writer.WriteToken(" + name + ", \" \");");
+                ? ("Token?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \" \");")
+                : ("Token", "writer.WriteToken(" + name + ", \" \");");
             var field = new BodySyntaxField(name, csType, writeStmt);
             metadata.AddField(field);
             metadata.AddComponentField(new BodyComponentField(
@@ -721,7 +721,7 @@ internal static class EmitterHelpers
                 "{\n" +
                 "    if (i > 0)\n" +
                 "    {\n" +
-                "        writer.WriteToken(SyntaxTokenFactory.Comma());\n" +
+                "        writer.WriteToken(TokenFactory.Comma());\n" +
                 "    }\n" +
                 "\n" +
                 "    writer.SuggestTrivia(\" \");\n" +
@@ -796,14 +796,14 @@ internal static class EmitterHelpers
         var name = field.Name;
         var type = field.CsType;
 
-        // Nullable SyntaxToken
-        if (string.Equals(type, "SyntaxToken?", StringComparison.Ordinal))
+        // Nullable Token
+        if (string.Equals(type, "Token?", StringComparison.Ordinal))
         {
             return "if (" + name + ".HasValue) result = SourceLocation.Merge(result, " + name + ".Value.Location);";
         }
 
-        // Non-nullable SyntaxToken
-        if (string.Equals(type, "SyntaxToken", StringComparison.Ordinal))
+        // Non-nullable Token
+        if (string.Equals(type, "Token", StringComparison.Ordinal))
         {
             return "result = SourceLocation.Merge(result, " + name + ".Location);";
         }

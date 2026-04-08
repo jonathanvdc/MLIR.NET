@@ -19,7 +19,7 @@ public class SyntaxRewriter
     /// <summary>
     /// Rewrites a token.
     /// </summary>
-    public virtual SyntaxToken VisitToken(SyntaxToken token)
+    public virtual Token VisitToken(Token token)
     {
         return token;
     }
@@ -27,7 +27,7 @@ public class SyntaxRewriter
     /// <summary>
     /// Rewrites an optional token.
     /// </summary>
-    public virtual SyntaxToken? VisitToken(SyntaxToken? token)
+    public virtual Token? VisitToken(Token? token)
     {
         return token.HasValue ? VisitToken(token.Value) : null;
     }
@@ -63,14 +63,14 @@ public class SyntaxRewriter
     /// <summary>
     /// Rewrites a token list.
     /// </summary>
-    public virtual IReadOnlyList<SyntaxToken> VisitTokenList(IReadOnlyList<SyntaxToken> tokens)
+    public virtual IReadOnlyList<Token> VisitTokenList(IReadOnlyList<Token> tokens)
     {
         if (tokens.Count == 0)
         {
             return tokens;
         }
 
-        var result = new List<SyntaxToken>(tokens.Count);
+        var result = new List<Token>(tokens.Count);
         foreach (var token in tokens)
         {
             result.Add(VisitToken(token));
@@ -101,9 +101,9 @@ public class SyntaxRewriter
     /// <summary>
     /// Rewrites a separated list of tokens.
     /// </summary>
-    public virtual SeparatedSyntaxList<SyntaxToken> VisitSeparatedTokenList(SeparatedSyntaxList<SyntaxToken> list)
+    public virtual SeparatedSyntaxList<Token> VisitSeparatedTokenList(SeparatedSyntaxList<Token> list)
     {
-        return new SeparatedSyntaxList<SyntaxToken>(
+        return new SeparatedSyntaxList<Token>(
             VisitTokenList(list.Items),
             VisitTokenList(list.SeparatorTokens));
     }
@@ -149,14 +149,14 @@ public class SyntaxRewriter
     /// <summary>
     /// Rewrites a delimited list of tokens.
     /// </summary>
-    public virtual DelimitedSyntaxList<SyntaxToken> VisitDelimitedTokenList(DelimitedSyntaxList<SyntaxToken> list)
+    public virtual DelimitedSyntaxList<Token> VisitDelimitedTokenList(DelimitedSyntaxList<Token> list)
     {
         if (!list.OpenToken.HasValue)
         {
             return list;
         }
 
-        return new DelimitedSyntaxList<SyntaxToken>(
+        return new DelimitedSyntaxList<Token>(
             VisitToken(list.OpenToken),
             VisitTokenList(list.Items),
             VisitTokenList(list.SeparatorTokens),

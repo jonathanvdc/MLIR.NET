@@ -74,7 +74,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         AssemblyFormatTraversal.ForEachElement(elements, (i, element) => EmitElement(builder, element, indent: "        ", declare: true));
 
         EmitBodyConstruction(builder);
-        builder.AppendLine("        return context.RewriteOperation(operation, body, SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + "));");
+        builder.AppendLine("        return context.RewriteOperation(operation, body, TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + "));");
         builder.AppendLine("    }");
     }
 
@@ -152,7 +152,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 {
                     var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
                     var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
-                    var expr = "SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) + ")";
+                    var expr = "TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) + ")";
                     builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
                     break;
                 }
@@ -196,7 +196,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     {
         var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
         var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
-        builder.AppendLine(indent + DeclareOrAssign(varName, "new DelimitedSyntaxList<SyntaxToken>(null, global::System.Array.Empty<SyntaxToken>(), global::System.Array.Empty<SyntaxToken>(), null)", declare, field.CsType) + ";");
+        builder.AppendLine(indent + DeclareOrAssign(varName, "new DelimitedSyntaxList<Token>(null, global::System.Array.Empty<Token>(), global::System.Array.Empty<Token>(), null)", declare, field.CsType) + ";");
     }
 
     private void EmitOperands(StringBuilder builder, string indent, bool declare)
@@ -204,7 +204,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
         var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         builder.AppendLine(indent + DeclareOrAssign(varName,
-            "new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), op.OperandValues.Select(v => context.NormalizeToken(v.Token ?? SyntaxTokenFactory.SsaName(v.Name))).ToList(), Enumerable.Repeat(SyntaxTokenFactory.Comma(), global::System.Math.Max(0, op.OperandValues.Count - 1)).ToList(), SyntaxTokenFactory.RParen())",
+            "new DelimitedSyntaxList<Token>(TokenFactory.LParen(), op.OperandValues.Select(v => context.NormalizeToken(v.Token ?? TokenFactory.SsaName(v.Name))).ToList(), Enumerable.Repeat(TokenFactory.Comma(), global::System.Math.Max(0, op.OperandValues.Count - 1)).ToList(), TokenFactory.RParen())",
             declare, field.CsType) + ";");
     }
 
@@ -222,7 +222,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         for (var i = 0; i < thenFieldCount + elseFieldCount; i++)
         {
             var f = metadata.Fields[groupStart + i];
-            // Variadic SSA-list fields use IReadOnlyList<SyntaxToken>; initialize to an empty
+            // Variadic SSA-list fields use IReadOnlyList<Token>; initialize to an empty
             // list so WriteTo can safely iterate when the optional group is not entered.
             var defaultExpr = GetFieldDefaultExpression(f.CsType);
             builder.AppendLine(indent + f.CsType + " " + EmitterHelpers.LowerFirst(f.Name) + " = " + defaultExpr + ";");
@@ -342,7 +342,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 builder.AppendLine(indent + "if (" + trigger + ")");
                 builder.AppendLine(indent + "{");
                 fieldIndex++; // advance past keyword field
-                builder.AppendLine(indent + "    " + kwVarName + " = SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) + ");");
+                builder.AppendLine(indent + "    " + kwVarName + " = TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) + ");");
 
                 AssemblyFormatTraversal.ForEachElement(clause.Elements, (_, element) => EmitOilistElement(builder, element, indent + "    "));
 
@@ -384,7 +384,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             {
                 var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
                 var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
-                builder.AppendLine(indent + varName + " = SyntaxTokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(literal.Value) + ");");
+                builder.AppendLine(indent + varName + " = TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(literal.Value) + ");");
                 break;
             }
         }
@@ -423,7 +423,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
     /// <summary>
     /// Builds an expression to reconstruct a required (non-nullable) variable field.
-    /// For operands/results: produces a <c>SyntaxToken</c> from the value reference.
+    /// For operands/results: produces a <c>Token</c> from the value reference.
     /// For attributes: produces an <c>AttributeValueSyntax</c> by building the attribute value.
     /// </summary>
     private string BuildVariableExpression(string variableName, bool nullable)
@@ -454,19 +454,19 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         // Check if this is a variadic operand (the generated property returns IReadOnlyList<Value>).
         if (IsVariadicOperand(variableName))
         {
-            // Produce a List<SyntaxToken> from the variadic value list.
-            return "op." + propName + ".Select(v => context.NormalizeToken(v.Token ?? SyntaxTokenFactory.SsaName(v.Name))).ToList()";
+            // Produce a List<Token> from the variadic value list.
+            return "op." + propName + ".Select(v => context.NormalizeToken(v.Token ?? TokenFactory.SsaName(v.Name))).ToList()";
         }
 
         if (nullable)
         {
             // Nullable operand: op.Rhs is Value?
-            return "context.NormalizeToken(op." + propName + "!.Token ?? SyntaxTokenFactory.SsaName(op." + propName + "!.Name))";
+            return "context.NormalizeToken(op." + propName + "!.Token ?? TokenFactory.SsaName(op." + propName + "!.Name))";
         }
         else
         {
             // Required operand/result: op.Lhs is Value (non-nullable)
-            return "context.NormalizeToken(op." + propName + ".Token ?? SyntaxTokenFactory.SsaName(op." + propName + ".Name))";
+            return "context.NormalizeToken(op." + propName + ".Token ?? TokenFactory.SsaName(op." + propName + ".Name))";
         }
     }
 
@@ -518,9 +518,9 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
     private static string GetFieldDefaultExpression(string csType)
     {
-        if (csType.Contains("IReadOnlyList<SyntaxToken>", StringComparison.Ordinal))
+        if (csType.Contains("IReadOnlyList<Token>", StringComparison.Ordinal))
         {
-            return "global::System.Array.Empty<SyntaxToken>()";
+            return "global::System.Array.Empty<Token>()";
         }
 
         if (csType.Contains("IReadOnlyList<TypeSyntax>", StringComparison.Ordinal))

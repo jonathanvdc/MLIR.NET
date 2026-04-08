@@ -17,7 +17,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses an SSA value token.
     /// </summary>
-    public ParseResult<SyntaxToken> TryParseSsaToken()
+    public ParseResult<Token> TryParseSsaToken()
     {
         return Parser.TryParseSsaTokenInternal();
     }
@@ -28,7 +28,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// Stops as soon as a non-SSA, non-comma token is encountered.
     /// Returns a failed result with a diagnostic if an SSA token that was expected to parse fails.
     /// </summary>
-    public ParseResult<SeparatedSyntaxList<SyntaxToken>> TryParseSsaTokenList()
+    public ParseResult<SeparatedSyntaxList<Token>> TryParseSsaTokenList()
     {
         return Parser.TryParseSsaTokenListInternal();
     }
@@ -36,7 +36,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses a block label token.
     /// </summary>
-    public ParseResult<SyntaxToken> TryParseBlockLabelToken()
+    public ParseResult<Token> TryParseBlockLabelToken()
     {
         return Parser.TryParseBlockLabelTokenInternal();
     }
@@ -68,17 +68,17 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Creates an empty operand list for a generic operation projection.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> CreateEmptyOperandList()
+    public DelimitedSyntaxList<Token> CreateEmptyOperandList()
     {
-        return new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), new List<SyntaxToken>(), new List<SyntaxToken>(), SyntaxTokenFactory.RParen());
+        return new DelimitedSyntaxList<Token>(TokenFactory.LParen(), new List<Token>(), new List<Token>(), TokenFactory.RParen());
     }
 
     /// <summary>
     /// Creates an empty successor list for a generic operation projection.
     /// </summary>
-    public DelimitedSyntaxList<SyntaxToken> CreateEmptySuccessorList()
+    public DelimitedSyntaxList<Token> CreateEmptySuccessorList()
     {
-        return new DelimitedSyntaxList<SyntaxToken>(null, new List<SyntaxToken>(), new List<SyntaxToken>(), null);
+        return new DelimitedSyntaxList<Token>(null, new List<Token>(), new List<Token>(), null);
     }
 
     /// <summary>
@@ -87,21 +87,21 @@ public sealed class OperationParsingContext : DialectParsingContext
     public DelimitedSyntaxList<NamedAttributeSyntax> CreateAttributeDictionary(IReadOnlyList<NamedAttributeSyntax> attributes)
     {
         return new DelimitedSyntaxList<NamedAttributeSyntax>(
-            attributes.Count > 0 ? SyntaxTokenFactory.LBrace() : null,
+            attributes.Count > 0 ? TokenFactory.LBrace() : null,
             attributes,
             CreateCommaTokens(attributes.Count),
-            attributes.Count > 0 ? SyntaxTokenFactory.RBrace() : null);
+            attributes.Count > 0 ? TokenFactory.RBrace() : null);
     }
 
     /// <summary>
     /// Creates comma tokens for a projected delimited list.
     /// </summary>
-    public IReadOnlyList<SyntaxToken> CreateCommaTokens(int itemCount)
+    public IReadOnlyList<Token> CreateCommaTokens(int itemCount)
     {
-        var commas = new List<SyntaxToken>();
+        var commas = new List<Token>();
         for (var i = 1; i < itemCount; i++)
         {
-            commas.Add(SyntaxTokenFactory.Comma());
+            commas.Add(TokenFactory.Comma());
         }
 
         return commas;
@@ -183,7 +183,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Expects an identifier token whose text matches <paramref name="spelling"/> exactly.
     /// </summary>
-    public ParseResult<SyntaxToken> ExpectKeyword(string spelling, string message)
+    public ParseResult<Token> ExpectKeyword(string spelling, string message)
     {
         return Parser.ExpectKeywordInternal(spelling, message);
     }
@@ -200,7 +200,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// Parses an optional successor list of the form <c>[ ^bb1, ^bb2, ... ]</c>.
     /// Returns an empty list when no opening bracket is present.
     /// </summary>
-    public ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseSuccessors()
+    public ParseResult<DelimitedSyntaxList<Token>> TryParseSuccessors()
     {
         return Parser.TryParseSuccessorsInternal();
     }
@@ -208,7 +208,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses an operand list of the form <c>( %a, %b, ... )</c>.
     /// </summary>
-    public ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseOperands()
+    public ParseResult<DelimitedSyntaxList<Token>> TryParseOperands()
     {
         return Parser.TryParseOperandsInternal();
     }

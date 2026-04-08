@@ -10,7 +10,7 @@ public sealed class UnresolvedValue : Value
     /// <summary>
     /// Initializes a new instance of the <see cref="UnresolvedValue"/> class from a syntax token.
     /// </summary>
-    public UnresolvedValue(SyntaxToken token)
+    public UnresolvedValue(Token token)
         : base(token)
     {
     }

@@ -13,7 +13,7 @@ public sealed class RawSyntaxText
     /// <param name="text">The preserved syntax text without leading trivia.</param>
     public RawSyntaxText(string text)
     {
-        Tokens = [SyntaxTokenFactory.Identifier(text)];
+        Tokens = [TokenFactory.Identifier(text)];
         Text = text;
     }
 
@@ -21,7 +21,7 @@ public sealed class RawSyntaxText
     /// Initializes a new instance of the <see cref="RawSyntaxText"/> class.
     /// </summary>
     /// <param name="tokens">The syntax tokens that comprise the preserved text.</param>
-    public RawSyntaxText(IReadOnlyList<SyntaxToken> tokens)
+    public RawSyntaxText(IReadOnlyList<Token> tokens)
     {
         Tokens = tokens;
         if (tokens.Count == 0)
@@ -34,7 +34,7 @@ public sealed class RawSyntaxText
         }
     }
 
-    internal RawSyntaxText(IReadOnlyList<SyntaxToken> tokens, string text)
+    internal RawSyntaxText(IReadOnlyList<Token> tokens, string text)
     {
         Tokens = tokens;
         Text = text;
@@ -52,7 +52,7 @@ public sealed class RawSyntaxText
     /// The raw syntax text is intended to preserve the original source text for unrecognized or uninterpreted syntax fragments, such as custom operation assembly forms or unrecognized attributes.
     /// Consumers can choose to preserve the raw syntax text as-is, or they can analyze and manipulate the underlying tokens as needed for binding, diagnostics, or transformations.
     /// </remarks>
-    public IReadOnlyList<SyntaxToken> Tokens { get; }
+    public IReadOnlyList<Token> Tokens { get; }
 
     /// <summary>
     /// Gets the whitespace and comments that precede the text.

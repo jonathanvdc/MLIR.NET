@@ -137,9 +137,9 @@ using MLIR.Syntax;
 /// // Custom operation assembly formats receive an OperationParsingContext that exposes
 /// // safe, composable parser primitives without exposing the parser internals.
 /// public bool TryParse(
-///     SyntaxToken nameToken,
-///     SeparatedSyntaxList&lt;SyntaxToken&gt; resultList,
-///     SyntaxToken? equalsToken,
+///     Token nameToken,
+///     SeparatedSyntaxList&lt;Token&gt; resultList,
+///     Token? equalsToken,
 ///     OperationParsingContext ctx,
 ///     out OperationBodySyntax? body)
 /// {
@@ -173,14 +173,9 @@ public sealed partial class Parser
     private readonly string source;
 
     /// <summary>
-    /// The source document wrapping <see cref="source"/>. Passed to every <see cref="MLIR.Syntax.SyntaxToken"/>
-    /// created from a real lexer token so that tokens carry document-relative offset information
-    /// instead of storing line/column directly.
-    /// </summary>
-    private readonly MLIR.Syntax.SourceDocument document;
-
-    /// <summary>
     /// The flat, immutable token list produced by the <see cref="Lexer"/>.
+    /// Each token is source-backed, carrying document-relative offset information for
+    /// on-demand line/column resolution via its <see cref="MLIR.Syntax.Token.Location"/>.
     /// The last element is always an <see cref="TokenKind.EndOfFile"/> sentinel so that
     /// <see cref="Current"/> never reads past the end of the array.
     /// </summary>
@@ -204,12 +199,11 @@ public sealed partial class Parser
     /// Use the static factory <see cref="TryCreateParser"/> rather than constructing directly.
     /// </summary>
     /// <param name="source">The original MLIR source text.</param>
-    /// <param name="tokens">Flat token list produced by the lexer; must end with an EOF token.</param>
+    /// <param name="tokens">Source-backed token list produced by the lexer; must end with an EOF token.</param>
     /// <param name="dialectRegistry">Optional registry for dialect-specific assembly formats.</param>
     private Parser(string source, IReadOnlyList<Token> tokens, DialectRegistry? dialectRegistry = null)
     {
         this.source = source;
-        document = new MLIR.Syntax.SourceDocument(source);
         this.dialectRegistry = dialectRegistry;
         this.tokens = tokens;
     }
@@ -385,7 +379,7 @@ public sealed partial class Parser
             }
         }
 
-        return ParseResult<ModuleSyntax>.Success(new ModuleSyntax(operations, ToSyntaxToken(ConsumeToken())));
+        return ParseResult<ModuleSyntax>.Success(new ModuleSyntax(operations, ConsumeToken()));
     }
 
     /// <summary>
@@ -407,9 +401,9 @@ public sealed partial class Parser
     /// </remarks>
     private ParseResult<OperationSyntax> TryParseOperationResult()
     {
-        var resultItems = new List<SyntaxToken>();
-        var resultSeparators = new List<SyntaxToken>();
-        SyntaxToken? equalsToken = null;
+        var resultItems = new List<Token>();
+        var resultSeparators = new List<Token>();
+        Token? equalsToken = null;
 
         if (Is(TokenKind.SsaName))
         {
@@ -424,7 +418,7 @@ public sealed partial class Parser
 
             if (TryMatch(TokenKind.Colon, out _))
             {
-                var countTokenResult = ExpectRawTokenResult(TokenKind.Integer, "Expected result count after ':'.");
+                var countTokenResult = ExpectTokenResult(TokenKind.Integer, "Expected result count after ':'.");
                 if (!countTokenResult.IsSuccess)
                 {
                     return ParseResult<OperationSyntax>.Failure(countTokenResult.Diagnostic!);
@@ -434,13 +428,13 @@ public sealed partial class Parser
                 var count = int.Parse(countToken.Text, CultureInfo.InvariantCulture);
                 for (var i = 1; i < count; i++)
                 {
-                    resultItems.Add(SyntaxTokenFactory.SsaName(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
+                    resultItems.Add(TokenFactory.SsaName(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
                 }
             }
 
             while (TryMatch(TokenKind.Comma, out var resultCommaToken))
             {
-                resultSeparators.Add(ToSyntaxToken(resultCommaToken));
+                resultSeparators.Add(resultCommaToken);
                 var nextResultToken = TryParseSsaTokenResult();
                 if (!nextResultToken.IsSuccess)
                 {
@@ -459,7 +453,7 @@ public sealed partial class Parser
             equalsToken = equalsTokenResult.Value;
         }
 
-        var resultList = new SeparatedSyntaxList<SyntaxToken>(resultItems, resultSeparators);
+        var resultList = new SeparatedSyntaxList<Token>(resultItems, resultSeparators);
 
         var nameTokenResult = TryParseOperationNameTokenResult();
         if (!nameTokenResult.IsSuccess)
@@ -529,7 +523,7 @@ public sealed partial class Parser
             return ParseResult<OperationSyntax>.Failure(attributesResult.Diagnostic!);
         }
 
-        SyntaxToken? typeSignatureColonToken = null;
+        Token? typeSignatureColonToken = null;
         TypeSyntax? typeSignatureSyntax = null;
         if (Is(TokenKind.Colon))
         {
@@ -577,8 +571,8 @@ public sealed partial class Parser
     {
         var checkpoint = Mark();
 
-        var operandTokens = new List<SyntaxToken>();
-        var operandCommaTokens = new List<SyntaxToken>();
+        var operandTokens = new List<Token>();
+        var operandCommaTokens = new List<Token>();
         if (Is(TokenKind.SsaName))
         {
             var firstOperandResult = TryParseSsaTokenResult();
@@ -590,7 +584,7 @@ public sealed partial class Parser
             operandTokens.Add(firstOperandResult.Value);
             while (TryMatch(TokenKind.Comma, out var comma))
             {
-                operandCommaTokens.Add(ToSyntaxToken(comma));
+                operandCommaTokens.Add(comma);
                 var operandResult = TryParseSsaTokenResult();
                 if (!operandResult.IsSuccess)
                 {
@@ -620,15 +614,15 @@ public sealed partial class Parser
         }
 
         return ParseResult<OperationBodySyntax>.Success(new GenericOperationBodySyntax(
-            new DelimitedSyntaxList<SyntaxToken>(
-                SyntaxTokenFactory.LParen(),
+            new DelimitedSyntaxList<Token>(
+                TokenFactory.LParen(),
                 operandTokens,
                 operandCommaTokens,
-                SyntaxTokenFactory.RParen()),
-            new DelimitedSyntaxList<SyntaxToken>(null, new List<SyntaxToken>(), new List<SyntaxToken>(), null),
+                TokenFactory.RParen()),
+            new DelimitedSyntaxList<Token>(null, new List<Token>(), new List<Token>(), null),
             new List<RegionSyntax>(),
             attributeDictResult.Value,
-            ToSyntaxToken(colonToken),
+            colonToken,
             new RawTypeSyntax(typeSignatureResult.Value)));
     }
 
@@ -645,9 +639,9 @@ public sealed partial class Parser
     /// The parser position is reset to the pre-call checkpoint on <c>NoMatch</c>.
     /// </returns>
     private ParseResult<OperationBodySyntax> TryParseCustomAssemblyResult(
-        SyntaxToken nameToken,
-        SeparatedSyntaxList<SyntaxToken> resultList,
-        SyntaxToken? equalsToken)
+        Token nameToken,
+        SeparatedSyntaxList<Token> resultList,
+        Token? equalsToken)
     {
         if (dialectRegistry == null)
         {
@@ -705,9 +699,9 @@ public sealed partial class Parser
                     // MLIR allows unlabeled operations at the start of a region. Model them as
                     // a synthetic entry block so the CST always has a block-based shape.
                     blocks.Add(new BlockSyntax(
-                        SyntaxTokenFactory.BlockLabel("^entry"),
-                        new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<SyntaxToken>(), null),
-                        SyntaxTokenFactory.Colon(),
+                        TokenFactory.BlockLabel("^entry"),
+                        new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<Token>(), null),
+                        TokenFactory.Colon(),
                         pendingEntryOperations.ToList()));
                     pendingEntryOperations.Clear();
                 }
@@ -741,9 +735,9 @@ public sealed partial class Parser
         {
             // Keep region bodies uniform even for empty regions and unlabeled entry operations.
             blocks.Insert(0, new BlockSyntax(
-                SyntaxTokenFactory.BlockLabel("^entry"),
-                new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<SyntaxToken>(), null),
-                SyntaxTokenFactory.Colon(),
+                TokenFactory.BlockLabel("^entry"),
+                new DelimitedSyntaxList<BlockArgumentSyntax>(null, new List<BlockArgumentSyntax>(), new List<Token>(), null),
+                TokenFactory.Colon(),
                 pendingEntryOperations.ToList()));
         }
 
@@ -853,20 +847,20 @@ public sealed partial class Parser
     /// Parses the operation name token, which is either a bare identifier (<c>dialect.op</c>)
     /// or a quoted string (<c>"dialect.op"</c>).
     /// </summary>
-    private ParseResult<SyntaxToken> TryParseOperationNameTokenResult()
+    private ParseResult<Token> TryParseOperationNameTokenResult()
     {
         if (!Is(TokenKind.Identifier) && !Is(TokenKind.StringLiteral))
         {
-            return ParseResult<SyntaxToken>.Failure(CreateDiagnostic("Expected an operation name."));
+            return ParseResult<Token>.Failure(CreateDiagnostic("Expected an operation name."));
         }
 
-        return ParseResult<SyntaxToken>.Success(ToSyntaxToken(ConsumeToken()));
+        return ParseResult<Token>.Success(ConsumeToken());
     }
 
     /// <summary>
     /// Expects and consumes the current token as an SSA value name (<c>%name</c>).
     /// </summary>
-    private ParseResult<SyntaxToken> TryParseSsaTokenResult()
+    private ParseResult<Token> TryParseSsaTokenResult()
     {
         return ExpectTokenResult(TokenKind.SsaName, "Expected an SSA value name.");
     }
@@ -874,7 +868,7 @@ public sealed partial class Parser
     /// <summary>
     /// Expects and consumes the current token as a block label name (<c>^label</c>).
     /// </summary>
-    private ParseResult<SyntaxToken> TryParseBlockLabelTokenResult()
+    private ParseResult<Token> TryParseBlockLabelTokenResult()
     {
         return ExpectTokenResult(TokenKind.BlockLabel, "Expected a block label name.");
     }
@@ -905,7 +899,7 @@ public sealed partial class Parser
     /// <summary>
     /// Parses a required operand list of the form <c>( %a, %b, ... )</c>.
     /// </summary>
-    private ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseOperandsResult()
+    private ParseResult<DelimitedSyntaxList<Token>> TryParseOperandsResult()
     {
         return TryParseRequiredCommaSeparatedDelimitedList(
             TokenKind.LParen,
@@ -919,11 +913,11 @@ public sealed partial class Parser
     /// Parses an optional successor list of the form <c>[ ^bb1, ^bb2, ... ]</c>.
     /// Returns an empty list when no <c>[</c> is present.
     /// </summary>
-    private ParseResult<DelimitedSyntaxList<SyntaxToken>> TryParseSuccessorsResult()
+    private ParseResult<DelimitedSyntaxList<Token>> TryParseSuccessorsResult()
     {
         if (!Is(TokenKind.LBracket))
         {
-            return ParseResult<DelimitedSyntaxList<SyntaxToken>>.Success(EmptyDelimitedSyntaxList<SyntaxToken>());
+            return ParseResult<DelimitedSyntaxList<Token>>.Success(EmptyDelimitedSyntaxList<Token>());
         }
 
         return TryParseRequiredCommaSeparatedDelimitedList(

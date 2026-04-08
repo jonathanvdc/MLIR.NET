@@ -24,9 +24,9 @@ public interface IOperationAssemblyFormat
     /// <param name="context">The parsing context.</param>
     /// <returns>The parsed operation body, a no-match result, or a diagnostic-producing failure.</returns>
     ParseResult<OperationBodySyntax> TryParse(
-        SyntaxToken nameToken,
-        SeparatedSyntaxList<SyntaxToken> resultList,
-        SyntaxToken? equalsToken,
+        Token nameToken,
+        SeparatedSyntaxList<Token> resultList,
+        Token? equalsToken,
         OperationParsingContext context);
 
     /// <summary>

@@ -22,15 +22,15 @@ public sealed class ParsingTests
 
         public PrefixConstantBodySyntax(
             RawSyntaxText value,
-            SyntaxToken colonToken,
+            Token colonToken,
             RawSyntaxText typeSignature,
             DelimitedSyntaxList<NamedAttributeSyntax> attributes)
         {
             this.value = value;
             this.typeSignature = typeSignature;
             genericBody = new GenericOperationBodySyntax(
-                new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), [], [], SyntaxTokenFactory.RParen()),
-                new DelimitedSyntaxList<SyntaxToken>(null, [], [], null),
+                new DelimitedSyntaxList<Token>(TokenFactory.LParen(), [], [], TokenFactory.RParen()),
+                new DelimitedSyntaxList<Token>(null, [], [], null),
                 [],
                 attributes,
                 colonToken,
@@ -40,7 +40,7 @@ public sealed class ParsingTests
         public override void WriteTo(SyntaxWriter writer)
         {
             writer.WriteRaw(value, " ");
-            writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? SyntaxTokenFactory.Colon(), " ");
+            writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? TokenFactory.Colon(), " ");
             writer.WriteRaw(typeSignature, " ");
         }
 
@@ -57,9 +57,9 @@ public sealed class ParsingTests
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
     {
         public ParseResult<OperationBodySyntax> TryParse(
-            SyntaxToken nameToken,
-            SeparatedSyntaxList<SyntaxToken> resultList,
-            SyntaxToken? equalsToken,
+            Token nameToken,
+            SeparatedSyntaxList<Token> resultList,
+            Token? equalsToken,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -85,7 +85,7 @@ public sealed class ParsingTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(SyntaxTokenFactory.Identifier("value"), SyntaxTokenFactory.Equal(), new RawAttributeValueSyntax(valueResult.Value))]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), new RawAttributeValueSyntax(valueResult.Value))]);
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
@@ -105,13 +105,13 @@ public sealed class ParsingTests
     /// </summary>
     private sealed class SsaListCapturingBodySyntax : OperationBodySyntax
     {
-        public SsaListCapturingBodySyntax(SeparatedSyntaxList<SyntaxToken> inputs)
+        public SsaListCapturingBodySyntax(SeparatedSyntaxList<Token> inputs)
         {
             Inputs = inputs;
         }
 
         /// <summary>Gets the SSA tokens that were parsed by <see cref="OperationParsingContext.TryParseSsaTokenList"/>.</summary>
-        public SeparatedSyntaxList<SyntaxToken> Inputs { get; }
+        public SeparatedSyntaxList<Token> Inputs { get; }
 
         public override void WriteTo(SyntaxWriter writer)
         {
@@ -119,7 +119,7 @@ public sealed class ParsingTests
             {
                 if (i > 0)
                 {
-                    writer.WriteToken(SyntaxTokenFactory.Comma());
+                    writer.WriteToken(TokenFactory.Comma());
                 }
 
                 writer.WriteToken(Inputs[i], " ");
@@ -140,9 +140,9 @@ public sealed class ParsingTests
     private sealed class SsaListCapturingAssemblyFormat : IOperationAssemblyFormat
     {
         public ParseResult<OperationBodySyntax> TryParse(
-            SyntaxToken nameToken,
-            SeparatedSyntaxList<SyntaxToken> resultList,
-            SyntaxToken? equalsToken,
+            Token nameToken,
+            SeparatedSyntaxList<Token> resultList,
+            Token? equalsToken,
             OperationParsingContext context)
         {
             var listResult = context.TryParseSsaTokenList();

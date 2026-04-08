@@ -29,9 +29,9 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
 
     /// <inheritdoc/>
     public ParseResult<OperationBodySyntax> TryParse(
-        SyntaxToken nameToken,
-        SeparatedSyntaxList<SyntaxToken> resultList,
-        SyntaxToken? equalsToken,
+        Token nameToken,
+        SeparatedSyntaxList<Token> resultList,
+        Token? equalsToken,
         OperationParsingContext context)
     {
         var conditionResult = context.TryParseSsaToken();
@@ -82,7 +82,7 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             return ParseResult<OperationBodySyntax>.Failure(firstTypeResult.Diagnostic!);
         }
 
-        SyntaxToken? typeCommaToken = null;
+        Token? typeCommaToken = null;
         TypeSyntax? secondType = null;
         if (context.TryMatch(TokenKind.Comma, out var parsedTypeCommaToken))
         {
@@ -164,21 +164,21 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        var condition = SyntaxTokenFactory.SsaName(operands[0].Name);
-        var trueValue = SyntaxTokenFactory.SsaName(operands[1].Name);
-        var falseValue = SyntaxTokenFactory.SsaName(operands[2].Name);
+        var condition = TokenFactory.SsaName(operands[0].Name);
+        var trueValue = TokenFactory.SsaName(operands[1].Name);
+        var falseValue = TokenFactory.SsaName(operands[2].Name);
         var body = new SelectLikeOperationBodySyntax(
             condition,
-            SyntaxTokenFactory.Comma(),
+            TokenFactory.Comma(),
             trueValue,
-            SyntaxTokenFactory.Comma(),
+            TokenFactory.Comma(),
             falseValue,
             context.BuildAttrDict(operation.Attributes),
-            SyntaxTokenFactory.Colon(),
+            TokenFactory.Colon(),
             includeConditionType ? conditionType! : valueType!,
-            includeConditionType ? SyntaxTokenFactory.Comma() : null,
+            includeConditionType ? TokenFactory.Comma() : null,
             includeConditionType ? valueType : null);
-        return context.RewriteOperation(operation, body, SyntaxTokenFactory.Identifier(operation.Name));
+        return context.RewriteOperation(operation, body, TokenFactory.Identifier(operation.Name));
     }
 
     private static bool TryGetPrintedTypes(
@@ -227,15 +227,15 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
     /// Initializes a new instance of the <see cref="SelectLikeOperationBodySyntax"/> class.
     /// </summary>
     public SelectLikeOperationBodySyntax(
-        SyntaxToken condition,
-        SyntaxToken commaToken,
-        SyntaxToken trueValue,
-        SyntaxToken commaToken2,
-        SyntaxToken falseValue,
+        Token condition,
+        Token commaToken,
+        Token trueValue,
+        Token commaToken2,
+        Token falseValue,
         DelimitedSyntaxList<NamedAttributeSyntax> attrDict,
-        SyntaxToken colonToken,
+        Token colonToken,
         TypeSyntax firstType,
-        SyntaxToken? typeCommaToken,
+        Token? typeCommaToken,
         TypeSyntax? secondType)
     {
         Condition = condition;
@@ -253,27 +253,27 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
     /// <summary>
     /// Gets the condition operand token.
     /// </summary>
-    public SyntaxToken Condition { get; }
+    public Token Condition { get; }
 
     /// <summary>
     /// Gets the comma token after the condition operand.
     /// </summary>
-    public SyntaxToken CommaToken { get; }
+    public Token CommaToken { get; }
 
     /// <summary>
     /// Gets the true-value operand token.
     /// </summary>
-    public SyntaxToken TrueValue { get; }
+    public Token TrueValue { get; }
 
     /// <summary>
     /// Gets the comma token after the true-value operand.
     /// </summary>
-    public SyntaxToken CommaToken2 { get; }
+    public Token CommaToken2 { get; }
 
     /// <summary>
     /// Gets the false-value operand token.
     /// </summary>
-    public SyntaxToken FalseValue { get; }
+    public Token FalseValue { get; }
 
     /// <summary>
     /// Gets the optional attribute dictionary.
@@ -283,7 +283,7 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
     /// <summary>
     /// Gets the colon token that introduces the printed type list.
     /// </summary>
-    public SyntaxToken ColonToken { get; }
+    public Token ColonToken { get; }
 
     /// <summary>
     /// Gets the first printed type.
@@ -293,7 +293,7 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
     /// <summary>
     /// Gets the comma token between the printed condition and value types, when present.
     /// </summary>
-    public SyntaxToken? TypeCommaToken { get; }
+    public Token? TypeCommaToken { get; }
 
     /// <summary>
     /// Gets the second printed type when the custom syntax spells both condition and value types.

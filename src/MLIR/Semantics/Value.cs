@@ -13,7 +13,7 @@ public abstract class Value
     /// <summary>
     /// Initializes a new instance of the <see cref="Value"/> class.
     /// </summary>
-    protected Value(SyntaxToken? token, string name)
+    protected Value(Token? token, string name)
     {
         Token = token;
         Name = name;
@@ -22,7 +22,7 @@ public abstract class Value
     /// <summary>
     /// Initializes a new instance of the <see cref="Value"/> class from a syntax token.
     /// </summary>
-    protected Value(SyntaxToken token)
+    protected Value(Token token)
         : this(token, token.Text)
     {
     }
@@ -38,7 +38,7 @@ public abstract class Value
     /// <summary>
     /// Gets the syntax token for the SSA value, or null if this is a synthetic value with no corresponding source token.
     /// </summary>
-    public SyntaxToken? Token { get; }
+    public Token? Token { get; }
 
     /// <summary>
     /// Gets the SSA value name.

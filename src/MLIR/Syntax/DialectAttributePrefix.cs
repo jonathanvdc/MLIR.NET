@@ -29,17 +29,17 @@ public readonly struct DialectAttributePrefix
     /// </summary>
     /// <param name="hashToken">The <c>#</c> token.</param>
     /// <param name="nameToken">The <c>dialect.mnemonic</c> identifier token.</param>
-    public DialectAttributePrefix(SyntaxToken hashToken, SyntaxToken nameToken)
+    public DialectAttributePrefix(Token hashToken, Token nameToken)
     {
         HashToken = hashToken;
         NameToken = nameToken;
     }
 
     /// <summary>Gets the <c>#</c> token.</summary>
-    public SyntaxToken HashToken { get; }
+    public Token HashToken { get; }
 
     /// <summary>Gets the <c>dialect.mnemonic</c> identifier token.</summary>
-    public SyntaxToken NameToken { get; }
+    public Token NameToken { get; }
 
     /// <summary>
     /// Creates a <see cref="DialectAttributePrefix"/> with synthetic (source-location-free)
@@ -49,7 +49,7 @@ public readonly struct DialectAttributePrefix
     /// The canonical attribute name, e.g. <c>"miniemitc.opaque"</c>.
     /// </param>
     public static DialectAttributePrefix Synthetic(string dialectAttributeName)
-        => new DialectAttributePrefix(SyntaxTokenFactory.Hash(), SyntaxTokenFactory.Identifier(dialectAttributeName));
+        => new DialectAttributePrefix(TokenFactory.Hash(), TokenFactory.Identifier(dialectAttributeName));
 
     /// <summary>
     /// Writes the <c>#dialect.mnemonic</c> prefix tokens to the supplied writer.

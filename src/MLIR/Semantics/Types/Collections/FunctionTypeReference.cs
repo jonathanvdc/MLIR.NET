@@ -76,32 +76,32 @@ public class FunctionTypeReference : TypeReference
 
     private static FunctionTypeSyntax BuildSyntax(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results)
     {
-        var inputCommas = new List<SyntaxToken>(Math.Max(0, inputs.Count - 1));
+        var inputCommas = new List<Token>(Math.Max(0, inputs.Count - 1));
         for (var i = 1; i < inputs.Count; i++)
         {
-            inputCommas.Add(SyntaxTokenFactory.Comma());
+            inputCommas.Add(TokenFactory.Comma());
         }
 
         if (results.Count == 1)
         {
             return new FunctionTypeSyntax(
-                new DelimitedSyntaxList<TypeSyntax>(SyntaxTokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, SyntaxTokenFactory.RParen()),
-                SyntaxTokenFactory.Arrow(),
+                new DelimitedSyntaxList<TypeSyntax>(TokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, TokenFactory.RParen()),
+                TokenFactory.Arrow(),
                 GetSyntax(results[0]),
                 new DelimitedSyntaxList<TypeSyntax>(null, [], [], null));
         }
 
-        var resultCommas = new List<SyntaxToken>(Math.Max(0, results.Count - 1));
+        var resultCommas = new List<Token>(Math.Max(0, results.Count - 1));
         for (var i = 1; i < results.Count; i++)
         {
-            resultCommas.Add(SyntaxTokenFactory.Comma());
+            resultCommas.Add(TokenFactory.Comma());
         }
 
         return new FunctionTypeSyntax(
-            new DelimitedSyntaxList<TypeSyntax>(SyntaxTokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, SyntaxTokenFactory.RParen()),
-            SyntaxTokenFactory.Arrow(),
+            new DelimitedSyntaxList<TypeSyntax>(TokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, TokenFactory.RParen()),
+            TokenFactory.Arrow(),
             null,
-            new DelimitedSyntaxList<TypeSyntax>(SyntaxTokenFactory.LParen(), results.Select(GetSyntax).ToArray(), resultCommas, SyntaxTokenFactory.RParen()));
+            new DelimitedSyntaxList<TypeSyntax>(TokenFactory.LParen(), results.Select(GetSyntax).ToArray(), resultCommas, TokenFactory.RParen()));
     }
 
     private static TypeSyntax GetSyntax(TypeReference type)

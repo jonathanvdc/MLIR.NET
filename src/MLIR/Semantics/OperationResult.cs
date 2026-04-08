@@ -10,7 +10,7 @@ public sealed class OperationResult : Value
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationResult"/> class from a syntax token.
     /// </summary>
-    public OperationResult(SyntaxToken token)
+    public OperationResult(Token token)
         : base(token)
     {
     }

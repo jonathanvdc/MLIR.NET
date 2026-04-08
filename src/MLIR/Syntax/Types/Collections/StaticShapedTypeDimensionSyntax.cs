@@ -5,12 +5,12 @@ namespace MLIR.Syntax.Types.Collections;
 /// <summary>
 /// Represents a static integer dimension in a shaped type.
 /// </summary>
-public sealed class StaticShapedTypeDimensionSyntax(SyntaxToken sizeToken, long size) : ShapedTypeDimensionSyntax
+public sealed class StaticShapedTypeDimensionSyntax(Token sizeToken, long size) : ShapedTypeDimensionSyntax
 {
     /// <summary>
     /// Gets the size token.
     /// </summary>
-    public SyntaxToken SizeToken { get; } = sizeToken;
+    public Token SizeToken { get; } = sizeToken;
 
     /// <summary>
     /// Gets the parsed dimension size.

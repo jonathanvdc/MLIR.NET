@@ -14,8 +14,8 @@ using MLIR.Syntax;
 /// <para>
 /// The suggestion mechanism: call <see cref="SuggestTrivia"/> before emitting a node or
 /// token to supply a default leading trivia.  The suggestion is consumed by the next
-/// <see cref="WriteToken(SyntaxToken)"/> call that does not find preserved trivia on the
-/// token.  Explicit <see cref="WriteToken(SyntaxToken, string)"/> calls bypass the
+/// <see cref="WriteToken(Token)"/> call that does not find preserved trivia on the
+/// token.  Explicit <see cref="WriteToken(Token, string)"/> calls bypass the
 /// suggestion and always use the provided string.
 /// </para>
 /// </remarks>
@@ -23,7 +23,7 @@ public sealed class SyntaxWriter
 {
     private readonly StringBuilder builder;
 
-    /// <summary>Pending suggested trivia, consumed by the next parameterless <see cref="WriteToken(SyntaxToken)"/> call.</summary>
+    /// <summary>Pending suggested trivia, consumed by the next parameterless <see cref="WriteToken(Token)"/> call.</summary>
     private string? pendingTrivia;
 
     /// <summary>
@@ -66,7 +66,7 @@ public sealed class SyntaxWriter
     }
 
     /// <summary>
-    /// Suggests a default leading trivia string for the next <see cref="WriteToken(SyntaxToken)"/> call.
+    /// Suggests a default leading trivia string for the next <see cref="WriteToken(Token)"/> call.
     /// The suggestion is ignored when the token already carries preserved leading trivia.
     /// It is consumed (cleared) after the next emission regardless of whether it was applied.
     /// </summary>
@@ -120,7 +120,7 @@ public sealed class SyntaxWriter
     /// Does nothing when <paramref name="list"/> has no opening delimiter token.
     /// </summary>
     /// <param name="list">The delimited token list to write.</param>
-    public void WriteDelimitedList(DelimitedSyntaxList<SyntaxToken> list)
+    public void WriteDelimitedList(DelimitedSyntaxList<Token> list)
     {
         list.WriteTo(this, static (token, writer) => writer.WriteToken(token));
     }
@@ -131,7 +131,7 @@ public sealed class SyntaxWriter
     /// </summary>
     /// <param name="list">The delimited token list to write.</param>
     /// <param name="openLeadingTrivia">The explicit leading trivia for the opening delimiter token.</param>
-    public void WriteDelimitedList(DelimitedSyntaxList<SyntaxToken> list, string openLeadingTrivia)
+    public void WriteDelimitedList(DelimitedSyntaxList<Token> list, string openLeadingTrivia)
     {
         list.WriteTo(this, openLeadingTrivia, static (token, writer) => writer.WriteToken(token));
     }
@@ -194,7 +194,7 @@ public sealed class SyntaxWriter
     /// Does nothing when <paramref name="list"/> is empty.
     /// </summary>
     /// <param name="list">The separated token list to write.</param>
-    public void WriteSeparatedList(SeparatedSyntaxList<SyntaxToken> list)
+    public void WriteSeparatedList(SeparatedSyntaxList<Token> list)
     {
         list.WriteTo(this, static (token, writer) => writer.WriteToken(token));
     }
@@ -226,7 +226,7 @@ public sealed class SyntaxWriter
     /// The pending suggestion (set via <see cref="SuggestTrivia"/>) is consumed and cleared after this call.
     /// </summary>
     /// <param name="token">The token to write.</param>
-    public void WriteToken(SyntaxToken token)
+    public void WriteToken(Token token)
     {
         if (token.HasLeadingTrivia)
         {
@@ -247,7 +247,7 @@ public sealed class SyntaxWriter
     /// </summary>
     /// <param name="token">The token to write.</param>
     /// <param name="defaultLeadingTrivia">The fallback leading trivia when the token carries no preserved trivia.</param>
-    public void WriteToken(SyntaxToken token, string defaultLeadingTrivia)
+    public void WriteToken(Token token, string defaultLeadingTrivia)
     {
         builder.Append(token.LeadingTrivia ?? defaultLeadingTrivia);
         builder.Append(token.Text);

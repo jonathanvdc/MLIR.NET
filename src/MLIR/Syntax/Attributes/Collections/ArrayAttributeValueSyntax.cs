@@ -13,10 +13,10 @@ public sealed class ArrayAttributeValueSyntax : AttributeValueSyntax
     /// Initializes a new instance of the <see cref="ArrayAttributeValueSyntax"/> class.
     /// </summary>
     public ArrayAttributeValueSyntax(
-        SyntaxToken openToken,
+        Token openToken,
         IReadOnlyList<AttributeValueSyntax> items,
-        IReadOnlyList<SyntaxToken> separatorTokens,
-        SyntaxToken closeToken)
+        IReadOnlyList<Token> separatorTokens,
+        Token closeToken)
     {
         Items = new DelimitedSyntaxList<AttributeValueSyntax>(openToken, items, separatorTokens, closeToken);
     }

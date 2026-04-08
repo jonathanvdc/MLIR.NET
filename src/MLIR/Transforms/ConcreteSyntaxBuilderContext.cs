@@ -58,7 +58,7 @@ public sealed class ConcreteSyntaxBuilderContext
     /// <summary>
     /// Rewrites an operation while preserving its outer shell tokens except where replacements are supplied.
     /// </summary>
-    public OperationSyntax RewriteOperation(Operation operation, OperationBodySyntax body, SyntaxToken? nameToken = null)
+    public OperationSyntax RewriteOperation(Operation operation, OperationBodySyntax body, Token? nameToken = null)
     {
         return builder.RewriteOperation(operation, body, nameToken);
     }
@@ -87,7 +87,7 @@ public sealed class ConcreteSyntaxBuilderContext
     /// When rebuilding existing syntax, this strips trivia so source indentation and line breaks
     /// do not leak into synthesized assembly. PreserveExistingSyntax keeps the token unchanged.
     /// </remarks>
-    public SyntaxToken NormalizeToken(SyntaxToken token)
+    public Token NormalizeToken(Token token)
     {
         return builder.NormalizeToken(token);
     }
