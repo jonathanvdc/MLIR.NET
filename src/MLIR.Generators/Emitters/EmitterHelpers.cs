@@ -140,6 +140,16 @@ internal static class EmitterHelpers
         };
     }
 
+    public static BodySyntaxField NextBodySyntaxField(IReadOnlyList<BodySyntaxField> fields, ref int fieldIndex)
+    {
+        return fields[fieldIndex++];
+    }
+
+    public static string GetBodySyntaxFieldLocalName(BodySyntaxField field)
+    {
+        return LowerFirst(field.Name);
+    }
+
     public static void AppendSeparated(StringBuilder builder, int count, Action<int> emitItem, string separator = ", ")
     {
         for (var i = 0; i < count; i++)

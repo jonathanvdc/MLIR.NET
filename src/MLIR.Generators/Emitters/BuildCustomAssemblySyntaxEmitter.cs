@@ -68,10 +68,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         fieldIndex = 0;
 
         var elements = format.Elements;
-        for (var i = 0; i < elements.Count; i++)
-        {
-            EmitElement(builder, elements[i], indent: "        ", declare: true);
-        }
+        AssemblyFormatTraversal.ForEachElement(elements, (i, element) => EmitElement(builder, element, indent: "        ", declare: true));
 
         EmitBodyConstruction(builder);
         builder.AppendLine("        return context.RewriteOperation(operation, body, new SyntaxToken(operation.Name));");
@@ -141,8 +138,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             {
                 case PunctuationLiteral punc:
                 {
-                    var field = NextField();
-                    var varName = EmitterHelpers.LowerFirst(field.Name);
+                    var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                    var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                     var text = EmitterHelpers.ToCSharpStringLiteral(EmitterHelpers.GetPunctuationText(punc.TokenKind));
                     builder.AppendLine(indent + DeclareOrAssign(varName, "new SyntaxToken(" + text + ")", declare, field.CsType) + ";");
                     break;
@@ -150,8 +147,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
                 case KeywordLiteral kw:
                 {
-                    var field = NextField();
-                    var varName = EmitterHelpers.LowerFirst(field.Name);
+                    var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                    var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                     var text = EmitterHelpers.ToCSharpStringLiteral(kw.Spelling);
                     builder.AppendLine(indent + DeclareOrAssign(varName, "new SyntaxToken(" + text + ")", declare, field.CsType) + ";");
                     break;
@@ -164,45 +161,45 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
     private void EmitVariable(StringBuilder builder, VariableChunk variable, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         var expr = BuildVariableExpression(variable.Name, nullable: false);
         builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, field.CsType) + ";");
     }
 
     private void EmitAttrDict(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         var attrExpr = BuildAttrDictExpression();
         builder.AppendLine(indent + DeclareOrAssign(varName, "context.BuildAttrDict(" + attrExpr + ")", declare, field.CsType) + ";");
     }
 
     private void EmitType(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         builder.AppendLine(indent + DeclareOrAssign(varName, BuildTypeExpression(field), declare, field.CsType) + ";");
     }
 
     private void EmitRegions(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         builder.AppendLine(indent + DeclareOrAssign(varName, "op.Regions.Select(r => context.TransformRegion(r)).ToList()", declare, field.CsType) + ";");
     }
 
     private void EmitSuccessors(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         builder.AppendLine(indent + DeclareOrAssign(varName, "new DelimitedSyntaxList<SyntaxToken>(null, global::System.Array.Empty<SyntaxToken>(), global::System.Array.Empty<SyntaxToken>(), null)", declare, field.CsType) + ";");
     }
 
     private void EmitOperands(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         builder.AppendLine(indent + DeclareOrAssign(varName,
             "new DelimitedSyntaxList<SyntaxToken>(new SyntaxToken(\"(\"), op.OperandValues.Select(v => v.Token ?? new SyntaxToken(v.Name)).ToList(), Enumerable.Repeat(new SyntaxToken(\",\"), global::System.Math.Max(0, op.OperandValues.Count - 1)).ToList(), new SyntaxToken(\")\"))",
             declare, field.CsType) + ";");
@@ -214,8 +211,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
     private void EmitOptionalGroup(StringBuilder builder, OptionalGroup group, string indent)
     {
-        var thenFieldCount = CountInnerFields(group.ThenElements);
-        var elseFieldCount = group.ElseElements != null ? CountInnerFields(group.ElseElements) : 0;
+        var thenFieldCount = AssemblyFormatTraversal.CountFields(group.ThenElements);
+        var elseFieldCount = group.ElseElements != null ? AssemblyFormatTraversal.CountFields(group.ElseElements) : 0;
         var groupStart = fieldIndex;
 
         // Pre-declare all group fields as nullable locals initialised to their default value.
@@ -241,10 +238,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         builder.AppendLine(indent + "{");
 
         fieldIndex = groupStart;
-        for (var i = 0; i < group.ThenElements.Count; i++)
-        {
-            EmitOptionalGroupElement(builder, group, group.ThenElements[i], i, indent + "    ");
-        }
+        AssemblyFormatTraversal.ForEachElement(group.ThenElements, (i, element) => EmitOptionalGroupElement(builder, group, element, i, indent + "    "));
 
         builder.AppendLine(indent + "}");
 
@@ -253,10 +247,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             builder.AppendLine(indent + "else");
             builder.AppendLine(indent + "{");
             fieldIndex = groupStart + thenFieldCount;
-            for (var i = 0; i < group.ElseElements.Count; i++)
-            {
-                EmitOptionalGroupElement(builder, group, group.ElseElements[i], i, indent + "    ");
-            }
+            AssemblyFormatTraversal.ForEachElement(group.ElseElements, (i, element) => EmitOptionalGroupElement(builder, group, element, i, indent + "    "));
 
             builder.AppendLine(indent + "}");
         }
@@ -274,8 +265,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
             case VariableChunk variable:
             {
-                var field = NextField();
-                var varName = EmitterHelpers.LowerFirst(field.Name);
+                var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                 var expr = IsImplicitUnitAttributeAnchor(group, elementIndex, variable)
                     ? "new UnitAttributeValueSyntax(" + EmitterHelpers.LowerFirst(metadata.Fields[fieldIndex - 2].Name) + ".Value)"
                     : BuildNullableVariableExpression(variable.Name);
@@ -288,8 +279,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             case ResultsDirectiveChunk _:
             case FunctionalTypeDirectiveChunk _:
             {
-                var field = NextField();
-                var varName = EmitterHelpers.LowerFirst(field.Name);
+                var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                 builder.AppendLine(indent + varName + " = " + BuildTypeExpression(field) + ";");
                 break;
             }
@@ -350,10 +341,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 fieldIndex++; // advance past keyword field
                 builder.AppendLine(indent + "    " + kwVarName + " = new SyntaxToken(" + EmitterHelpers.ToCSharpStringLiteral(clause.Keyword) + ");");
 
-                foreach (var elem in clause.Elements)
-                {
-                    EmitOilistElement(builder, elem, indent + "    ");
-                }
+                AssemblyFormatTraversal.ForEachElement(clause.Elements, (_, element) => EmitOilistElement(builder, element, indent + "    "));
 
                 builder.AppendLine(indent + "}");
             }
@@ -374,8 +362,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         {
             case OilistVariableElement variable:
             {
-                var field = NextField();
-                var varName = EmitterHelpers.LowerFirst(field.Name);
+                var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                 var expr = BuildNullableVariableExpression(variable.Name);
                 builder.AppendLine(indent + varName + " = " + expr + ";");
                 break;
@@ -383,16 +371,16 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
             case OilistTypeDirectiveElement _:
             {
-                var field = NextField();
-                var varName = EmitterHelpers.LowerFirst(field.Name);
+                var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                 builder.AppendLine(indent + varName + " = " + BuildTypeExpression(field) + ";");
                 break;
             }
 
             case OilistLiteralElement literal:
             {
-                var field = NextField();
-                var varName = EmitterHelpers.LowerFirst(field.Name);
+                var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                 builder.AppendLine(indent + varName + " = new SyntaxToken(" + EmitterHelpers.ToCSharpStringLiteral(literal.Value) + ");");
                 break;
             }
@@ -561,6 +549,38 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
 
         return expr;
+
+        void CollectExplicitAttributes(IReadOnlyList<Element> elements, List<string> result)
+        {
+            AssemblyFormatTraversal.ForEachElement(elements, (_, element) =>
+            {
+                if (element is VariableChunk var && EmitterHelpers.ContainsName(operation.Attributes, var.Name, static attribute => attribute.Name))
+                {
+                    result.Add(var.Name);
+                }
+                else if (element is OptionalGroup og)
+                {
+                    CollectExplicitAttributes(og.ThenElements, result);
+                    if (og.ElseElements != null)
+                    {
+                        CollectExplicitAttributes(og.ElseElements, result);
+                    }
+                }
+                else if (element is OilistDirectiveChunk oilist)
+                {
+                    foreach (var clause in oilist.Clauses)
+                    {
+                        AssemblyFormatTraversal.ForEachElement(clause.Elements, (_, clauseElement) =>
+                        {
+                            if (clauseElement is OilistVariableElement ov && EmitterHelpers.ContainsName(operation.Attributes, ov.Name, static attribute => attribute.Name))
+                            {
+                                result.Add(ov.Name);
+                            }
+                        });
+                    }
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -639,93 +659,9 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     // Helpers
     // -----------------------------------------------------------------------
 
-    private BodySyntaxField NextField()
-    {
-        return metadata.Fields[fieldIndex++];
-    }
-
     private static string DeclareOrAssign(string varName, string expr, bool declare, string csType)
     {
         return declare ? "var " + varName + " = " + expr : varName + " = " + expr;
-    }
-
-    private static int CountInnerFields(IReadOnlyList<Element> elements)
-    {
-        var count = 0;
-        foreach (var e in elements)
-        {
-            count += CountFieldsForElement(e);
-        }
-
-        return count;
-    }
-
-    private static int CountFieldsForElement(Element element)
-    {
-        switch (element)
-        {
-            case LiteralChunk literal:
-            {
-                var n = 0;
-                foreach (var lit in literal.Value)
-                {
-                    if (lit is PunctuationLiteral || lit is KeywordLiteral)
-                    {
-                        n++;
-                    }
-                }
-
-                return n;
-            }
-
-            case VariableChunk _: return 1;
-            case AttrDictDirectiveChunk _: return 1;
-            case AttrDictWithKeywordDirectiveChunk _: return 1;
-            case PropDictDirectiveChunk _: return 1;
-            case TypeDirectiveChunk _: return 1;
-            case QualifiedDirectiveChunk _: return 1;
-            case ResultsDirectiveChunk _: return 1;
-            case FunctionalTypeDirectiveChunk _: return 1;
-            case RegionsDirectiveChunk _: return 1;
-            case SuccessorsDirectiveChunk _: return 1;
-            case OperandsDirectiveChunk _: return 1;
-            case OptionalGroup group:
-                return CountInnerFields(group.ThenElements) +
-                       (group.ElseElements != null ? CountInnerFields(group.ElseElements) : 0);
-            default: return 0;
-        }
-    }
-
-    private void CollectExplicitAttributes(IReadOnlyList<Element> elements, List<string> result)
-    {
-        foreach (var element in elements)
-        {
-            if (element is VariableChunk var && EmitterHelpers.ContainsName(operation.Attributes, var.Name, static attribute => attribute.Name))
-            {
-                result.Add(var.Name);
-            }
-            else if (element is OptionalGroup og)
-            {
-                CollectExplicitAttributes(og.ThenElements, result);
-                if (og.ElseElements != null)
-                {
-                    CollectExplicitAttributes(og.ElseElements, result);
-                }
-            }
-            else if (element is OilistDirectiveChunk oilist)
-            {
-                foreach (var clause in oilist.Clauses)
-                {
-                    foreach (var elem in clause.Elements)
-                    {
-                        if (elem is OilistVariableElement ov && EmitterHelpers.ContainsName(operation.Attributes, ov.Name, static attribute => attribute.Name))
-                        {
-                            result.Add(ov.Name);
-                        }
-                    }
-                }
-            }
-        }
     }
 
 }

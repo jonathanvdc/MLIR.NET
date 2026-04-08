@@ -89,10 +89,7 @@ internal sealed class TryParseEmitter
         fieldIndex = 0;
 
         var elements = format.Elements;
-        for (var i = 0; i < elements.Count; i++)
-        {
-            EmitElement(builder, elements[i], i, elements, indent: "        ", declare: true);
-        }
+        AssemblyFormatTraversal.ForEachElement(elements, (i, element) => EmitElement(builder, element, i, elements, indent: "        ", declare: true));
 
         EmitBodyConstruction(builder);
         builder.AppendLine("    }");
@@ -172,8 +169,8 @@ internal sealed class TryParseEmitter
             {
                 case PunctuationLiteral punc:
                 {
-                    var field = NextField();
-                    var varName = EmitterHelpers.LowerFirst(field.Name);
+                    var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                    var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                     var expr = "context.Expect(TokenKind." + punc.TokenKind +
                                ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(EmitterHelpers.GetPunctuationText(punc.TokenKind)) + "'.\")";
                     EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
@@ -182,8 +179,8 @@ internal sealed class TryParseEmitter
 
                 case KeywordLiteral kw:
                 {
-                    var field = NextField();
-                    var varName = EmitterHelpers.LowerFirst(field.Name);
+                    var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+                    var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
                     var expr = "context.ExpectKeyword(" +
                                EmitterHelpers.ToCSharpStringLiteral(kw.Spelling) +
                                ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(kw.Spelling) + "'.\")";
@@ -198,12 +195,12 @@ internal sealed class TryParseEmitter
 
     private void EmitVariable(StringBuilder builder, VariableChunk variable, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
 
         if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
         {
-            var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
+            var delimiters = AssemblyFormatTraversal.FindNextPunctuationDelimiters(elementIndex, allElements);
             var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, variable.Name);
             var expr = BuildAttributeParseExpr(expectedConstraint, delimiters);
             EmitParseResultAssignment(builder, indent, varName, expr, declare, field.CsType);
@@ -257,29 +254,29 @@ internal sealed class TryParseEmitter
 
     private void EmitAttrDict(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         EmitParseResultAssignment(builder, indent, varName, "context.TryParseAttrDict()", declare, field.CsType);
     }
 
     private void EmitAttrDictWithKeyword(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         EmitParseResultAssignment(builder, indent, varName, "context.TryParseAttrDictWithKeyword()", declare, field.CsType);
     }
 
     private void EmitPropDict(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         EmitParseResultAssignment(builder, indent, varName, "context.TryParseAttrDict()", declare, field.CsType);
     }
 
     private void EmitType(StringBuilder builder, TypeDirectiveChunk typeDir, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
         EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
@@ -287,46 +284,46 @@ internal sealed class TryParseEmitter
     private void EmitQualifiedType(StringBuilder builder, QualifiedDirectiveChunk qualified, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
         // qualified(...) does not change parsing behaviour; treat the same as a plain type.
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
         EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitResultsType(StringBuilder builder, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
         EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitFunctionalType(StringBuilder builder, FunctionalTypeDirectiveChunk functionalType, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         var expr = BuildTypeParseExpr(elementIndex, allElements);
         EmitTypeAssignment(builder, indent, varName, expr, declare, field.CsType);
     }
 
     private void EmitRegions(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         EmitParseResultAssignment(builder, indent, varName, "context.TryParseRegions()", declare, field.CsType);
     }
 
     private void EmitSuccessors(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         EmitParseResultAssignment(builder, indent, varName, "context.TryParseSuccessors()", declare, field.CsType);
     }
 
     private void EmitOperands(StringBuilder builder, string indent, bool declare)
     {
-        var field = NextField();
-        var varName = EmitterHelpers.LowerFirst(field.Name);
+        var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+        var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         EmitParseResultAssignment(builder, indent, varName, "context.TryParseOperands()", declare, field.CsType);
     }
 
@@ -336,8 +333,8 @@ internal sealed class TryParseEmitter
 
     private void EmitOptionalGroup(StringBuilder builder, OptionalGroup group, int elementIndex, IReadOnlyList<Element> allElements, string indent)
     {
-        var thenFieldCount = CountInnerFields(group.ThenElements);
-        var elseFieldCount = group.ElseElements != null ? CountInnerFields(group.ElseElements) : 0;
+        var thenFieldCount = AssemblyFormatTraversal.CountFields(group.ThenElements);
+        var elseFieldCount = group.ElseElements != null ? AssemblyFormatTraversal.CountFields(group.ElseElements) : 0;
         var groupStart = fieldIndex;
 
         // Pre-declare all group fields as nullable locals initialised to their default value.
@@ -378,18 +375,12 @@ internal sealed class TryParseEmitter
             builder.AppendLine(indent + "    " + EmitterHelpers.LowerFirst(firstField.Name) + " = " + firstFieldAssignExpr + ";");
             fieldIndex = groupStart + 1;
             // Emit remaining then-elements as assignments.
-            for (var i = 1; i < group.ThenElements.Count; i++)
-            {
-                EmitOptionalGroupElement(builder, group, group.ThenElements[i], i, group.ThenElements, indent + "    ");
-            }
+            AssemblyFormatTraversal.ForEachElement(group.ThenElements.Skip(1).ToList(), (i, element) => EmitOptionalGroupElement(builder, group, element, i + 1, group.ThenElements, indent + "    "));
         }
         else
         {
             fieldIndex = groupStart;
-            for (var i = 0; i < group.ThenElements.Count; i++)
-            {
-                EmitOptionalGroupElement(builder, group, group.ThenElements[i], i, group.ThenElements, indent + "    ");
-            }
+            AssemblyFormatTraversal.ForEachElement(group.ThenElements, (i, element) => EmitOptionalGroupElement(builder, group, element, i, group.ThenElements, indent + "    "));
         }
 
         builder.AppendLine(indent + "}");
@@ -399,10 +390,7 @@ internal sealed class TryParseEmitter
             builder.AppendLine(indent + "else");
             builder.AppendLine(indent + "{");
             fieldIndex = groupStart + thenFieldCount;
-            for (var i = 0; i < group.ElseElements.Count; i++)
-            {
-                EmitOptionalGroupElement(builder, group, group.ElseElements[i], i, group.ElseElements, indent + "    ");
-            }
+            AssemblyFormatTraversal.ForEachElement(group.ElseElements, (i, element) => EmitOptionalGroupElement(builder, group, element, i, group.ElseElements, indent + "    "));
 
             builder.AppendLine(indent + "}");
         }
@@ -420,8 +408,8 @@ internal sealed class TryParseEmitter
     {
         if (element is VariableChunk variable && IsImplicitUnitAttributeAnchor(group, elementIndex, variable))
         {
-            var field = NextField();
-            var varName = EmitterHelpers.LowerFirst(field.Name);
+            var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
+            var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
             var keywordField = metadata.Fields[fieldIndex - 2];
             var keywordVarName = EmitterHelpers.LowerFirst(keywordField.Name);
             builder.AppendLine(indent + varName + " = new UnitAttributeValueSyntax(" + keywordVarName + ".Value);");
@@ -502,7 +490,7 @@ internal sealed class TryParseEmitter
         var totalFields = 0;
         foreach (var clause in oilist.Clauses)
         {
-            totalFields += 1 + CountFieldsForOilistElements(clause.Elements);
+            totalFields += 1 + AssemblyFormatTraversal.CountFields(clause.Elements);
         }
 
         // Pre-declare all oilist fields as nullable locals.
@@ -522,7 +510,7 @@ internal sealed class TryParseEmitter
         var first = true;
         foreach (var clause in oilist.Clauses)
         {
-            var clauseFieldCount = 1 + CountFieldsForOilistElements(clause.Elements);
+            var clauseFieldCount = 1 + AssemblyFormatTraversal.CountFields(clause.Elements);
             var kwField = metadata.Fields[fieldIndex];
             var kwVarName = EmitterHelpers.LowerFirst(kwField.Name);
 
@@ -541,10 +529,7 @@ internal sealed class TryParseEmitter
             fieldIndex++; // advance past keyword field
 
             // Emit parsing for each oilist element in this clause.
-            for (var i = 0; i < clause.Elements.Count; i++)
-            {
-                EmitOilistElement(builder, clause.Elements[i], i, clause.Elements, indent + "        ");
-            }
+            AssemblyFormatTraversal.ForEachElement(clause.Elements, (i, element) => EmitOilistElement(builder, element, i, clause.Elements, indent + "        "));
 
             builder.AppendLine(indent + "        foundOilist = true;");
             builder.AppendLine(indent + "    }");
@@ -657,11 +642,6 @@ internal sealed class TryParseEmitter
     // Helpers
     // -----------------------------------------------------------------------
 
-    private BodySyntaxField NextField()
-    {
-        return metadata.Fields[fieldIndex++];
-    }
-
     private static bool CanHandleElement(Element element)
     {
         return element switch
@@ -684,101 +664,6 @@ internal sealed class TryParseEmitter
         };
     }
 
-    private static int CountInnerFields(IReadOnlyList<Element> elements)
-    {
-        var count = 0;
-        foreach (var e in elements)
-        {
-            count += CountFieldsForElement(e);
-        }
-
-        return count;
-    }
-
-    private static int CountFieldsForElement(Element element)
-    {
-        switch (element)
-        {
-            case LiteralChunk literal:
-            {
-                var n = 0;
-                foreach (var lit in literal.Value)
-                {
-                    if (lit is PunctuationLiteral || lit is KeywordLiteral) n++;
-                }
-
-                return n;
-            }
-
-            case VariableChunk _: return 1;
-            case AttrDictDirectiveChunk _: return 1;
-            case AttrDictWithKeywordDirectiveChunk _: return 1;
-            case PropDictDirectiveChunk _: return 1;
-            case TypeDirectiveChunk _: return 1;
-            case QualifiedDirectiveChunk _: return 1;
-            case ResultsDirectiveChunk _: return 1;
-            case FunctionalTypeDirectiveChunk _: return 1;
-            case RegionsDirectiveChunk _: return 1;
-            case SuccessorsDirectiveChunk _: return 1;
-            case OperandsDirectiveChunk _: return 1;
-            case OptionalGroup group:
-                return CountInnerFields(group.ThenElements) +
-                       (group.ElseElements != null ? CountInnerFields(group.ElseElements) : 0);
-            case OilistDirectiveChunk oilist:
-            {
-                var total = 0;
-                foreach (var clause in oilist.Clauses)
-                {
-                    total += 1 + CountFieldsForOilistElements(clause.Elements);
-                }
-
-                return total;
-            }
-
-            default: return 0;
-        }
-    }
-
-    private static int CountFieldsForOilistElements(IReadOnlyList<OilistElement> elements)
-    {
-        var count = 0;
-        foreach (var e in elements)
-        {
-            count += e is OilistVariableElement || e is OilistTypeDirectiveElement || e is OilistLiteralElement ? 1 : 0;
-        }
-
-        return count;
-    }
-
-    /// <summary>
-    /// Looks ahead in the element list from <paramref name="currentIndex"/> to find
-    /// delimiter token kinds that should stop raw parsing for the element at
-    /// <paramref name="currentIndex"/>.
-    /// </summary>
-    private static IReadOnlyList<TokenKind> FindNextDelimitersForRawParsing(int currentIndex, IReadOnlyList<Element> elements)
-    {
-        for (var i = currentIndex + 1; i < elements.Count; i++)
-        {
-            var element = elements[i];
-            if (element is LiteralChunk literalChunk)
-            {
-                foreach (var lit in literalChunk.Value)
-                {
-                    if (lit is PunctuationLiteral punc)
-                    {
-                        return new[] { punc.TokenKind };
-                    }
-                }
-            }
-            else if (element is AttrDictDirectiveChunk || element is AttrDictWithKeywordDirectiveChunk || element is PropDictDirectiveChunk)
-            {
-                return new[] { TokenKind.LBrace };
-            }
-        }
-
-        return System.Array.Empty<TokenKind>();
-    }
-
     private string BuildTypeParseExpr(int elementIndex, IReadOnlyList<Element> allElements)
     {
         var field = metadata.Fields[fieldIndex - 1];
@@ -787,8 +672,8 @@ internal sealed class TryParseEmitter
             return "context.ParseTypeSyntaxList()";
         }
 
-        var delimiters = FindNextDelimitersForRawParsing(elementIndex, allElements);
-        var keywords = FindNextKeywordDelimitersForRawParsing(elementIndex, allElements);
+        var delimiters = AssemblyFormatTraversal.FindNextPunctuationDelimiters(elementIndex, allElements);
+        var keywords = AssemblyFormatTraversal.FindNextKeywordDelimiters(elementIndex, allElements);
         if (delimiters.Count > 0 || keywords.Count > 0)
         {
             var keywordArray = keywords.Count > 0
@@ -825,27 +710,6 @@ internal sealed class TryParseEmitter
         }
 
         return "default";
-    }
-
-    private static IReadOnlyList<string> FindNextKeywordDelimitersForRawParsing(int currentIndex, IReadOnlyList<Element> elements)
-    {
-        for (var i = currentIndex + 1; i < elements.Count; i++)
-        {
-            if (elements[i] is not LiteralChunk literalChunk)
-            {
-                continue;
-            }
-
-            foreach (var lit in literalChunk.Value)
-            {
-                if (lit is KeywordLiteral keyword)
-                {
-                    return new[] { keyword.Spelling };
-                }
-            }
-        }
-
-        return System.Array.Empty<string>();
     }
 
     private static string BuildDelimiterList(IReadOnlyList<TokenKind> delimiters)

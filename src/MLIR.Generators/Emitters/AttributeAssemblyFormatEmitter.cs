@@ -283,8 +283,8 @@ internal static class AttributeAssemblyFormatEmitter
                 case VariableSlot v:
                 {
                     // For stop-token analysis we need the original element index; map via name.
-                    var elementIndex = FindElementIndexForVariable(elements, v.Name);
-                    var stopTokens = FindStopTokensForVariable(elements, elementIndex);
+                    var elementIndex = AssemblyFormatTraversal.FindElementIndexForVariable(elements, v.Name);
+                    var stopTokens = AssemblyFormatTraversal.FindStopTokensForVariable(elements, elementIndex);
                     var varLocalName = EmitterHelpers.LowerFirst(v.Name) + "Syntax";
                     EmitVariableParse(builder, v.Name, varLocalName, stopTokens, v.ParamModel, v.SyntaxType);
                     isFirst = false;
@@ -464,53 +464,6 @@ internal static class AttributeAssemblyFormatEmitter
     // Stop-token analysis
     // -----------------------------------------------------------------------
 
-    /// <summary>
-    /// Determines the set of <see cref="TokenKind"/> values that terminate the parse of a
-    /// variable at position <paramref name="variableIndex"/> in the format element list.
-    /// </summary>
-    /// <remarks>
-    /// Looks ahead past whitespace to the first literal chunk after the variable and
-    /// collects its punctuation token kinds. Keyword literals add
-    /// <see cref="TokenKind.Identifier"/> as a stop kind so the parser does not consume
-    /// the keyword that closes the parameter.
-    /// </remarks>
-    private static IReadOnlyList<TokenKind> FindStopTokensForVariable(IReadOnlyList<Element> elements, int variableIndex)
-    {
-        var stopTokens = new List<TokenKind>();
-        for (var i = variableIndex + 1; i < elements.Count; i++)
-        {
-            var element = elements[i];
-            if (element is LiteralChunk literal)
-            {
-                foreach (var lit in literal.Value)
-                {
-                    if (lit is PunctuationLiteral punc)
-                    {
-                        stopTokens.Add(punc.TokenKind);
-                    }
-                    else if (lit is KeywordLiteral)
-                    {
-                        stopTokens.Add(TokenKind.Identifier);
-                    }
-
-                    // WhitespaceLiteral / NewlineLiteral / EmptyLiteral: continue scanning
-                }
-
-                if (stopTokens.Count > 0)
-                {
-                    break;
-                }
-            }
-            else if (element is VariableChunk || element is DirectiveChunk)
-            {
-                // Another variable or directive follows: stop scanning.
-                break;
-            }
-        }
-
-        return stopTokens;
-    }
-
     private static string BuildStopTokensExpression(IReadOnlyList<TokenKind> stopTokens)
     {
         if (stopTokens.Count == 0)
@@ -602,9 +555,9 @@ internal static class AttributeAssemblyFormatEmitter
         var slots = new List<FormatSlot>();
         var literalIndex = 0;
 
-        foreach (var element in format.Elements)
-        {
-            if (element is LiteralChunk literal)
+        AssemblyFormatTraversal.VisitElements(
+            format.Elements,
+            onLiteral: literal =>
             {
                 foreach (var lit in literal.Value)
                 {
@@ -643,8 +596,8 @@ internal static class AttributeAssemblyFormatEmitter
                         // EmptyLiteral: no slot
                     }
                 }
-            }
-            else if (element is VariableChunk variable)
+            },
+            onVariable: variable =>
             {
                 var paramModel = FindParameter(attribute, variable.Name);
                 slots.Add(new VariableSlot
@@ -653,8 +606,7 @@ internal static class AttributeAssemblyFormatEmitter
                     SyntaxType = GetResolvedCSharpSyntaxType(paramModel),
                     ParamModel = paramModel,
                 });
-            }
-        }
+            });
 
         return slots;
     }
@@ -714,21 +666,4 @@ internal static class AttributeAssemblyFormatEmitter
         return "AttributeValueSyntax";
     }
 
-    /// <summary>
-    /// Returns the index of the first <see cref="VariableChunk"/> with the given name in the
-    /// element list.  Used when mapping variable slots back to their element position for
-    /// stop-token analysis.
-    /// </summary>
-    private static int FindElementIndexForVariable(IReadOnlyList<Element> elements, string variableName)
-    {
-        for (var i = 0; i < elements.Count; i++)
-        {
-            if (elements[i] is VariableChunk v && string.Equals(v.Name, variableName, System.StringComparison.Ordinal))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
 }
