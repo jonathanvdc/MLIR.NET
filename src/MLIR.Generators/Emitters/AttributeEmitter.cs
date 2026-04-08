@@ -155,9 +155,9 @@ internal static class AttributeEmitter
 
         builder.AppendLine("    private static " + csharpType + " " + helperName + "(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine("    {");
-        // Unwrap DialectPrefixedAttributeValueSyntax if present so both parsed and reused syntax work.
-        builder.AppendLine("        var effectiveSyntax = syntax is MLIR.Syntax.DialectPrefixedAttributeValueSyntax pfx ? pfx.Body : syntax;");
-        builder.AppendLine("        if (effectiveSyntax is " + syntaxClassName + " structured)");
+        // With the new class hierarchy the generated syntax class extends
+        // DialectPrefixedAttributeValueSyntax directly, so no unwrapping step is needed.
+        builder.AppendLine("        if (syntax is " + syntaxClassName + " structured)");
         builder.AppendLine("        {");
         var accessExpr = "structured." + propertyName + "Syntax";
         var extractExpr = BuildExtractValueExpression(param, accessExpr);

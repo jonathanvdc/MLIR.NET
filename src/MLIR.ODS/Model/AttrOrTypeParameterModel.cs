@@ -21,6 +21,7 @@ public sealed class AttrOrTypeParameterModel(
     string? summary = null,
     string? defaultValue = null,
     string? csharpType = null,
+    string? csharpSyntaxType = null,
     string? csharpParser = null,
     string? csharpExtractor = null,
     string? csharpDefault = null,
@@ -81,6 +82,18 @@ public sealed class AttrOrTypeParameterModel(
     /// Null when no C# type mapping is available.
     /// </summary>
     public string? CsharpType { get; } = csharpType;
+
+    /// <summary>
+    /// Gets the C# syntax type for the generated syntax property in the structured syntax class,
+    /// if one was declared via <c>MLIRNet_AttrOrTypeParameterExtension.csharpSyntaxType</c>.
+    /// For example, <c>StringRefParameter</c> maps to <c>"StringAttributeValueSyntax"</c>.
+    /// When set, the generated syntax class stores a strongly-typed property instead of a bare
+    /// <c>AttributeValueSyntax</c>, which allows the <c>csharpExtractor</c> expression to access
+    /// typed members directly without an additional pattern-match cast.
+    /// Null when no syntax type mapping is available; the generator falls back to
+    /// <c>AttributeValueSyntax</c>.
+    /// </summary>
+    public string? CsharpSyntaxType { get; } = csharpSyntaxType;
 
     /// <summary>
     /// Gets the custom C# parser expression for this parameter, if one was declared via

@@ -839,6 +839,10 @@ internal sealed class OdsRecordIndex
         // AnonymousRecordValue.Fields is extension-aware, so the lookup finds it automatically.
         var csharpType = GetStringFromValueDictionary(fields, "csharpType");
 
+        // csharpSyntaxType is the concrete syntax type for the generated per-parameter syntax
+        // property (e.g., StringRefParameter → "StringAttributeValueSyntax").
+        var csharpSyntaxType = GetStringFromValueDictionary(fields, "csharpSyntaxType");
+
         // csharpParser / csharpPrinter / csharpExtractor / csharpDefault are optional C# code
         // snippets that override the default parameter parsing and printing behaviour in generated
         // assembly format classes.
@@ -856,6 +860,7 @@ internal sealed class OdsRecordIndex
             summary,
             defaultValue,
             csharpType,
+            csharpSyntaxType,
             csharpParser,
             csharpExtractor,
             csharpDefault,

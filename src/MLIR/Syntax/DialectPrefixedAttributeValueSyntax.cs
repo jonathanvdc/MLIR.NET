@@ -1,10 +1,11 @@
 namespace MLIR.Syntax;
 
 using MLIR.Semantics;
+using MLIR.Text;
 
 /// <summary>
-/// Represents the full assembly syntax for a dialect attribute of the form
-/// <c>#dialect.attr_name&lt;body&gt;</c>.
+/// Abstract base class for the full assembly syntax of a dialect attribute of the form
+/// <c>#dialect.mnemonic body</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -14,49 +15,44 @@ using MLIR.Semantics;
 /// assembly format defines (e.g. <c>&lt;"NULL"&gt;</c> for a string parameter).
 /// </para>
 /// <para>
-/// The parser consumes the <c>#name</c> prefix tokens before delegating to
-/// the registered <see cref="Dialects.IAttributeAssemblyFormat"/>; the format
-/// therefore only sees the body.  On the print path the generated
-/// <c>BuildCustomAssemblySyntax</c> wraps the body in a
-/// <see cref="DialectPrefixedAttributeValueSyntax"/> so that <see cref="WriteTo"/>
-/// emits the complete <c>#name body</c> form.
+/// Code-generated syntax classes for dialect attributes extend this class directly,
+/// which lets pattern matching on <c>DialectPrefixedAttributeValueSyntax</c> work
+/// without an extra composition layer.  The generated <c>WriteTo</c> method should
+/// call <see cref="WritePrefix"/> first, then write the body tokens.
+/// </para>
+/// <para>
+/// The parser consumes the <c>#name</c> prefix tokens before delegating to the
+/// registered <see cref="Dialects.IAttributeAssemblyFormat"/>; the format therefore
+/// only sees the body.  The actual parsed prefix tokens are passed to the generated
+/// syntax constructor via <see cref="Text.AttributeParsingContext.Prefix"/>
+/// so that <see cref="WritePrefix"/> emits the original source tokens.
+/// When a syntax node is constructed programmatically, use
+/// <see cref="DialectAttributePrefix.Synthetic"/> to create placeholder tokens.
 /// </para>
 /// </remarks>
-public sealed class DialectPrefixedAttributeValueSyntax : AttributeValueSyntax
+public abstract class DialectPrefixedAttributeValueSyntax : AttributeValueSyntax
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="DialectPrefixedAttributeValueSyntax"/> class.
+    /// Initializes a new instance of the <see cref="DialectPrefixedAttributeValueSyntax"/> class
+    /// with the supplied dialect attribute prefix tokens.
     /// </summary>
-    /// <param name="dialectAttributeName">
-    /// The canonical dialect attribute name, e.g. <c>"miniemitc.opaque"</c>.
-    /// Written as <c>#miniemitc.opaque</c> in the output.
-    /// </param>
-    /// <param name="body">
-    /// The body syntax produced by the attribute's custom assembly format.
-    /// </param>
-    public DialectPrefixedAttributeValueSyntax(string dialectAttributeName, AttributeValueSyntax body)
+    /// <param name="prefix">The <c>#dialect.mnemonic</c> prefix tokens.</param>
+    protected DialectPrefixedAttributeValueSyntax(DialectAttributePrefix prefix)
     {
-        DialectAttributeName = dialectAttributeName;
-        Body = body;
+        Prefix = prefix;
     }
 
     /// <summary>
-    /// Gets the canonical dialect attribute name (without the leading <c>#</c>).
+    /// Gets the <c>#dialect.mnemonic</c> prefix tokens for this attribute.
     /// </summary>
-    public string DialectAttributeName { get; }
+    public DialectAttributePrefix Prefix { get; }
 
     /// <summary>
-    /// Gets the body syntax that follows the <c>#name</c> prefix.
+    /// Writes the <c>#dialect.mnemonic</c> prefix tokens to the supplied writer.
+    /// Subclasses should call this first in their <c>WriteTo</c> implementation,
+    /// followed by the body tokens.
     /// </summary>
-    public AttributeValueSyntax Body { get; }
-
-    /// <inheritdoc/>
-    public override SourceLocation Location => Body.Location;
-
-    /// <inheritdoc/>
-    public override void WriteTo(Text.SyntaxWriter writer)
-    {
-        writer.WriteToken(new SyntaxToken("#" + DialectAttributeName));
-        Body.WriteTo(writer);
-    }
+    /// <param name="writer">The syntax writer to write to.</param>
+    protected void WritePrefix(SyntaxWriter writer)
+        => Prefix.WriteTo(writer);
 }

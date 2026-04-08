@@ -268,8 +268,8 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         // Syntax class
         AssertContainsAll(
             registrationSource,
-            "public sealed class FooAttrSyntax : AttributeValueSyntax",
-            "public AttributeValueSyntax ValueSyntax { get; }",
+            "public sealed class FooAttrSyntax : DialectPrefixedAttributeValueSyntax",
+            "public StringAttributeValueSyntax ValueSyntax { get; }",
             "ValueSyntax.WriteTo(writer)");
 
         // Attribute value class
@@ -323,9 +323,9 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         // Syntax class
         AssertContainsAll(
             registrationSource,
-            "public sealed class PairAttrSyntax : AttributeValueSyntax",
-            "public AttributeValueSyntax FirstSyntax { get; }",
-            "public AttributeValueSyntax SecondSyntax { get; }");
+            "public sealed class PairAttrSyntax : DialectPrefixedAttributeValueSyntax",
+            "public IntegerAttributeValueSyntax FirstSyntax { get; }",
+            "public IntegerAttributeValueSyntax SecondSyntax { get; }");
 
         // Attribute value class
         AssertContainsAll(

@@ -21,6 +21,14 @@ class MLIRNet_OpExtension {
 //                     custom csharpParser, csharpExtractor or csharpPrinter is
 //                     provided.
 //
+//   csharpSyntaxType – C# concrete syntax type for the generated syntax property
+//                     (e.g. "StringAttributeValueSyntax").  When set, the
+//                     generated syntax class stores a strongly-typed property
+//                     instead of a bare AttributeValueSyntax, allowing
+//                     csharpExtractor to access typed members directly without
+//                     an additional cast.  Falls back to "AttributeValueSyntax"
+//                     when absent.
+//
 //   csharpParser    – C# expression that parses one parameter value from text
 //                     and returns a `ParseResult<AttributeValueSyntax>`.  Use
 //                     `$_parser` to refer to the `AttributeParsingContext` local
@@ -28,13 +36,13 @@ class MLIRNet_OpExtension {
 //                     `$_parser.TryParseAttributeValueSyntax(…)` with the stop
 //                     tokens inferred from the surrounding assembly format.
 //
-//   csharpExtractor – C# expression that converts a `AttributeValueSyntax` node
+//   csharpExtractor – C# expression that converts an `AttributeValueSyntax` node
 //                     into the typed C# value.  Use `$_syntax` to refer to the
-//                     `AttributeValueSyntax` variable that holds the per-parameter
-//                     syntax node from the structured syntax class.  The expression
-//                     must return `csharpType`.  When absent the generator falls
-//                     back to passing the syntax node directly (only valid when
-//                     `csharpType` is `AttributeValueSyntax`).
+//                     per-parameter syntax property from the structured syntax
+//                     class (typed as `csharpSyntaxType` when that field is set).
+//                     The expression must return `csharpType`.  When absent the
+//                     generator falls back to passing the syntax node directly
+//                     (only valid when `csharpType` is `AttributeValueSyntax`).
 //
 //   csharpDefault   – C# expression for the default/fallback value of `csharpType`
 //                     when no syntax is available.  When absent the generator uses
@@ -54,14 +62,20 @@ class MLIRNet_OpExtension {
 //   class MyIntParam<string desc> : AttrOrTypeParameter<"MyIntType", desc>;
 //   extends MyIntParam : MLIRNet_AttrOrTypeParameterExtension {
 //     let csharpType = "global::MyNamespace.MyInt";
+//     let csharpSyntaxType = "IntegerAttributeValueSyntax";
 //     let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
-//     let csharpExtractor = "$_syntax is IntegerAttributeValueSyntax iv ? (global::MyNamespace.MyInt)iv.Value : default";
+//     let csharpExtractor = "(global::MyNamespace.MyInt)$_syntax.Value";
 //     let csharpDefault = "default(global::MyNamespace.MyInt)";
-//     let csharpPrinter = "new RawAttributeValueSyntax(new RawSyntaxText($_self.ToString()))";
+//     let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToString()), (global::System.Numerics.BigInteger)$_self)";
 //   }
 class MLIRNet_AttrOrTypeParameterExtension {
   // The C# type used for the generated typed property.
   string csharpType = ?;
+  // The C# syntax type for the generated syntax property (e.g. "StringAttributeValueSyntax").
+  // When set, the generated syntax class stores a strongly-typed property instead of a bare
+  // AttributeValueSyntax, allowing the csharpExtractor to access typed members directly
+  // without an additional cast.  Falls back to "AttributeValueSyntax" when absent.
+  string csharpSyntaxType = ?;
   // Custom C# parser expression; `$_parser` refers to the AttributeParsingContext.
   // Must return `ParseResult<AttributeValueSyntax>`.
   string csharpParser = ?;

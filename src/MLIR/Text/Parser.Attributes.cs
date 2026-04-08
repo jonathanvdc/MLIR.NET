@@ -379,17 +379,19 @@ public sealed partial class Parser
 
         // Body-only format (generated from AttrDef): consume '#' and name, then delegate.
         // The format sees only the body (e.g. `<"NULL">`).
+        // Both consumed tokens are passed to TryParse via the context's Prefix property so
+        // that the generated syntax class can store and replay the original source tokens.
         var outerCheckpoint = Mark();
-        ConsumeToken(); // '#'
-        ConsumeToken(); // 'dialect.attr' (lexed as a single identifier including the dot)
+        var hashToken = ToSyntaxToken(ConsumeToken());   // '#'
+        var nameToken = ToSyntaxToken(ConsumeToken());   // 'dialect.attr' (lexed as a single identifier with the dot)
+        var prefix = new Syntax.DialectAttributePrefix(hashToken, nameToken);
 
-        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition));
+        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition, prefix));
         if (result.IsSuccess)
         {
-            // Wrap the body in a DialectPrefixedAttributeValueSyntax so the printer can
-            // re-emit the '#name' prefix without any additional bookkeeping.
-            return ParseResult<AttributeValueSyntax>.Success(
-                new Syntax.DialectPrefixedAttributeValueSyntax(canonicalName, result.Value));
+            // The generated syntax class is itself a DialectPrefixedAttributeValueSyntax and
+            // already stores the prefix; no additional wrapping is needed.
+            return result;
         }
 
         // Format returned NoMatch or Error — restore position to before '#name'.
