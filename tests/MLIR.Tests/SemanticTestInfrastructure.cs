@@ -465,7 +465,7 @@ public sealed partial class SemanticTests
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax!.NameToken;
-            var rewrittenNameToken = new SyntaxToken(operation.Name, sourceNameToken.LeadingTrivia, sourceNameToken.Line, sourceNameToken.Column);
+            var rewrittenNameToken = sourceNameToken.WithText(operation.Name);
             return context.RewriteOperation(operation, body, rewrittenNameToken);
         }
     }
@@ -535,7 +535,7 @@ public sealed partial class SemanticTests
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
             var sourceNameToken = operation.Syntax!.NameToken;
-            var rewrittenNameToken = new SyntaxToken(operation.Name, sourceNameToken.LeadingTrivia, sourceNameToken.Line, sourceNameToken.Column);
+            var rewrittenNameToken = sourceNameToken.WithText(operation.Name);
             return context.RewriteOperation(operation, body, rewrittenNameToken);
         }
     }

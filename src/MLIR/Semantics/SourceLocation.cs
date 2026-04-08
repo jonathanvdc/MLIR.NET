@@ -3,38 +3,76 @@ namespace MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
-/// Represents a 1-based source location associated with semantic data.
+/// Represents a source span associated with semantic data, backed by a document-relative
+/// character offset and length rather than storing line/column directly.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Line and column numbers are derived on demand through the owning <see cref="SourceDocument"/>
+/// rather than being stored in every instance. This centralises the line-mapping logic and
+/// makes it easy to translate any offset back to a human-readable location at diagnostic time.
+/// </para>
+/// <para>
+/// An <em>unknown</em> location is represented by the <see langword="default"/> value (i.e., a
+/// <see langword="null"/> document). Use <see cref="Unknown"/> to obtain one explicitly.
+/// </para>
+/// </remarks>
 public readonly struct SourceLocation
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="SourceLocation"/> struct.
+    /// Initializes a new instance of the <see cref="SourceLocation"/> struct with a known
+    /// document and character span.
     /// </summary>
-    /// <param name="line">The 1-based source line.</param>
-    /// <param name="column">The 1-based source column.</param>
-    public SourceLocation(int line, int column)
+    /// <param name="document">The source document that owns the span.</param>
+    /// <param name="start">The zero-based start offset of the span.</param>
+    /// <param name="length">The length of the span in characters.</param>
+    public SourceLocation(SourceDocument document, int start, int length)
     {
-        Line = line;
-        Column = column;
+        Document = document;
+        Start = start;
+        Length = length;
     }
 
     /// <summary>
-    /// Gets the 1-based source line.
+    /// Gets the source document that owns this span, or <see langword="null"/> when the
+    /// location is unknown.
     /// </summary>
-    public int Line { get; }
+    public SourceDocument? Document { get; }
 
     /// <summary>
-    /// Gets the 1-based source column.
+    /// Gets the zero-based start offset of the span within <see cref="Document"/>.
     /// </summary>
-    public int Column { get; }
+    public int Start { get; }
 
     /// <summary>
-    /// Gets a value indicating whether the location is known.
+    /// Gets the length of the span in characters.
     /// </summary>
-    public bool IsKnown => Line > 0 && Column > 0;
+    public int Length { get; }
 
     /// <summary>
-    /// Returns the source location as text.
+    /// Gets the exclusive end offset of the span within <see cref="Document"/>
+    /// (i.e., <c>Start + Length</c>).
+    /// </summary>
+    public int End => Start + Length;
+
+    /// <summary>
+    /// Gets the 1-based source line of the span start, or zero when the location is unknown.
+    /// </summary>
+    public int Line => Document?.GetLineColumn(Start).Line ?? 0;
+
+    /// <summary>
+    /// Gets the 1-based source column of the span start, or zero when the location is unknown.
+    /// </summary>
+    public int Column => Document?.GetLineColumn(Start).Column ?? 0;
+
+    /// <summary>
+    /// Gets a value indicating whether the location is known (i.e., backed by a source document).
+    /// </summary>
+    public bool IsKnown => Document != null;
+
+    /// <summary>
+    /// Returns the source location as a human-readable <c>line:column</c> string,
+    /// or an empty string when the location is unknown.
     /// </summary>
     /// <returns>The formatted location text.</returns>
     public override string ToString()
@@ -43,9 +81,10 @@ public readonly struct SourceLocation
     }
 
     /// <summary>
-    /// Gets an unknown source location.
-    /// </summary> <remarks>
-    /// An unknown source location is represented by a default instance with line and column set to zero.
+    /// Gets an unknown source location (no document, no span).
+    /// </summary>
+    /// <remarks>
+    /// Equivalent to the <see langword="default"/> value of <see cref="SourceLocation"/>.
     /// </remarks>
     public static SourceLocation Unknown => default;
 }

@@ -173,6 +173,13 @@ public sealed partial class Parser
     private readonly string source;
 
     /// <summary>
+    /// The source document wrapping <see cref="source"/>. Passed to every <see cref="MLIR.Syntax.SyntaxToken"/>
+    /// created from a real lexer token so that tokens carry document-relative offset information
+    /// instead of storing line/column directly.
+    /// </summary>
+    private readonly MLIR.Syntax.SourceDocument document;
+
+    /// <summary>
     /// The flat, immutable token list produced by the <see cref="Lexer"/>.
     /// The last element is always an <see cref="TokenKind.EndOfFile"/> sentinel so that
     /// <see cref="Current"/> never reads past the end of the array.
@@ -202,6 +209,7 @@ public sealed partial class Parser
     private Parser(string source, IReadOnlyList<Token> tokens, DialectRegistry? dialectRegistry = null)
     {
         this.source = source;
+        document = new MLIR.Syntax.SourceDocument(source);
         this.dialectRegistry = dialectRegistry;
         this.tokens = tokens;
     }
