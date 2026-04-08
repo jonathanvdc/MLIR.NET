@@ -45,7 +45,7 @@ internal static class AttributeEmitter
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
-        builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
+        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeDefinition;");
         builder.AppendLine("}");
     }
 
@@ -126,7 +126,7 @@ internal static class AttributeEmitter
 
         builder.AppendLine();
         builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
-        builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
+        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeDefinition;");
         builder.AppendLine();
 
         // Private bind helpers
@@ -247,7 +247,7 @@ internal static class AttributeEmitter
 
         // Name and Definition properties
         builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
-        builder.AppendLine("    public override AttributeDefinition? Definition => AttributeDefinition;");
+        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeDefinition;");
         builder.AppendLine();
 
         // ParseEnumValue helper

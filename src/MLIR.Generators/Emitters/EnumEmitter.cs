@@ -131,7 +131,8 @@ internal static class EnumEmitter
             builder.AppendLine("            return false;");
             builder.AppendLine("        }");
             builder.AppendLine();
-            builder.AppendLine("        var parts = raw.Split(" + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator.Trim()) + ", global::System.StringSplitOptions.None);");
+            var separator = enumModel.Separator.Trim();
+            builder.AppendLine("        var parts = raw.Split(new[] { " + EmitterHelpers.ToCSharpCharLiteral(separator[0]) + " }, global::System.StringSplitOptions.None);");
             builder.AppendLine("        var accumulator = (" + enumTypeName + ")0;");
             builder.AppendLine("        foreach (var part in parts)");
             builder.AppendLine("        {");

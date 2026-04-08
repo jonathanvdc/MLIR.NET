@@ -1,13 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <RootNamespace>MLIR.ODS</RootNamespace>
+    <RootNamespace>MLIR.Text</RootNamespace>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\TableGen\TableGen.csproj" />
-    <ProjectReference Include="..\MLIR.Text\MLIR.Text.csproj" />
-  </ItemGroup>
 </Project>

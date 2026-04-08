@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MLIR.ODS\MLIR.ODS.csproj" />
-    <ProjectReference Include="..\MLIR\MLIR.csproj" />
+    <ProjectReference Include="..\MLIR.Text\MLIR.Text.csproj" />
     <ProjectReference Include="..\TableGen\TableGen.csproj" />
   </ItemGroup>
 

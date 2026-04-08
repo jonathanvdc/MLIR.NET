@@ -14,13 +14,12 @@ using MLIR.Text;
 /// </summary>
 /// <remarks>
 /// Each supported assembly format element is translated into a call on
-/// <see cref="MLIR.Text.OperationParsingContext"/>.  After all elements have
-/// been parsed the generated code constructs the typed <c>OperationBodySyntax</c>
-/// subclass and returns a <see cref="ParseResult{T}"/>.
+/// <c>MLIR.Text.OperationParsingContext</c>. After all elements have been parsed the generated
+/// code constructs the typed <c>OperationBodySyntax</c> subclass and returns a parsed result.
 ///
 /// Formats that contain directives that are not yet supported produce a fallback
-/// implementation that immediately returns <see cref="ParseResult{T}.NoMatch"/> so that the
-/// parser falls back to the generic format.
+/// implementation that immediately returns a no-match result so that the parser falls back to the
+/// generic format.
 /// </remarks>
 internal sealed class TryParseEmitter
 {

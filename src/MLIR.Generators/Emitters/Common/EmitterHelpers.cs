@@ -98,6 +98,19 @@ internal static class EmitterHelpers
         return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
     }
 
+    public static string ToCSharpCharLiteral(char value)
+    {
+        return "'" + (value switch
+        {
+            '\\' => "\\\\",
+            '\'' => "\\'",
+            '\n' => "\\n",
+            '\r' => "\\r",
+            '\t' => "\\t",
+            _ => value.ToString(),
+        }) + "'";
+    }
+
     public static string EscapeForStringLiteral(string text, bool escapeSingleQuote = false)
     {
         var escaped = text.Replace("\\", "\\\\").Replace("\"", "\\\"");

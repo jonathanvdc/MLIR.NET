@@ -18,13 +18,21 @@ public sealed class DialectGenerator : IIncrementalGenerator
         var tableGenFiles = context.AdditionalTextsProvider
             .Where(static file => file.Path.EndsWith(".td", StringComparison.OrdinalIgnoreCase))
             .Collect();
+        var compilationAndFiles = context.CompilationProvider.Combine(tableGenFiles);
 
-        context.RegisterSourceOutput(tableGenFiles, static (productionContext, files) =>
+        context.RegisterSourceOutput(compilationAndFiles, static (productionContext, pair) =>
         {
+            var compilation = pair.Left;
+            var files = pair.Right;
             var dialects = DialectGenerationPipeline.ParseAndMerge(files, productionContext.CancellationToken, productionContext);
             var resolver = DialectSymbolResolver.Create(dialects);
             foreach (var dialect in dialects)
             {
+                if (IsAlreadyProvided(compilation, dialect))
+                {
+                    continue;
+                }
+
                 try
                 {
                     productionContext.AddSource(
@@ -42,5 +50,13 @@ public sealed class DialectGenerator : IIncrementalGenerator
                 }
             }
         });
+    }
+
+    private static bool IsAlreadyProvided(Compilation compilation, DialectModel dialect)
+    {
+        var metadataName = DialectGeneratorNaming.GetGeneratedNamespace(dialect)
+            + "."
+            + DialectGeneratorNaming.GetDialectRegistrationClassName(dialect);
+        return compilation.GetTypeByMetadataName(metadataName) != null;
     }
 }
