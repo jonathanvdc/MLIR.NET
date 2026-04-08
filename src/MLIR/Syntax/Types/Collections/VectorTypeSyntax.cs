@@ -44,4 +44,16 @@ public sealed class VectorTypeSyntax(
         ElementType.WriteTo(writer);
         writer.WriteToken(GreaterThanToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new VectorTypeSyntax(
+            rewriter.VisitToken(KeywordToken),
+            rewriter.VisitToken(LessThanToken),
+            rewriter.VisitList(Dimensions),
+            rewriter.VisitTokenList(XTokens),
+            (TypeSyntax)rewriter.Visit(ElementType),
+            rewriter.VisitToken(GreaterThanToken));
+    }
 }

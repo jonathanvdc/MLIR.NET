@@ -59,4 +59,16 @@ public sealed class ElementsAttributeValueSyntax(
         writer.SuggestTrivia(" ");
         TypeSyntax.WriteTo(writer);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new ElementsAttributeValueSyntax(
+            rewriter.VisitToken(KeywordToken),
+            rewriter.VisitToken(LessThanToken),
+            (AttributeValueSyntax)rewriter.Visit(Payload),
+            rewriter.VisitToken(GreaterThanToken),
+            rewriter.VisitToken(ColonToken),
+            (TypeSyntax)rewriter.Visit(TypeSyntax));
+    }
 }

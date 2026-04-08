@@ -57,7 +57,7 @@ public sealed class RawSyntaxText
     /// <summary>
     /// Gets the whitespace and comments that precede the text.
     /// </summary>
-    public string LeadingTrivia => Tokens.Count == 0 ? string.Empty : Tokens[0].LeadingTrivia;
+    public string? LeadingTrivia => Tokens.Count == 0 ? null : Tokens[0].LeadingTrivia;
 
     /// <summary>
     /// Gets the preserved syntax text without leading trivia.
@@ -67,12 +67,12 @@ public sealed class RawSyntaxText
     /// <summary>
     /// Gets the complete raw syntax text including leading trivia.
     /// </summary>
-    public string FullText => LeadingTrivia + Text;
+    public string FullText => (LeadingTrivia ?? string.Empty) + Text;
 
     /// <summary>
     /// Gets a value indicating whether the raw text already has explicit leading trivia.
     /// </summary>
-    public bool HasLeadingTrivia => LeadingTrivia.Length > 0;
+    public bool HasLeadingTrivia => Tokens.Count > 0 && Tokens[0].HasLeadingTrivia;
 
     /// <summary>
     /// Gets the merged source location spanning from the first to the last token.

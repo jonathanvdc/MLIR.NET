@@ -104,4 +104,16 @@ public sealed class GenericOperationBodySyntax(
             TypeSignatureSyntax.WriteTo(writer);
         }
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new GenericOperationBodySyntax(
+            rewriter.VisitDelimitedTokenList(OperandList),
+            rewriter.VisitDelimitedTokenList(SuccessorList),
+            rewriter.VisitList(Regions),
+            rewriter.VisitDelimitedList(Attributes),
+            rewriter.VisitToken(TypeSignatureColonToken),
+            TypeSignatureSyntax != null ? (TypeSyntax)rewriter.Visit(TypeSignatureSyntax) : null);
+    }
 }

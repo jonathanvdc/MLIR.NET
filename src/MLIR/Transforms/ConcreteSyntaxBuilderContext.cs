@@ -81,6 +81,18 @@ public sealed class ConcreteSyntaxBuilderContext
     }
 
     /// <summary>
+    /// Normalizes a token before it is reused in rebuilt syntax.
+    /// </summary>
+    /// <remarks>
+    /// When rebuilding existing syntax, this strips trivia so source indentation and line breaks
+    /// do not leak into synthesized assembly. PreserveExistingSyntax keeps the token unchanged.
+    /// </remarks>
+    public SyntaxToken NormalizeToken(SyntaxToken token)
+    {
+        return builder.NormalizeToken(token);
+    }
+
+    /// <summary>
     /// Builds a <see cref="TypeSyntax"/> for the supplied semantic type reference,
     /// reusing its original syntax when available.
     /// </summary>

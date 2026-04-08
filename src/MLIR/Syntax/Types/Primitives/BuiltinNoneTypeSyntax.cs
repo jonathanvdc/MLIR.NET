@@ -20,4 +20,10 @@ public sealed class BuiltinNoneTypeSyntax(SyntaxToken keywordToken) : TypeSyntax
     {
         writer.WriteToken(KeywordToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new BuiltinNoneTypeSyntax(rewriter.VisitToken(KeywordToken));
+    }
 }

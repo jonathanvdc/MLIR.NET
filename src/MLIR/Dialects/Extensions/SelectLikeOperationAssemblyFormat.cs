@@ -332,4 +332,20 @@ public sealed class SelectLikeOperationBodySyntax : OperationBodySyntax
             SecondType.WriteTo(writer);
         }
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new SelectLikeOperationBodySyntax(
+            rewriter.VisitToken(Condition),
+            rewriter.VisitToken(CommaToken),
+            rewriter.VisitToken(TrueValue),
+            rewriter.VisitToken(CommaToken2),
+            rewriter.VisitToken(FalseValue),
+            rewriter.VisitDelimitedList(AttrDict),
+            rewriter.VisitToken(ColonToken),
+            (TypeSyntax)rewriter.Visit(FirstType),
+            rewriter.VisitToken(TypeCommaToken),
+            SecondType != null ? (TypeSyntax)rewriter.Visit(SecondType) : null);
+    }
 }

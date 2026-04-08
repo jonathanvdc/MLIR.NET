@@ -204,7 +204,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
         var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
         builder.AppendLine(indent + DeclareOrAssign(varName,
-            "new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), op.OperandValues.Select(v => v.Token ?? SyntaxTokenFactory.SsaName(v.Name)).ToList(), Enumerable.Repeat(SyntaxTokenFactory.Comma(), global::System.Math.Max(0, op.OperandValues.Count - 1)).ToList(), SyntaxTokenFactory.RParen())",
+            "new DelimitedSyntaxList<SyntaxToken>(SyntaxTokenFactory.LParen(), op.OperandValues.Select(v => context.NormalizeToken(v.Token ?? SyntaxTokenFactory.SsaName(v.Name))).ToList(), Enumerable.Repeat(SyntaxTokenFactory.Comma(), global::System.Math.Max(0, op.OperandValues.Count - 1)).ToList(), SyntaxTokenFactory.RParen())",
             declare, field.CsType) + ";");
     }
 
@@ -455,18 +455,18 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         if (IsVariadicOperand(variableName))
         {
             // Produce a List<SyntaxToken> from the variadic value list.
-            return "op." + propName + ".Select(v => v.Token ?? SyntaxTokenFactory.SsaName(v.Name)).ToList()";
+            return "op." + propName + ".Select(v => context.NormalizeToken(v.Token ?? SyntaxTokenFactory.SsaName(v.Name))).ToList()";
         }
 
         if (nullable)
         {
             // Nullable operand: op.Rhs is Value?
-            return "op." + propName + "!.Token ?? SyntaxTokenFactory.SsaName(op." + propName + "!.Name)";
+            return "context.NormalizeToken(op." + propName + "!.Token ?? SyntaxTokenFactory.SsaName(op." + propName + "!.Name))";
         }
         else
         {
             // Required operand/result: op.Lhs is Value (non-nullable)
-            return "op." + propName + ".Token ?? SyntaxTokenFactory.SsaName(op." + propName + ".Name)";
+            return "context.NormalizeToken(op." + propName + ".Token ?? SyntaxTokenFactory.SsaName(op." + propName + ".Name))";
         }
     }
 

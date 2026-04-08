@@ -242,12 +242,9 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
 
         var inputTypeTexts = body.Arguments.Items.Select(static argument => argument.Type.ToString());
         var resultTypeText = body.ResultTypes != null
-            ? body.ResultTypes.Items.Count switch
-            {
-                0 => "()",
-                1 => body.ResultTypes.Items[0].Type.ToString(),
-                _ => "(" + string.Join(", ", body.ResultTypes.Items.Select(static result => result.Type.ToString())) + ")",
-            }
+            ? body.ResultTypes.OpenToken.HasValue || body.ResultTypes.Items.Count != 1
+                ? "(" + string.Join(", ", body.ResultTypes.Items.Select(static result => result.Type.ToString())) + ")"
+                : body.ResultTypes.Items[0].Type.ToString()
             : "()";
         var functionTypeSyntax = Parser.ParseType(
             "(" + string.Join(", ", inputTypeTexts) + ") -> " + resultTypeText);
@@ -277,12 +274,8 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
     /// <inheritdoc/>
     public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
     {
-        if (operation.Syntax?.Body is FuncOperationBodySyntax)
-        {
-            return operation.Syntax;
-        }
-
-        if (operation.TypeSignatureReference?.Syntax is not FunctionTypeSyntax functionTypeSyntax)
+        var sourceBody = operation.Syntax?.Body as FuncOperationBodySyntax;
+        if (operation.TypeSignatureReference is null || context.BuildTypeSyntax(operation.TypeSignatureReference) is not FunctionTypeSyntax functionTypeSyntax)
         {
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
@@ -318,15 +311,21 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
                 argumentCommas.Add(SyntaxTokenFactory.Comma());
             }
 
-            var name = blockArguments != null && i < blockArguments.Count
-                ? blockArguments[i].Name
-                : "%arg" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var nameToken = sourceBody != null && i < sourceBody.Arguments.Items.Count
+                ? context.NormalizeToken(sourceBody.Arguments.Items[i].Name)
+                : blockArguments != null && i < blockArguments.Count
+                    ? context.NormalizeToken(blockArguments[i].Syntax.NameToken)
+                    : SyntaxTokenFactory.SsaName("%arg" + i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+            var attrDict = sourceBody != null && i < sourceBody.Arguments.Items.Count
+                ? sourceBody.Arguments.Items[i].AttrDict
+                : new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null);
 
             arguments.Add(new FuncFunctionArgumentSyntax(
-                SyntaxTokenFactory.SsaName(name),
+                nameToken,
                 SyntaxTokenFactory.Colon(),
                 functionTypeSyntax.InputTypes.Items[i],
-                new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null)));
+                attrDict));
         }
 
         DelimitedSyntaxList<FuncFunctionResultSyntax>? resultTypes = null;
@@ -341,9 +340,15 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
                     resultCommas.Add(SyntaxTokenFactory.Comma());
                 }
 
+                var attrDict = sourceBody != null
+                    && sourceBody.ResultTypes != null
+                    && i < sourceBody.ResultTypes.Items.Count
+                    ? sourceBody.ResultTypes.Items[i].AttrDict
+                    : new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null);
+
                 results.Add(new FuncFunctionResultSyntax(
                     functionTypeSyntax.ResultTypes.Items[i],
-                    new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null)));
+                    attrDict));
             }
 
             resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(
@@ -354,9 +359,13 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
         }
         else if (functionTypeSyntax.ResultType != null)
         {
+            var attrDict = sourceBody != null && sourceBody.ResultTypes != null && sourceBody.ResultTypes.Items.Count > 0
+                ? sourceBody.ResultTypes.Items[0].AttrDict
+                : new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null);
+
             resultTypes = new DelimitedSyntaxList<FuncFunctionResultSyntax>(
                 null,
-                [new FuncFunctionResultSyntax(functionTypeSyntax.ResultType, new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null))],
+                [new FuncFunctionResultSyntax(functionTypeSyntax.ResultType, attrDict)],
                 [],
                 null);
         }
@@ -467,6 +476,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
             SyntaxTokenFactory.Equal(),
             new StringAttributeValueSyntax(literal, value));
     }
+
 }
 
 /// <summary>
@@ -618,6 +628,62 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
         }
     }
 
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new FuncOperationBodySyntax(
+            rewriter.VisitToken(VisibilityToken),
+            rewriter.VisitRawText(SymbolName),
+            rewriter.VisitToken(LParenToken),
+            RewriteArguments(rewriter),
+            rewriter.VisitToken(ArrowToken),
+            RewriteResultTypes(rewriter),
+            rewriter.VisitToken(AttributesKeyword),
+            rewriter.VisitDelimitedList(Attributes),
+            BodyRegion != null ? (RegionSyntax)rewriter.Visit(BodyRegion) : null);
+    }
+
+    private DelimitedSyntaxList<FuncFunctionArgumentSyntax> RewriteArguments(SyntaxRewriter rewriter)
+    {
+        var items = new List<FuncFunctionArgumentSyntax>(Arguments.Items.Count);
+        foreach (var argument in Arguments.Items)
+        {
+            items.Add(new FuncFunctionArgumentSyntax(
+                rewriter.VisitToken(argument.Name),
+                rewriter.VisitToken(argument.ColonToken),
+                (TypeSyntax)rewriter.Visit(argument.Type),
+                rewriter.VisitDelimitedList(argument.AttrDict)));
+        }
+
+        return new DelimitedSyntaxList<FuncFunctionArgumentSyntax>(
+            rewriter.VisitToken(Arguments.OpenToken),
+            items,
+            rewriter.VisitTokenList(Arguments.SeparatorTokens),
+            rewriter.VisitToken(Arguments.CloseToken));
+    }
+
+    private DelimitedSyntaxList<FuncFunctionResultSyntax>? RewriteResultTypes(SyntaxRewriter rewriter)
+    {
+        if (ResultTypes == null)
+        {
+            return null;
+        }
+
+        var items = new List<FuncFunctionResultSyntax>(ResultTypes.Items.Count);
+        foreach (var result in ResultTypes.Items)
+        {
+            items.Add(new FuncFunctionResultSyntax(
+                (TypeSyntax)rewriter.Visit(result.Type),
+                rewriter.VisitDelimitedList(result.AttrDict)));
+        }
+
+        return new DelimitedSyntaxList<FuncFunctionResultSyntax>(
+            rewriter.VisitToken(ResultTypes.OpenToken),
+            items,
+            rewriter.VisitTokenList(ResultTypes.SeparatorTokens),
+            rewriter.VisitToken(ResultTypes.CloseToken));
+    }
+
     private void WriteArgumentList(SyntaxWriter writer)
     {
         for (var i = 0; i < Arguments.Items.Count; i++)
@@ -639,6 +705,10 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
         if (ResultTypes!.OpenToken.HasValue)
         {
             writer.WriteToken(ResultTypes.OpenToken.Value, " ");
+        }
+        else if (ResultTypes.Items.Count > 0)
+        {
+            writer.SuggestTrivia(" ");
         }
 
         for (var i = 0; i < ResultTypes.Items.Count; i++)

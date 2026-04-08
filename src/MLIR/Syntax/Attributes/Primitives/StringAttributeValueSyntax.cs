@@ -35,4 +35,10 @@ public sealed class StringAttributeValueSyntax : AttributeValueSyntax
     {
         writer.WriteToken(LiteralToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new StringAttributeValueSyntax(rewriter.VisitToken(LiteralToken), Value);
+    }
 }

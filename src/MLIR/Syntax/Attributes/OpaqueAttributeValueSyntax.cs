@@ -21,4 +21,10 @@ public sealed class OpaqueAttributeValueSyntax(RawSyntaxText rawText) : Attribut
     {
         writer.WriteRaw(RawText);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new OpaqueAttributeValueSyntax(rewriter.VisitRawText(RawText));
+    }
 }

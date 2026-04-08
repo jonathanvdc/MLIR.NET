@@ -38,4 +38,10 @@ public sealed class BooleanAttributeValueSyntax : AttributeValueSyntax
     {
         writer.WriteToken(LiteralToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new BooleanAttributeValueSyntax(rewriter.VisitToken(LiteralToken), Value);
+    }
 }

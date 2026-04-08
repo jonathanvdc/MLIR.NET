@@ -27,87 +27,87 @@ public static class SyntaxTokenFactory
     // -----------------------------------------------------------------------
 
     /// <summary>Creates a synthetic <c>(</c> token.</summary>
-    public static SyntaxToken LParen(string leadingTrivia = "") =>
+    public static SyntaxToken LParen(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.LParen, "(", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>)</c> token.</summary>
-    public static SyntaxToken RParen(string leadingTrivia = "") =>
+    public static SyntaxToken RParen(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.RParen, ")", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>{</c> token.</summary>
-    public static SyntaxToken LBrace(string leadingTrivia = "") =>
+    public static SyntaxToken LBrace(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.LBrace, "{", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>}</c> token.</summary>
-    public static SyntaxToken RBrace(string leadingTrivia = "") =>
+    public static SyntaxToken RBrace(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.RBrace, "}", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>[</c> token.</summary>
-    public static SyntaxToken LBracket(string leadingTrivia = "") =>
+    public static SyntaxToken LBracket(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.LBracket, "[", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>]</c> token.</summary>
-    public static SyntaxToken RBracket(string leadingTrivia = "") =>
+    public static SyntaxToken RBracket(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.RBracket, "]", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>&lt;</c> token.</summary>
-    public static SyntaxToken LessThan(string leadingTrivia = "") =>
+    public static SyntaxToken LessThan(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.LessThan, "<", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>&gt;</c> token.</summary>
-    public static SyntaxToken GreaterThan(string leadingTrivia = "") =>
+    public static SyntaxToken GreaterThan(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.GreaterThan, ">", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>:</c> token.</summary>
-    public static SyntaxToken Colon(string leadingTrivia = "") =>
+    public static SyntaxToken Colon(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Colon, ":", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>,</c> token.</summary>
-    public static SyntaxToken Comma(string leadingTrivia = "") =>
+    public static SyntaxToken Comma(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Comma, ",", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>=</c> token.</summary>
-    public static SyntaxToken Equal(string leadingTrivia = "") =>
+    public static SyntaxToken Equal(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Equal, "=", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>-&gt;</c> token.</summary>
-    public static SyntaxToken Arrow(string leadingTrivia = "") =>
+    public static SyntaxToken Arrow(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Arrow, "->", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>@</c> token.</summary>
-    public static SyntaxToken At(string leadingTrivia = "") =>
+    public static SyntaxToken At(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.At, "@", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>#</c> token.</summary>
-    public static SyntaxToken Hash(string leadingTrivia = "") =>
+    public static SyntaxToken Hash(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Hash, "#", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>!</c> token.</summary>
-    public static SyntaxToken Bang(string leadingTrivia = "") =>
+    public static SyntaxToken Bang(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Bang, "!", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>?</c> token.</summary>
-    public static SyntaxToken Question(string leadingTrivia = "") =>
+    public static SyntaxToken Question(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Question, "?", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>*</c> token.</summary>
-    public static SyntaxToken Star(string leadingTrivia = "") =>
+    public static SyntaxToken Star(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Star, "*", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>+</c> token.</summary>
-    public static SyntaxToken Plus(string leadingTrivia = "") =>
+    public static SyntaxToken Plus(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Plus, "+", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>-</c> token.</summary>
-    public static SyntaxToken Minus(string leadingTrivia = "") =>
+    public static SyntaxToken Minus(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Minus, "-", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>.</c> token.</summary>
-    public static SyntaxToken Dot(string leadingTrivia = "") =>
+    public static SyntaxToken Dot(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Dot, ".", leadingTrivia);
 
     /// <summary>Creates a synthetic <c>|</c> token.</summary>
-    public static SyntaxToken Pipe(string leadingTrivia = "") =>
+    public static SyntaxToken Pipe(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Pipe, "|", leadingTrivia);
 
     // -----------------------------------------------------------------------
@@ -115,7 +115,7 @@ public static class SyntaxTokenFactory
     // -----------------------------------------------------------------------
 
     /// <summary>Creates a synthetic end-of-file token.</summary>
-    public static SyntaxToken EndOfFile(string leadingTrivia = "") =>
+    public static SyntaxToken EndOfFile(string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.EndOfFile, string.Empty, leadingTrivia);
 
     // -----------------------------------------------------------------------
@@ -123,11 +123,11 @@ public static class SyntaxTokenFactory
     // -----------------------------------------------------------------------
 
     /// <summary>Creates a synthetic identifier token with the supplied <paramref name="text"/>.</summary>
-    public static SyntaxToken Identifier(string text, string leadingTrivia = "") =>
+    public static SyntaxToken Identifier(string text, string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Identifier, text, leadingTrivia);
 
     /// <summary>Creates a synthetic integer literal token with the supplied <paramref name="text"/>.</summary>
-    public static SyntaxToken Integer(string text, string leadingTrivia = "") =>
+    public static SyntaxToken Integer(string text, string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.Integer, text, leadingTrivia);
 
     /// <summary>
@@ -135,20 +135,20 @@ public static class SyntaxTokenFactory
     /// The <paramref name="text"/> should include the surrounding double-quote characters,
     /// as it is stored verbatim.
     /// </summary>
-    public static SyntaxToken StringLiteral(string text, string leadingTrivia = "") =>
+    public static SyntaxToken StringLiteral(string text, string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.StringLiteral, text, leadingTrivia);
 
     /// <summary>
     /// Creates a synthetic SSA name token with the supplied <paramref name="text"/>
     /// (e.g. <c>%0</c> or <c>%arg0</c>).
     /// </summary>
-    public static SyntaxToken SsaName(string text, string leadingTrivia = "") =>
+    public static SyntaxToken SsaName(string text, string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.SsaName, text, leadingTrivia);
 
     /// <summary>
     /// Creates a synthetic block label token with the supplied <paramref name="text"/>
     /// (e.g. <c>^bb0</c> or <c>^entry</c>).
     /// </summary>
-    public static SyntaxToken BlockLabel(string text, string leadingTrivia = "") =>
+    public static SyntaxToken BlockLabel(string text, string? leadingTrivia = null) =>
         new SyntaxToken(TokenKind.BlockLabel, text, leadingTrivia);
 }

@@ -50,6 +50,17 @@ public sealed class TupleTypeSyntax(
         writer.WriteToken(GreaterThanToken);
     }
 
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new TupleTypeSyntax(
+            rewriter.VisitToken(KeywordToken),
+            rewriter.VisitToken(LessThanToken),
+            rewriter.VisitList(Elements),
+            rewriter.VisitTokenList(CommaTokens),
+            rewriter.VisitToken(GreaterThanToken));
+    }
+
     private static IEnumerable<object> Interleave(IReadOnlyList<TypeSyntax> items, IReadOnlyList<SyntaxToken> separators)
     {
         for (var i = 0; i < items.Count; i++)

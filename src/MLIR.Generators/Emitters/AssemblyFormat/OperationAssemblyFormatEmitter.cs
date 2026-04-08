@@ -166,7 +166,10 @@ internal static class OperationAssemblyFormatEmitter
             "'. The assembly format and generated body syntax may be out of sync.");
     }
 
-    private static string GetTypeBindExpression(OperationBodySyntaxConstructionPlan plan, OperationBodySyntaxMetadata metadata)
+    private static string GetTypeBindExpression(
+        OperationModel operation,
+        OperationBodySyntaxConstructionPlan plan,
+        OperationBodySyntaxMetadata metadata)
     {
         if (plan.TypeField == null)
         {
@@ -175,8 +178,16 @@ internal static class OperationAssemblyFormatEmitter
 
         if (GetFieldCsType(metadata, plan.TypeField) == "IReadOnlyList<TypeSyntax>")
         {
-            // type($variadic) stores several surface-level type syntax nodes and does not
-            // correspond to a single semantic TypeReference on the operation.
+            // A trailing variadic type list models the operand types for generic operation
+            // syntax. When the operation has no results, that list is the input side of a
+            // function type signature and can be reconstructed as such.
+            if (operation.Results.Count == 0)
+            {
+                var access = "body." + plan.TypeField;
+                return access + ".Count > 0 ? new global::MLIR.Semantics.Types.Collections.FunctionTypeReference(" +
+                    access + ".Select(binder.BindTypeReference).ToArray(), global::System.Array.Empty<global::MLIR.Semantics.TypeReference>()) : null";
+            }
+
             return "null";
         }
 
@@ -345,7 +356,7 @@ internal static class OperationAssemblyFormatEmitter
             }
         }
 
-        builder.AppendLine("            " + GetTypeBindExpression(syntaxDescriptor, bodySyntaxMetadata) + ");");
+        builder.AppendLine("            " + GetTypeBindExpression(operation, syntaxDescriptor, bodySyntaxMetadata) + ");");
         builder.AppendLine("    }");
         builder.AppendLine();
         BuildCustomAssemblySyntaxEmitter.Emit(builder, operation, bodySyntaxMetadata, resolver);

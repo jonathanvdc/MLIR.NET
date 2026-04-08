@@ -61,4 +61,13 @@ public sealed class IntegerAttributeValueSyntax : AttributeValueSyntax
 
         writer.WriteToken(IntegerToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new IntegerAttributeValueSyntax(
+            rewriter.VisitToken(SignToken),
+            rewriter.VisitToken(IntegerToken),
+            Value);
+    }
 }

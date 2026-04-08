@@ -179,6 +179,24 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine("        WritePrefix(writer);");
         EmitWriteToBody(builder, slots);
         builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)");
+        builder.AppendLine("    {");
+        builder.Append("        return new " + syntaxClassName + "(new DialectAttributePrefix(rewriter.VisitToken(Prefix.HashToken), rewriter.VisitToken(Prefix.NameToken))");
+        foreach (var slot in slots)
+        {
+            if (slot is LiteralTokenSlot lit)
+            {
+                builder.Append(", rewriter.VisitToken(" + EmitterHelpers.CapitalizeFirst(lit.LocalName) + ")");
+            }
+            else if (slot is VariableSlot v)
+            {
+                builder.Append(", " + GetVariableRewriteExpression(v));
+            }
+        }
+
+        builder.AppendLine(");");
+        builder.AppendLine("    }");
         builder.AppendLine("}");
     }
 
@@ -462,6 +480,71 @@ internal static class AttributeAssemblyFormatEmitter
 
         // No printer defined: use the syntax node stored in the structured syntax class directly.
         // This is only valid when csharpType is AttributeValueSyntax.
+        return propertyExpr;
+    }
+
+    /// <summary>
+    /// Returns the expression used to rewrite a generated variable slot back into syntax.
+    /// </summary>
+    private static string GetVariableRewriteExpression(VariableSlot slot)
+    {
+        var propertyExpr = EmitterHelpers.CapitalizeFirst(slot.Name) + "Syntax";
+        var syntaxType = slot.SyntaxType;
+
+        if (string.Equals(syntaxType, "SyntaxToken", System.StringComparison.Ordinal) ||
+            string.Equals(syntaxType, "SyntaxToken?", System.StringComparison.Ordinal))
+        {
+            return "rewriter.VisitToken(" + propertyExpr + ")";
+        }
+
+        if (string.Equals(syntaxType, "RawSyntaxText", System.StringComparison.Ordinal))
+        {
+            return "rewriter.VisitRawText(" + propertyExpr + ")";
+        }
+
+        if (syntaxType.EndsWith("?", System.StringComparison.Ordinal))
+        {
+            var innerType = syntaxType.Substring(0, syntaxType.Length - 1);
+            if (innerType.EndsWith("Syntax", System.StringComparison.Ordinal))
+            {
+                return propertyExpr + " != null ? (" + innerType + ")rewriter.Visit(" + propertyExpr + ") : null";
+            }
+        }
+
+        if (syntaxType.StartsWith("DelimitedSyntaxList<", System.StringComparison.Ordinal))
+        {
+            return syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal)
+                ? "rewriter.VisitDelimitedTokenList(" + propertyExpr + ")"
+                : "rewriter.VisitDelimitedList(" + propertyExpr + ")";
+        }
+
+        if (syntaxType.StartsWith("SeparatedSyntaxList<", System.StringComparison.Ordinal))
+        {
+            return syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal)
+                ? "rewriter.VisitSeparatedTokenList(" + propertyExpr + ")"
+                : "rewriter.VisitSeparatedList(" + propertyExpr + ")";
+        }
+
+        if (syntaxType.StartsWith("IReadOnlyList<", System.StringComparison.Ordinal))
+        {
+            if (syntaxType.Contains("SyntaxToken", System.StringComparison.Ordinal))
+            {
+                return "rewriter.VisitTokenList(" + propertyExpr + ")";
+            }
+
+            if (syntaxType.Contains("RawSyntaxText", System.StringComparison.Ordinal))
+            {
+                return "rewriter.VisitRawTextList(" + propertyExpr + ")";
+            }
+
+            return "rewriter.VisitList(" + propertyExpr + ")";
+        }
+
+        if (syntaxType.EndsWith("Syntax", System.StringComparison.Ordinal))
+        {
+            return "(" + syntaxType + ")rewriter.Visit(" + propertyExpr + ")";
+        }
+
         return propertyExpr;
     }
 

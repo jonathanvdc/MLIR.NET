@@ -24,4 +24,10 @@ public sealed class RawTypeSyntax(RawSyntaxText rawText) : TypeSyntax
     {
         writer.WriteRaw(RawText);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new RawTypeSyntax(rewriter.VisitRawText(RawText));
+    }
 }

@@ -183,6 +183,16 @@ public sealed class OperationSyntax : SyntaxNode
         Body.WriteTo(writer);
     }
 
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new OperationSyntax(
+            rewriter.VisitSeparatedTokenList(ResultList),
+            rewriter.VisitToken(EqualsToken),
+            rewriter.VisitToken(NameToken),
+            (OperationBodySyntax)rewriter.Visit(Body));
+    }
+
     private static IReadOnlyList<SyntaxToken> CreateSsaNameTokens(IReadOnlyList<string> values)
     {
         var tokens = new List<SyntaxToken>();

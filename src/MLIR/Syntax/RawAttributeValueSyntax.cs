@@ -24,4 +24,10 @@ public sealed class RawAttributeValueSyntax(RawSyntaxText rawText) : AttributeVa
     {
         writer.WriteRaw(RawText);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new RawAttributeValueSyntax(rewriter.VisitRawText(RawText));
+    }
 }

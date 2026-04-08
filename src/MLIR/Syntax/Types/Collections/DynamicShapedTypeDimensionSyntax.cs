@@ -20,4 +20,10 @@ public sealed class DynamicShapedTypeDimensionSyntax(SyntaxToken questionToken) 
     {
         writer.WriteToken(QuestionToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new DynamicShapedTypeDimensionSyntax(rewriter.VisitToken(QuestionToken));
+    }
 }

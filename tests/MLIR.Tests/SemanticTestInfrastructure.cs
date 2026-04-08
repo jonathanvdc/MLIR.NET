@@ -103,6 +103,15 @@ public sealed partial class SemanticTests
             writer.SuggestTrivia(" ");
             TypeSignature.WriteTo(writer);
         }
+
+        public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+        {
+            return new PrefixConstantBodySyntax(
+                (AttributeValueSyntax)rewriter.Visit(Value),
+                rewriter.VisitToken(ColonToken),
+                (TypeSyntax)rewriter.Visit(TypeSignature),
+                rewriter.VisitDelimitedList(Attributes));
+        }
     }
 
     private sealed class ArithConstantView
@@ -293,6 +302,18 @@ public sealed partial class SemanticTests
                 TypeSyntax.WriteTo(writer);
             }
         }
+
+        public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+        {
+            return new DenseAttributeValueSyntax(
+                rewriter.VisitToken(HashToken),
+                rewriter.VisitToken(NameToken),
+                rewriter.VisitToken(LessThanToken),
+                rewriter.VisitRawText(Payload),
+                rewriter.VisitToken(GreaterThanToken),
+                rewriter.VisitToken(ColonToken),
+                TypeSyntax != null ? (TypeSyntax)rewriter.Visit(TypeSyntax) : null);
+        }
     }
 
     private sealed class IntegerTypeReference : global::MLIR.Semantics.Types.Primitives.IntegerTypeReference
@@ -388,6 +409,11 @@ public sealed partial class SemanticTests
         {
             writer.WriteToken(NameToken);
         }
+
+        public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+        {
+            return new BuiltinIntegerTypeSyntax(rewriter.VisitToken(NameToken));
+        }
     }
 
     private sealed class IntegerLiteralAttributeSyntax : AttributeValueSyntax
@@ -404,6 +430,11 @@ public sealed partial class SemanticTests
         public override void WriteTo(SyntaxWriter writer)
         {
             writer.WriteToken(LiteralToken);
+        }
+
+        public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+        {
+            return new IntegerLiteralAttributeSyntax(rewriter.VisitToken(LiteralToken));
         }
     }
 

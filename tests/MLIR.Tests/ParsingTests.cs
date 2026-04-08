@@ -43,6 +43,15 @@ public sealed class ParsingTests
             writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? SyntaxTokenFactory.Colon(), " ");
             writer.WriteRaw(typeSignature, " ");
         }
+
+        public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+        {
+            return new PrefixConstantBodySyntax(
+                rewriter.VisitRawText(value),
+                rewriter.VisitToken(genericBody.TypeSignatureColonToken!.Value),
+                rewriter.VisitRawText(typeSignature),
+                rewriter.VisitDelimitedList(genericBody.Attributes));
+        }
     }
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
@@ -115,6 +124,11 @@ public sealed class ParsingTests
 
                 writer.WriteToken(Inputs[i], " ");
             }
+        }
+
+        public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+        {
+            return new SsaListCapturingBodySyntax(rewriter.VisitSeparatedTokenList(Inputs));
         }
     }
 
@@ -381,6 +395,16 @@ public sealed class ParsingTests
         var attribute = GetGenericBody(module.Operations[0]).Attributes[0];
 
         Assert.Equal("dense<[[1, 2], [3, 4]]> : tensor<2x2xi32>", attribute.ValueSyntax.ToString());
+        Assert.Equal(source, Printer.Print(module));
+    }
+
+    [Fact]
+    public void PreservesDenseArrayTriviaWhenItemsHaveNoSpaces()
+    {
+        const string source = "\"test.op\"() {value = #dense<[1,2,3]>} : () -> i32";
+
+        var module = Parser.ParseModule(source);
+
         Assert.Equal(source, Printer.Print(module));
     }
 

@@ -25,4 +25,10 @@ public sealed class StaticShapedTypeDimensionSyntax(SyntaxToken sizeToken, long 
     {
         writer.WriteToken(SizeToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new StaticShapedTypeDimensionSyntax(rewriter.VisitToken(SizeToken), Size);
+    }
 }

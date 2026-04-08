@@ -59,4 +59,13 @@ public sealed class BlockArgumentSyntax(SyntaxToken nameToken, SyntaxToken colon
         writer.SuggestTrivia(" ");
         TypeSyntax.WriteTo(writer);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new BlockArgumentSyntax(
+            rewriter.VisitToken(NameToken),
+            rewriter.VisitToken(ColonToken),
+            (TypeSyntax)rewriter.Visit(TypeSyntax));
+    }
 }

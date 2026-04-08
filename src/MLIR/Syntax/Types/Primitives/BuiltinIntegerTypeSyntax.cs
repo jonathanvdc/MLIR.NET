@@ -31,4 +31,10 @@ public sealed class BuiltinIntegerTypeSyntax(SyntaxToken nameToken, IntegerTypeS
     {
         writer.WriteToken(NameToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new BuiltinIntegerTypeSyntax(rewriter.VisitToken(NameToken), Signedness, Width);
+    }
 }

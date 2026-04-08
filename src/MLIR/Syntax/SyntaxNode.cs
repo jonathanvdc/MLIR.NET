@@ -21,6 +21,13 @@ public abstract class SyntaxNode
     /// <param name="writer">The syntax writer to write to.</param>
     public abstract void WriteTo(Text.SyntaxWriter writer);
 
+    /// <summary>
+    /// Rewrites this syntax node using the supplied rewriter.
+    /// </summary>
+    /// <param name="rewriter">The rewriter to apply.</param>
+    /// <returns>A rewritten syntax node of the same logical shape.</returns>
+    public abstract SyntaxNode Rewrite(SyntaxRewriter rewriter);
+
     /// <inheritdoc/>
     public override string ToString()
     {

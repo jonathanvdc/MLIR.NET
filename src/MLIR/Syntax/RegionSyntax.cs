@@ -67,4 +67,13 @@ public sealed class RegionSyntax(SyntaxToken openBraceToken, IReadOnlyList<Block
         writer.IndentLevel = containingOpIndentLevel;
         writer.WriteToken(CloseBraceToken, "\n" + new string(' ', containingOpIndentLevel * 2));
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new RegionSyntax(
+            rewriter.VisitToken(OpenBraceToken),
+            rewriter.VisitList(Blocks),
+            rewriter.VisitToken(CloseBraceToken));
+    }
 }

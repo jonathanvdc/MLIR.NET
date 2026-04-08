@@ -579,12 +579,24 @@ internal static class EmitterHelpers
     private static void AppendPunctuationField(HashSet<string> usedNames, TokenKind tokenKind, OperationBodySyntaxMetadata metadata, bool nullable)
     {
         var name = MakeUnique(GetPunctuationFieldName(tokenKind), usedNames);
+        var leadingTrivia = GetPunctuationLeadingTrivia(tokenKind);
         var (csType, writeStmt) = nullable
-            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value);")
-            : ("SyntaxToken", "writer.WriteToken(" + name + ");");
+            ? ("SyntaxToken?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
+            : ("SyntaxToken", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Punctuation:" + tokenKind, field.Name));
+    }
+
+    private static string GetPunctuationLeadingTrivia(TokenKind tokenKind)
+    {
+        return tokenKind switch
+        {
+            TokenKind.Colon => " ",
+            TokenKind.Arrow => " ",
+            TokenKind.Equal => " ",
+            _ => string.Empty,
+        };
     }
 
     private static void AppendKeywordField(HashSet<string> usedNames, string spelling, OperationBodySyntaxMetadata metadata, bool nullable, bool isOilistKeyword = false)
@@ -647,7 +659,7 @@ internal static class EmitterHelpers
             var writeStmt =
                 "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
                 "if (_i > 0) writer.WriteToken(SyntaxTokenFactory.Comma(), \"\"); " +
-                "writer.WriteToken(" + name + "[_i], _i > 0 ? \" \" : \"\"); }";
+                "writer.WriteToken(" + name + "[_i], \" \"); }";
             var field = new BodySyntaxField(name, csType, writeStmt);
             metadata.AddField(field);
             metadata.AddComponentField(new BodyComponentField(

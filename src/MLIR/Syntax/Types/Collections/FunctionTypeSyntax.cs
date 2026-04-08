@@ -78,6 +78,18 @@ public sealed class FunctionTypeSyntax(
         }
     }
 
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new FunctionTypeSyntax(
+            rewriter.VisitDelimitedList(InputTypes),
+            rewriter.VisitToken(ArrowToken),
+            ResultType != null ? (TypeSyntax)rewriter.Visit(ResultType) : null,
+            HasDelimitedResults
+                ? rewriter.VisitDelimitedList(ResultTypes)
+                : new DelimitedSyntaxList<TypeSyntax>(null, ResultType != null ? [(TypeSyntax)rewriter.Visit(ResultType)] : [], [], null));
+    }
+
     private static IEnumerable<object> Interleave(IReadOnlyList<TypeSyntax> items, IReadOnlyList<SyntaxToken> separators)
     {
         for (var i = 0; i < items.Count; i++)

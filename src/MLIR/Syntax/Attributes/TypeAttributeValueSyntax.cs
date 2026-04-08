@@ -21,4 +21,10 @@ public sealed class TypeAttributeValueSyntax(TypeSyntax typeSyntax) : AttributeV
     {
         TypeSyntax.WriteTo(writer);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new TypeAttributeValueSyntax((TypeSyntax)rewriter.Visit(TypeSyntax));
+    }
 }

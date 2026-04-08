@@ -21,4 +21,10 @@ public sealed class UnitAttributeValueSyntax(SyntaxToken keywordToken) : Attribu
     {
         writer.WriteToken(KeywordToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new UnitAttributeValueSyntax(rewriter.VisitToken(KeywordToken));
+    }
 }

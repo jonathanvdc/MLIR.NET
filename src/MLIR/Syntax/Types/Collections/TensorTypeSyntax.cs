@@ -71,6 +71,21 @@ public sealed class TensorTypeSyntax(
         }
     }
 
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new TensorTypeSyntax(
+            rewriter.VisitToken(KeywordToken),
+            rewriter.VisitToken(LessThanToken),
+            rewriter.VisitList(Dimensions),
+            rewriter.VisitTokenList(XTokens),
+            rewriter.VisitToken(UnrankedToken),
+            (TypeSyntax)rewriter.Visit(ElementType),
+            rewriter.VisitTokenList(TrailingCommaTokens),
+            rewriter.VisitRawTextList(TrailingParameters),
+            rewriter.VisitToken(GreaterThanToken));
+    }
+
     private void WriteShapedPrefix(Text.SyntaxWriter writer)
     {
         if (IsUnranked)

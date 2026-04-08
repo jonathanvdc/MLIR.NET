@@ -25,4 +25,10 @@ public sealed class BuiltinFloatTypeSyntax(SyntaxToken nameToken) : TypeSyntax
     {
         writer.WriteToken(NameToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new BuiltinFloatTypeSyntax(rewriter.VisitToken(NameToken));
+    }
 }

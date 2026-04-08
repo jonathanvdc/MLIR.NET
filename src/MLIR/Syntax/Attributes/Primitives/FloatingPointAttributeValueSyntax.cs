@@ -38,4 +38,10 @@ public sealed class FloatingPointAttributeValueSyntax : AttributeValueSyntax
     {
         writer.WriteRaw(rawText);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new FloatingPointAttributeValueSyntax(rewriter.VisitRawText(rawText), Value);
+    }
 }

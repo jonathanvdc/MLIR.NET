@@ -59,4 +59,13 @@ public sealed class NamedAttributeSyntax(SyntaxToken nameToken, SyntaxToken equa
         writer.SuggestTrivia(" ");
         ValueSyntax.WriteTo(writer);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new NamedAttributeSyntax(
+            rewriter.VisitToken(NameToken),
+            rewriter.VisitToken(EqualsToken),
+            (AttributeValueSyntax)rewriter.Visit(ValueSyntax));
+    }
 }

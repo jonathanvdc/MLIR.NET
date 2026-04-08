@@ -31,12 +31,12 @@ public readonly struct SyntaxToken
     /// </summary>
     /// <param name="tokenKind">The lexical kind of the token.</param>
     /// <param name="text">The token text.</param>
-    /// <param name="leadingTrivia">The whitespace and comments that precede the token.</param>
-    public SyntaxToken(TokenKind tokenKind, string text, string leadingTrivia = "")
+    /// <param name="leadingTrivia">The whitespace and comments that precede the token, or <see langword="null"/> when none were captured.</param>
+    public SyntaxToken(TokenKind tokenKind, string text, string? leadingTrivia = null)
     {
         TokenKind = tokenKind;
         Text = text ?? string.Empty;
-        LeadingTrivia = leadingTrivia ?? string.Empty;
+        LeadingTrivia = leadingTrivia;
         Document = null;
         TokenStart = 0;
         TokenLength = 0;
@@ -47,15 +47,15 @@ public readonly struct SyntaxToken
     /// </summary>
     /// <param name="tokenKind">The lexical kind of the token.</param>
     /// <param name="text">The token text.</param>
-    /// <param name="leadingTrivia">The whitespace and comments that precede the token.</param>
+    /// <param name="leadingTrivia">The whitespace and comments that precede the token, or <see langword="null"/> when none were captured.</param>
     /// <param name="document">The source document that owns the token.</param>
     /// <param name="tokenStart">The zero-based start offset of the token text in the document.</param>
     /// <param name="tokenLength">The length of the token text in characters.</param>
-    internal SyntaxToken(TokenKind tokenKind, string text, string leadingTrivia, SourceDocument document, int tokenStart, int tokenLength)
+    internal SyntaxToken(TokenKind tokenKind, string text, string? leadingTrivia, SourceDocument document, int tokenStart, int tokenLength)
     {
         TokenKind = tokenKind;
         Text = text ?? string.Empty;
-        LeadingTrivia = leadingTrivia ?? string.Empty;
+        LeadingTrivia = leadingTrivia;
         Document = document;
         TokenStart = tokenStart;
         TokenLength = tokenLength;
@@ -69,7 +69,13 @@ public readonly struct SyntaxToken
     /// <summary>
     /// Gets the whitespace and comments that precede the token.
     /// </summary>
-    public string LeadingTrivia { get; }
+    public string? LeadingTrivia { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the token has leading trivia to preserve.
+    /// A token with captured trivia keeps that trivia exactly, even when it is the empty string.
+    /// </summary>
+    public bool HasLeadingTrivia => LeadingTrivia is not null;
 
     /// <summary>
     /// Gets the token text.
@@ -108,7 +114,7 @@ public readonly struct SyntaxToken
     /// <summary>
     /// Gets the complete token text including leading trivia.
     /// </summary>
-    public string FullText => LeadingTrivia + Text;
+    public string FullText => (LeadingTrivia ?? string.Empty) + Text;
 
     /// <summary>
     /// Returns a new <see cref="SyntaxToken"/> with the given <paramref name="newText"/> but with

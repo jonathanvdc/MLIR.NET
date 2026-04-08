@@ -68,6 +68,14 @@ public sealed class ModuleSyntax(IReadOnlyList<OperationSyntax> operations, Synt
             writer.WriteOperation(Operations[i]);
         }
 
-        writer.Write(EndOfFileToken.LeadingTrivia);
+        writer.Write(EndOfFileToken.LeadingTrivia ?? string.Empty);
+    }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new ModuleSyntax(
+            rewriter.VisitList(Operations),
+            rewriter.VisitToken(EndOfFileToken));
     }
 }

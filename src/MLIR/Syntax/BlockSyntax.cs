@@ -117,6 +117,16 @@ public sealed class BlockSyntax : SyntaxNode
         }
     }
 
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new BlockSyntax(
+            rewriter.VisitToken(LabelToken),
+            rewriter.VisitDelimitedList(Arguments),
+            rewriter.VisitToken(ColonToken),
+            rewriter.VisitList(Operations));
+    }
+
     private static IReadOnlyList<SyntaxToken> CreateDefaultCommaTokens(int count)
     {
         var separators = new List<SyntaxToken>();

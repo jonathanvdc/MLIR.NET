@@ -77,6 +77,22 @@ internal static class OperationBodySyntaxEmitter
         }
 
         builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)");
+        builder.AppendLine("    {");
+        builder.Append("        return new " + metadata.BodyClassName + "(");
+        for (var i = 0; i < fields.Count; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(GetRewriteExpression(fields[i]));
+        }
+
+        builder.AppendLine(");");
+        builder.AppendLine("    }");
         builder.AppendLine("}");
 
         return metadata;
@@ -99,5 +115,67 @@ internal static class OperationBodySyntaxEmitter
     {
         // Implementation moved to helper so OperationBodySyntaxEmitter uses helper methods for readability.
         EmitterHelpers.AppendBodySyntaxFields(usedNames, element, operation, metadata);
+    }
+
+    private static string GetRewriteExpression(BodySyntaxField field)
+    {
+        var name = field.Name;
+        var type = field.CsType;
+
+        if (string.Equals(type, "SyntaxToken", StringComparison.Ordinal) ||
+            string.Equals(type, "SyntaxToken?", StringComparison.Ordinal))
+        {
+            return "rewriter.VisitToken(" + name + ")";
+        }
+
+        if (string.Equals(type, "RawSyntaxText", StringComparison.Ordinal))
+        {
+            return "rewriter.VisitRawText(" + name + ")";
+        }
+
+        if (type.EndsWith("?", StringComparison.Ordinal))
+        {
+            var innerType = type.Substring(0, type.Length - 1);
+            if (innerType.EndsWith("Syntax", StringComparison.Ordinal))
+            {
+                return name + " != null ? (" + innerType + ")rewriter.Visit(" + name + ") : null";
+            }
+        }
+
+        if (type.StartsWith("DelimitedSyntaxList<", StringComparison.Ordinal))
+        {
+            return type.Contains("SyntaxToken", StringComparison.Ordinal)
+                ? "rewriter.VisitDelimitedTokenList(" + name + ")"
+                : "rewriter.VisitDelimitedList(" + name + ")";
+        }
+
+        if (type.StartsWith("SeparatedSyntaxList<", StringComparison.Ordinal))
+        {
+            return type.Contains("SyntaxToken", StringComparison.Ordinal)
+                ? "rewriter.VisitSeparatedTokenList(" + name + ")"
+                : "rewriter.VisitSeparatedList(" + name + ")";
+        }
+
+        if (type.StartsWith("IReadOnlyList<", StringComparison.Ordinal))
+        {
+            if (type.Contains("SyntaxToken", StringComparison.Ordinal))
+            {
+                return "rewriter.VisitTokenList(" + name + ")";
+            }
+
+            if (type.Contains("RawSyntaxText", StringComparison.Ordinal))
+            {
+                return "rewriter.VisitRawTextList(" + name + ")";
+            }
+
+            return "rewriter.VisitList(" + name + ")";
+        }
+
+        if (type.EndsWith("Syntax", StringComparison.Ordinal))
+        {
+            return "(" + type + ")rewriter.Visit(" + name + ")";
+        }
+
+        return name;
     }
 }

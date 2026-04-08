@@ -6,6 +6,7 @@ using System.Linq;
 using MLIR.Construction;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Types.Collections;
 
 /// <summary>
 /// Builds concrete syntax trees from semantic MLIR modules, synthesizing missing nodes when needed and honoring
@@ -81,6 +82,7 @@ public static class ConcreteSyntaxBuilder
     internal sealed class Builder
     {
         private readonly ConcreteSyntaxBuilderOptions options;
+        private readonly TriviaStrippingSyntaxRewriter triviaStrippingRewriter = new();
 
         internal Builder(ConcreteSyntaxBuilderOptions options)
         {
@@ -95,7 +97,7 @@ public static class ConcreteSyntaxBuilder
                 operations.Add(BuildOperation(operation));
             }
 
-            return new ModuleSyntax(operations, module.Syntax.EndOfFileToken);
+            return RewriteIfNeeded(new ModuleSyntax(operations, module.Syntax.EndOfFileToken));
         }
 
         public OperationSyntax BuildOperation(Operation operation)
@@ -114,15 +116,15 @@ public static class ConcreteSyntaxBuilder
             var body = BuildGenericBody(operation);
             var shouldPreserveOuterTokens = options.ExistingSyntaxHandling == ExistingSyntaxHandling.PreserveExistingSyntax
                 || (assemblyFormat == null && operation.Syntax != null);
-            return RewriteOperation(
+            return RewriteIfNeeded(RewriteOperation(
                 operation,
                 body,
-                preserveOuterTokens: shouldPreserveOuterTokens);
+                preserveOuterTokens: shouldPreserveOuterTokens));
         }
 
         public OperationSyntax WithBody(Operation operation, OperationBodySyntax body)
         {
-            return RewriteOperation(operation, body);
+            return RewriteIfNeeded(RewriteOperation(operation, body));
         }
 
         public OperationSyntax RewriteOperation(
@@ -161,6 +163,13 @@ public static class ConcreteSyntaxBuilder
                 body);
         }
 
+        public SyntaxToken NormalizeToken(SyntaxToken token)
+        {
+            return options.ExistingSyntaxHandling == ExistingSyntaxHandling.ReplaceExistingSyntax
+                ? new SyntaxToken(token.TokenKind, token.Text)
+                : token;
+        }
+
         public GenericOperationBodySyntax BuildGenericBody(Operation operation)
         {
             var genericBody = GetGenericBody(operation);
@@ -177,13 +186,13 @@ public static class ConcreteSyntaxBuilder
                 ? BuildTypeReference(operation.TypeSignatureReference)
                 : null;
 
-            return new GenericOperationBodySyntax(
+            return RewriteIfNeeded(new GenericOperationBodySyntax(
                 genericBody.OperandList,
                 genericBody.SuccessorList,
                 regions,
                 attributes,
                 genericBody.TypeSignatureColonToken,
-                typeSignatureSyntax);
+                typeSignatureSyntax));
         }
 
         private GenericOperationBodySyntax GetGenericBody(Operation operation)
@@ -208,7 +217,7 @@ public static class ConcreteSyntaxBuilder
         {
             if (attribute.Syntax != null)
             {
-                return attribute.Syntax;
+                return RewriteIfNeeded(attribute.Syntax);
             }
 
             return new NamedAttributeSyntax(
@@ -232,7 +241,7 @@ public static class ConcreteSyntaxBuilder
 
             if (attributeValue is UnknownAttributeValue unknownAttributeValue)
             {
-                return unknownAttributeValue.Syntax!;
+                return RewriteIfNeeded(unknownAttributeValue.Syntax!);
             }
 
             throw new InvalidOperationException($"Cannot build syntax for unrecognized attribute value of type {attributeValue.GetType().FullName}.");
@@ -243,12 +252,12 @@ public static class ConcreteSyntaxBuilder
             if (typeReference.Definition?.AssemblyFormat != null &&
                 (options.ExistingSyntaxHandling == ExistingSyntaxHandling.ReplaceExistingSyntax || typeReference.Syntax == null))
             {
-                return typeReference.Definition.AssemblyFormat.BuildCustomAssemblySyntax(typeReference, new ConcreteSyntaxBuilderContext(this));
+                return RewriteIfNeeded(typeReference.Definition.AssemblyFormat.BuildCustomAssemblySyntax(typeReference, new ConcreteSyntaxBuilderContext(this)));
             }
 
             if (typeReference.Syntax != null)
             {
-                return typeReference.Syntax;
+                return RewriteIfNeeded(typeReference.Syntax);
             }
 
             throw new InvalidOperationException($"Cannot build syntax for unrecognized type reference of type {typeReference.GetType().FullName}.");
@@ -289,10 +298,10 @@ public static class ConcreteSyntaxBuilder
                 blocks.Add(BuildBlock(block));
             }
 
-            return new RegionSyntax(
+            return RewriteIfNeeded(new RegionSyntax(
                 region.Syntax?.OpenBraceToken ?? SyntaxTokenFactory.LBrace(),
                 blocks,
-                region.Syntax?.CloseBraceToken ?? SyntaxTokenFactory.RBrace());
+                region.Syntax?.CloseBraceToken ?? SyntaxTokenFactory.RBrace()));
         }
 
         public BlockSyntax BuildBlock(Block block)
@@ -307,11 +316,11 @@ public static class ConcreteSyntaxBuilder
             {
                 if (options.ExistingSyntaxHandling == ExistingSyntaxHandling.PreserveExistingSyntax)
                 {
-                    return new BlockSyntax(
+                    return RewriteIfNeeded(new BlockSyntax(
                         block.Syntax.LabelToken,
                         block.Syntax.Arguments,
                         block.Syntax.ColonToken,
-                        operations);
+                        operations));
                 }
 
                 var arguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
@@ -320,7 +329,7 @@ public static class ConcreteSyntaxBuilder
                     arguments.Add(new BlockArgumentSyntax(argument.Syntax.NameToken, argument.Syntax.ColonToken, BuildTypeReference(argument.Type)));
                 }
 
-                return new BlockSyntax(
+                return RewriteIfNeeded(new BlockSyntax(
                     block.Syntax.LabelToken,
                     new DelimitedSyntaxList<BlockArgumentSyntax>(
                         block.Syntax.Arguments.OpenToken,
@@ -328,7 +337,7 @@ public static class ConcreteSyntaxBuilder
                         block.Syntax.Arguments.SeparatorTokens,
                         block.Syntax.Arguments.CloseToken),
                     block.Syntax.ColonToken,
-                    operations);
+                    operations));
             }
 
             var syntheticArguments = new List<BlockArgumentSyntax>(block.Arguments.Count);
@@ -337,12 +346,20 @@ public static class ConcreteSyntaxBuilder
                 syntheticArguments.Add(new BlockArgumentSyntax(SyntaxTokenFactory.SsaName(argument.Name), SyntaxTokenFactory.Colon(), BuildTypeReference(argument.Type)));
             }
 
-            return new BlockSyntax(block.Label, syntheticArguments, operations);
+            return RewriteIfNeeded(new BlockSyntax(block.Label, syntheticArguments, operations));
         }
 
         private static string QuoteIfNeeded(string name)
         {
             return name.Length > 0 && name[0] == '"' ? name : "\"" + name + "\"";
+        }
+
+        private TNode RewriteIfNeeded<TNode>(TNode node)
+            where TNode : SyntaxNode
+        {
+            return options.ExistingSyntaxHandling == ExistingSyntaxHandling.ReplaceExistingSyntax
+                ? triviaStrippingRewriter.Visit(node)
+                : node;
         }
     }
 }

@@ -20,4 +20,10 @@ public sealed class BuiltinIndexTypeSyntax(SyntaxToken keywordToken) : TypeSynta
     {
         writer.WriteToken(KeywordToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new BuiltinIndexTypeSyntax(rewriter.VisitToken(KeywordToken));
+    }
 }

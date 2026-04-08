@@ -40,6 +40,15 @@ public sealed class ConstructionTests
             writer.WriteToken(ColonToken, " ");
             writer.WriteRaw(typeSignature, " ");
         }
+
+        public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+        {
+            return new PrefixConstantBodySyntax(
+                rewriter.VisitRawText(Value),
+                rewriter.VisitToken(ColonToken),
+                rewriter.VisitRawText(typeSignature),
+                rewriter.VisitDelimitedList(genericBody.Attributes));
+        }
     }
 
     private static GenericOperationBodySyntax GetGenericBody(OperationSyntax operation)

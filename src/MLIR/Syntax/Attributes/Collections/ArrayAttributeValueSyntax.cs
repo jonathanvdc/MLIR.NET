@@ -37,4 +37,14 @@ public sealed class ArrayAttributeValueSyntax : AttributeValueSyntax
     {
         Items.WriteTo(writer, static (item, w) => item.WriteTo(w));
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new ArrayAttributeValueSyntax(
+            rewriter.VisitToken(Items.OpenToken!.Value),
+            rewriter.VisitList(Items.Items),
+            rewriter.VisitTokenList(Items.SeparatorTokens),
+            rewriter.VisitToken(Items.CloseToken!.Value));
+    }
 }

@@ -25,6 +25,12 @@ public sealed class DictionaryAttributeValueSyntax(DelimitedSyntaxList<NamedAttr
         Attributes.WriteTo(writer, static (attr, w) => attr.WriteTo(w));
     }
 
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new DictionaryAttributeValueSyntax(rewriter.VisitDelimitedList(Attributes));
+    }
+
     private string BuildText()
     {
         if (!Attributes.IsPresent)

@@ -58,4 +58,16 @@ public sealed class DenseArrayAttributeValueSyntax(
         writer.WriteSeparatedList(Items, " ");
         writer.WriteToken(GreaterThanToken);
     }
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new DenseArrayAttributeValueSyntax(
+            rewriter.VisitToken(KeywordToken),
+            rewriter.VisitToken(LessThanToken),
+            (TypeSyntax)rewriter.Visit(ElementTypeSyntax),
+            rewriter.VisitToken(ColonToken),
+            rewriter.VisitSeparatedList(Items),
+            rewriter.VisitToken(GreaterThanToken));
+    }
 }

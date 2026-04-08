@@ -228,7 +228,7 @@ public sealed class SyntaxWriter
     /// <param name="token">The token to write.</param>
     public void WriteToken(SyntaxToken token)
     {
-        if (token.LeadingTrivia.Length > 0)
+        if (token.HasLeadingTrivia)
         {
             builder.Append(token.LeadingTrivia);
             builder.Append(token.Text);
@@ -249,14 +249,7 @@ public sealed class SyntaxWriter
     /// <param name="defaultLeadingTrivia">The fallback leading trivia when the token carries no preserved trivia.</param>
     public void WriteToken(SyntaxToken token, string defaultLeadingTrivia)
     {
-        if (token.LeadingTrivia.Length > 0)
-        {
-            builder.Append(token.LeadingTrivia);
-            builder.Append(token.Text);
-            return;
-        }
-
-        builder.Append(defaultLeadingTrivia);
+        builder.Append(token.LeadingTrivia ?? defaultLeadingTrivia);
         builder.Append(token.Text);
     }
 
@@ -289,7 +282,7 @@ public sealed class SyntaxWriter
     /// <param name="defaultLeadingTrivia">The fallback leading trivia.</param>
     public void WriteRaw(RawSyntaxText rawText, string defaultLeadingTrivia)
     {
-        builder.Append(rawText.HasLeadingTrivia ? rawText.LeadingTrivia : defaultLeadingTrivia);
+        builder.Append(rawText.LeadingTrivia ?? defaultLeadingTrivia);
         builder.Append(rawText.Text);
     }
 
