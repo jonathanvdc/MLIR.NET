@@ -183,6 +183,46 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
     }
 
     [Fact]
+    public void GeneratesBuiltinTypeWrappersForHandwrittenBackedBuiltinTypes()
+    {
+        var builtinSource = GenerateRegistrationSource(
+            "builtin.td",
+            "BuiltinDialectRegistration.g.cs",
+            "include \"mlir/IR/BuiltinTypes.td\"");
+
+        AssertContainsAll(
+            builtinSource,
+            "public sealed class ComplexType : TypeReference",
+            "public sealed class Float16Type : FloatTypeReference",
+            "public sealed class FunctionType : TypeReference",
+            "public sealed class GraphType : TypeReference",
+            "public sealed class IndexType : IndexTypeReference",
+            "public sealed class IntegerType : IntegerTypeReference",
+            "public sealed class MemRefType : TypeReference",
+            "public sealed class NoneType : NoneTypeReference",
+            "public sealed class OpaqueType : TypeReference",
+            "public sealed class RankedTensorType : TypeReference",
+            "public sealed class TupleType : TypeReference",
+            "public sealed class UnrankedMemRefType : TypeReference",
+            "public sealed class UnrankedTensorType : TypeReference",
+            "public sealed class VectorType : TypeReference",
+            "dialect.AddType(ComplexType.TypeDefinition);",
+            "dialect.AddType(Float16Type.TypeDefinition);",
+            "dialect.AddType(FunctionType.TypeDefinition);",
+            "dialect.AddType(GraphType.TypeDefinition);",
+            "dialect.AddType(IndexType.TypeDefinition);",
+            "dialect.AddType(IntegerType.TypeDefinition);",
+            "dialect.AddType(MemRefType.TypeDefinition);",
+            "dialect.AddType(NoneType.TypeDefinition);",
+            "dialect.AddType(OpaqueType.TypeDefinition);",
+            "dialect.AddType(RankedTensorType.TypeDefinition);",
+            "dialect.AddType(TupleType.TypeDefinition);",
+            "dialect.AddType(UnrankedMemRefType.TypeDefinition);",
+            "dialect.AddType(UnrankedTensorType.TypeDefinition);",
+            "dialect.AddType(VectorType.TypeDefinition);");
+    }
+
+    [Fact]
     public void GeneratesListPropertyForVariadicResult()
     {
         // Use a non-shadowing name so the variadic list property is always emitted.
