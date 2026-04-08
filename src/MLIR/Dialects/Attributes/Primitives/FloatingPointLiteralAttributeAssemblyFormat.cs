@@ -14,10 +14,31 @@ using MLIR.Transforms;
 /// </summary>
 public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
+    private readonly FloatSemantics semantics;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FloatingPointLiteralAttributeAssemblyFormat"/> class.
+    /// </summary>
+    public FloatingPointLiteralAttributeAssemblyFormat()
+        : this(FloatSemantics.IEEEDouble)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FloatingPointLiteralAttributeAssemblyFormat"/> class.
+    /// </summary>
+    /// <param name="semantics">
+    /// The floating-point semantics to use when parsing and reconstructing integer literals as floats.
+    /// </param>
+    public FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics semantics)
+    {
+        this.semantics = semantics;
+    }
+
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context);
+        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context, semantics);
     }
 
     /// <inheritdoc/>
@@ -35,6 +56,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
                     ? [integerSyntax.SignToken.Value, integerSyntax.IntegerToken]
                     : [integerSyntax.IntegerToken]),
                 FloatingPointLiteralParser.Parse(
+                    semantics,
                     integerSyntax.SignToken.HasValue
                         ? integerSyntax.SignToken.Value.Text + integerSyntax.IntegerToken.Text
                         : integerSyntax.IntegerToken.Text));

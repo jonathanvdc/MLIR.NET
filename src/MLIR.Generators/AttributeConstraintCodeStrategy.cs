@@ -197,6 +197,7 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
     private readonly string attributeValueTypeName;
     private readonly string baseType;
     private readonly string? assemblyFormatType;
+    private readonly string? assemblyFormatConstructionExpression;
     private readonly string? primitiveBaseConstructor;
     private readonly string? valueConstructorParameter;
     private readonly string primitiveValueAccess;
@@ -206,6 +207,7 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
         string attributeValueTypeName,
         string baseType,
         string? assemblyFormatType,
+        string? assemblyFormatConstructionExpression,
         string? primitiveBaseConstructor,
         string? valueConstructorParameter,
         string primitiveValueAccess = ".Value",
@@ -214,6 +216,7 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
         this.attributeValueTypeName = attributeValueTypeName;
         this.baseType = baseType;
         this.assemblyFormatType = assemblyFormatType;
+        this.assemblyFormatConstructionExpression = assemblyFormatConstructionExpression;
         this.primitiveBaseConstructor = primitiveBaseConstructor;
         this.valueConstructorParameter = valueConstructorParameter;
         this.primitiveValueAccess = primitiveValueAccess;
@@ -228,7 +231,7 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
     public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
     public override string GetBaseType(string constraintRecordName) => baseType;
     public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
-    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => null;
+    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => assemblyFormatConstructionExpression;
     public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => primitiveBaseConstructor;
     public override string? GetValueConstructorParameter(string constraintRecordName) => valueConstructorParameter;
 }
@@ -570,6 +573,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         attributeValueTypeName: "bool",
         baseType: "BooleanAttributeValue",
         assemblyFormatType: "BooleanLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, ((BooleanAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "bool");
 
@@ -577,6 +581,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         attributeValueTypeName: "global::MLIR.Numerics.ApInt",
         baseType: "IntegerAttributeValue",
         assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "global::MLIR.Numerics.ApInt");
 
@@ -584,20 +589,23 @@ internal static class AttributeConstraintCodeStrategyFactory
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         baseType: "FloatingPointAttributeValue",
-        assemblyFormatType: "F32AttributeAssemblyFormat",
+        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)",
         primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F64Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         baseType: "FloatingPointAttributeValue",
-        assemblyFormatType: "F64AttributeAssemblyFormat",
+        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
         primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "global::MLIR.Numerics.ApFloat");
 
@@ -605,6 +613,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         attributeValueTypeName: "string",
         baseType: "StringAttributeValue",
         assemblyFormatType: "StringLiteralAttributeAssemblyFormat",
+        assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, ((StringAttributeValueSyntax)context.Syntax).Value",
         valueConstructorParameter: "string");
 
