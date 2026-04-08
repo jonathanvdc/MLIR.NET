@@ -3,6 +3,7 @@ namespace MLIR.Semantics.Attributes.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
 using MLIR.Semantics.Attributes.Primitives;
@@ -248,7 +249,8 @@ public static class StructuredAttributeSemanticDecoder
     private sealed class DecodedIntegerAttributeValue : IntegerAttributeValue
     {
         public DecodedIntegerAttributeValue(IntegerAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.Value)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location),
+                   ApInt.Parse(64, syntax.LiteralToken.Text, 10, true))
         {
         }
 
@@ -260,7 +262,8 @@ public static class StructuredAttributeSemanticDecoder
     private sealed class DecodedFloatingPointAttributeValue : FloatingPointAttributeValue
     {
         public DecodedFloatingPointAttributeValue(FloatingPointAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.LiteralText)
+            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location),
+                   ApFloat.Parse(FloatSemantics.IEEEDouble, syntax.LiteralText))
         {
         }
 

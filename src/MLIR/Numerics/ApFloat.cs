@@ -270,6 +270,26 @@ public readonly struct ApFloat : IEquatable<ApFloat>
             return Infinity(semantics, negative: true);
         }
 
+        // MLIR hex float literal: raw IEEE-754 bit pattern encoded as 0x<hex>.
+        // Prepend a "0" digit so that BigInteger.TryParse always treats the value as
+        // non-negative (without a leading sign, BigInteger's hex parser is sign-magnitude
+        // but a leading '8' through 'F' nybble would still give a positive result when
+        // the extra leading zero is present).
+        if (trimmed.Length >= 2
+            && trimmed[0] == '0'
+            && (trimmed[1] == 'x' || trimmed[1] == 'X'))
+        {
+            string hexDigits = "0" + trimmed.Substring(2);
+            if (!BigInteger.TryParse(hexDigits, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out BigInteger rawBits))
+            {
+                throw new FormatException($"The input string '{text}' was not recognized as a hexadecimal floating-point bit pattern.");
+            }
+
+            // Mask to the bit width so any excess high bits (from the leading "0" byte) are dropped.
+            rawBits &= RawMask(semantics);
+            return CreateFromRawBits(semantics, rawBits);
+        }
+
         if (!double.TryParse(trimmed, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed))
         {
             throw new FormatException($"The input string '{text}' was not recognized as a floating-point number.");
@@ -767,6 +787,39 @@ public readonly struct ApFloat : IEquatable<ApFloat>
                 return Sign ? "-NaN" : "NaN";
             default:
                 return DecodeToDouble().ToString("R", CultureInfo.InvariantCulture);
+        }
+    }
+
+    /// <summary>
+    /// Formats this value as an MLIR-compatible floating-point literal string that can be
+    /// parsed back by <see cref="Parse"/> and by the MLIR text parser.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Unlike <see cref="ToString"/>, this method guarantees the result is recognizable as a
+    /// floating-point literal (not an integer literal) by ensuring finite values always contain
+    /// a decimal point or exponent marker.
+    /// </para>
+    /// <para>
+    /// Special values are formatted as lower-case MLIR keywords:
+    /// <c>nan</c>, <c>-nan</c>, <c>inf</c>, <c>-inf</c>, <c>0.0</c>, <c>-0.0</c>.
+    /// </para>
+    /// </remarks>
+    public string ToLiteralText()
+    {
+        switch (Category)
+        {
+            case FloatCategory.Zero:
+                return Sign ? "-0.0" : "0.0";
+            case FloatCategory.Infinity:
+                return Sign ? "-inf" : "inf";
+            case FloatCategory.NaN:
+                return Sign ? "-nan" : "nan";
+            default:
+                var text = DecodeToDouble().ToString("R", CultureInfo.InvariantCulture);
+                // Ensure the output contains a decimal point or exponent so it is
+                // recognized as a floating-point literal rather than an integer literal.
+                return text.IndexOfAny(['.', 'e', 'E']) >= 0 ? text : text + ".0";
         }
     }
 

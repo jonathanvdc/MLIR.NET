@@ -24,11 +24,11 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public BigInteger? Value",
+            "public global::MLIR.Numerics.ApInt? Value",
             "get => Attributes.TryGet(\"value\",",
             "set => SetAttribute(\"value\", value.HasValue",
             "NamedAttributeCollection attributes,",
-            "BigInteger? value,",
+            "global::MLIR.Numerics.ApInt? value,",
             "attributes: context.Attributes,",
             "attributes,");
         AssertDoesNotContainAny(
@@ -78,15 +78,15 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public BigInteger Value",
+            "public global::MLIR.Numerics.ApInt Value",
             "I32AttrConstraintAttributeValue)Attributes[\"value\"].Value).Value;",
             "new NamedAttribute(\"value\", new",
-            "BigInteger value,",
+            "global::MLIR.Numerics.ApInt value,",
             "operation.RequiredAttribute(\"value\",");
         AssertDoesNotContainAny(
             registrationSource,
-            "public BigInteger? Value",
-            "BigInteger? value,",
+            "public global::MLIR.Numerics.ApInt? Value",
+            "global::MLIR.Numerics.ApInt? value,",
             "operation.OptionalAttribute(\"value\")");
     }
 
@@ -104,13 +104,13 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public BigInteger? OptAttr",
+            "public global::MLIR.Numerics.ApInt? OptAttr",
             "Attributes.TryGet(\"optAttr\",",
             "set => SetAttribute(\"optAttr\", value.HasValue",
             "operation.OptionalAttribute(\"optAttr\",");
         AssertDoesNotContainAny(
             registrationSource,
-            "public BigInteger OptAttr",
+            "public global::MLIR.Numerics.ApInt OptAttr",
             "operation.RequiredAttribute(\"optAttr\")");
     }
 
@@ -181,8 +181,8 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
             registrationSource,
             "operation.OptionalAttribute(\"stride\",",
             "operation.OptionalAttribute(\"padding\",",
-            "public BigInteger? Stride",
-            "public BigInteger? Padding");
+            "public global::MLIR.Numerics.ApInt? Stride",
+            "public global::MLIR.Numerics.ApInt? Padding");
         AssertDoesNotContainAny(
             registrationSource,
             "operation.RequiredAttribute(\"stride\")",

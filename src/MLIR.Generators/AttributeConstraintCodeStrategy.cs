@@ -561,19 +561,19 @@ internal static class AttributeConstraintCodeStrategyFactory
         valueConstructorParameter: "bool");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy IntegerLiteralStrategy = new(
-        attributeValueTypeName: "BigInteger",
+        attributeValueTypeName: "global::MLIR.Numerics.ApInt",
         baseType: "IntegerAttributeValue",
         assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::System.Numerics.BigInteger");
+        primitiveBaseConstructor: "context, global::MLIR.Numerics.ApInt.Parse(64, ((IntegerAttributeValueSyntax)context.Syntax).LiteralToken.Text, 10, true)",
+        valueConstructorParameter: "global::MLIR.Numerics.ApInt");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
-        attributeValueTypeName: "string",
+        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
-        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText",
-        valueConstructorParameter: "string",
-        primitiveValueAccess: ".LiteralText");
+        primitiveBaseConstructor: "context, global::MLIR.Numerics.ApFloat.Parse(global::MLIR.Numerics.FloatSemantics.IEEEDouble, ((FloatingPointAttributeValueSyntax)context.Syntax).LiteralText)",
+        valueConstructorParameter: "global::MLIR.Numerics.ApFloat",
+        primitiveValueAccess: ".Value");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
         attributeValueTypeName: "float",

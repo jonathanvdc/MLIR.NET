@@ -42,7 +42,8 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     {
         if (attribute is FloatingPointAttributeValue floatingPointAttribute)
         {
-            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(floatingPointAttribute.LiteralText), floatingPointAttribute.LiteralText);
+            var literalText = floatingPointAttribute.Value.ToLiteralText();
+            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(literalText), literalText);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive floating-point attributes require syntax to rebuild their assembly form.");

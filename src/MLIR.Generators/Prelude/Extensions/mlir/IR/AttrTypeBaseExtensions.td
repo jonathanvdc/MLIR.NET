@@ -24,34 +24,37 @@ extends StringRefParameter : MLIRNet_AttrOrTypeParameterExtension {
 }
 
 extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
-  // APInt has arbitrary precision; BigInteger is the lossless C# equivalent.
-  let csharpType = "global::System.Numerics.BigInteger";
+  // APInt has arbitrary precision; resolve to a 64-bit signless integer (MLIR's i64 default)
+  // at parse time, matching MLIR's integer-literal default type resolution.
+  let csharpType = "global::MLIR.Numerics.ApInt";
   // The parser returns an IntegerAttributeValueSyntax, so the property can be strongly typed.
   let csharpSyntaxType = "IntegerAttributeValueSyntax";
   // Parse a signed integer literal and return it as IntegerAttributeValueSyntax.
   let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
-  // The property is already IntegerAttributeValueSyntax; directly access its Value.
-  let csharpExtractor = "$_syntax.Value";
-  // Default to zero when no syntax is available.
-  let csharpDefault = "default(global::System.Numerics.BigInteger)";
-  // Build an IntegerAttributeValueSyntax from the typed BigInteger value.
-  let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToString(global::System.Globalization.CultureInfo.InvariantCulture)), $_self)";
+  // Extract as a 64-bit ApInt by parsing the literal token text with signed interpretation.
+  // This resolves the integer at parse time rather than deferring it to bind time.
+  let csharpExtractor = "global::MLIR.Numerics.ApInt.Parse(64, $_syntax.LiteralToken.Text, 10, true)";
+  // Default to zero at 64-bit width when no syntax is available.
+  let csharpDefault = "global::MLIR.Numerics.ApInt.Zero(64)";
+  // Build an IntegerAttributeValueSyntax from the ApInt's signed decimal representation.
+  let csharpPrinter = "new IntegerAttributeValueSyntax(new SyntaxToken($_self.ToStringSigned()), $_self.ToBigIntegerSigned())";
 }
 
 extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {
-  // APFloat maps to double as the closest standard C# floating-point type.
-  let csharpType = "double";
+  // ApFloat with IEEEDouble (f64) semantics — MLIR's default for float literals without
+  // an explicit type annotation.
+  let csharpType = "global::MLIR.Numerics.ApFloat";
   // The parser returns a FloatingPointAttributeValueSyntax, so the property can be strongly typed.
   let csharpSyntaxType = "FloatingPointAttributeValueSyntax";
   // Parse a decimal floating-point literal and return it as FloatingPointAttributeValueSyntax.
   let csharpParser = "$_parser.TryParseFloatingPointLiteralSyntax()";
-  // Parse the stored literal text; throw if the text is not a valid IEEE 754 value so the
-  // error surfaces immediately at bind time rather than silently producing a zero default.
-  let csharpExtractor = "double.TryParse($_syntax.LiteralText, global::System.Globalization.NumberStyles.Float, global::System.Globalization.CultureInfo.InvariantCulture, out var fpVal) ? fpVal : throw new global::System.InvalidOperationException(\"Could not parse floating-point literal '\" + $_syntax.LiteralText + \"'.\")";
-  // Default to zero when no syntax is available.
-  let csharpDefault = "default(double)";
-  // Build a FloatingPointAttributeValueSyntax from the typed double value.
-  let csharpPrinter = "new FloatingPointAttributeValueSyntax(new global::MLIR.Syntax.RawSyntaxText($_self.ToString(\"G\", global::System.Globalization.CultureInfo.InvariantCulture)), $_self.ToString(\"G\", global::System.Globalization.CultureInfo.InvariantCulture))";
+  // Extract as ApFloat with IEEEDouble semantics by parsing the literal text at parse time.
+  // This resolves the float at parse time rather than deferring it to bind time.
+  let csharpExtractor = "global::MLIR.Numerics.ApFloat.Parse(global::MLIR.Numerics.FloatSemantics.IEEEDouble, $_syntax.LiteralText)";
+  // Default to zero with IEEEDouble semantics when no syntax is available.
+  let csharpDefault = "global::MLIR.Numerics.ApFloat.Zero(global::MLIR.Numerics.FloatSemantics.IEEEDouble)";
+  // Build a FloatingPointAttributeValueSyntax from the ApFloat using MLIR-parseable literal text.
+  let csharpPrinter = "new FloatingPointAttributeValueSyntax(new global::MLIR.Syntax.RawSyntaxText($_self.ToLiteralText()), $_self.ToLiteralText())";
 }
 
 #endif // ATTR_TYPE_BASE_EXTENSIONS_TD
