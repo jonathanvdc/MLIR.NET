@@ -41,20 +41,18 @@ internal static class ProgramMain
         var benchmarkContext = new BenchmarkContext(repoRoot);
         var cases = BenchmarkCases.CreateAll(benchmarkContext);
         var results = new List<BenchmarkResult>(cases.Count);
+        var warmupDuration = TimeSpan.FromMilliseconds(options.WarmupDurationMilliseconds);
+        var iterationDuration = TimeSpan.FromMilliseconds(options.IterationDurationMilliseconds);
 
         foreach (var @case in cases)
         {
-            var warmupSamples = new List<double>(options.WarmupCount);
-            for (var i = 0; i < options.WarmupCount; i++)
-            {
-                warmupSamples.Add(RunIteration(@case.Action));
-            }
+            var warmupSamples = options.WarmupCount is not null
+                ? BenchmarkSampling.RunForCount(() => RunIteration(@case.Action), options.WarmupCount.Value)
+                : BenchmarkSampling.RunForDuration(() => RunIteration(@case.Action), warmupDuration);
 
-            var iterationSamples = new List<double>(options.IterationCount);
-            for (var i = 0; i < options.IterationCount; i++)
-            {
-                iterationSamples.Add(RunIteration(@case.Action));
-            }
+            var iterationSamples = options.IterationCount is not null
+                ? BenchmarkSampling.RunForCount(() => RunIteration(@case.Action), options.IterationCount.Value)
+                : BenchmarkSampling.RunForDuration(() => RunIteration(@case.Action), iterationDuration);
 
             results.Add(BenchmarkResult.FromSamples(@case.Name, @case.Description, warmupSamples, iterationSamples));
         }
@@ -65,6 +63,8 @@ internal static class ProgramMain
             DateTimeOffset.UtcNow,
             options.WarmupCount,
             options.IterationCount,
+            options.WarmupCount is null ? options.WarmupDurationMilliseconds : null,
+            options.IterationCount is null ? options.IterationDurationMilliseconds : null,
             results);
 
         WriteJson(options.OutputPath, report);
@@ -151,18 +151,25 @@ internal static class ProgramMain
     private static void PrintUsage()
     {
         Console.Error.WriteLine("Usage:");
-        Console.Error.WriteLine("  dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output <path> [--warmup N] [--iterations N]");
+        Console.Error.WriteLine("  dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output <path> [--warmup N] [--iterations N] [--warmup-duration-ms N] [--duration-ms N]");
         Console.Error.WriteLine("  dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- compare --baseline <path> --candidate <path> [--output <path>]");
     }
 }
 
-internal sealed record RunOptions(string OutputPath, int WarmupCount, int IterationCount)
+internal sealed record RunOptions(
+    string OutputPath,
+    int? WarmupCount,
+    int? IterationCount,
+    int WarmupDurationMilliseconds,
+    int IterationDurationMilliseconds)
 {
     public static RunOptions Parse(string[] args)
     {
         string? output = null;
-        var warmup = 3;
-        var iterations = 8;
+        int? warmup = null;
+        int? iterations = null;
+        var warmupDuration = 250;
+        var iterationDuration = 1000;
 
         for (var i = 0; i < args.Length; i++)
         {
@@ -172,10 +179,16 @@ internal sealed record RunOptions(string OutputPath, int WarmupCount, int Iterat
                     output = args[++i];
                     break;
                 case "--warmup":
-                    warmup = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    warmup = ParsePositiveInt(args, ++i, "--warmup");
                     break;
                 case "--iterations":
-                    iterations = int.Parse(args[++i], CultureInfo.InvariantCulture);
+                    iterations = ParsePositiveInt(args, ++i, "--iterations");
+                    break;
+                case "--warmup-duration-ms":
+                    warmupDuration = ParsePositiveInt(args, ++i, "--warmup-duration-ms");
+                    break;
+                case "--duration-ms":
+                    iterationDuration = ParsePositiveInt(args, ++i, "--duration-ms");
                     break;
                 default:
                     throw new InvalidOperationException($"Unknown run option '{args[i]}'.");
@@ -187,7 +200,23 @@ internal sealed record RunOptions(string OutputPath, int WarmupCount, int Iterat
             throw new InvalidOperationException("Missing required '--output' argument.");
         }
 
-        return new RunOptions(output, warmup, iterations);
+        return new RunOptions(output, warmup, iterations, warmupDuration, iterationDuration);
+    }
+
+    private static int ParsePositiveInt(string[] args, int index, string optionName)
+    {
+        if (index >= args.Length)
+        {
+            throw new InvalidOperationException($"Missing value for '{optionName}'.");
+        }
+
+        var value = int.Parse(args[index], CultureInfo.InvariantCulture);
+        if (value <= 0)
+        {
+            throw new InvalidOperationException($"'{optionName}' must be greater than zero.");
+        }
+
+        return value;
     }
 }
 
@@ -388,8 +417,10 @@ internal sealed record BenchmarkReport(
     string Commit,
     string MachineName,
     DateTimeOffset CreatedAtUtc,
-    int WarmupCount,
-    int IterationCount,
+    int? WarmupCount,
+    int? IterationCount,
+    int? WarmupDurationMilliseconds,
+    int? IterationDurationMilliseconds,
     IReadOnlyList<BenchmarkResult> Results);
 
 internal sealed record BenchmarkResult(
@@ -432,8 +463,15 @@ internal static class BenchmarkComparison
         var builder = new StringBuilder();
         builder.AppendLine("## TableGen Interpreter Benchmarks");
         builder.AppendLine();
-        builder.AppendLine($"Baseline commit: `{baseline.Commit}`");
-        builder.AppendLine($"Candidate commit: `{candidate.Commit}`");
+        if (string.Equals(baseline.Commit, candidate.Commit, StringComparison.Ordinal))
+        {
+            builder.AppendLine($"Commit: `{baseline.Commit}`");
+        }
+        else
+        {
+            builder.AppendLine($"Baseline commit: `{baseline.Commit}`");
+            builder.AppendLine($"Candidate commit: `{candidate.Commit}`");
+        }
         builder.AppendLine();
         builder.AppendLine("| Benchmark | Baseline (ms) | Candidate (ms) | Delta | Status |");
         builder.AppendLine("| --- | ---: | ---: | ---: | --- |");
@@ -468,6 +506,45 @@ internal static class BenchmarkComparison
         builder.AppendLine("- `Improvement` means candidate mean time is more than 5% faster than baseline.");
         builder.AppendLine("- `Flat` means the change stayed within a 5% noise band.");
         return builder.ToString();
+    }
+}
+
+internal static class BenchmarkSampling
+{
+    public static IReadOnlyList<double> RunForCount(Func<double> measureIteration, int count)
+    {
+        if (count <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count), "The sample count must be greater than zero.");
+        }
+
+        var samples = new List<double>(count);
+        for (var i = 0; i < count; i++)
+        {
+            samples.Add(measureIteration());
+        }
+
+        return samples;
+    }
+
+    public static IReadOnlyList<double> RunForDuration(Func<double> measureIteration, TimeSpan targetDuration)
+    {
+        if (targetDuration <= TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetDuration), "The target duration must be greater than zero.");
+        }
+
+        var samples = new List<double>();
+        var elapsed = TimeSpan.Zero;
+
+        while (elapsed < targetDuration || samples.Count == 0)
+        {
+            var sample = measureIteration();
+            samples.Add(sample);
+            elapsed += TimeSpan.FromMilliseconds(sample);
+        }
+
+        return samples;
     }
 }
 

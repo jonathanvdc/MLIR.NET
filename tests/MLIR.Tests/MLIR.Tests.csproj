@@ -13,5 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\MLIR\MLIR.csproj" />
+    <ProjectReference Include="..\..\tools\TableGen.Benchmarks\TableGen.Benchmarks.csproj" />
   </ItemGroup>
 </Project>

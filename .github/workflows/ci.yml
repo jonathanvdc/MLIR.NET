@@ -35,7 +35,7 @@ jobs:
         run: dotnet test MLIR.slnx --configuration Release --no-build
 
       - name: Run head benchmarks
-        run: dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release --no-build -- run --output artifacts/benchmarks/head.json --warmup 3 --iterations 8
+        run: dotnet run --project tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release --no-build -- run --output artifacts/benchmarks/head.json --warmup-duration-ms 250 --duration-ms 1000
 
       - name: Benchmark summary
         if: github.event_name != 'pull_request'
@@ -50,7 +50,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           git worktree add /tmp/mlir-base "${{ github.event.pull_request.base.sha }}"
-          dotnet run --project /tmp/mlir-base/tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output /tmp/mlir-base/artifacts/benchmarks/base.json --warmup 3 --iterations 8
+          dotnet run --project /tmp/mlir-base/tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj -c Release -- run --output /tmp/mlir-base/artifacts/benchmarks/base.json --warmup-duration-ms 250 --duration-ms 1000
 
       - name: Compare benchmark results
         if: github.event_name == 'pull_request'
