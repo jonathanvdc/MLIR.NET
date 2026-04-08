@@ -8,8 +8,6 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class UnitAttributeValueSyntax(SyntaxToken keywordToken) : AttributeValueSyntax
 {
-    private readonly RawSyntaxText rawText = new RawSyntaxText([keywordToken]);
-
     /// <summary>
     /// Gets the keyword token.
     /// </summary>
