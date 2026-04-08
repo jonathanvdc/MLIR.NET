@@ -738,6 +738,14 @@ internal sealed class OdsRecordIndex
     /// are either specified as plain C++ type strings (e.g., <c>"unsigned":$width</c>) or as
     /// instantiations of <c>AttrOrTypeParameter</c> subclasses (e.g.,
     /// <c>StringRefParameter&lt;"desc"&gt;:$name</c>). Both forms are supported.
+    ///
+    /// When a <c>csharpParameters</c> dag is also present (contributed directly or via a
+    /// record-level <c>extends MLIRNet_AttrOrTypeDefExtension</c> overlay), its entries
+    /// override the C# type information inferred from the upstream <c>parameters</c> dag.
+    /// String literals in <c>csharpParameters</c> are used directly as C# type names;
+    /// class instances are resolved through their <c>MLIRNet_AttrOrTypeParameterExtension</c>
+    /// fields.  The upstream <c>parameters</c> field remains the source of truth for C++
+    /// semantics (cppType, storage types, default values, etc.).
     /// </remarks>
     public IReadOnlyList<Model.AttrOrTypeParameterModel> GetAttrOrTypeParameters(Record record)
     {
@@ -761,7 +769,81 @@ internal sealed class OdsRecordIndex
             }
         }
 
+        // Check for a csharpParameters DAG that overrides C# type info per parameter.
+        // This field may be present directly on the record or contributed by a
+        // record-level `extends MLIRNet_AttrOrTypeDefExtension` overlay; in both cases
+        // it is visible through the extension-aware Fields view.
+        if (parameters.Count > 0
+            && record.Fields.TryGetValue("csharpParameters", out var csharpParamsField)
+            && csharpParamsField is DagValue csharpParamsDag)
+        {
+            // Parse each csharpParameters entry into a parameter model using the same
+            // TryBuildAttrOrTypeParameterModel logic, then use the resulting model's
+            // C# fields as overrides.  A placeholder name is used so the lookup works.
+            var overrides = new Dictionary<string, Model.AttrOrTypeParameterModel>(
+                csharpParamsDag.Arguments.Count, StringComparer.Ordinal);
+            foreach (var argument in csharpParamsDag.Arguments)
+            {
+                if (argument.Name == null)
+                {
+                    continue;
+                }
+
+                var csharpModel = TryBuildAttrOrTypeParameterModel(argument.Name, argument.Value);
+                if (csharpModel != null)
+                {
+                    overrides[argument.Name] = csharpModel;
+                }
+            }
+
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                if (overrides.TryGetValue(parameters[i].Name, out var csharpModel))
+                {
+                    parameters[i] = ApplyCsharpModelOverride(parameters[i], csharpModel);
+                }
+            }
+        }
+
         return parameters;
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="Model.AttrOrTypeParameterModel"/> identical to
+    /// <paramref name="parameter"/> except that the C# metadata fields are replaced by
+    /// those from <paramref name="csharpOverride"/>.
+    /// </summary>
+    /// <remarks>
+    /// When <paramref name="csharpOverride"/> was built from a string literal entry
+    /// (i.e., <c>ConstraintRecordName</c> is <c>null</c>), the string was interpreted as
+    /// a C# type name and stored in <c>CppType</c> by the shared parameter-building logic;
+    /// it is therefore used directly as the C# type.  For record/class entries, the
+    /// model's <c>CsharpType</c> and companion fields are used as-is.
+    /// </remarks>
+    private static Model.AttrOrTypeParameterModel ApplyCsharpModelOverride(
+        Model.AttrOrTypeParameterModel parameter,
+        Model.AttrOrTypeParameterModel csharpOverride)
+    {
+        // A plain string entry has no ConstraintRecordName: TryBuildAttrOrTypeParameterModel
+        // stored the string literal in CppType.  Treat that as the C# type name.
+        var csharpType = csharpOverride.ConstraintRecordName == null
+            ? csharpOverride.CppType
+            : csharpOverride.CsharpType;
+
+        return new Model.AttrOrTypeParameterModel(
+            parameter.Name,
+            parameter.ConstraintRecordName,
+            parameter.CppType,
+            parameter.CppStorageType,
+            parameter.CppAccessorType,
+            parameter.Summary,
+            parameter.DefaultValue,
+            csharpType,
+            csharpOverride.CsharpSyntaxType,
+            csharpOverride.CsharpParser,
+            csharpOverride.CsharpExtractor,
+            csharpOverride.CsharpDefault,
+            csharpOverride.CsharpPrinter);
     }
 
     /// <summary>

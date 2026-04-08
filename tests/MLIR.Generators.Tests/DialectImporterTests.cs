@@ -659,4 +659,166 @@ public sealed class DialectImporterTests
         Assert.Equal("Extract($_syntax)", param.CsharpExtractor);
         Assert.Equal("string.Empty", param.CsharpDefault);
     }
+
+    [Fact]
+    public void CsharpParametersStringLiteralOverridesCsharpTypeFromParametersDag()
+    {
+        // When csharpParameters is present and an entry is a string literal,
+        // that string is used directly as the C# type for the matching parameter.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_ValueAttr : MyP_Attr<\"value\"> {\n" +
+            "  let parameters = (ins \"uint64_t\":$value);\n" +
+            "};\n" +
+            "extends MyP_ValueAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "  let csharpParameters = (ins \"System.Numerics.BigInteger\":$value);\n" +
+            "}\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_ValueAttr");
+
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("value", param.Name);
+        // C++ type is unchanged — parameters is still the source of truth for C++ semantics.
+        Assert.Equal("uint64_t", param.CppType);
+        // The csharpParameters string literal becomes the C# type.
+        Assert.Equal("System.Numerics.BigInteger", param.CsharpType);
+        // No parser/extractor/printer are inferred from a plain string literal.
+        Assert.Null(param.CsharpParser);
+        Assert.Null(param.CsharpExtractor);
+        Assert.Null(param.CsharpPrinter);
+    }
+
+    [Fact]
+    public void CsharpParametersRecordEntryResolvesCsharpExtensionFields()
+    {
+        // When csharpParameters contains a parameter class instance,
+        // the C# extension fields are resolved from that class.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_LabelAttr : MyP_Attr<\"label\"> {\n" +
+            "  let parameters = (ins \"std::string\":$label);\n" +
+            "};\n" +
+            "extends MyP_LabelAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "  let csharpParameters = (ins StringRefParameter<\"the label\">:$label);\n" +
+            "}\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_LabelAttr");
+
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("label", param.Name);
+        // C++ type is preserved from the parameters dag.
+        Assert.Equal("std::string", param.CppType);
+        // C# type and extension fields come from StringRefParameter via csharpParameters.
+        Assert.Equal("string", param.CsharpType);
+        Assert.Equal("StringAttributeValueSyntax", param.CsharpSyntaxType);
+        Assert.NotNull(param.CsharpParser);
+        Assert.NotNull(param.CsharpExtractor);
+        Assert.NotNull(param.CsharpPrinter);
+    }
+
+    [Fact]
+    public void CsharpParametersMixedEntriesOverrideSomeParameters()
+    {
+        // csharpParameters can contain a mix of string and record entries,
+        // each overriding only the named parameter.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_PairAttr : MyP_Attr<\"pair\"> {\n" +
+            "  let parameters = (ins StringRefParameter<\"the name\">:$name, \"uint64_t\":$value);\n" +
+            "};\n" +
+            "extends MyP_PairAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "  let csharpParameters = (ins\n" +
+            "    StringRefParameter<\"the name\">:$name,\n" +
+            "    \"System.Numerics.BigInteger\":$value\n" +
+            "  );\n" +
+            "}\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_PairAttr");
+
+        Assert.Equal(2, attr.Parameters.Count);
+
+        var nameParam = attr.Parameters[0];
+        Assert.Equal("name", nameParam.Name);
+        Assert.Equal("string", nameParam.CsharpType);
+
+        var valueParam = attr.Parameters[1];
+        Assert.Equal("value", valueParam.Name);
+        Assert.Equal("uint64_t", valueParam.CppType);
+        Assert.Equal("System.Numerics.BigInteger", valueParam.CsharpType);
+        // A plain string entry carries no parser/extractor/printer.
+        Assert.Null(valueParam.CsharpParser);
+    }
+
+    [Fact]
+    public void CsharpParametersDoesNotAffectParametersWithoutMatchingEntry()
+    {
+        // Parameters not mentioned in csharpParameters retain their original C# metadata.
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_TripleAttr : MyP_Attr<\"triple\"> {\n" +
+            "  let parameters = (ins\n" +
+            "    StringRefParameter<\"first\">:$first,\n" +
+            "    \"uint64_t\":$second,\n" +
+            "    APIntParameter<\"third\">:$third\n" +
+            "  );\n" +
+            "};\n" +
+            "extends MyP_TripleAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "  let csharpParameters = (ins \"int\":$second);\n" +
+            "}\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_TripleAttr");
+
+        Assert.Equal(3, attr.Parameters.Count);
+
+        // first: not in csharpParameters — retains C# metadata from StringRefParameter extension.
+        var first = attr.Parameters[0];
+        Assert.Equal("first", first.Name);
+        Assert.Equal("string", first.CsharpType);
+
+        // second: overridden by csharpParameters string literal.
+        var second = attr.Parameters[1];
+        Assert.Equal("second", second.Name);
+        Assert.Equal("int", second.CsharpType);
+
+        // third: not in csharpParameters — retains C# metadata from APIntParameter extension.
+        var third = attr.Parameters[2];
+        Assert.Equal("third", third.Name);
+        Assert.Equal("global::MLIR.Numerics.ApInt", third.CsharpType);
+    }
 }
