@@ -1,6 +1,7 @@
 namespace MLIR.ODS.Model;
 
 using System.Collections.Generic;
+using MLIR.ODS.Model.AssemblyFormat;
 
 /// <summary>
 /// Represents a type description extracted from ODS.
@@ -9,7 +10,10 @@ public sealed class TypeModel(
     string name,
     string recordName,
     string? className = null,
-    IReadOnlyList<AttrOrTypeParameterModel>? parameters = null)
+    string? summary = null,
+    string? description = null,
+    IReadOnlyList<AttrOrTypeParameterModel>? parameters = null,
+    AssemblyFormatModel? assemblyFormat = null)
 {
     /// <summary>
     /// Gets the canonical type name.
@@ -27,10 +31,25 @@ public sealed class TypeModel(
     public string? ClassName { get; } = className;
 
     /// <summary>
+    /// Gets the type summary, if known.
+    /// </summary>
+    public string? Summary { get; } = summary;
+
+    /// <summary>
+    /// Gets the type description, if known.
+    /// </summary>
+    public string? Description { get; } = description;
+
+    /// <summary>
     /// Gets the ordered list of parameters declared in the <c>parameters</c> dag of this type definition.
     /// Empty when the type has no parameters.
     /// </summary>
     public IReadOnlyList<AttrOrTypeParameterModel> Parameters { get; } = parameters ?? EmptyParameters;
+
+    /// <summary>
+    /// Gets the declarative assembly format for this type, if one was specified.
+    /// </summary>
+    public AssemblyFormatModel? AssemblyFormat { get; } = assemblyFormat;
 
     private static readonly IReadOnlyList<AttrOrTypeParameterModel> EmptyParameters = new AttrOrTypeParameterModel[0];
 }

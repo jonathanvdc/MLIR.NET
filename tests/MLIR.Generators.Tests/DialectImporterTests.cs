@@ -467,6 +467,39 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
+    public void ImportsTypeDefSummaryDescriptionAndAssemblyFormat()
+    {
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Type<string name> : TypeDef<MyP_Dialect, name> {\n" +
+            "  let typeName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_OpaqueType : MyP_Type<\"opaque\"> {\n" +
+            "  let summary = \"an opaque type\";\n" +
+            "  let description = [{A type with a custom printed form.}];\n" +
+            "  let parameters = (ins \"unsigned\":$width);\n" +
+            "  let assemblyFormat = \"`<` $width `>`\";\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var type = Assert.Single(dialect.Types, static t => t.RecordName == "MyP_OpaqueType");
+
+        Assert.Equal("an opaque type", type.Summary);
+        Assert.Contains("custom printed form", type.Description);
+        Assert.NotNull(type.AssemblyFormat);
+        var elements = type.AssemblyFormat!.Elements;
+        Assert.Equal(3, elements.Count);
+        Assert.IsType<LiteralChunk>(elements[0]);
+        Assert.IsType<VariableChunk>(elements[1]);
+        Assert.IsType<LiteralChunk>(elements[2]);
+    }
+
+    [Fact]
     public void ImportsAttrDefParameterWithOptionalDefaultValue()
     {
         // StringRefParameter with an explicit default value makes the parameter optional.
