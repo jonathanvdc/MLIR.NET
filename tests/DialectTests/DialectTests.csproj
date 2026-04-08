@@ -22,9 +22,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="Dialects\arith.td" />
-    <AdditionalFiles Include="Dialects\miniemitc.td" />
-    <AdditionalFiles Include="Dialects\minienum.td" />
-    <AdditionalFiles Include="Dialects\minitest.td" />
+    <AdditionalFiles Include="Dialects\*.td" />
   </ItemGroup>
 </Project>

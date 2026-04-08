@@ -16,6 +16,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <AdditionalFiles Include="Dialects\*.td" />
+    <AdditionalFiles Include="Dialects\**\*.td" />
   </ItemGroup>
 </Project>
