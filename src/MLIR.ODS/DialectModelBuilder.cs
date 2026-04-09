@@ -8,6 +8,7 @@ internal sealed class DialectModelBuilder
 {
     private readonly Dictionary<string, MutableDialectModel> dialectsByName = new(System.StringComparer.Ordinal);
     private readonly List<AttributeConstraintModel> sharedAttributeConstraints = new();
+    private readonly List<AttrModel> sharedAttrs = new();
     private readonly List<TypeConstraintModel> sharedTypeConstraints = new();
 
     public MutableDialectModel GetOrCreateDialect(string name)
@@ -24,6 +25,11 @@ internal sealed class DialectModelBuilder
     public void AddSharedAttributeConstraint(AttributeConstraintModel constraint)
     {
         sharedAttributeConstraints.Add(constraint);
+    }
+
+    public void AddSharedAttr(AttrModel attr)
+    {
+        sharedAttrs.Add(attr);
     }
 
     public void AddSharedTypeConstraint(TypeConstraintModel constraint)
@@ -69,12 +75,20 @@ internal sealed class DialectModelBuilder
 
         if (dialects.Length == 0)
         {
-            return dialects;
+            if (preludeConstraints.Count == 0 && sharedAttrs.Count == 0 && sharedTypeConstraints.Count == 0)
+            {
+                return dialects;
+            }
+
+            return new[]
+            {
+                DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedAttrs.ToArray(), sharedTypeConstraints.ToArray()),
+            };
         }
 
         var result = new List<DialectModel>(dialects.Length + 1)
         {
-            DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedTypeConstraints.ToArray()),
+            DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedAttrs.ToArray(), sharedTypeConstraints.ToArray()),
         };
         result.AddRange(dialects);
         return result;
@@ -94,13 +108,14 @@ internal sealed class DialectModelBuilder
         public bool HasConstantMaterializer { get; set; }
         public List<OperationModel> Operations { get; } = new();
         public List<AttributeModel> Attributes { get; } = new();
+        public List<AttrModel> Attrs { get; } = new();
         public List<AttributeConstraintModel> AttributeConstraints { get; } = new();
         public List<TypeModel> Types { get; } = new();
         public List<TypeConstraintModel> TypeConstraints { get; } = new();
 
         public DialectModel ToImmutable()
         {
-            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, attributeConstraints: AttributeConstraints, typeConstraints: TypeConstraints, types: Types);
+            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, Attrs, attributeConstraints: AttributeConstraints, typeConstraints: TypeConstraints, types: Types);
         }
     }
 }

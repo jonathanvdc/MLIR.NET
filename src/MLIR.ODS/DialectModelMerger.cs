@@ -16,6 +16,7 @@ public static class DialectModelMerger
     {
         var operations = new List<OperationModel>();
         var attributes = new List<AttributeModel>();
+        var attrs = new List<AttrModel>();
         var attributeConstraints = new List<AttributeConstraintModel>();
         var typeConstraints = new List<TypeConstraintModel>();
         var types = new List<TypeModel>();
@@ -34,6 +35,7 @@ public static class DialectModelMerger
             isPrelude |= dialect.IsPrelude;
             operations.AddRange(dialect.Operations);
             attributes.AddRange(dialect.Attributes);
+            attrs.AddRange(dialect.Attrs);
             attributeConstraints.AddRange(dialect.AttributeConstraints);
             typeConstraints.AddRange(dialect.TypeConstraints);
             types.AddRange(dialect.Types);
@@ -50,6 +52,7 @@ public static class DialectModelMerger
                 .Select(MergeOperationGroup)
                 .ToArray(),
             attributes,
+            attrs,
             attributeConstraints
                 .GroupBy(static constraint => constraint.RecordName, System.StringComparer.Ordinal)
                 .Select(static constraints => constraints.First())

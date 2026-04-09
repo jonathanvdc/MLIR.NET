@@ -462,6 +462,49 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
+    public void ImportsAttrModelsSeparatelyFromAttrDefModels()
+    {
+        const string source =
+            "def MyP_Dialect : Dialect {\n" +
+            "  let name = \"myp\";\n" +
+            "  let cppNamespace = \"::mlir::myp\";\n" +
+            "};\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
+            "  let attrName = \"myp.\" # name;\n" +
+            "};\n" +
+            "def MyP_FooAttr : MyP_Attr<\"foo\">;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var prelude = Assert.Single(dialects, static d => d.Name == "prelude");
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+
+        var boolAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "BoolAttr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.BooleanAttributeValue", boolAttr.CsharpStorageType);
+        Assert.Equal("bool", boolAttr.CsharpReturnType);
+        Assert.Equal("$_self.Value", boolAttr.CsharpConvertFromStorage);
+
+        var strAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "StrAttr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue", strAttr.CsharpStorageType);
+        Assert.Equal("string", strAttr.CsharpReturnType);
+        Assert.Equal("$_self.Value", strAttr.CsharpConvertFromStorage);
+
+        var typeAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "TypeAttr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.TypeAttributeValue", typeAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Syntax.TypeSyntax", typeAttr.CsharpReturnType);
+        Assert.Equal("$_self.TypeSyntax", typeAttr.CsharpConvertFromStorage);
+
+        var unitAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "UnitAttr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.UnitAttributeValue", unitAttr.CsharpStorageType);
+        Assert.Equal("bool", unitAttr.CsharpReturnType);
+        Assert.True(unitAttr.IsOptional);
+        Assert.Equal("false", unitAttr.CsharpDefaultValue);
+
+        Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MyP_FooAttr");
+        Assert.DoesNotContain(dialect.Attrs, static attr => attr.RecordName == "MyP_FooAttr");
+    }
+
+    [Fact]
     public void ImportsTypeDefParametersFromMixedParameterClasses()
     {
         // TypeDef with mixed parameter classes: plain string and named class.

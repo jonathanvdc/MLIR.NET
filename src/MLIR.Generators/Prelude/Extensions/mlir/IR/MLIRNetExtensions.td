@@ -121,6 +121,26 @@ class MLIRNet_AttrOrTypeDefExtension {
   string csharpAssemblyFormat = ?;
 }
 
+// Extension schema for upstream Attr records.
+//
+// Applying this class to an Attr or DialectAttr record via a record-level `extends`
+// lets MLIR.NET preserve the C#-oriented storage and accessor semantics separately
+// from the upstream TableGen representation.
+class MLIRNet_AttrExtension {
+  // C# storage type used by the generated model.
+  string csharpStorageType = ?;
+  // C# return/accessor type exposed by the generated model.
+  string csharpReturnType = ?;
+  // C# expression that converts storage into the exposed result type.
+  string csharpConvertFromStorage = ?;
+  // C# expression that builds a storage value from a constant input.
+  string csharpConstBuilderCall = ?;
+  // C# expression for the default result value, if any.
+  string csharpDefaultValue = ?;
+  // C# value-type description associated with the attr, if any.
+  string csharpValueType = ?;
+}
+
 class MLIRNet_AttrOrTypeParameterExtension {
   // The C# type used for the generated typed property.
   string csharpType = ?;

@@ -18,6 +18,7 @@ public sealed class DialectModel
         bool hasConstantMaterializer = false,
         IReadOnlyList<OperationModel>? operations = null,
         IReadOnlyList<AttributeModel>? attributes = null,
+        IReadOnlyList<AttrModel>? attrs = null,
         IReadOnlyList<AttributeConstraintModel>? attributeConstraints = null,
         IReadOnlyList<TypeConstraintModel>? typeConstraints = null,
         IReadOnlyList<TypeModel>? types = null,
@@ -30,6 +31,7 @@ public sealed class DialectModel
         HasConstantMaterializer = hasConstantMaterializer;
         Operations = operations ?? EmptyOperations;
         Attributes = attributes ?? EmptyAttributes;
+        Attrs = attrs ?? EmptyAttrs;
         AttributeConstraints = attributeConstraints ?? EmptyAttributeConstraints;
         TypeConstraints = typeConstraints ?? EmptyTypeConstraints;
         Types = types ?? EmptyTypes;
@@ -41,12 +43,14 @@ public sealed class DialectModel
     /// </summary>
     public static DialectModel CreatePrelude(
         IReadOnlyList<AttributeConstraintModel> attributeConstraints,
+        IReadOnlyList<AttrModel> attrs,
         IReadOnlyList<TypeConstraintModel> typeConstraints)
     {
         return new DialectModel(
             "prelude",
             "::mlir::prelude",
             attributeConstraints: attributeConstraints,
+            attrs: attrs,
             typeConstraints: typeConstraints,
             isPrelude: true);
     }
@@ -82,9 +86,15 @@ public sealed class DialectModel
     public IReadOnlyList<OperationModel> Operations { get; }
 
     /// <summary>
-    /// Gets the attribute descriptions defined by the dialect.
+    /// Gets the concrete attribute definitions (<c>AttrDef</c>-style records) defined by the dialect.
     /// </summary>
     public IReadOnlyList<AttributeModel> Attributes { get; }
+
+    /// <summary>
+    /// Gets the upstream <c>Attr</c>-style descriptions available to generator code.
+    /// These records are model data, not emitted C# attribute definitions.
+    /// </summary>
+    public IReadOnlyList<AttrModel> Attrs { get; }
 
     /// <summary>
     /// Gets the attribute constraint descriptions available to the dialect's generated code.
@@ -108,6 +118,7 @@ public sealed class DialectModel
 
     private static readonly IReadOnlyList<OperationModel> EmptyOperations = new OperationModel[0];
     private static readonly IReadOnlyList<AttributeModel> EmptyAttributes = new AttributeModel[0];
+    private static readonly IReadOnlyList<AttrModel> EmptyAttrs = new AttrModel[0];
     private static readonly IReadOnlyList<AttributeConstraintModel> EmptyAttributeConstraints = new AttributeConstraintModel[0];
     private static readonly IReadOnlyList<TypeConstraintModel> EmptyTypeConstraints = new TypeConstraintModel[0];
     private static readonly IReadOnlyList<TypeModel> EmptyTypes = new TypeModel[0];
