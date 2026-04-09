@@ -298,6 +298,8 @@ public sealed class DialectImporterTests
                 Assert.Equal("$_syntax.Signedness", signedness.CsharpExtractor);
                 Assert.Equal("global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signless", signedness.CsharpDefault);
             });
+
+        Assert.Equal("new global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat()", integer.CsharpAssemblyFormat);
     }
 
     [Fact]

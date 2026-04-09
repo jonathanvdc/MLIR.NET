@@ -198,6 +198,7 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             "public sealed partial class GraphType : TypeReference",
             "public sealed partial class IndexType : IndexTypeReference",
             "public partial class IntegerType : TypeReference",
+            "global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat",
             "public sealed partial class MemRefType : TypeReference",
             "public sealed partial class NoneType : NoneTypeReference",
             "public sealed partial class OpaqueType : TypeReference",

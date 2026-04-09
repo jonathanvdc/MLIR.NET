@@ -99,6 +99,12 @@ class MLIRNet_OpExtension {
 //   csharpName       – C# expression that computes the type's canonical name.
 //                      Defaults to `TypeDefinition.Name` when absent.
 //
+//   csharpAssemblyFormat – C# expression that instantiates an `IAttributeAssemblyFormat`
+//                      or `ITypeAssemblyFormat` implementation for custom binding and
+//                      printing. When absent, declarative `assemblyFormat` handles the
+//                      formatter path and synthetic types fall back to their attached
+//                      syntax, if any.
+//
 // Example:
 //   extends MyAttr : MLIRNet_AttrOrTypeDefExtension {
 //     let csharpParameters = (ins
@@ -111,6 +117,8 @@ class MLIRNet_AttrOrTypeDefExtension {
   dag csharpParameters = ?;
   // C# expression for the type's canonical name.
   string csharpName = ?;
+  // C# expression that instantiates the custom assembly-format helper.
+  string csharpAssemblyFormat = ?;
 }
 
 class MLIRNet_AttrOrTypeParameterExtension {

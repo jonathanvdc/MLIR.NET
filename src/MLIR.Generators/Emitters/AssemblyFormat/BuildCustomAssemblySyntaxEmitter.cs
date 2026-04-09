@@ -513,7 +513,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 "(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>)functionType.InputTypes.Items.ToList() : global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
         }
 
-        return "op.TypeSignatureReference?.Syntax ?? new RawTypeSyntax(new RawSyntaxText(\"?\"))";
+        return "context.BuildTypeSyntax(op.TypeSignatureReference ?? throw new global::System.InvalidOperationException(\"Operation requires a type signature to rebuild custom assembly syntax.\"))";
     }
 
     private static string GetFieldDefaultExpression(string csType)

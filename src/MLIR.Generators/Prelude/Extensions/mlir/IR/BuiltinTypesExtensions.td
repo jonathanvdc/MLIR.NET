@@ -25,6 +25,7 @@ extends Builtin_Integer : MLIRNet_AttrOrTypeDefExtension {
     Builtin_IntegerSignednessParameter:$signedness
   );
   let csharpName = "Signedness switch { global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signed => \"si\" + Width, global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Unsigned => \"ui\" + Width, _ => \"i\" + Width }";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat()";
 }
 
 #endif // BUILTIN_TYPES_EXTENSIONS_TD

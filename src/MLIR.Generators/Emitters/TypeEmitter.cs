@@ -1,6 +1,5 @@
 namespace MLIR.Generators.Emitters;
 
-using System.Collections.Generic;
 using System.Text;
 using MLIR.Generators.Emitters.AssemblyFormat;
 using MLIR.Generators.Emitters.Common;
@@ -152,13 +151,18 @@ internal static class TypeEmitter
         var parameters = type.Parameters;
         var syntaxClassName = type.AssemblyFormat != null ? className + "Syntax" : null;
         var formatClassName = type.AssemblyFormat != null ? className + "AssemblyFormat" : null;
+        var assemblyFormatExpression = !string.IsNullOrEmpty(type.CsharpAssemblyFormat)
+            ? type.CsharpAssemblyFormat
+            : formatClassName != null
+                ? "new " + formatClassName + "()"
+                : null;
 
         builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-        if (formatClassName != null)
+        if (assemblyFormatExpression != null)
         {
-            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", new " + formatClassName + "(), factory: static context => new " + className + "(context));");
+            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", " + assemblyFormatExpression + ", factory: static context => new " + className + "(context));");
         }
         else
         {

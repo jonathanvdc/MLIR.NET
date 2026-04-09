@@ -5,7 +5,6 @@ using MLIR;
 using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
-using MLIR.Syntax.Types.Primitives;
 
 /// <summary>
 /// Provides ergonomic factory helpers for programmatic semantic type construction.
@@ -144,4 +143,5 @@ public static class TypeFactory
 
         return results;
     }
+
 }
