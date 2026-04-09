@@ -640,17 +640,18 @@ public sealed partial class SemanticTests
     {
         public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
         {
-            if (!context.TryMatch(TokenKind.Identifier, out var nameToken) || !nameToken.Text.StartsWith("i"))
+            if (!context.TryMatch(TokenKind.Identifier, out var nameToken) ||
+                !BuiltinIntegerTypeName.TryParse(nameToken.Text, out var signedness, out var width))
             {
                 return ParseResult<TypeSyntax>.NoMatch();
             }
 
-            if (!int.TryParse(nameToken.Text[1..], out _))
+            return ParseResult<TypeSyntax>.Success(new global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax(nameToken, signedness switch
             {
-                return ParseResult<TypeSyntax>.NoMatch();
-            }
-
-            return ParseResult<TypeSyntax>.Success(new BuiltinIntegerTypeSyntax(nameToken));
+                BuiltinIntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
+                BuiltinIntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
+                _ => IntegerTypeSignedness.Signless,
+            }, width));
         }
 
         public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
@@ -662,7 +663,15 @@ public sealed partial class SemanticTests
         {
             if (type is IntegerType integerType)
             {
-                return new BuiltinIntegerTypeSyntax(TokenFactory.Identifier("i" + integerType.Width));
+                return new global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax(
+                    TokenFactory.Identifier(BuiltinIntegerTypeName.Format(integerType.Width, integerType.Signedness switch
+                    {
+                        IntegerTypeSignedness.Signed => BuiltinIntegerTypeName.Kind.Signed,
+                        IntegerTypeSignedness.Unsigned => BuiltinIntegerTypeName.Kind.Unsigned,
+                        _ => BuiltinIntegerTypeName.Kind.Signless,
+                    })),
+                    integerType.Signedness,
+                    integerType.Width);
             }
 
             return type.Syntax ?? throw new InvalidOperationException("Integer test types require syntax to rebuild their assembly form.");

@@ -3,6 +3,7 @@ namespace MLIR.Generators.Emitters;
 using System.Text;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
+using MLIR.Text;
 
 internal static class TypeConstraintEmitter
 {
@@ -280,24 +281,24 @@ internal static class TypeConstraintEmitter
 
     private static string GetIntegerSignednessLiteral(string canonicalTypeName)
     {
-        if (canonicalTypeName.StartsWith("si", System.StringComparison.Ordinal))
+        if (!BuiltinIntegerTypeName.TryParse(canonicalTypeName, out var signedness, out _))
         {
-            return "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signed";
+            return "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signless";
         }
 
-        if (canonicalTypeName.StartsWith("ui", System.StringComparison.Ordinal))
+        return signedness switch
         {
-            return "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Unsigned";
-        }
-
-        return "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signless";
+            BuiltinIntegerTypeName.Kind.Signed => "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signed",
+            BuiltinIntegerTypeName.Kind.Unsigned => "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Unsigned",
+            _ => "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signless",
+        };
     }
 
     private static string GetIntegerWidthLiteral(string canonicalTypeName)
     {
-        return canonicalTypeName.StartsWith("si", System.StringComparison.Ordinal) || canonicalTypeName.StartsWith("ui", System.StringComparison.Ordinal)
-            ? canonicalTypeName.Substring(2)
-            : canonicalTypeName.Substring(1);
+        return BuiltinIntegerTypeName.TryParse(canonicalTypeName, out _, out var width)
+            ? width.ToString(global::System.Globalization.CultureInfo.InvariantCulture)
+            : "0";
     }
 
     private static string GetShapeDecodeMembers()

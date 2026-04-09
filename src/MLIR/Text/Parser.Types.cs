@@ -135,38 +135,6 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Attempts to parse an integer type name of the form <c>i&lt;n&gt;</c>, <c>si&lt;n&gt;</c>, or <c>ui&lt;n&gt;</c>.
-    /// Returns <see langword="false"/> when the text does not match any integer type prefix.
-    /// </summary>
-    private static bool TryParseBuiltinIntegerName(string text, out IntegerTypeSignedness signedness, out int width)
-    {
-        signedness = IntegerTypeSignedness.Signless;
-        width = 0;
-
-        string digits;
-        if (text.Length > 1 && text[0] == 'i')
-        {
-            digits = text.Substring(1);
-        }
-        else if (text.Length > 2 && text[0] == 's' && text[1] == 'i')
-        {
-            signedness = IntegerTypeSignedness.Signed;
-            digits = text.Substring(2);
-        }
-        else if (text.Length > 2 && text[0] == 'u' && text[1] == 'i')
-        {
-            signedness = IntegerTypeSignedness.Unsigned;
-            digits = text.Substring(2);
-        }
-        else
-        {
-            return false;
-        }
-
-        return int.TryParse(digits, out width);
-    }
-
-    /// <summary>
     /// Returns <see langword="true"/> when <paramref name="text"/> is one of the MLIR built-in
     /// floating-point type names: <c>bf16</c>, <c>f16</c>, <c>f32</c>, <c>f64</c>, <c>f80</c>, <c>f128</c>, or <c>tf32</c>.
     /// </summary>
@@ -282,9 +250,14 @@ public sealed partial class Parser
         }
 
         var token = ConsumeToken();
-        if (TryParseBuiltinIntegerName(token.Text, out var signedness, out var width))
+        if (BuiltinIntegerTypeName.TryParse(token.Text, out var signedness, out var width))
         {
-            return ParseResult<TypeSyntax>.Success(new BuiltinIntegerTypeSyntax(token, signedness, width));
+            return ParseResult<TypeSyntax>.Success(new BuiltinIntegerTypeSyntax(token, signedness switch
+            {
+                BuiltinIntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
+                BuiltinIntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
+                _ => IntegerTypeSignedness.Signless,
+            }, width));
         }
 
         if (IsBuiltinFloatName(token.Text))

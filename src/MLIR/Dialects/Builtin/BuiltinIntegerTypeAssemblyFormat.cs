@@ -13,6 +13,33 @@ using MLIR.Transforms;
 /// </summary>
 public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
 {
+    /// <summary>
+    /// Attempts to interpret a canonical builtin integer type name such as <c>i32</c>, <c>si64</c>, or <c>ui8</c>.
+    /// </summary>
+    public static bool TryParseName(string text, out IntegerTypeSignedness signedness, out int width)
+    {
+        var parsed = BuiltinIntegerTypeName.TryParse(text, out var parsedSignedness, out width);
+        signedness = parsedSignedness switch
+        {
+            BuiltinIntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
+            BuiltinIntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
+            _ => IntegerTypeSignedness.Signless,
+        };
+
+        return parsed;
+    }
+
+    /// <summary>
+    /// Formats a builtin integer type name from width and signedness.
+    /// </summary>
+    public static string FormatName(int width, IntegerTypeSignedness signedness)
+        => BuiltinIntegerTypeName.Format(width, signedness switch
+        {
+            IntegerTypeSignedness.Signed => BuiltinIntegerTypeName.Kind.Signed,
+            IntegerTypeSignedness.Unsigned => BuiltinIntegerTypeName.Kind.Unsigned,
+            _ => BuiltinIntegerTypeName.Kind.Signless,
+        });
+
     /// <inheritdoc/>
     public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
     {
@@ -21,7 +48,7 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
             return ParseResult<TypeSyntax>.NoMatch();
         }
 
-        if (!TryParseIntegerName(nameToken.Text, out var signedness, out var width))
+        if (!TryParseName(nameToken.Text, out var signedness, out var width))
         {
             return ParseResult<TypeSyntax>.NoMatch();
         }
@@ -50,7 +77,7 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
         if (type is IntegerType integerType)
         {
             return new BuiltinIntegerTypeSyntax(
-                TokenFactory.Identifier(FormatIntegerName(integerType.Width, integerType.Signedness)),
+                TokenFactory.Identifier(FormatName(integerType.Width, integerType.Signedness)),
                 integerType.Signedness,
                 integerType.Width);
         }
@@ -58,46 +85,4 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
         return type.Syntax ?? throw new InvalidOperationException("Integer types require syntax to rebuild their assembly form.");
     }
 
-    private static bool TryParseIntegerName(string text, out IntegerTypeSignedness signedness, out int width)
-    {
-        signedness = IntegerTypeSignedness.Signless;
-        width = 0;
-
-        if (text.Length < 2)
-        {
-            return false;
-        }
-
-        var widthText = text;
-        if (text.StartsWith("si", StringComparison.Ordinal))
-        {
-            signedness = IntegerTypeSignedness.Signed;
-            widthText = text.Substring(2);
-        }
-        else if (text.StartsWith("ui", StringComparison.Ordinal))
-        {
-            signedness = IntegerTypeSignedness.Unsigned;
-            widthText = text.Substring(2);
-        }
-        else if (text[0] == 'i')
-        {
-            widthText = text.Substring(1);
-        }
-        else
-        {
-            return false;
-        }
-
-        return int.TryParse(widthText, out width);
-    }
-
-    private static string FormatIntegerName(int width, IntegerTypeSignedness signedness)
-    {
-        return signedness switch
-        {
-            IntegerTypeSignedness.Signed => "si" + width,
-            IntegerTypeSignedness.Unsigned => "ui" + width,
-            _ => "i" + width,
-        };
-    }
 }
