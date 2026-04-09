@@ -277,6 +277,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             registrationSource,
             "public sealed class FooAttr : AttributeValue",
             "public static AttributeDefinition AttributeDefinition",
+            "factory: static context => FooAttrAssemblyFormat.BindValue(",
             "new FooAttrAssemblyFormat()",
             "public string Value { get; }",
             "public FooAttr(string value, MLIR.Syntax.AttributeValueSyntax? syntax = null)");

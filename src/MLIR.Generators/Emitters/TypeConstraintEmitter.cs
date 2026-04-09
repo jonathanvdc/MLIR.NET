@@ -18,10 +18,10 @@ internal static class TypeConstraintEmitter
                 EmitExactFloatConstraint(builder, typeConstraint);
                 return;
             case TypeConstraintKind.IndexType:
-                EmitPrimitiveConstraint(builder, typeConstraint, "IndexTypeReference", "context.Syntax, context.Location");
+                EmitPrimitiveConstraint(builder, typeConstraint, "IndexTypeReference", "syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown");
                 return;
             case TypeConstraintKind.NoneType:
-                EmitPrimitiveConstraint(builder, typeConstraint, "NoneType", "context.Syntax, context.Location");
+                EmitPrimitiveConstraint(builder, typeConstraint, "NoneType", "syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown");
                 return;
             case TypeConstraintKind.TupleType:
                 EmitTupleConstraint(builder, typeConstraint);
@@ -50,10 +50,15 @@ internal static class TypeConstraintEmitter
         builder.AppendLine("public sealed partial class " + className + " : global::MLIR.IntegerType");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => new " + className + "(context));");
+        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => " + className + ".BindValue(context));");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(GetWidth(context.Syntax), GetSignedness(context.Syntax), context.Syntax, context.Location)");
+        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return new " + className + "(GetWidth(context.Syntax), GetSignedness(context.Syntax), context.Syntax);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(int width, global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness signedness, TypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(width, signedness, syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -82,10 +87,15 @@ internal static class TypeConstraintEmitter
         builder.AppendLine("public sealed partial class " + className + " : FloatTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => new " + className + "(context));");
+        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => " + className + ".BindValue(context));");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(TypeDefinition.Name, context.Syntax, context.Location)");
+        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return new " + className + "(TypeDefinition.Name, context.Syntax);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(string name, TypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(name, syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -97,16 +107,22 @@ internal static class TypeConstraintEmitter
     private static void EmitPrimitiveConstraint(StringBuilder builder, TypeConstraintModel typeConstraint, string baseTypeName, string baseArguments)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
+        var bindValueModifier = baseTypeName == "NoneType" ? "new static " : "static ";
         builder.AppendLine("public sealed partial class " + className + " : " + baseTypeName);
         builder.AppendLine("{");
         if (typeConstraint.CanonicalTypeName != null)
         {
             builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
-            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName) + ", factory: static context => new " + className + "(context));");
+            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName) + ", factory: static context => " + className + ".BindValue(context));");
+            builder.AppendLine();
+            builder.AppendLine("    public " + bindValueModifier + className + " BindValue(TypeReferenceConstructionContext context)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        return new " + className + "(context.Syntax);");
+            builder.AppendLine("    }");
             builder.AppendLine();
         }
 
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
+        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
         builder.AppendLine("        : base(" + baseArguments + ")");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
@@ -255,16 +271,21 @@ internal static class TypeConstraintEmitter
         if (typeConstraint.CanonicalTypeName != null)
         {
             builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName) + ", factory: static context => new " + className + "(context));");
+            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName) + ", factory: static context => " + className + ".BindValue(context));");
+            builder.AppendLine();
+            builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        return new " + className + "(context.Syntax);");
+            builder.AppendLine("    }");
             builder.AppendLine();
         }
 
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(context.Syntax, context.Location)");
+        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         if (typeConstraint.CanonicalTypeName == null)
         {
-            builder.AppendLine("        NameValue = context.Name;");
+            builder.AppendLine("        NameValue = syntax?.ToString();");
         }
         builder.AppendLine("    }");
         builder.AppendLine();

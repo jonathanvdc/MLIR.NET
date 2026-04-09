@@ -26,7 +26,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         AssertContainsAll(
             registrationSource,
             "new TypeDefinition(\"myp.opaque\",",
-            "factory: static context => new",
+            "factory: static context => opaqueTypeAssemblyFormat.BindValue(",
             "TypeSyntax? syntax = null)",
             ": base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)",
             "TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",

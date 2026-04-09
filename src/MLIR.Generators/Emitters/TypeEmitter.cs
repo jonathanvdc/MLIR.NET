@@ -66,10 +66,19 @@ internal static class TypeEmitter
         builder.AppendLine("public sealed partial class " + className + " : FloatTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
+        EmitterHelpers.AppendDefinitionConstructor(
+            builder,
+            "TypeDefinition",
+            type.Name,
+            factoryExpression: "static context => " + className + ".BindValue(context)");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base((BuiltinFloatTypeSyntax)context.Syntax!)");
+        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return new " + className + "(context.Syntax as BuiltinFloatTypeSyntax);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(BuiltinFloatTypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(TypeDefinition.Name, syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -89,10 +98,19 @@ internal static class TypeEmitter
         builder.AppendLine("public sealed partial class " + className + " : IndexTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
+        EmitterHelpers.AppendDefinitionConstructor(
+            builder,
+            "TypeDefinition",
+            type.Name,
+            factoryExpression: "static context => " + className + ".BindValue(context)");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base((BuiltinIndexTypeSyntax)context.Syntax!)");
+        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return new " + className + "(context.Syntax as BuiltinIndexTypeSyntax);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(BuiltinIndexTypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -112,10 +130,19 @@ internal static class TypeEmitter
         builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
+        EmitterHelpers.AppendDefinitionConstructor(
+            builder,
+            "TypeDefinition",
+            type.Name,
+            factoryExpression: "static context => " + className + ".BindValue(context)");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(context.Syntax, context.Location)");
+        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return new " + className + "(context.Syntax);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -130,10 +157,19 @@ internal static class TypeEmitter
         builder.AppendLine("public sealed partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
+        EmitterHelpers.AppendDefinitionConstructor(
+            builder,
+            "TypeDefinition",
+            type.Name,
+            factoryExpression: "static context => " + className + ".BindValue(context)");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(context.Syntax, context.Location)");
+        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return new " + className + "(context.Syntax);");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -145,49 +181,52 @@ internal static class TypeEmitter
     private static void EmitParametrisedTypeClass(StringBuilder builder, TypeModel type, string className)
     {
         var parameters = type.Parameters;
-        var syntaxClassName = type.AssemblyFormat != null ? className + "Syntax" : null;
-        var formatClassName = type.AssemblyFormat != null ? className + "AssemblyFormat" : null;
+        var hasAssemblyFormat = type.AssemblyFormat != null;
+        var syntaxClassName = hasAssemblyFormat ? className + "Syntax" : null;
+        var formatClassName = hasAssemblyFormat ? className + "AssemblyFormat" : null;
         var assemblyFormatExpression = !string.IsNullOrEmpty(type.CsharpAssemblyFormat)
             ? type.CsharpAssemblyFormat
             : formatClassName != null
                 ? "new " + formatClassName + "()"
                 : null;
+        var factoryExpression = formatClassName != null
+            ? "static context => " + formatClassName + ".BindValue(context.Syntax!)"
+            : null;
 
         builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
-        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-        builder.Append("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name));
-        if (assemblyFormatExpression != null)
-        {
-            builder.Append(", " + assemblyFormatExpression);
-        }
-
-        if (syntaxClassName != null)
-        {
-            builder.Append(", factory: static context => new " + className + "(");
-            for (var i = 0; i < parameters.Count; i++)
-            {
-                if (i > 0)
-                {
-                    builder.Append(", ");
-                }
-
-                builder.Append("Bind" + DialectGeneratorNaming.ToPascalCase(parameters[i].Name) + "Param(context.Syntax)");
-            }
-
-            if (parameters.Count > 0)
-            {
-                builder.Append(", ");
-            }
-
-            builder.AppendLine("context.Syntax));");
-        }
-        else
-        {
-            builder.AppendLine(");");
-        }
+        EmitTypeDefinition(builder, type, assemblyFormatExpression, factoryExpression);
         builder.AppendLine();
 
+        EmitTypeConstructor(builder, className, parameters);
+        builder.AppendLine();
+
+        EmitTypeParameterProperties(builder, parameters);
+
+        builder.AppendLine();
+        builder.AppendLine("    public override string? Name => " + (string.IsNullOrEmpty(type.CsharpName) ? "TypeDefinition.Name" : type.CsharpName) + ";");
+        builder.AppendLine();
+        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
+        builder.AppendLine();
+
+        EmitTypeSemanticEquality(builder, className, parameters);
+        builder.AppendLine();
+
+        builder.AppendLine("}");
+    }
+
+    private static void EmitTypeDefinition(
+        StringBuilder builder,
+        TypeModel type,
+        string? assemblyFormatExpression,
+        string? factoryExpression)
+    {
+        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
+        EmitterHelpers.AppendDefinitionConstructor(builder, "TypeDefinition", type.Name, assemblyFormatExpression, factoryExpression);
+    }
+
+    private static void EmitTypeConstructor(StringBuilder builder, string className, IReadOnlyList<AttrOrTypeParameterModel> parameters)
+    {
         builder.Append("    public " + className + "(");
         for (var i = 0; i < parameters.Count; i++)
         {
@@ -215,21 +254,20 @@ internal static class TypeEmitter
         }
 
         builder.AppendLine("    }");
-        builder.AppendLine();
+    }
 
+    private static void EmitTypeParameterProperties(StringBuilder builder, IReadOnlyList<AttrOrTypeParameterModel> parameters)
+    {
         foreach (var param in parameters)
         {
             var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
             builder.AppendLine("    public " + csharpType + " " + propertyName + " { get; }");
         }
+    }
 
-        builder.AppendLine();
-        builder.AppendLine("    public override string? Name => " + (string.IsNullOrEmpty(type.CsharpName) ? "TypeDefinition.Name" : type.CsharpName) + ";");
-        builder.AppendLine();
-        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
-        builder.AppendLine();
-
+    private static void EmitTypeSemanticEquality(StringBuilder builder, string className, IReadOnlyList<AttrOrTypeParameterModel> parameters)
+    {
         builder.AppendLine("    protected override Type SemanticFamily => typeof(" + className + ");");
         builder.AppendLine();
         builder.AppendLine("    protected override bool SemanticEqualsValue(TypeReference other)");
@@ -271,87 +309,6 @@ internal static class TypeEmitter
         builder.AppendLine("            return hash;");
         builder.AppendLine("        }");
         builder.AppendLine("    }");
-        builder.AppendLine();
-
-        if (syntaxClassName != null)
-        {
-            foreach (var param in parameters)
-            {
-                EmitBindParamHelper(builder, type, param, syntaxClassName);
-            }
-        }
-
-        builder.AppendLine("}");
     }
 
-    private static void EmitBindParamHelper(
-        StringBuilder builder,
-        TypeModel type,
-        AttrOrTypeParameterModel param,
-        string syntaxClassName)
-    {
-        var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
-        var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
-        var helperName = "Bind" + propertyName + "Param";
-
-        builder.AppendLine("    private static " + csharpType + " " + helperName + "(MLIR.Syntax.TypeSyntax? syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (syntax is " + syntaxClassName + " structured)");
-        builder.AppendLine("        {");
-        var accessExpr = "structured." + propertyName + "Syntax";
-        var extractExpr = BuildExtractValueExpression(param, accessExpr);
-        builder.AppendLine("            return " + extractExpr + ";");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        var fallbackExpr = BuildFallbackExtractExpression(type, param);
-        if (fallbackExpr.StartsWith("throw "))
-        {
-            builder.AppendLine("        " + fallbackExpr + ";");
-        }
-        else
-        {
-            builder.AppendLine("        return " + fallbackExpr + ";");
-        }
-        builder.AppendLine("    }");
-        builder.AppendLine();
-    }
-
-    private static string BuildExtractValueExpression(AttrOrTypeParameterModel param, string syntaxExpr)
-    {
-        if (!string.IsNullOrEmpty(param.CsharpExtractor))
-        {
-            return param.CsharpExtractor!.Replace("$_syntax", syntaxExpr);
-        }
-
-        return syntaxExpr;
-    }
-
-    private static string BuildFallbackExtractExpression(TypeModel type, AttrOrTypeParameterModel param)
-    {
-        if (!string.IsNullOrEmpty(param.CsharpDefault))
-        {
-            return param.CsharpDefault!;
-        }
-
-        var message = "Missing syntax for parameter '" + param.Name + "' on type '" + type.Name + "' and no C# default value was defined.";
-        return "throw new global::System.InvalidOperationException(" + EmitterHelpers.ToCSharpStringLiteral(message) + ")";
-    }
-
-    private static bool HasTypedParameters(TypeModel type)
-    {
-        foreach (var parameter in type.Parameters)
-        {
-            if (!string.IsNullOrEmpty(parameter.CsharpType)
-                || !string.IsNullOrEmpty(parameter.CsharpSyntaxType)
-                || !string.IsNullOrEmpty(parameter.CsharpParser)
-                || !string.IsNullOrEmpty(parameter.CsharpExtractor)
-                || !string.IsNullOrEmpty(parameter.CsharpDefault)
-                || !string.IsNullOrEmpty(parameter.CsharpPrinter))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

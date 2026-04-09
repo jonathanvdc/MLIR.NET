@@ -215,6 +215,35 @@ internal static class EmitterHelpers
         }
     }
 
+    /// <summary>
+    /// Emits a constructor call for a definition object such as <c>TypeDefinition</c> or
+    /// <c>AttributeDefinition</c>.
+    /// </summary>
+    /// <remarks>
+    /// The helper keeps the common shape in one place: a definition name, an optional assembly
+    /// format object, and an optional factory expression.
+    /// </remarks>
+    public static void AppendDefinitionConstructor(
+        StringBuilder builder,
+        string definitionTypeName,
+        string name,
+        string? assemblyFormatExpression = null,
+        string? factoryExpression = null)
+    {
+        builder.Append("        new " + definitionTypeName + "(" + ToCSharpStringLiteral(name));
+        if (assemblyFormatExpression != null)
+        {
+            builder.Append(", " + assemblyFormatExpression);
+        }
+
+        if (factoryExpression != null)
+        {
+            builder.Append(", factory: " + factoryExpression);
+        }
+
+        builder.AppendLine(");");
+    }
+
     public static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description)
     {
         if (!string.IsNullOrWhiteSpace(summary))

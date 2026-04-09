@@ -161,9 +161,14 @@ internal static class TypeAssemblyFormatEmitter
         EmitTryParseBody(builder, type, format, slots, syntaxClassName);
         builder.AppendLine("    }");
         builder.AppendLine();
+        builder.AppendLine("    public static TypeReference BindValue(TypeSyntax syntax)");
+        builder.AppendLine("    {");
+        EmitBindValueBody(builder, type, slots, className, syntaxClassName);
+        builder.AppendLine("    }");
+        builder.AppendLine();
         builder.AppendLine("    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return definition.Factory(new TypeReferenceConstructionContext(syntax, definition.Name, definition, syntax.Location));");
+        builder.AppendLine("        return BindValue(syntax);");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)");
@@ -287,6 +292,30 @@ internal static class TypeAssemblyFormatEmitter
         builder.AppendLine(");");
     }
 
+    private static void EmitBindValueBody(
+        StringBuilder builder,
+        TypeModel type,
+        IReadOnlyList<FormatSlot> slots,
+        string className,
+        string syntaxClassName)
+    {
+        builder.AppendLine("        if (syntax is not " + syntaxClassName + " structured)");
+        builder.AppendLine("            throw new global::System.InvalidOperationException(\"Expected the generated type syntax class.\");");
+
+        var constructorArguments = new List<string>();
+        foreach (var slot in slots.OfType<VariableSlot>())
+        {
+            var propertyName = DialectGeneratorNaming.ToPascalCase(slot.Name);
+            var localName = EmitterHelpers.LowerFirst(slot.Name) + "Value";
+            var syntaxExpr = "structured." + propertyName + "Syntax";
+            var valueExpr = BuildValueFromSyntaxExpression(slot.ParamModel, syntaxExpr, type.Name, slot.Name);
+            builder.AppendLine("        var " + localName + " = " + valueExpr + ";");
+            constructorArguments.Add(localName);
+        }
+
+        builder.AppendLine("        return new " + className + "(" + string.Join(", ", constructorArguments) + ", syntax);");
+    }
+
     private static string BuildSyntaxFromPropertyExpression(string propertyExpr, AttrOrTypeParameterModel? param)
     {
         if (!string.IsNullOrEmpty(param?.CsharpPrinter))
@@ -295,6 +324,26 @@ internal static class TypeAssemblyFormatEmitter
         }
 
         return propertyExpr;
+    }
+
+    private static string BuildValueFromSyntaxExpression(
+        AttrOrTypeParameterModel? param,
+        string syntaxExpr,
+        string ownerName,
+        string parameterName)
+    {
+        if (!string.IsNullOrEmpty(param?.CsharpExtractor))
+        {
+            return param!.CsharpExtractor!.Replace("$_syntax", syntaxExpr);
+        }
+
+        if (!string.IsNullOrEmpty(param?.CsharpDefault))
+        {
+            return param!.CsharpDefault!;
+        }
+
+        var message = "Missing syntax for parameter '" + parameterName + "' on type '" + ownerName + "' and no C# extractor/default was defined.";
+        return "throw new global::System.InvalidOperationException(" + EmitterHelpers.ToCSharpStringLiteral(message) + ")";
     }
 
     private static string GetVariableRewriteExpression(VariableSlot slot)

@@ -225,9 +225,15 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine();
 
         // Bind
+        builder.AppendLine("    public static AttributeValue BindValue(AttributeValueSyntax syntax)");
+        builder.AppendLine("    {");
+        EmitBindValueBody(builder, attribute, className, slots, syntaxClassName);
+        builder.AppendLine("    }");
+        builder.AppendLine();
+
         builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return definition.Factory(new AttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));");
+        builder.AppendLine("        return BindValue(syntax);");
         builder.AppendLine("    }");
         builder.AppendLine();
 
@@ -462,6 +468,50 @@ internal static class AttributeAssemblyFormatEmitter
         }
 
         builder.AppendLine(");");
+    }
+
+    private static void EmitBindValueBody(
+        StringBuilder builder,
+        AttributeModel attribute,
+        string className,
+        IReadOnlyList<FormatSlot> slots,
+        string syntaxClassName)
+    {
+        builder.AppendLine("        if (syntax is not " + syntaxClassName + " structured)");
+        builder.AppendLine("            throw new global::System.InvalidOperationException(\"Expected the generated attribute syntax class.\");");
+
+        var constructorArguments = new List<string>();
+        foreach (var slot in slots.OfType<VariableSlot>())
+        {
+            var propertyName = DialectGeneratorNaming.ToPascalCase(slot.Name);
+            var localName = EmitterHelpers.LowerFirst(slot.Name) + "Value";
+            var syntaxExpr = "structured." + propertyName + "Syntax";
+            var valueExpr = BuildValueFromSyntaxExpression(slot.ParamModel, syntaxExpr, attribute.Name, slot.Name);
+            builder.AppendLine("        var " + localName + " = " + valueExpr + ";");
+            constructorArguments.Add(localName);
+        }
+
+        builder.AppendLine("        return new " + className + "(" + string.Join(", ", constructorArguments) + ", syntax);");
+    }
+
+    private static string BuildValueFromSyntaxExpression(
+        AttrOrTypeParameterModel? param,
+        string syntaxExpr,
+        string ownerName,
+        string parameterName)
+    {
+        if (!string.IsNullOrEmpty(param?.CsharpExtractor))
+        {
+            return param!.CsharpExtractor!.Replace("$_syntax", syntaxExpr);
+        }
+
+        if (!string.IsNullOrEmpty(param?.CsharpDefault))
+        {
+            return param!.CsharpDefault!;
+        }
+
+        var message = "Missing syntax for parameter '" + parameterName + "' on attribute '" + ownerName + "' and no C# extractor/default was defined.";
+        return "throw new global::System.InvalidOperationException(" + EmitterHelpers.ToCSharpStringLiteral(message) + ")";
     }
 
     /// <summary>
