@@ -30,9 +30,8 @@ internal static class AttributeEmitter
             }
             else
             {
-                // Parametrised attribute without declarative syntax: still emit the typed
-                // attribute-value class and bind parameters directly from the concrete syntax
-                // nodes produced by the parser.
+                // Parametrised attribute without declarative syntax: emit the typed
+                // attribute-value class, but do not invent a binding factory.
                 EmitTypedAttributeClass(builder, attribute, className, syntaxClassName: null);
             }
         }
@@ -50,13 +49,7 @@ internal static class AttributeEmitter
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "AttributeDefinition",
-            attribute.Name,
-            factoryExpression: "static context => " + className + ".BindValue(context)");
-        builder.AppendLine();
-        builder.AppendLine("    public static " + className + " BindValue(AttributeValueConstructionContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new " + className + "(context.Syntax);");
-        builder.AppendLine("    }");
+            attribute.Name);
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(MLIR.Syntax.AttributeValueSyntax? syntax = null)");
         builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
@@ -83,8 +76,8 @@ internal static class AttributeEmitter
         var parameters = attribute.Parameters;
         var hasAssemblyFormat = attribute.AssemblyFormat != null;
         var formatClassName = hasAssemblyFormat ? className + "AssemblyFormat" : null;
-        var factoryExpression = formatClassName != null
-            ? "static context => " + formatClassName + ".BindValue(context.Syntax!)"
+        string? factoryExpression = hasAssemblyFormat
+            ? "static context => " + formatClassName + ".BindValue(context.Syntax!, context.Binder ?? throw new global::System.InvalidOperationException(\"Attribute construction requires a binder when an assembly format is present.\"))"
             : null;
 
         builder.AppendLine("public sealed class " + className + " : AttributeValue");

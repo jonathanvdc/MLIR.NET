@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Semantics.Attributes.Collections;
 using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
@@ -436,11 +437,21 @@ public sealed class Binder
 
         AttributeValue attribute;
         var location = syntaxNode.Location;
+
+        // TODO: this is totally wrong. Create an attribute syntax node type that
+        // wraps a normal attribure syntax node and also includes a type syntax node,
+        // to represent code like '42 : i32' or '#foo.bar<"baz"> : !my_attr_type'.
+        // Then unpack the type syntax, bind it and pass the bound type reference to
+        // the construction context/assembly format binder so it can be used when
+        // constructing the attribute value.
+        var selfType = syntaxNode is TypeAttributeValueSyntax typeAttributeSyntax
+            ? BindTypeReference(typeAttributeSyntax.TypeSyntax)
+            : null;
         if (definition != null)
         {
             attribute = definition.AssemblyFormat != null
                 ? definition.AssemblyFormat.Bind(syntaxNode, definition, this)
-                : definition.Factory(new AttributeValueConstructionContext(syntaxNode, canonicalName, definition, location));
+                : definition.Factory(new AttributeValueConstructionContext(syntaxNode, canonicalName, definition, location, selfType, this));
         }
         else
         {

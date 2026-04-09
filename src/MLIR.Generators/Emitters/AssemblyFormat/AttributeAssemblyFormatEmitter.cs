@@ -225,7 +225,7 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine();
 
         // Bind
-        builder.AppendLine("    public static AttributeValue BindValue(AttributeValueSyntax syntax)");
+        builder.AppendLine("    public static AttributeValue BindValue(AttributeValueSyntax syntax, Binder binder)");
         builder.AppendLine("    {");
         EmitBindValueBody(builder, attribute, className, slots, syntaxClassName);
         builder.AppendLine("    }");
@@ -233,7 +233,7 @@ internal static class AttributeAssemblyFormatEmitter
 
         builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return BindValue(syntax);");
+        builder.AppendLine("        return BindValue(syntax, binder);");
         builder.AppendLine("    }");
         builder.AppendLine();
 
@@ -500,6 +500,11 @@ internal static class AttributeAssemblyFormatEmitter
         string ownerName,
         string parameterName)
     {
+        if (param?.IsSelfTypeParameter == true)
+        {
+            return "binder.BindTypeReference(" + syntaxExpr + ".TypeSyntax)";
+        }
+
         if (!string.IsNullOrEmpty(param?.CsharpExtractor))
         {
             return param!.CsharpExtractor!.Replace("$_syntax", syntaxExpr);

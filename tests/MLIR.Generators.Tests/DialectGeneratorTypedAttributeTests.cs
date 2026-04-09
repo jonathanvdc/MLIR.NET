@@ -277,7 +277,6 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             registrationSource,
             "public sealed class FooAttr : AttributeValue",
             "public static AttributeDefinition AttributeDefinition",
-            "factory: static context => FooAttrAssemblyFormat.BindValue(",
             "new FooAttrAssemblyFormat()",
             "public string Value { get; }",
             "public FooAttr(string value, MLIR.Syntax.AttributeValueSyntax? syntax = null)");
@@ -290,10 +289,45 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "ParseResult<AttributeValueSyntax> TryParse",
             // StringRefParameter.csharpParser delegates to the string-literal helper
             "context.TryParseStringLiteralSyntax()",
+            "BindValue(AttributeValueSyntax syntax, Binder binder)",
             "AttributeValue Bind(",
             "AttributeValueSyntax BuildCustomAssemblySyntax(",
             // StringRefParameter.csharpPrinter wraps the string value in a quoted literal
             "StringLiteralAttributeAssemblyFormat.Quote(attr.Value)");
+    }
+
+    [Fact]
+    public void AttrDefWithSelfTypeParameterAndAssemblyFormatBindsTypeReferencesThroughBinder()
+    {
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_SelfAttr : Test_Attr<\"Self\", \"self\"> {",
+            "  let parameters = (ins AttributeSelfTypeParameter<\"\">:$type);",
+            "  let assemblyFormat = \"`<` $type `>`\";",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        AssertContainsAll(
+            registrationSource,
+            "public global::MLIR.Semantics.TypeReference Type { get; }",
+            "public SelfAttr(global::MLIR.Semantics.TypeReference type, MLIR.Syntax.AttributeValueSyntax? syntax = null)",
+            "new AttributeDefinition(\"test.self\", new SelfAttrAssemblyFormat(),",
+            "SelfAttrAssemblyFormat.BindValue(context.Syntax!",
+            "BindValue(AttributeValueSyntax syntax, Binder binder)",
+            "binder.BindTypeReference(structured.TypeSyntax.TypeSyntax)");
     }
 
     [Fact]
@@ -323,7 +357,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             registrationSource,
             "public sealed class LabelAttr : AttributeValue",
             "public static AttributeDefinition AttributeDefinition { get; } =",
-            "new AttributeDefinition(\"test.label\");",
+            "new AttributeDefinition(\"test.label\")",
             "public string Value { get; }",
             "public LabelAttr(string value, MLIR.Syntax.AttributeValueSyntax? syntax = null)",
             ": base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)",
@@ -333,8 +367,8 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             registrationSource,
             "LabelAttrSyntax",
             "LabelAttrAssemblyFormat",
-            "AttributeValueConstructionContext",
             "BindValueParam(",
+            "BindValue(AttributeValueConstructionContext context)",
             "factory: static context =>");
     }
 
