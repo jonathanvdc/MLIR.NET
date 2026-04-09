@@ -338,6 +338,7 @@ public sealed class DialectImporterTests
         Assert.True(integerAttr.SelfTypeParameter!.IsSelfTypeParameter);
         Assert.Equal("type", integerAttr.SelfTypeParameter.Name);
         Assert.Equal("global::MLIR.Semantics.TypeReference", integerAttr.SelfTypeParameter.CsharpType);
+        Assert.Equal("global::MLIR.Semantics.TypeFactory.None", integerAttr.SelfTypeParameter.CsharpDefault);
         Assert.Single(integerAttr.PayloadParameters);
         Assert.Equal("value", integerAttr.PayloadParameters[0].Name);
 
@@ -345,6 +346,7 @@ public sealed class DialectImporterTests
         Assert.NotNull(stringAttr.SelfTypeParameter);
         Assert.True(stringAttr.SelfTypeParameter!.IsSelfTypeParameter);
         Assert.Equal("type", stringAttr.SelfTypeParameter.Name);
+        Assert.Equal("global::MLIR.Semantics.TypeFactory.None", stringAttr.SelfTypeParameter.CsharpDefault);
         Assert.Single(stringAttr.PayloadParameters);
         Assert.Equal("value", stringAttr.PayloadParameters[0].Name);
 
@@ -352,12 +354,14 @@ public sealed class DialectImporterTests
         Assert.NotNull(floatAttr.SelfTypeParameter);
         Assert.True(floatAttr.SelfTypeParameter!.IsSelfTypeParameter);
         Assert.Equal("type", floatAttr.SelfTypeParameter.Name);
+        Assert.Equal("global::MLIR.Semantics.TypeFactory.None", floatAttr.SelfTypeParameter.CsharpDefault);
         Assert.Single(floatAttr.PayloadParameters);
         Assert.Equal("value", floatAttr.PayloadParameters[0].Name);
 
         var opaqueAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_OpaqueAttr");
         Assert.NotNull(opaqueAttr.SelfTypeParameter);
         Assert.True(opaqueAttr.SelfTypeParameter!.IsSelfTypeParameter);
+        Assert.Equal("global::MLIR.Semantics.TypeFactory.None", opaqueAttr.SelfTypeParameter.CsharpDefault);
         Assert.Equal(2, opaqueAttr.PayloadParameters.Count);
         Assert.Equal(["dialectNamespace", "attrData"], opaqueAttr.PayloadParameters.Select(static param => param.Name).ToArray());
     }

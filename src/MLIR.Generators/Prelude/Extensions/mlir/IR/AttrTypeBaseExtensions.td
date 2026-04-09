@@ -59,7 +59,7 @@ extends AttributeSelfTypeParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax";
   let csharpParser = "$_parser.TryParseTypeSyntax().Map<AttributeValueSyntax>(static typeSyntax => new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax(typeSyntax))";
   let csharpExtractor = "$_syntax.TypeSyntax";
-  let csharpDefault = "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax(new global::MLIR.Syntax.Types.Primitives.BuiltinNoneTypeSyntax(global::MLIR.Syntax.TokenFactory.Identifier(\"none\")))";
+  let csharpDefault = "global::MLIR.Semantics.TypeFactory.None";
   let csharpPrinter = "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax($_self)";
 }
 
