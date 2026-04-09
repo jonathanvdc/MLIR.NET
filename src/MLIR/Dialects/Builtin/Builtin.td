@@ -7,3 +7,4 @@
 
 include "mlir/IR/BuiltinOps.td"
 include "mlir/IR/BuiltinTypes.td"
+include "mlir/IR/BuiltinAttributes.td"

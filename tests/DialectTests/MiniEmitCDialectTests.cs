@@ -32,7 +32,7 @@ public sealed class MiniEmitCDialectTests : DialectIntegrationTestBase
             "miniemitc.use_opaque #miniemitc.opaque<\"NULL\">",
             CreateMiniEmitCRegistry());
 
-        var opaqueAttr = Assert.IsType<OpaqueAttr>(op.Attr);
+        var opaqueAttr = Assert.IsType<MLIR.Miniemitc.OpaqueAttr>(op.Attr);
         Assert.Equal("NULL", opaqueAttr.Value);
     }
 
@@ -43,7 +43,7 @@ public sealed class MiniEmitCDialectTests : DialectIntegrationTestBase
             "miniemitc.use_opaque #miniemitc.opaque<\"\">",
             CreateMiniEmitCRegistry());
 
-        var opaqueAttr = Assert.IsType<OpaqueAttr>(op.Attr);
+        var opaqueAttr = Assert.IsType<MLIR.Miniemitc.OpaqueAttr>(op.Attr);
         Assert.Equal(string.Empty, opaqueAttr.Value);
     }
 
@@ -51,7 +51,7 @@ public sealed class MiniEmitCDialectTests : DialectIntegrationTestBase
     public void PrintsOpaqueAttributeWithCustomAssemblyFormat()
     {
         var op = new MiniEmitC_UseOpaqueOp(
-            attr: new OpaqueAttr("nullptr"),
+            attr: new MLIR.Miniemitc.OpaqueAttr("nullptr"),
             typeSignatureReference: null);
 
         var module = new Module(new ModuleSyntax([]), [op], []);
@@ -70,7 +70,7 @@ public sealed class MiniEmitCDialectTests : DialectIntegrationTestBase
             out var printed);
 
         Assert.Contains("#miniemitc.opaque<\"NULL\">", printed);
-        var opaqueAttr = Assert.IsType<OpaqueAttr>(rebound.Attr);
+        var opaqueAttr = Assert.IsType<MLIR.Miniemitc.OpaqueAttr>(rebound.Attr);
         Assert.Equal("NULL", opaqueAttr.Value);
     }
 
@@ -81,7 +81,7 @@ public sealed class MiniEmitCDialectTests : DialectIntegrationTestBase
     [Fact]
     public void TypedConstructorCreatesOpaqueAttrWithCorrectValue()
     {
-        var attr = new OpaqueAttr("my_value");
+        var attr = new MLIR.Miniemitc.OpaqueAttr("my_value");
         Assert.Equal("my_value", attr.Value);
         Assert.Equal("miniemitc.opaque", attr.Name);
     }
