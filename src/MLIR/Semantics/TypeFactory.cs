@@ -19,7 +19,7 @@ public static class TypeFactory
     public static IndexTypeReference Index { get; } = new();
 
     /// <summary>Gets the builtin <c>none</c> type.</summary>
-    public static NoneTypeReference None { get; } = new();
+    public static NoneType None { get; } = new();
 
     /// <summary>Gets the builtin signless <c>i1</c> type.</summary>
     public static IntegerType I1 { get; } = I(1);

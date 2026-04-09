@@ -109,21 +109,17 @@ internal static class TypeEmitter
     private static bool EmitNoneBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
     {
         EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public sealed partial class " + className + " : NoneTypeReference");
+        builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
-        builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
+        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base((BuiltinNoneTypeSyntax)context.Syntax!)");
+        builder.AppendLine("        : base(context.Syntax, context.Location)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "()");
-        builder.AppendLine("        : base()");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
+        builder.AppendLine("    public override string? Name => TypeDefinition.Name;");
         builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
         builder.AppendLine("}");
         return true;

@@ -535,7 +535,7 @@ public sealed class Binder
             case BuiltinIndexTypeSyntax indexSyntax:
                 return new IndexTypeReference(indexSyntax);
             case BuiltinNoneTypeSyntax noneSyntax:
-                return new NoneTypeReference(noneSyntax);
+                return new NoneType(noneSyntax);
             case TupleTypeSyntax tupleSyntax:
                 return new TupleTypeReference(tupleSyntax, tupleSyntax.Elements.Select(BindTypeReference).ToArray());
             case FunctionTypeSyntax functionSyntax:

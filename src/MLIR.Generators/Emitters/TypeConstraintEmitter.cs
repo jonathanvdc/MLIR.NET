@@ -21,7 +21,7 @@ internal static class TypeConstraintEmitter
                 EmitPrimitiveConstraint(builder, typeConstraint, "IndexTypeReference", "context.Syntax, context.Location");
                 return;
             case TypeConstraintKind.NoneType:
-                EmitPrimitiveConstraint(builder, typeConstraint, "NoneTypeReference", "context.Syntax, context.Location");
+                EmitPrimitiveConstraint(builder, typeConstraint, "NoneType", "context.Syntax, context.Location");
                 return;
             case TypeConstraintKind.TupleType:
                 EmitTupleConstraint(builder, typeConstraint);
