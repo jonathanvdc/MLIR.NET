@@ -53,4 +53,14 @@ extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpPrinter = "new FloatingPointAttributeValueSyntax(new global::MLIR.Syntax.RawSyntaxText(global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.Format($_self)), $_self)";
 }
 
+extends AttributeSelfTypeParameter : MLIRNet_AttrOrTypeParameterExtension {
+  // Attribute self types bind to semantic type references in generated attribute classes.
+  let csharpType = "global::MLIR.Semantics.TypeReference";
+  let csharpSyntaxType = "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax";
+  let csharpParser = "$_parser.TryParseTypeSyntax().Map<AttributeValueSyntax>(static typeSyntax => new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax(typeSyntax))";
+  let csharpExtractor = "$_syntax.TypeSyntax";
+  let csharpDefault = "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax(new global::MLIR.Syntax.Types.Primitives.BuiltinNoneTypeSyntax(global::MLIR.Syntax.TokenFactory.Identifier(\"none\")))";
+  let csharpPrinter = "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax($_self)";
+}
+
 #endif // ATTR_TYPE_BASE_EXTENSIONS_TD

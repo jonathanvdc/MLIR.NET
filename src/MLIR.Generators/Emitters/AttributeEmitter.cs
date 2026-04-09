@@ -18,16 +18,16 @@ internal static class AttributeEmitter
         }
         else if (attribute.Parameters.Count > 0)
         {
-        if (attribute.AssemblyFormat != null)
-        {
-            // Parametrised attribute with a declarative assembly format: emit the structured
-            // syntax class, the typed attribute-value class, and the assembly format class.
-            AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
-            builder.AppendLine();
-            EmitTypedAttributeClass(builder, attribute, className, syntaxClassName: className + "Syntax");
-            builder.AppendLine();
-            AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
-        }
+            if (attribute.AssemblyFormat != null)
+            {
+                // Parametrised attribute with a declarative assembly format: emit the structured
+                // syntax class, the typed attribute-value class, and the assembly format class.
+                AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
+                builder.AppendLine();
+                EmitTypedAttributeClass(builder, attribute, className, syntaxClassName: className + "Syntax");
+                builder.AppendLine();
+                AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
+            }
             else
             {
                 // Parametrised attribute without declarative syntax: still emit the typed

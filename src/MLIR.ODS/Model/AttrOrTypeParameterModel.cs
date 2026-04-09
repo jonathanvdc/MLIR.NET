@@ -25,7 +25,8 @@ public sealed class AttrOrTypeParameterModel(
     string? csharpParser = null,
     string? csharpExtractor = null,
     string? csharpDefault = null,
-    string? csharpPrinter = null)
+    string? csharpPrinter = null,
+    bool isSelfTypeParameter = false)
 {
     /// <summary>
     /// Gets the parameter name as declared in the <c>parameters</c> dag (e.g., <c>"value"</c> from <c>$value</c>).
@@ -132,4 +133,10 @@ public sealed class AttrOrTypeParameterModel(
     /// (only valid for <c>AttributeValueSyntax</c> parameters).
     /// </summary>
     public string? CsharpPrinter { get; } = csharpPrinter;
+
+    /// <summary>
+    /// Gets a value indicating whether this parameter is the special self-type parameter used
+    /// by upstream <c>AttributeSelfTypeParameter</c> definitions.
+    /// </summary>
+    public bool IsSelfTypeParameter { get; } = isSelfTypeParameter;
 }

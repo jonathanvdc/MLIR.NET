@@ -1,6 +1,7 @@
 namespace MLIR.ODS.Model;
 
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>
 /// Represents an attribute description extracted from ODS.
@@ -35,9 +36,22 @@ public sealed class AttributeModel(
 
     /// <summary>
     /// Gets the ordered list of parameters declared in the <c>parameters</c> dag of this attribute definition.
-    /// Empty when the attribute has no parameters.
+    /// Empty when the attribute has no parameters. This list includes special upstream
+    /// parameters such as <c>AttributeSelfTypeParameter</c>; use <see cref="SelfTypeParameter"/>
+    /// and <see cref="PayloadParameters"/> to inspect those separately.
     /// </summary>
     public IReadOnlyList<AttrOrTypeParameterModel> Parameters { get; } = parameters ?? EmptyParameters;
+
+    /// <summary>
+    /// Gets the special self-type parameter for this attribute, if one was declared via
+    /// <c>AttributeSelfTypeParameter</c>.
+    /// </summary>
+    public AttrOrTypeParameterModel? SelfTypeParameter { get; } = (parameters ?? EmptyParameters).FirstOrDefault(static p => p.IsSelfTypeParameter);
+
+    /// <summary>
+    /// Gets the payload parameters for this attribute, excluding any special self-type parameter.
+    /// </summary>
+    public IReadOnlyList<AttrOrTypeParameterModel> PayloadParameters { get; } = (parameters ?? EmptyParameters).Where(static p => !p.IsSelfTypeParameter).ToArray();
 
     /// <summary>
     /// Gets the declarative assembly format for this attribute, if one was specified.
@@ -48,4 +62,3 @@ public sealed class AttributeModel(
 
     private static readonly IReadOnlyList<AttrOrTypeParameterModel> EmptyParameters = new AttrOrTypeParameterModel[0];
 }
-

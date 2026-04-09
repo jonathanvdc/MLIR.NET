@@ -909,6 +909,8 @@ internal sealed class OdsRecordIndex
     private Model.AttrOrTypeParameterModel? TryBuildAttrOrTypeParameterModelFromFields(
         string name, string className, IReadOnlyDictionary<string, Value> fields)
     {
+        var isSelfTypeParameter = string.Equals(className, "AttributeSelfTypeParameter", StringComparison.Ordinal);
+
         // cppType is required; without it we cannot model the parameter.
         var cppType = GetStringFromValueDictionary(fields, "cppType");
         if (cppType == null)
@@ -956,7 +958,8 @@ internal sealed class OdsRecordIndex
             csharpParser,
             csharpExtractor,
             csharpDefault,
-            csharpPrinter);
+            csharpPrinter,
+            isSelfTypeParameter);
     }
 
     /// <summary>

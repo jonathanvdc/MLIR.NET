@@ -3,12 +3,11 @@ include "mlir/Extensions/IR/MLIRNetExtensions.td"
 #ifndef BUILTIN_ATTRIBUTES_EXTENSIONS_TD
 #define BUILTIN_ATTRIBUTES_EXTENSIONS_TD
 
-// MLIR.NET-specific parameter overlays for builtin attribute defs that do not
-// depend on AttributeSelfTypeParameter.
+// MLIR.NET-specific parameter overlays for builtin attribute defs.
 
 def Builtin_TypeParameter : AttrOrTypeParameter<"Type", "nested type">,
     MLIRNet_AttrOrTypeParameterExtension {
-  let csharpType = "global::MLIR.Syntax.TypeSyntax";
+  let csharpType = "global::MLIR.Semantics.TypeReference";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax";
   let csharpExtractor = "$_syntax.TypeSyntax";
 }
