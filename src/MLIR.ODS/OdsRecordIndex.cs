@@ -343,6 +343,16 @@ internal sealed class OdsRecordIndex
             return true;
         }
 
+        if (record.Name == "ArrayAttr"
+            || record.Name == "AffineMapAttr"
+            || record.Name == "IntegerSetAttr"
+            || record.Name == "SymbolRefAttr"
+            || record.Name == "FlatSymbolRefAttr")
+        {
+            kind = AttributeConstraintKind.OpaqueAttribute;
+            return true;
+        }
+
         if (record.Name == "LocationAttr"
             || record.Name == "AnyAttr")
         {

@@ -48,6 +48,18 @@ extends ElementsAttrBase : MLIRNet_AttrExtension {
   let csharpConvertFromStorage = "$_self.Payload";
 }
 
+extends ArrayAttrBase : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.ArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends TypedArrayAttrBase : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.AttributeValue>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
 // Integer attrs all use the semantic integer-value storage layer; the concrete leaf
 // definitions refine only the exposed return type and conversion expression.
 extends AnyIntegerAttrBase : MLIRNet_AttrExtension {
@@ -192,6 +204,132 @@ extends BF16Attr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
   let csharpReturnType = "global::MLIR.Numerics.ApFloat";
   let csharpConvertFromStorage = "$_self.Value";
+}
+
+extends DenseArrayAttrBase : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseArrayAttributeValue<global::MLIR.Semantics.AttributeValue>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends DenseBoolArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseBooleanArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<bool>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends DenseI8ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseIntegerArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends DenseI16ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseIntegerArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends DenseI32ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseIntegerArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends DenseI64ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseIntegerArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends DenseF32ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseFloatingPointArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApFloat>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends DenseF64ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DenseFloatingPointArrayAttributeValue";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApFloat>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends BoolArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<bool>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<bool>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends I32ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<int>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<int>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends I64ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<long>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<long>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends I64SmallVectorArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<long>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<long>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends F32ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<float>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<float>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends F64ArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<double>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<double>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends StrArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<string>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<string>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends TypeArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Syntax.TypeSyntax>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>";
+  let csharpConvertFromStorage = "$_self.Items";
+}
+
+extends SymbolRefAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
+  let csharpReturnType = "global::MLIR.Semantics.SymbolRefAttr";
+  let csharpConvertFromStorage = "$_self";
+}
+
+extends FlatSymbolRefAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
+  let csharpReturnType = "string";
+  let csharpConvertFromStorage = "$_self.RootReference";
+}
+
+extends AffineMapAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.AttributeValue";
+  let csharpReturnType = "global::MLIR.Semantics.AttributeValue";
+  let csharpConvertFromStorage = "$_self";
+}
+
+extends IntegerSetAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.AttributeValue";
+  let csharpReturnType = "global::MLIR.Semantics.AttributeValue";
+  let csharpConvertFromStorage = "$_self";
+}
+
+extends DictArrayAttr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.NamedAttributeCollection>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection>";
+  let csharpConvertFromStorage = "$_self.Items";
 }
 
 #endif // COMMON_ATTR_CONSTRAINTS_EXTENSIONS_TD
