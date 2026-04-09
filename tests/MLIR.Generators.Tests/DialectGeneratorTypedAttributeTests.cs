@@ -279,7 +279,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public static AttributeDefinition AttributeDefinition",
             "new FooAttrAssemblyFormat()",
             "public string Value { get; }",
-            "public FooAttr(string value)");
+            "public FooAttr(string value, MLIR.Syntax.AttributeValueSyntax? syntax = null)");
 
         // Assembly format class
         AssertContainsAll(
@@ -293,6 +293,48 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "AttributeValueSyntax BuildCustomAssemblySyntax(",
             // StringRefParameter.csharpPrinter wraps the string value in a quoted literal
             "StringLiteralAttributeAssemblyFormat.Quote(attr.Value)");
+    }
+
+    [Fact]
+    public void AttrDefWithParametersAndNoAssemblyFormatStillGeneratesTypedAttributeClass()
+    {
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_LabelAttr : Test_Attr<\"Label\", \"label\"> {",
+            "  let parameters = (ins StringRefParameter<\"the label\">:$value);",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class LabelAttr : AttributeValue",
+            "public static AttributeDefinition AttributeDefinition { get; } =",
+            "new AttributeDefinition(\"test.label\");",
+            "public string Value { get; }",
+            "public LabelAttr(string value, MLIR.Syntax.AttributeValueSyntax? syntax = null)",
+            ": base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)",
+            "Value = value;");
+
+        AssertDoesNotContainAny(
+            registrationSource,
+            "LabelAttrSyntax",
+            "LabelAttrAssemblyFormat",
+            "AttributeValueConstructionContext",
+            "BindValueParam(",
+            "factory: static context =>");
     }
 
     [Fact]
@@ -333,7 +375,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public sealed class PairAttr : AttributeValue",
             "public global::MLIR.Numerics.ApInt First { get; }",
             "public global::MLIR.Numerics.ApInt Second { get; }",
-            "public PairAttr(global::MLIR.Numerics.ApInt first, global::MLIR.Numerics.ApInt second)");
+            "public PairAttr(global::MLIR.Numerics.ApInt first, global::MLIR.Numerics.ApInt second, MLIR.Syntax.AttributeValueSyntax? syntax = null)");
 
         // Assembly format class uses the APIntParameter.csharpParser helper for both parameters
         AssertContainsAll(
@@ -377,7 +419,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "public ulong Width { get; }",
-            "public SizedAttr(ulong width)");
+            "public SizedAttr(ulong width, MLIR.Syntax.AttributeValueSyntax? syntax = null)");
 
         // The inferred ApInt type must not appear.
         AssertDoesNotContainAny(
@@ -422,7 +464,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "public string Label { get; }",
-            "public LabelAttr(string label)",
+            "public LabelAttr(string label, MLIR.Syntax.AttributeValueSyntax? syntax = null)",
             "public StringAttributeValueSyntax LabelSyntax { get; }",
             // StringRefParameter.csharpParser is used.
             "context.TryParseStringLiteralSyntax()");

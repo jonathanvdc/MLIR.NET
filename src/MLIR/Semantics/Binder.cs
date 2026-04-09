@@ -525,11 +525,7 @@ public sealed class Binder
             switch (syntax)
             {
             case BuiltinIntegerTypeSyntax integerSyntax:
-                return new IntegerType(new TypeReferenceConstructionContext(
-                    integerSyntax,
-                    integerSyntax.NameToken.Text,
-                    IntegerType.TypeDefinition,
-                    integerSyntax.Location));
+                return new IntegerType(integerSyntax.Width, integerSyntax.Signedness, integerSyntax);
             case BuiltinFloatTypeSyntax floatSyntax:
                 return new FloatTypeReference(floatSyntax);
             case BuiltinIndexTypeSyntax indexSyntax:

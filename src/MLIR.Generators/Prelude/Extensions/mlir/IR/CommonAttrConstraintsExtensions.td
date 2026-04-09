@@ -15,12 +15,14 @@ extends StringBasedAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue";
   let csharpReturnType = "string";
   let csharpConvertFromStorage = "$_self.Value";
+  let csharpConstBuilderCall = "new global::MLIR.Semantics.Attributes.Primitives.SyntheticStringAttributeValue($0)";
 }
 
 extends BoolAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.BooleanAttributeValue";
   let csharpReturnType = "bool";
   let csharpConvertFromStorage = "$_self.Value";
+  let csharpConstBuilderCall = "$_builder.getBoolAttr($0)";
 }
 
 extends TypeAttr : MLIRNet_AttrExtension {
@@ -306,12 +308,14 @@ extends SymbolRefAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
   let csharpReturnType = "global::MLIR.Semantics.SymbolRefAttr";
   let csharpConvertFromStorage = "$_self";
+  let csharpConstBuilderCall = "new global::MLIR.Semantics.SymbolRefAttr($0.RootReference, $0.NestedReferences)";
 }
 
 extends FlatSymbolRefAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
   let csharpReturnType = "string";
   let csharpConvertFromStorage = "$_self.RootReference";
+  let csharpConstBuilderCall = "new global::MLIR.Semantics.SymbolRefAttr($0)";
 }
 
 extends AffineMapAttr : MLIRNet_AttrExtension {

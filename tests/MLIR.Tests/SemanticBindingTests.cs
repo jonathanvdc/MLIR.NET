@@ -79,7 +79,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(context))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
 
         var builtin = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32")).Operations[0].TypeSignatureReference!;
         var registered = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32", registry), registry).Operations[0].TypeSignatureReference!;
@@ -188,7 +188,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat(), factory: static context => new DenseAttributeValue(context))],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(context))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
 
         var module = Binder.BindModule(
             Parser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32", registry),
@@ -217,7 +217,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [i32AttributeDefinition],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(context))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
         registry.RegisterDialect(
             Dialect.Create(
                 "arith",

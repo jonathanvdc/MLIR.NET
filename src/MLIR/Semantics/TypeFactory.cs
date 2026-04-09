@@ -50,7 +50,7 @@ public static class TypeFactory
     /// </summary>
     public static IntegerType I(int width)
     {
-        return new IntegerType(width, IntegerTypeSignedness.Signless);
+        return new IntegerType(width, IntegerTypeSignedness.Signless, null);
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ public static class TypeFactory
     /// </summary>
     public static IntegerType SI(int width)
     {
-        return new IntegerType(width, IntegerTypeSignedness.Signed);
+        return new IntegerType(width, IntegerTypeSignedness.Signed, null);
     }
 
     /// <summary>
@@ -66,7 +66,7 @@ public static class TypeFactory
     /// </summary>
     public static IntegerType UI(int width)
     {
-        return new IntegerType(width, IntegerTypeSignedness.Unsigned);
+        return new IntegerType(width, IntegerTypeSignedness.Unsigned, null);
     }
 
     /// <summary>

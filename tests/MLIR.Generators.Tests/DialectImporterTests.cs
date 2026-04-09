@@ -303,6 +303,38 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
+    public void ImportsBuiltinAttributeParameterCsharpMetadataFromPreludeOverlay()
+    {
+        const string source =
+            "include \"mlir/IR/BuiltinAttributes.td\"\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
+
+        var typeAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_TypeAttr");
+        var typeParam = Assert.Single(typeAttr.Parameters);
+        Assert.Equal("value", typeParam.Name);
+        Assert.Equal("global::MLIR.Syntax.TypeSyntax", typeParam.CsharpType);
+        Assert.Equal("global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax", typeParam.CsharpSyntaxType);
+        Assert.Equal("$_syntax.TypeSyntax", typeParam.CsharpExtractor);
+
+        var arrayAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_ArrayAttr");
+        var arrayParam = Assert.Single(arrayAttr.Parameters);
+        Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>", arrayParam.CsharpType);
+        Assert.Equal("global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax", arrayParam.CsharpSyntaxType);
+        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeItems($_syntax.Items.Items)", arrayParam.CsharpExtractor);
+        Assert.Equal("global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>()", arrayParam.CsharpDefault);
+
+        var dictionaryAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_DictionaryAttr");
+        var dictionaryParam = Assert.Single(dictionaryAttr.Parameters);
+        Assert.Equal("global::MLIR.Semantics.NamedAttributeCollection", dictionaryParam.CsharpType);
+        Assert.Equal("global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax", dictionaryParam.CsharpSyntaxType);
+        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes($_syntax.Attributes.Items)", dictionaryParam.CsharpExtractor);
+        Assert.Equal("global::MLIR.Semantics.NamedAttributeCollection.Empty", dictionaryParam.CsharpDefault);
+    }
+
+    [Fact]
     public void ImportsSharedBuiltinTypeConstraintsWithCanonicalBuiltinNames()
     {
         var dialects = DialectImporter.Import(
@@ -523,6 +555,7 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue", strAttr.CsharpStorageType);
         Assert.Equal("string", strAttr.CsharpReturnType);
         Assert.Equal("$_self.Value", strAttr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Semantics.Attributes.Primitives.SyntheticStringAttributeValue($0)", strAttr.CsharpConstBuilderCall);
 
         var typeAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "TypeAttr");
         Assert.Equal("global::MLIR.Semantics.Attributes.TypeAttributeValue", typeAttr.CsharpStorageType);
@@ -534,11 +567,13 @@ public sealed class DialectImporterTests
         Assert.Equal("bool", unitAttr.CsharpReturnType);
         Assert.True(unitAttr.IsOptional);
         Assert.Equal("false", unitAttr.CsharpDefaultValue);
+        Assert.Null(unitAttr.CsharpConstBuilderCall);
 
         var arrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "ArrayAttr");
         Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttributeValue", arrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>", arrayAttr.CsharpReturnType);
         Assert.Equal("$_self.Items", arrayAttr.CsharpConvertFromStorage);
+        Assert.Null(arrayAttr.CsharpConstBuilderCall);
 
         var i32ArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "I32ArrayAttr");
         Assert.Equal(AttributeConstraintKind.TypedArrayAttribute, i32ArrayAttr.Kind);
@@ -546,25 +581,30 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<int>", i32ArrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<int>", i32ArrayAttr.CsharpReturnType);
         Assert.Equal("$_self.Items", i32ArrayAttr.CsharpConvertFromStorage);
+        Assert.Null(i32ArrayAttr.CsharpConstBuilderCall);
 
         var denseI32ArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DenseI32ArrayAttr");
         Assert.Equal(AttributeConstraintKind.DenseIntegerArrayAttribute, denseI32ArrayAttr.Kind);
         Assert.Equal("global::MLIR.Semantics.Attributes.Collections.DenseIntegerArrayAttributeValue", denseI32ArrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>", denseI32ArrayAttr.CsharpReturnType);
+        Assert.Null(denseI32ArrayAttr.CsharpConstBuilderCall);
 
         var symbolRefAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "SymbolRefAttr");
         Assert.Equal("global::MLIR.Semantics.SymbolRefAttr", symbolRefAttr.CsharpStorageType);
         Assert.Equal("global::MLIR.Semantics.SymbolRefAttr", symbolRefAttr.CsharpReturnType);
         Assert.Equal("$_self", symbolRefAttr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Semantics.SymbolRefAttr($0.RootReference, $0.NestedReferences)", symbolRefAttr.CsharpConstBuilderCall);
 
         var flatSymbolRefAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "FlatSymbolRefAttr");
         Assert.Equal("global::MLIR.Semantics.SymbolRefAttr", flatSymbolRefAttr.CsharpStorageType);
         Assert.Equal("string", flatSymbolRefAttr.CsharpReturnType);
         Assert.Equal("$_self.RootReference", flatSymbolRefAttr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Semantics.SymbolRefAttr($0)", flatSymbolRefAttr.CsharpConstBuilderCall);
 
         var dictArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DictArrayAttr");
         Assert.Equal("global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.NamedAttributeCollection>", dictArrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection>", dictArrayAttr.CsharpReturnType);
+        Assert.Null(dictArrayAttr.CsharpConstBuilderCall);
 
         Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MyP_FooAttr");
         Assert.DoesNotContain(dialect.Attrs, static attr => attr.RecordName == "MyP_FooAttr");

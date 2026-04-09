@@ -64,11 +64,7 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
             throw new InvalidOperationException("Builtin integer types require builtin integer syntax.");
         }
 
-        return new IntegerType(new TypeReferenceConstructionContext(
-            integerSyntax,
-            integerSyntax.NameToken.Text,
-            definition,
-            integerSyntax.Location));
+        return new IntegerType(integerSyntax.Width, integerSyntax.Signedness, integerSyntax);
     }
 
     /// <inheritdoc/>

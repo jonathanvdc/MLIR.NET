@@ -656,7 +656,12 @@ public sealed partial class SemanticTests
 
         public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
         {
-            return new IntegerType(new TypeReferenceConstructionContext(syntax, syntax.ToString(), definition, syntax.Location));
+            if (syntax is not global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax integerSyntax)
+            {
+                return new IntegerType(0, IntegerTypeSignedness.Signless, syntax);
+            }
+
+            return new IntegerType(integerSyntax.Width, integerSyntax.Signedness, syntax);
         }
 
         public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)

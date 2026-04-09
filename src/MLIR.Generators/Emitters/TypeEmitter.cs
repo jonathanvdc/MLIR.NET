@@ -156,26 +156,36 @@ internal static class TypeEmitter
         builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
+        builder.Append("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name));
         if (assemblyFormatExpression != null)
         {
-            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", " + assemblyFormatExpression + ", factory: static context => new " + className + "(context));");
+            builder.Append(", " + assemblyFormatExpression);
+        }
+
+        if (syntaxClassName != null)
+        {
+            builder.Append(", factory: static context => new " + className + "(");
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(", ");
+                }
+
+                builder.Append("Bind" + DialectGeneratorNaming.ToPascalCase(parameters[i].Name) + "Param(context.Syntax)");
+            }
+
+            if (parameters.Count > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.AppendLine("context.Syntax));");
         }
         else
         {
-            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
+            builder.AppendLine(");");
         }
-        builder.AppendLine();
-
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(context.Syntax, context.Location)");
-        builder.AppendLine("    {");
-        foreach (var param in parameters)
-        {
-            var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
-            builder.AppendLine("        " + propertyName + " = Bind" + propertyName + "Param(context.Syntax);");
-        }
-
-        builder.AppendLine("    }");
         builder.AppendLine();
 
         builder.Append("    public " + className + "(");
@@ -190,8 +200,13 @@ internal static class TypeEmitter
             builder.Append(csharpType + " " + EmitterHelpers.LowerFirst(parameters[i].Name));
         }
 
-        builder.AppendLine(")");
-        builder.AppendLine("        : base(null, MLIR.Semantics.SourceLocation.Unknown)");
+        if (parameters.Count > 0)
+        {
+            builder.Append(", ");
+        }
+
+        builder.AppendLine("TypeSyntax? syntax = null)");
+        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         foreach (var param in parameters)
         {
@@ -258,37 +273,15 @@ internal static class TypeEmitter
         builder.AppendLine("    }");
         builder.AppendLine();
 
-        foreach (var param in parameters)
+        if (syntaxClassName != null)
         {
-            if (syntaxClassName != null)
+            foreach (var param in parameters)
             {
                 EmitBindParamHelper(builder, type, param, syntaxClassName);
-            }
-            else
-            {
-                EmitParameterOnlyBindParamHelper(builder, param);
             }
         }
 
         builder.AppendLine("}");
-    }
-
-    private static void EmitParameterOnlyBindParamHelper(StringBuilder builder, AttrOrTypeParameterModel param)
-    {
-        var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
-        var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
-        var helperName = "Bind" + propertyName + "Param";
-
-        builder.AppendLine("    private static " + csharpType + " " + helperName + "(MLIR.Syntax.TypeSyntax? syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (syntax is BuiltinIntegerTypeSyntax integerSyntax)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return " + BuildExtractValueExpression(param, "integerSyntax") + ";");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return " + BuildFallbackExtractExpression(csharpType, param) + ";");
-        builder.AppendLine("    }");
-        builder.AppendLine();
     }
 
     private static void EmitBindParamHelper(
@@ -310,8 +303,15 @@ internal static class TypeEmitter
         builder.AppendLine("            return " + extractExpr + ";");
         builder.AppendLine("        }");
         builder.AppendLine();
-        var fallbackExpr = BuildFallbackExtractExpression(csharpType, param);
-        builder.AppendLine("        return " + fallbackExpr + ";");
+        var fallbackExpr = BuildFallbackExtractExpression(type, param);
+        if (fallbackExpr.StartsWith("throw "))
+        {
+            builder.AppendLine("        " + fallbackExpr + ";");
+        }
+        else
+        {
+            builder.AppendLine("        return " + fallbackExpr + ";");
+        }
         builder.AppendLine("    }");
         builder.AppendLine();
     }
@@ -326,14 +326,15 @@ internal static class TypeEmitter
         return syntaxExpr;
     }
 
-    private static string BuildFallbackExtractExpression(string csharpType, AttrOrTypeParameterModel param)
+    private static string BuildFallbackExtractExpression(TypeModel type, AttrOrTypeParameterModel param)
     {
         if (!string.IsNullOrEmpty(param.CsharpDefault))
         {
             return param.CsharpDefault!;
         }
 
-        return "default!";
+        var message = "Missing syntax for parameter '" + param.Name + "' on type '" + type.Name + "' and no C# default value was defined.";
+        return "throw new global::System.InvalidOperationException(" + EmitterHelpers.ToCSharpStringLiteral(message) + ")";
     }
 
     private static bool HasTypedParameters(TypeModel type)
