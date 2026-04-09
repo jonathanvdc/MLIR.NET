@@ -338,21 +338,21 @@ public sealed class DialectImporterTests
         Assert.True(integerAttr.SelfTypeParameter!.IsSelfTypeParameter);
         Assert.Equal("type", integerAttr.SelfTypeParameter.Name);
         Assert.Equal("global::MLIR.Semantics.TypeReference", integerAttr.SelfTypeParameter.CsharpType);
-        Assert.Equal(1, integerAttr.PayloadParameters.Count);
+        Assert.Single(integerAttr.PayloadParameters);
         Assert.Equal("value", integerAttr.PayloadParameters[0].Name);
 
         var stringAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_StringAttr");
         Assert.NotNull(stringAttr.SelfTypeParameter);
         Assert.True(stringAttr.SelfTypeParameter!.IsSelfTypeParameter);
         Assert.Equal("type", stringAttr.SelfTypeParameter.Name);
-        Assert.Equal(1, stringAttr.PayloadParameters.Count);
+        Assert.Single(stringAttr.PayloadParameters);
         Assert.Equal("value", stringAttr.PayloadParameters[0].Name);
 
         var floatAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_FloatAttr");
         Assert.NotNull(floatAttr.SelfTypeParameter);
         Assert.True(floatAttr.SelfTypeParameter!.IsSelfTypeParameter);
         Assert.Equal("type", floatAttr.SelfTypeParameter.Name);
-        Assert.Equal(1, floatAttr.PayloadParameters.Count);
+        Assert.Single(floatAttr.PayloadParameters);
         Assert.Equal("value", floatAttr.PayloadParameters[0].Name);
 
         var opaqueAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_OpaqueAttr");
