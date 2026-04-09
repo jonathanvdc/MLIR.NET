@@ -484,6 +484,21 @@ public sealed class DialectImporterTests
         Assert.Equal("bool", boolAttr.CsharpReturnType);
         Assert.Equal("$_self.Value", boolAttr.CsharpConvertFromStorage);
 
+        var i32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "I32Attr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue", i32Attr.CsharpStorageType);
+        Assert.Equal("uint", i32Attr.CsharpReturnType);
+        Assert.Equal("(uint)$_self.Value.ToUInt64()", i32Attr.CsharpConvertFromStorage);
+
+        var si32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "SI32Attr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue", si32Attr.CsharpStorageType);
+        Assert.Equal("int", si32Attr.CsharpReturnType);
+        Assert.Equal("(int)$_self.Value.ToInt64()", si32Attr.CsharpConvertFromStorage);
+
+        var ui32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "UI32Attr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue", ui32Attr.CsharpStorageType);
+        Assert.Equal("uint", ui32Attr.CsharpReturnType);
+        Assert.Equal("(uint)$_self.Value.ToUInt64()", ui32Attr.CsharpConvertFromStorage);
+
         var strAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "StrAttr");
         Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue", strAttr.CsharpStorageType);
         Assert.Equal("string", strAttr.CsharpReturnType);
