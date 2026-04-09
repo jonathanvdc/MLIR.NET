@@ -164,4 +164,34 @@ extends UI64Attr : MLIRNet_AttrExtension {
   let csharpConvertFromStorage = "$_self.Value.ToUInt64()";
 }
 
+extends FloatAttrBase : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
+  let csharpConvertFromStorage = "$_self.Value";
+}
+
+extends F16Attr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
+  let csharpConvertFromStorage = "$_self.Value";
+}
+
+extends F32Attr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
+  let csharpConvertFromStorage = "$_self.Value";
+}
+
+extends F64Attr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
+  let csharpConvertFromStorage = "$_self.Value";
+}
+
+extends BF16Attr : MLIRNet_AttrExtension {
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
+  let csharpConvertFromStorage = "$_self.Value";
+}
+
 #endif // COMMON_ATTR_CONSTRAINTS_EXTENSIONS_TD

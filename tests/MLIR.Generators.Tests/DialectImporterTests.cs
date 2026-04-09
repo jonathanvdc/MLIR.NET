@@ -499,6 +499,26 @@ public sealed class DialectImporterTests
         Assert.Equal("uint", ui32Attr.CsharpReturnType);
         Assert.Equal("(uint)$_self.Value.ToUInt64()", ui32Attr.CsharpConvertFromStorage);
 
+        var f16Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F16Attr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue", f16Attr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Numerics.ApFloat", f16Attr.CsharpReturnType);
+        Assert.Equal("$_self.Value", f16Attr.CsharpConvertFromStorage);
+
+        var f32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F32Attr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue", f32Attr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Numerics.ApFloat", f32Attr.CsharpReturnType);
+        Assert.Equal("$_self.Value", f32Attr.CsharpConvertFromStorage);
+
+        var f64Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F64Attr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue", f64Attr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Numerics.ApFloat", f64Attr.CsharpReturnType);
+        Assert.Equal("$_self.Value", f64Attr.CsharpConvertFromStorage);
+
+        var bf16Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "BF16Attr");
+        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue", bf16Attr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Numerics.ApFloat", bf16Attr.CsharpReturnType);
+        Assert.Equal("$_self.Value", bf16Attr.CsharpConvertFromStorage);
+
         var strAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "StrAttr");
         Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue", strAttr.CsharpStorageType);
         Assert.Equal("string", strAttr.CsharpReturnType);
