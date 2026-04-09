@@ -2,6 +2,7 @@ namespace MLIR.Semantics;
 
 using System;
 using System.Collections.Generic;
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Syntax;
 using MLIR.Semantics.Attributes.Collections;
@@ -521,10 +522,14 @@ public sealed class Binder
             return registeredType;
         }
 
-        switch (syntax)
-        {
+            switch (syntax)
+            {
             case BuiltinIntegerTypeSyntax integerSyntax:
-                return new IntegerTypeReference(integerSyntax);
+                return new IntegerType(new TypeReferenceConstructionContext(
+                    integerSyntax,
+                    integerSyntax.NameToken.Text,
+                    IntegerType.TypeDefinition,
+                    integerSyntax.Location));
             case BuiltinFloatTypeSyntax floatSyntax:
                 return new FloatTypeReference(floatSyntax);
             case BuiltinIndexTypeSyntax indexSyntax:

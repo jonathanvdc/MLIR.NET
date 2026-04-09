@@ -270,6 +270,37 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
+    public void ImportsBuiltinIntegerTypeParameterCsharpMetadataFromPreludeOverlay()
+    {
+        const string source =
+            "include \"mlir/IR/BuiltinTypes.td\"\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
+        var integer = Assert.Single(builtin.Types, static typeModel => typeModel.RecordName == "Builtin_Integer");
+
+        Assert.Collection(
+            integer.Parameters,
+            width =>
+            {
+                Assert.Equal("width", width.Name);
+                Assert.Equal("unsigned", width.CppType);
+                Assert.Equal("int", width.CsharpType);
+                Assert.Equal("$_syntax.Width", width.CsharpExtractor);
+                Assert.Equal("0", width.CsharpDefault);
+            },
+            signedness =>
+            {
+                Assert.Equal("signedness", signedness.Name);
+                Assert.Equal("SignednessSemantics", signedness.CppType);
+                Assert.Equal("global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness", signedness.CsharpType);
+                Assert.Equal("$_syntax.Signedness", signedness.CsharpExtractor);
+                Assert.Equal("global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signless", signedness.CsharpDefault);
+            });
+    }
+
+    [Fact]
     public void ImportsSharedBuiltinTypeConstraintsWithCanonicalBuiltinNames()
     {
         var dialects = DialectImporter.Import(

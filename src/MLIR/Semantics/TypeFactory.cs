@@ -1,6 +1,7 @@
 namespace MLIR.Semantics;
 
 using System.Collections.Generic;
+using MLIR;
 using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
@@ -22,17 +23,17 @@ public static class TypeFactory
     public static NoneTypeReference None { get; } = new();
 
     /// <summary>Gets the builtin signless <c>i1</c> type.</summary>
-    public static IntegerTypeReference I1 { get; } = I(1);
+    public static IntegerType I1 { get; } = I(1);
     /// <summary>Gets the builtin signless <c>i8</c> type.</summary>
-    public static IntegerTypeReference I8 { get; } = I(8);
+    public static IntegerType I8 { get; } = I(8);
     /// <summary>Gets the builtin signless <c>i16</c> type.</summary>
-    public static IntegerTypeReference I16 { get; } = I(16);
+    public static IntegerType I16 { get; } = I(16);
     /// <summary>Gets the builtin signless <c>i32</c> type.</summary>
-    public static IntegerTypeReference I32 { get; } = I(32);
+    public static IntegerType I32 { get; } = I(32);
     /// <summary>Gets the builtin signless <c>i64</c> type.</summary>
-    public static IntegerTypeReference I64 { get; } = I(64);
+    public static IntegerType I64 { get; } = I(64);
     /// <summary>Gets the builtin signless <c>i128</c> type.</summary>
-    public static IntegerTypeReference I128 { get; } = I(128);
+    public static IntegerType I128 { get; } = I(128);
 
     /// <summary>Gets the builtin <c>f16</c> type.</summary>
     public static FloatTypeReference F16 { get; } = F("f16");
@@ -48,25 +49,25 @@ public static class TypeFactory
     /// <summary>
     /// Creates a builtin signless integer type of the requested bit width.
     /// </summary>
-    public static IntegerTypeReference I(int width)
+    public static IntegerType I(int width)
     {
-        return new IntegerTypeReference(IntegerTypeSignedness.Signless, width);
+        return new IntegerType(width, IntegerTypeSignedness.Signless);
     }
 
     /// <summary>
     /// Creates a builtin signed integer type of the requested bit width.
     /// </summary>
-    public static IntegerTypeReference SI(int width)
+    public static IntegerType SI(int width)
     {
-        return new IntegerTypeReference(IntegerTypeSignedness.Signed, width);
+        return new IntegerType(width, IntegerTypeSignedness.Signed);
     }
 
     /// <summary>
     /// Creates a builtin unsigned integer type of the requested bit width.
     /// </summary>
-    public static IntegerTypeReference UI(int width)
+    public static IntegerType UI(int width)
     {
-        return new IntegerTypeReference(IntegerTypeSignedness.Unsigned, width);
+        return new IntegerType(width, IntegerTypeSignedness.Unsigned);
     }
 
     /// <summary>

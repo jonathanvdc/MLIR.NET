@@ -12,32 +12,45 @@ internal static class TypeEmitter
     {
         var className = DialectGeneratorNaming.GetTypeClassName(type);
 
+        if (type.Parameters.Count > 0)
+        {
+            if (type.AssemblyFormat != null)
+            {
+                EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
+                TypeAssemblyFormatEmitter.EmitSyntaxClass(builder, type, className);
+                builder.AppendLine();
+                builder.AppendLine();
+                EmitParametrisedTypeClass(builder, type, className);
+                builder.AppendLine();
+                TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(type.CsharpName))
+            {
+                EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
+                EmitParametrisedTypeClass(builder, type, className);
+                return;
+            }
+
+            EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
+            EmitPlainTypeClass(builder, type, className);
+            return;
+        }
+
         if (TryEmitBuiltinWrapper(builder, type, className))
         {
             return;
         }
 
-        if (type.AssemblyFormat != null && type.Parameters.Count > 0)
-        {
-            EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-            TypeAssemblyFormatEmitter.EmitSyntaxClass(builder, type, className);
-            builder.AppendLine();
-            EmitParametrisedTypeClass(builder, type, className);
-            builder.AppendLine();
-            TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
-        }
-        else
-        {
-            EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-            EmitPlainTypeClass(builder, type, className);
-        }
+        EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
+        EmitPlainTypeClass(builder, type, className);
     }
 
     private static bool TryEmitBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
     {
         return type.RecordName switch
         {
-            "Builtin_Integer" => EmitIntegerBuiltinWrapper(builder, type, className),
             "Builtin_Index" => EmitIndexBuiltinWrapper(builder, type, className),
             "Builtin_None" => EmitNoneBuiltinWrapper(builder, type, className),
             "Builtin_BFloat16" or "Builtin_Float16" or "Builtin_FloatTF32" or "Builtin_Float32" or "Builtin_Float64" or "Builtin_Float80" or "Builtin_Float128" or
@@ -48,33 +61,10 @@ internal static class TypeEmitter
         };
     }
 
-    private static bool EmitIntegerBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
-    {
-        EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public sealed class " + className + " : IntegerTypeReference");
-        builder.AppendLine("{");
-        builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base((BuiltinIntegerTypeSyntax)context.Syntax!)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(IntegerTypeSignedness signedness, int width)");
-        builder.AppendLine("        : base(signedness, width)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
-        builder.AppendLine("}");
-        return true;
-    }
-
     private static bool EmitFloatBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
     {
         EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public sealed class " + className + " : FloatTypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : FloatTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
@@ -97,7 +87,7 @@ internal static class TypeEmitter
     private static bool EmitIndexBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
     {
         EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public sealed class " + className + " : IndexTypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : IndexTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
@@ -120,7 +110,7 @@ internal static class TypeEmitter
     private static bool EmitNoneBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
     {
         EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public sealed class " + className + " : NoneTypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : NoneTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
@@ -142,7 +132,7 @@ internal static class TypeEmitter
 
     private static void EmitPlainTypeClass(StringBuilder builder, TypeModel type, string className)
     {
-        builder.AppendLine("public sealed class " + className + " : TypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
@@ -160,13 +150,20 @@ internal static class TypeEmitter
     private static void EmitParametrisedTypeClass(StringBuilder builder, TypeModel type, string className)
     {
         var parameters = type.Parameters;
-        var syntaxClassName = className + "Syntax";
-        var formatClassName = className + "AssemblyFormat";
+        var syntaxClassName = type.AssemblyFormat != null ? className + "Syntax" : null;
+        var formatClassName = type.AssemblyFormat != null ? className + "AssemblyFormat" : null;
 
-        builder.AppendLine("public sealed class " + className + " : TypeReference");
+        builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-        builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", new " + formatClassName + "(), factory: static context => new " + className + "(context));");
+        if (formatClassName != null)
+        {
+            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", new " + formatClassName + "(), factory: static context => new " + className + "(context));");
+        }
+        else
+        {
+            builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ", factory: static context => new " + className + "(context));");
+        }
         builder.AppendLine();
 
         builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
@@ -213,9 +210,11 @@ internal static class TypeEmitter
         }
 
         builder.AppendLine();
-        builder.AppendLine("    public override string? Name => TypeDefinition.Name;");
+        builder.AppendLine("    public override string? Name => " + (string.IsNullOrEmpty(type.CsharpName) ? "TypeDefinition.Name" : type.CsharpName) + ";");
+        builder.AppendLine();
         builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
         builder.AppendLine();
+
         builder.AppendLine("    protected override Type SemanticFamily => typeof(" + className + ");");
         builder.AppendLine();
         builder.AppendLine("    protected override bool SemanticEqualsValue(TypeReference other)");
@@ -261,10 +260,35 @@ internal static class TypeEmitter
 
         foreach (var param in parameters)
         {
-            EmitBindParamHelper(builder, type, param, syntaxClassName);
+            if (syntaxClassName != null)
+            {
+                EmitBindParamHelper(builder, type, param, syntaxClassName);
+            }
+            else
+            {
+                EmitParameterOnlyBindParamHelper(builder, param);
+            }
         }
 
         builder.AppendLine("}");
+    }
+
+    private static void EmitParameterOnlyBindParamHelper(StringBuilder builder, AttrOrTypeParameterModel param)
+    {
+        var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+        var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+        var helperName = "Bind" + propertyName + "Param";
+
+        builder.AppendLine("    private static " + csharpType + " " + helperName + "(MLIR.Syntax.TypeSyntax? syntax)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        if (syntax is BuiltinIntegerTypeSyntax integerSyntax)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return " + BuildExtractValueExpression(param, "integerSyntax") + ";");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        return " + BuildFallbackExtractExpression(csharpType, param) + ";");
+        builder.AppendLine("    }");
+        builder.AppendLine();
     }
 
     private static void EmitBindParamHelper(
@@ -310,5 +334,23 @@ internal static class TypeEmitter
         }
 
         return "default!";
+    }
+
+    private static bool HasTypedParameters(TypeModel type)
+    {
+        foreach (var parameter in type.Parameters)
+        {
+            if (!string.IsNullOrEmpty(parameter.CsharpType)
+                || !string.IsNullOrEmpty(parameter.CsharpSyntaxType)
+                || !string.IsNullOrEmpty(parameter.CsharpParser)
+                || !string.IsNullOrEmpty(parameter.CsharpExtractor)
+                || !string.IsNullOrEmpty(parameter.CsharpDefault)
+                || !string.IsNullOrEmpty(parameter.CsharpPrinter))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

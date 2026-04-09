@@ -19,13 +19,14 @@ internal static class TypeRecordImporter
             var className = index.GetOptionalStringField(record, "cppClassName") ?? record.Name;
             var summary = index.GetOptionalStringField(record, "summary");
             var description = index.GetOptionalStringField(record, "description");
+            var csharpName = index.GetOptionalStringField(record, "csharpName");
             var parameters = index.GetAttrOrTypeParameters(record);
             var assemblyFormatString = index.GetOptionalStringField(record, "assemblyFormat");
             var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
                 ? AssemblyFormatParser.Parse(assemblyFormatString!)
                 : null;
 
-            dialect.Types.Add(new TypeModel(typeName, record.Name, className, summary, description, parameters, assemblyFormat));
+            dialect.Types.Add(new TypeModel(typeName, record.Name, className, summary, description, csharpName, parameters, assemblyFormat));
         }
     }
 }

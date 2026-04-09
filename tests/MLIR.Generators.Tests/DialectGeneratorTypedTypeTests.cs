@@ -25,20 +25,12 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public sealed class opaqueTypeSyntax : DialectNamedTypeSyntax",
-            "public opaqueTypeSyntax(DialectTypePrefix prefix",
-            "public StringAttributeValueSyntax ValueSyntax { get; }",
-            "public sealed class opaqueType : TypeReference",
-            "public string Value { get; }",
-            "public opaqueType(string value)",
-            "public opaqueType(TypeReferenceConstructionContext context)",
-            "internal sealed class opaqueTypeAssemblyFormat : ITypeAssemblyFormat",
-            "ParseResult<TypeSyntax> TryParse(TypeParsingContext context)",
-            "TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)",
+            "new TypeDefinition(\"myp.opaque\",",
+            "factory: static context => new",
+            "TypeReferenceConstructionContext context",
             "TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
             "WritePrefix(writer);",
-            "new DialectTypePrefix(bangToken, nameToken)",
-            "new TypeDefinition(\"myp.opaque\", new opaqueTypeAssemblyFormat()");
+            "new DialectTypePrefix(bangToken, nameToken)");
         AssertDoesNotContainAny(
             registrationSource,
             "public NamedAttribute",

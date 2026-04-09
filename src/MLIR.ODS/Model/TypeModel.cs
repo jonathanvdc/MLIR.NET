@@ -12,6 +12,7 @@ public sealed class TypeModel(
     string? className = null,
     string? summary = null,
     string? description = null,
+    string? csharpName = null,
     IReadOnlyList<AttrOrTypeParameterModel>? parameters = null,
     AssemblyFormatModel? assemblyFormat = null)
 {
@@ -39,6 +40,11 @@ public sealed class TypeModel(
     /// Gets the type description, if known.
     /// </summary>
     public string? Description { get; } = description;
+
+    /// <summary>
+    /// Gets the C# expression used to compute the type's canonical name, if one was specified.
+    /// </summary>
+    public string? CsharpName { get; } = csharpName;
 
     /// <summary>
     /// Gets the ordered list of parameters declared in the <c>parameters</c> dag of this type definition.

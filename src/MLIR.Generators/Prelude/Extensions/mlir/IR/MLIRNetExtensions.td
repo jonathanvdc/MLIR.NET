@@ -96,6 +96,9 @@ class MLIRNet_OpExtension {
 //                      DAG.  The upstream `parameters` field remains the source of
 //                      truth for C++ semantics (cppType, storage, accessors, defaults).
 //
+//   csharpName       – C# expression that computes the type's canonical name.
+//                      Defaults to `TypeDefinition.Name` when absent.
+//
 // Example:
 //   extends MyAttr : MLIRNet_AttrOrTypeDefExtension {
 //     let csharpParameters = (ins
@@ -106,6 +109,8 @@ class MLIRNet_OpExtension {
 class MLIRNet_AttrOrTypeDefExtension {
   // DAG of C# parameter overrides, keyed by the same names as the `parameters` dag.
   dag csharpParameters = ?;
+  // C# expression for the type's canonical name.
+  string csharpName = ?;
 }
 
 class MLIRNet_AttrOrTypeParameterExtension {

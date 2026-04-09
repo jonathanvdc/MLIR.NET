@@ -46,20 +46,20 @@ internal static class TypeConstraintEmitter
     private static void EmitExactIntegerConstraint(StringBuilder builder, TypeConstraintModel typeConstraint)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
-        builder.AppendLine("public sealed class " + className + " : IntegerTypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : global::MLIR.IntegerType");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => new " + className + "(context));");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeReferenceConstructionContext context)");
-        builder.AppendLine("        : base(GetSignedness(context.Syntax), GetWidth(context.Syntax), context.Syntax, context.Location)");
+        builder.AppendLine("        : base(GetWidth(context.Syntax), GetSignedness(context.Syntax), context.Syntax, context.Location)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public override string? Name => TypeDefinition.Name;");
         builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
         builder.AppendLine();
-        builder.AppendLine("    private static IntegerTypeSignedness GetSignedness(TypeSyntax? syntax)");
+        builder.AppendLine("    private static global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness GetSignedness(TypeSyntax? syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("        return syntax is BuiltinIntegerTypeSyntax integerSyntax");
         builder.AppendLine("            ? integerSyntax.Signedness");
@@ -78,7 +78,7 @@ internal static class TypeConstraintEmitter
     private static void EmitExactFloatConstraint(StringBuilder builder, TypeConstraintModel typeConstraint)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
-        builder.AppendLine("public sealed class " + className + " : FloatTypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : FloatTypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", factory: static context => new " + className + "(context));");
@@ -96,7 +96,7 @@ internal static class TypeConstraintEmitter
     private static void EmitPrimitiveConstraint(StringBuilder builder, TypeConstraintModel typeConstraint, string baseTypeName, string baseArguments)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
-        builder.AppendLine("public sealed class " + className + " : " + baseTypeName);
+        builder.AppendLine("public sealed partial class " + className + " : " + baseTypeName);
         builder.AppendLine("{");
         if (typeConstraint.CanonicalTypeName != null)
         {
@@ -203,7 +203,7 @@ internal static class TypeConstraintEmitter
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
         var assemblyFormatType = className + "AssemblyFormat";
-        builder.AppendLine("public sealed class " + className + " : " + baseTypeName);
+        builder.AppendLine("public sealed partial class " + className + " : " + baseTypeName);
         builder.AppendLine("{");
         builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
         builder.AppendLine("        new TypeDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName!) + ", new " + assemblyFormatType + "());");
@@ -249,7 +249,7 @@ internal static class TypeConstraintEmitter
     private static void EmitPlainConstraint(StringBuilder builder, TypeConstraintModel typeConstraint)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
-        builder.AppendLine("public sealed class " + className + " : TypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         if (typeConstraint.CanonicalTypeName != null)
         {
@@ -282,15 +282,15 @@ internal static class TypeConstraintEmitter
     {
         if (canonicalTypeName.StartsWith("si", System.StringComparison.Ordinal))
         {
-            return "IntegerTypeSignedness.Signed";
+            return "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signed";
         }
 
         if (canonicalTypeName.StartsWith("ui", System.StringComparison.Ordinal))
         {
-            return "IntegerTypeSignedness.Unsigned";
+            return "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Unsigned";
         }
 
-        return "IntegerTypeSignedness.Signless";
+        return "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signless";
     }
 
     private static string GetIntegerWidthLiteral(string canonicalTypeName)

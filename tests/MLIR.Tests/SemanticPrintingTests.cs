@@ -7,6 +7,7 @@ using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
+using MLIR.Semantics.Types.Primitives;
 using MLIR.Text;
 using MLIR.Syntax.Attributes.Primitives;
 using Xunit;
@@ -290,7 +291,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat(), factory: static context => new DenseAttributeValue(context))],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerTypeReference(context))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(context))]));
 
         var module = Binder.BindModule(
             Parser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32"),
