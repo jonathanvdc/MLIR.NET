@@ -5,6 +5,7 @@ using MLIR.Dialects;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Text;
@@ -325,6 +326,19 @@ public sealed class ParsingTests
         Assert.Equal(expectedDigits, integerSyntax.IntegerToken.Text);
         Assert.Equal(source.StartsWith('+') || source.StartsWith('-') ? source[..1] : null, integerSyntax.SignToken?.Text);
         Assert.Equal(source, syntax.ToString());
+    }
+
+    [Fact]
+    public void ParsesStandaloneTypedAttributeValues()
+    {
+        const string source = "42 : i32";
+
+        var syntax = Parser.ParseAttributeValue(source);
+
+        var typedSyntax = Assert.IsType<TypedAttributeValueSyntax>(syntax);
+        var payloadSyntax = Assert.IsType<IntegerAttributeValueSyntax>(typedSyntax.AttributeSyntax);
+        Assert.Equal(42, (int)payloadSyntax.Value.ToBigIntegerSigned());
+        Assert.Equal(source, typedSyntax.ToString());
     }
 
     [Theory]

@@ -15,12 +15,21 @@ public sealed class AttributeValueConstructionContext
     /// <param name="name">The canonical attribute name, if one was recognized.</param>
     /// <param name="definition">The registered attribute constraint definition.</param>
     /// <param name="location">The source location of the attribute value.</param>
-    public AttributeValueConstructionContext(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition definition, SourceLocation location)
+    /// <param name="selfTypeReference">
+    /// The bound self type associated with a typed attribute form (<c>value : type</c>), when one was present.
+    /// </param>
+    public AttributeValueConstructionContext(
+        AttributeValueSyntax syntax,
+        string? name,
+        AttributeConstraintDefinition definition,
+        SourceLocation location,
+        TypeReference? selfTypeReference = null)
     {
         Syntax = syntax;
         Name = name;
         Definition = definition;
         Location = location;
+        SelfTypeReference = selfTypeReference;
     }
 
     /// <summary>
@@ -42,4 +51,9 @@ public sealed class AttributeValueConstructionContext
     /// Gets the source location of the attribute value, if known.
     /// </summary>
     public SourceLocation Location { get; }
+
+    /// <summary>
+    /// Gets the bound self type associated with a typed attribute form (<c>value : type</c>), if one was present.
+    /// </summary>
+    public TypeReference? SelfTypeReference { get; }
 }
