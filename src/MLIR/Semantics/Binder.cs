@@ -414,7 +414,7 @@ public sealed class Binder
 
     private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, AttributeConstraintDefinition? expectedDefinition)
     {
-        var originalSyntax = syntaxNode;
+        var outerSyntax = syntaxNode;
         var selfTypeReference = TryBindTypedAttributeSelfType(syntaxNode, out var payloadSyntax, out _);
         syntaxNode = payloadSyntax;
 
@@ -436,7 +436,7 @@ public sealed class Binder
         }
 
         AttributeValue attribute;
-        var location = originalSyntax.Location;
+        var location = outerSyntax.Location;
         if (definition != null)
         {
             attribute = definition.AssemblyFormat != null
@@ -445,7 +445,7 @@ public sealed class Binder
         }
         else
         {
-            attribute = StructuredAttributeSemanticDecoder.DecodeValue(originalSyntax);
+            attribute = StructuredAttributeSemanticDecoder.DecodeValue(outerSyntax);
         }
 
         return attribute;
