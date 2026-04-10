@@ -8,6 +8,7 @@ using MLIR.Syntax;
 using MLIR.Semantics.Attributes.Collections;
 using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Syntax.Types.Primitives;
 using MLIR.Text;
@@ -25,6 +26,7 @@ public sealed class Binder
     private readonly List<AssemblyDiagnostic> diagnostics = [];
     private readonly DialectRegistry? dialectRegistry;
     private readonly Stack<Dictionary<string, Value>> valueScopes = new();
+    private readonly Stack<TypeReference?> attributeSelfTypeReferences = new();
 
     /// <summary>
     /// Reports a binding diagnostic for the current operation.
@@ -407,16 +409,15 @@ public sealed class Binder
     /// <returns>The semantic attribute value.</returns>
     public AttributeValue BindAttributeValue(AttributeValueSyntax syntax, AttributeConstraintDefinition? expectedDefinition)
     {
-        if (expectedDefinition?.AssemblyFormat != null)
-        {
-            return expectedDefinition.AssemblyFormat.Bind(syntax, expectedDefinition, this);
-        }
-
         return BindAttributeValueCore(syntax, expectedDefinition);
     }
 
     private AttributeValue BindAttributeValueCore(AttributeValueSyntax syntaxNode, AttributeConstraintDefinition? expectedDefinition)
     {
+        var originalSyntax = syntaxNode;
+        var selfTypeReference = TryBindTypedAttributeSelfType(syntaxNode, out var payloadSyntax, out _);
+        syntaxNode = payloadSyntax;
+
         // TODO: don't just turn the syntax node back into text and reparse it; instead, take advantage
         // of the fact that this only applies to custom attributes and grab the name directly from the syntax node.
         var canonicalName = TryGetAttributeDefinitionName(syntaxNode.ToString());
@@ -435,19 +436,74 @@ public sealed class Binder
         }
 
         AttributeValue attribute;
-        var location = syntaxNode.Location;
+        var location = originalSyntax.Location;
         if (definition != null)
         {
             attribute = definition.AssemblyFormat != null
-                ? definition.AssemblyFormat.Bind(syntaxNode, definition, this)
-                : definition.Factory(new AttributeValueConstructionContext(syntaxNode, canonicalName, definition, location));
+                ? BindAttributeValueWithAssemblyFormat(syntaxNode, definition, selfTypeReference)
+                : definition.Factory(CreateAttributeValueConstructionContext(syntaxNode, canonicalName, definition, location, selfTypeReference));
         }
         else
         {
-            attribute = StructuredAttributeSemanticDecoder.DecodeValue(syntaxNode);
+            attribute = StructuredAttributeSemanticDecoder.DecodeValue(originalSyntax);
         }
 
         return attribute;
+    }
+
+    /// <summary>
+    /// Creates an attribute construction context, automatically flowing the currently-bound typed-attribute self type
+    /// when no explicit <paramref name="selfTypeReference"/> is supplied.
+    /// </summary>
+    public AttributeValueConstructionContext CreateAttributeValueConstructionContext(
+        AttributeValueSyntax syntax,
+        string? name,
+        AttributeConstraintDefinition definition,
+        SourceLocation location,
+        TypeReference? selfTypeReference = null)
+    {
+        return new AttributeValueConstructionContext(
+            syntax,
+            name,
+            definition,
+            location,
+            selfTypeReference ?? CurrentAttributeSelfTypeReference);
+    }
+
+    private AttributeValue BindAttributeValueWithAssemblyFormat(
+        AttributeValueSyntax syntax,
+        AttributeConstraintDefinition definition,
+        TypeReference? selfTypeReference)
+    {
+        attributeSelfTypeReferences.Push(selfTypeReference);
+        try
+        {
+            return definition.AssemblyFormat!.Bind(syntax, definition, this);
+        }
+        finally
+        {
+            attributeSelfTypeReferences.Pop();
+        }
+    }
+
+    private TypeReference? CurrentAttributeSelfTypeReference =>
+        attributeSelfTypeReferences.Count > 0 ? attributeSelfTypeReferences.Peek() : null;
+
+    private TypeReference? TryBindTypedAttributeSelfType(
+        AttributeValueSyntax syntax,
+        out AttributeValueSyntax payloadSyntax,
+        out TypeSyntax? selfTypeSyntax)
+    {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            payloadSyntax = typedSyntax.AttributeSyntax;
+            selfTypeSyntax = typedSyntax.TypeSyntax;
+            return BindTypeReference(typedSyntax.TypeSyntax);
+        }
+
+        payloadSyntax = syntax;
+        selfTypeSyntax = null;
+        return null;
     }
 
     /// <summary>

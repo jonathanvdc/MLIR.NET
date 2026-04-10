@@ -6,6 +6,7 @@ using MLIR.Dialects.Attributes.Collections;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Numerics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Attributes.Collections;
 
@@ -49,39 +50,43 @@ public sealed partial class Parser
     /// </param>
     private ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxResult(bool stopAtOperationBoundary, AttributeConstraintDefinition? expectedDefinition, params TokenKind[] stopBefore)
     {
+        var allowTypedSuffix = !stopAtOperationBoundary && !ContainsTokenKind(stopBefore, TokenKind.Colon);
+
         if (expectedDefinition != null)
         {
             var expectedResult = TryParseCustomAttributeSyntaxResult(expectedDefinition);
             if (!expectedResult.IsNoMatch)
             {
-                return expectedResult;
+                return WrapTypedAttributeValueSyntaxResult(expectedResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
             }
         }
 
         var selfIdentifyingResult = TryParseSelfIdentifyingAttributeSyntaxResult();
         if (!selfIdentifyingResult.IsNoMatch)
         {
-            return selfIdentifyingResult;
+            return WrapTypedAttributeValueSyntaxResult(selfIdentifyingResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
         }
 
         var builtinStructuredResult = TryParseBuiltinStructuredAttributeSyntaxResult();
         if (!builtinStructuredResult.IsNoMatch)
         {
-            return builtinStructuredResult;
+            return WrapTypedAttributeValueSyntaxResult(builtinStructuredResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
         }
 
-        var numericLiteralResult = TryParseNumericAttributeSyntaxResult(stopAtOperationBoundary, stopBefore);
+        var numericLiteralResult = TryParseNumericAttributeSyntaxResult(stopAtOperationBoundary, allowTypedSuffix, stopBefore);
         if (!numericLiteralResult.IsNoMatch)
         {
-            return numericLiteralResult;
+            return WrapTypedAttributeValueSyntaxResult(numericLiteralResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
         }
 
+        var rawStopBefore = allowTypedSuffix ? [.. stopBefore, TokenKind.Colon] : stopBefore;
         var rawResult = stopAtOperationBoundary
-            ? TryParseRawUntilDelimiterOrBoundaryResult(stopBefore)
-            : TryParseRawUntilDelimiterResult(stopBefore);
-        return rawResult.IsSuccess
+            ? TryParseRawUntilDelimiterOrBoundaryResult(rawStopBefore)
+            : TryParseRawUntilDelimiterResult(rawStopBefore);
+        var parsedRaw = rawResult.IsSuccess
             ? ParseResult<AttributeValueSyntax>.Success(new RawAttributeValueSyntax(rawResult.Value))
             : ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
+        return WrapTypedAttributeValueSyntaxResult(parsedRaw, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
     }
 
     /// <summary>
@@ -131,14 +136,14 @@ public sealed partial class Parser
     /// Tries to parse a primitive numeric attribute literal, preferring floating-point forms over integers.
     /// The method backtracks cleanly so partially-consumed non-numeric text can still fall through to raw syntax.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseNumericAttributeSyntaxResult(bool stopAtOperationBoundary, TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> TryParseNumericAttributeSyntaxResult(bool stopAtOperationBoundary, bool allowTypedSuffix, TokenKind[] stopBefore)
     {
         var checkpoint = Mark();
 
         var floatingPointResult = FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(new AttributeParsingContext(this, dialectRegistry, null));
         if (floatingPointResult.IsSuccess)
         {
-            if (IsValidAttributeValueTermination(stopAtOperationBoundary, stopBefore))
+            if (IsValidAttributeValueTermination(stopAtOperationBoundary, allowTypedSuffix, stopBefore))
             {
                 return floatingPointResult;
             }
@@ -165,7 +170,7 @@ public sealed partial class Parser
                 signToken,
                 integerToken,
                 ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
-        if (IsValidAttributeValueTermination(stopAtOperationBoundary, stopBefore))
+        if (IsValidAttributeValueTermination(stopAtOperationBoundary, allowTypedSuffix, stopBefore))
         {
             return integerSyntax;
         }
@@ -178,7 +183,7 @@ public sealed partial class Parser
     /// Returns <see langword="true"/> when the current parser position is a valid termination point for
     /// a completed attribute value in the current parsing mode.
     /// </summary>
-    private bool IsValidAttributeValueTermination(bool stopAtOperationBoundary, TokenKind[] stopBefore)
+    private bool IsValidAttributeValueTermination(bool stopAtOperationBoundary, bool allowTypedSuffix, TokenKind[] stopBefore)
     {
         if (Is(TokenKind.EndOfFile))
         {
@@ -193,7 +198,50 @@ public sealed partial class Parser
             }
         }
 
+        if (allowTypedSuffix && Is(TokenKind.Colon))
+        {
+            return true;
+        }
+
         return stopAtOperationBoundary && IsOperationBoundary(Current, false);
+    }
+
+    private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntaxResult(
+        ParseResult<AttributeValueSyntax> result,
+        bool allowTypedSuffix,
+        bool stopAtOperationBoundary,
+        TokenKind[] stopBefore)
+    {
+        if (!allowTypedSuffix || !result.IsSuccess || result.Value is TypedAttributeValueSyntax)
+        {
+            return result;
+        }
+
+        if (!TryMatch(TokenKind.Colon, out var colonToken))
+        {
+            return result;
+        }
+
+        var typeResult = TryParseTypeSyntaxCoreResult(stopBefore, stopAtOperationBoundary);
+        if (!typeResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(typeResult.Diagnostic!);
+        }
+
+        return ParseResult<AttributeValueSyntax>.Success(new TypedAttributeValueSyntax(result.Value, colonToken, typeResult.Value));
+    }
+
+    private static bool ContainsTokenKind(TokenKind[] kinds, TokenKind kind)
+    {
+        for (var i = 0; i < kinds.Length; i++)
+        {
+            if (kinds[i] == kind)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
