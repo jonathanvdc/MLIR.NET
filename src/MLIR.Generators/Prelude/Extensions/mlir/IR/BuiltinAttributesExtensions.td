@@ -30,8 +30,21 @@ def Builtin_DictionaryParameter : AttrOrTypeParameter<
   let csharpDefault = "global::MLIR.Semantics.NamedAttributeCollection.Empty";
 }
 
+extends Builtin_DenseArrayRawDataParameter : MLIRNet_AttrOrTypeParameterExtension {
+  let csharpType = "global::System.Collections.Generic.IReadOnlyList<byte>";
+  let csharpDefault = "global::System.Array.Empty<byte>()";
+}
+
 extends Builtin_TypeAttr : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins Builtin_TypeParameter:$value);
+}
+
+extends Builtin_DenseArray : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    Builtin_TypeParameter:$elementType,
+    "long":$size,
+    Builtin_DenseArrayRawDataParameter:$rawData
+  );
 }
 
 extends Builtin_ArrayAttr : MLIRNet_AttrOrTypeDefExtension {
@@ -40,6 +53,35 @@ extends Builtin_ArrayAttr : MLIRNet_AttrOrTypeDefExtension {
 
 extends Builtin_DictionaryAttr : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins Builtin_DictionaryParameter:$value);
+}
+
+extends Builtin_DenseStringElementsAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    AttributeSelfTypeParameter<"", "ShapedType">:$type,
+    "global::System.Collections.Generic.IReadOnlyList<string>":$value
+  );
+}
+
+extends Builtin_DenseResourceElementsAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    AttributeSelfTypeParameter<"", "ShapedType">:$type,
+    "string":$rawHandle
+  );
+}
+
+extends Builtin_SparseElementsAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    AttributeSelfTypeParameter<"", "ShapedType">:$type,
+    "global::MLIR.Semantics.AttributeValue":$indices,
+    "global::MLIR.Semantics.AttributeValue":$values
+  );
+}
+
+extends StridedLayoutAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "long?":$offset,
+    "global::System.Collections.Generic.IReadOnlyList<long?>":$strides
+  );
 }
 
 #endif // BUILTIN_ATTRIBUTES_EXTENSIONS_TD

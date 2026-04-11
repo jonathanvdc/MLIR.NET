@@ -303,7 +303,7 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
-    public void ImportsBuiltinAttributeParameterCsharpMetadataFromPreludeOverlay()
+    public void ImportsBuiltinTypeAndAttributeParameterCsharpMetadataFromPreludeOverlay()
     {
         const string source =
             "include \"mlir/IR/BuiltinAttributes.td\"\n";
@@ -640,6 +640,39 @@ public sealed class DialectImporterTests
 
         Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MyP_FooAttr");
         Assert.DoesNotContain(dialect.Attrs, static attr => attr.RecordName == "MyP_FooAttr");
+    }
+
+    [Fact]
+    public void ImportsBuiltinAttributeParameterCsharpMetadataFromPreludeOverlay()
+    {
+        const string source =
+            "include \"mlir/IR/BuiltinAttributes.td\"\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
+
+        var denseArrayAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_DenseArray");
+        Assert.Equal("global::MLIR.Semantics.TypeReference", denseArrayAttr.Parameters[0].CsharpType);
+        Assert.Equal("long", denseArrayAttr.Parameters[1].CsharpType);
+        Assert.Equal("global::System.Collections.Generic.IReadOnlyList<byte>", denseArrayAttr.Parameters[2].CsharpType);
+
+        var denseStringElementsAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_DenseStringElementsAttr");
+        Assert.Equal("global::MLIR.Semantics.TypeReference", denseStringElementsAttr.Parameters[0].CsharpType);
+        Assert.Equal("global::System.Collections.Generic.IReadOnlyList<string>", denseStringElementsAttr.Parameters[1].CsharpType);
+
+        var denseResourceElementsAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_DenseResourceElementsAttr");
+        Assert.Equal("global::MLIR.Semantics.TypeReference", denseResourceElementsAttr.Parameters[0].CsharpType);
+        Assert.Equal("string", denseResourceElementsAttr.Parameters[1].CsharpType);
+
+        var sparseElementsAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_SparseElementsAttr");
+        Assert.Equal("global::MLIR.Semantics.TypeReference", sparseElementsAttr.Parameters[0].CsharpType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", sparseElementsAttr.Parameters[1].CsharpType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", sparseElementsAttr.Parameters[2].CsharpType);
+
+        var stridedLayoutAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "StridedLayoutAttr");
+        Assert.Equal("long?", stridedLayoutAttr.Parameters[0].CsharpType);
+        Assert.Equal("global::System.Collections.Generic.IReadOnlyList<long?>", stridedLayoutAttr.Parameters[1].CsharpType);
     }
 
     [Fact]
