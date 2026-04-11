@@ -2,10 +2,9 @@ namespace MLIR.Semantics;
 
 using System;
 using System.Collections.Generic;
-using MLIR.Dialects;
+using System.Runtime.InteropServices;
+using MLIR;
 using MLIR.Numerics;
-using MLIR.Semantics.Attributes.Collections;
-using MLIR.Semantics.Attributes.Primitives;
 
 /// <summary>
 /// Provides ergonomic helpers for constructing constant semantic attribute values.
@@ -17,75 +16,75 @@ using MLIR.Semantics.Attributes.Primitives;
 public static class ConstantAttributeFactory
 {
     /// <summary>
-    /// Creates a synthetic string attribute value.
+    /// Creates a string attribute value.
     /// </summary>
-    public static SyntheticStringAttributeValue String(string value)
+    public static StringAttr String(string value)
     {
-        return new SyntheticStringAttributeValue(value);
+        return new StringAttr(value, TypeFactory.None, syntax: null);
     }
 
     /// <summary>
-    /// Creates a synthetic boolean attribute value.
+    /// Creates an <c>i1</c> integer attribute for a boolean constant.
     /// </summary>
-    public static BooleanAttributeValue Bool(bool value)
+    public static IntegerAttr Bool(bool value)
     {
-        return new SyntheticBooleanAttributeValue(value);
+        return new IntegerAttr(TypeFactory.I1, ApInt.FromInt64(1, value ? 1 : 0), syntax: null);
     }
 
     /// <summary>
     /// Creates a dense-array attribute with <c>i1</c> elements.
     /// </summary>
-    public static DenseBooleanArrayAttributeValue DenseBool(ReadOnlySpan<bool> values)
+    public static DenseArrayAttr DenseBool(ReadOnlySpan<bool> values)
     {
-        return new SyntheticDenseBooleanArrayAttributeValue(ToList(values));
+        return Dense(TypeFactory.I1, values);
     }
 
     /// <summary>
     /// Creates a dense-array attribute with <c>i8</c> elements.
     /// </summary>
-    public static DenseIntegerArrayAttributeValue DenseI8(ReadOnlySpan<sbyte> values)
+    public static DenseArrayAttr DenseI8(ReadOnlySpan<sbyte> values)
     {
-        return new SyntheticDenseIntegerArrayAttributeValue(ToSignedApIntList(values, bitWidth: 8));
+        return Dense(TypeFactory.I8, values);
     }
 
     /// <summary>
     /// Creates a dense-array attribute with <c>i16</c> elements.
     /// </summary>
-    public static DenseIntegerArrayAttributeValue DenseI16(ReadOnlySpan<short> values)
+    public static DenseArrayAttr DenseI16(ReadOnlySpan<short> values)
     {
-        return new SyntheticDenseIntegerArrayAttributeValue(ToSignedApIntList(values, bitWidth: 16));
+        return Dense(TypeFactory.I16, values);
     }
 
     /// <summary>
     /// Creates a dense-array attribute with <c>i32</c> elements.
     /// </summary>
-    public static DenseIntegerArrayAttributeValue DenseI32(ReadOnlySpan<int> values)
+    public static DenseArrayAttr DenseI32(ReadOnlySpan<int> values)
     {
-        return new SyntheticDenseIntegerArrayAttributeValue(ToSignedApIntList(values, bitWidth: 32));
+        return Dense(TypeFactory.I32, values);
     }
 
     /// <summary>
     /// Creates a dense-array attribute with <c>i64</c> elements.
     /// </summary>
-    public static DenseIntegerArrayAttributeValue DenseI64(ReadOnlySpan<long> values)
+    public static DenseArrayAttr DenseI64(ReadOnlySpan<long> values)
     {
-        return new SyntheticDenseIntegerArrayAttributeValue(ToSignedApIntList(values, bitWidth: 64));
+        return Dense(TypeFactory.I64, values);
     }
 
     /// <summary>
     /// Creates a dense-array attribute with <c>f32</c> elements.
     /// </summary>
-    public static DenseFloatingPointArrayAttributeValue DenseF32(ReadOnlySpan<float> values)
+    public static DenseArrayAttr DenseF32(ReadOnlySpan<float> values)
     {
-        return new SyntheticDenseFloatingPointArrayAttributeValue(ToSingleApFloatList(values));
+        return Dense(TypeFactory.F32, values);
     }
 
     /// <summary>
     /// Creates a dense-array attribute with <c>f64</c> elements.
     /// </summary>
-    public static DenseFloatingPointArrayAttributeValue DenseF64(ReadOnlySpan<double> values)
+    public static DenseArrayAttr DenseF64(ReadOnlySpan<double> values)
     {
-        return new SyntheticDenseFloatingPointArrayAttributeValue(ToDoubleApFloatList(values));
+        return Dense(TypeFactory.F64, values);
     }
 
     /// <summary>
@@ -112,100 +111,9 @@ public static class ConstantAttributeFactory
         return SymbolRef(reference.RootReference, reference.NestedReferences);
     }
 
-    private static IReadOnlyList<bool> ToList(ReadOnlySpan<bool> values)
+    private static DenseArrayAttr Dense<T>(TypeReference elementType, ReadOnlySpan<T> values)
+        where T : struct
     {
-        return values.ToArray();
-    }
-
-    private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<sbyte> values, int bitWidth)
-    {
-        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
-    }
-
-    private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<short> values, int bitWidth)
-    {
-        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
-    }
-
-    private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<int> values, int bitWidth)
-    {
-        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
-    }
-
-    private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<long> values, int bitWidth)
-    {
-        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
-    }
-
-    private static IReadOnlyList<ApFloat> ToSingleApFloatList(ReadOnlySpan<float> values)
-    {
-        return ToConvertedList(values, static (value, _) => ApFloat.FromSingle(FloatSemantics.IEEESingle, value), 0);
-    }
-
-    private static IReadOnlyList<ApFloat> ToDoubleApFloatList(ReadOnlySpan<double> values)
-    {
-        return ToConvertedList(values, static (value, _) => ApFloat.FromDouble(FloatSemantics.IEEEDouble, value), 0);
-    }
-
-    private static IReadOnlyList<TResult> ToConvertedList<TSource, TResult>(
-        ReadOnlySpan<TSource> values,
-        Func<TSource, int, TResult> convert,
-        int state)
-    {
-        var result = new TResult[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
-            result[i] = convert(values[i], state);
-        }
-
-        return result;
-    }
-
-    private sealed class SyntheticBooleanAttributeValue : BooleanAttributeValue
-    {
-        public SyntheticBooleanAttributeValue(bool value)
-            : base(value)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class SyntheticDenseBooleanArrayAttributeValue : DenseBooleanArrayAttributeValue
-    {
-        public SyntheticDenseBooleanArrayAttributeValue(IReadOnlyList<bool> items)
-            : base(items)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class SyntheticDenseIntegerArrayAttributeValue : DenseIntegerArrayAttributeValue
-    {
-        public SyntheticDenseIntegerArrayAttributeValue(IReadOnlyList<ApInt> items)
-            : base(items)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class SyntheticDenseFloatingPointArrayAttributeValue : DenseFloatingPointArrayAttributeValue
-    {
-        public SyntheticDenseFloatingPointArrayAttributeValue(IReadOnlyList<ApFloat> items)
-            : base(items)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override AttributeConstraintDefinition? Definition => null;
+        return new DenseArrayAttr(elementType, values.Length, MemoryMarshal.AsBytes(values).ToArray(), syntax: null);
     }
 }
