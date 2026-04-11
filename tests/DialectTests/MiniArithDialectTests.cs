@@ -115,7 +115,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var operation = Assert.IsType<MiniArith_ConstantOp>(Assert.Single(module.Operations));
         Assert.Equal("miniarith.constant", operation.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
-        Assert.Equal(ApInt.Parse(64, "42"), operation.Value);
+        Assert.Equal(42u, operation.Value);
         Assert.Null(operation.TypeSignatureReference);
     }
 
@@ -169,7 +169,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             CreateMiniArithRegistry());
 
         Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal(ApInt.Parse(64, "1"), operation.Value);
+        Assert.Equal(1u, operation.Value);
     }
 
     [Fact]

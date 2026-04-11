@@ -20,6 +20,15 @@ internal static class AttributeTypeResolver
         }
 
         var nonNullRecordName = constraintRecordName!;
+        var attrModel = resolver.TryResolveAttrModel(nonNullRecordName);
+        var attrReturnType = attrModel?.CsharpReturnType;
+        if (!string.IsNullOrEmpty(attrReturnType)
+            && !string.Equals(attrReturnType, "AttributeValue", System.StringComparison.Ordinal)
+            && !string.Equals(attrReturnType, "global::MLIR.Semantics.AttributeValue", System.StringComparison.Ordinal))
+        {
+            return attrReturnType;
+        }
+
         var strategy = resolver.TryResolveAttributeConstraintStrategy(nonNullRecordName);
         return strategy.GetAttributeValueTypeName(nonNullRecordName, resolver);
     }

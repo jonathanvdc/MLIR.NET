@@ -278,6 +278,11 @@ internal static class OperationConstructorEmitter
             return;
         }
 
+        if (HasConstructorSignatureCollisionWithAttributesOverload(attributeMembers))
+        {
+            return;
+        }
+
         builder.AppendLine("    public " + className + "(");
         if (regionMembers.Count > 0)
         {
@@ -343,5 +348,17 @@ internal static class OperationConstructorEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
+    }
+
+    private static bool HasConstructorSignatureCollisionWithAttributesOverload(IReadOnlyList<GeneratedMember> attributeMembers)
+    {
+        if (attributeMembers.Count != 1)
+        {
+            return false;
+        }
+
+        var onlyAttributeType = attributeMembers[0].TypeName;
+        return string.Equals(onlyAttributeType, "NamedAttributeCollection", StringComparison.Ordinal)
+            || string.Equals(onlyAttributeType, "global::MLIR.Semantics.NamedAttributeCollection", StringComparison.Ordinal);
     }
 }

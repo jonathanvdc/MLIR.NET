@@ -8,6 +8,12 @@ internal static class OperationAttributeValueHelpers
     public static string GetAttributeGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName)
     {
         var isOptional = IsOptionalMember(member);
+        var attrModelGetterExpression = TryGetAttrModelGetterExpression(member, sourceNameLiteral, localName, isOptional);
+        if (attrModelGetterExpression != null)
+        {
+            return attrModelGetterExpression;
+        }
+
         // ConstraintStrategy is always non-null for attribute members.
         var strategy = member.ConstraintStrategy!;
 
@@ -55,6 +61,23 @@ internal static class OperationAttributeValueHelpers
     public static string GetAttributeValueExpression(GeneratedMember member, string valueExpression)
     {
         var isOptional = IsOptionalMember(member);
+        var attrModelStorageExpression = TryGetAttrModelStorageValueExpression(member, valueExpression);
+        if (attrModelStorageExpression != null)
+        {
+            if (!isOptional)
+            {
+                return attrModelStorageExpression;
+            }
+
+            if (IsPrimitiveValueType(member.TypeName) || member.ConstraintStrategy!.IsEnum)
+            {
+                var typedStorageExpression = TryGetAttrModelStorageValueExpression(member, valueExpression + ".Value");
+                return valueExpression + ".HasValue ? " + typedStorageExpression + " : null";
+            }
+
+            return valueExpression + " != null ? " + attrModelStorageExpression + " : null";
+        }
+
         // ConstraintStrategy is always non-null for attribute members.
         var strategy = member.ConstraintStrategy!;
 
@@ -103,6 +126,23 @@ internal static class OperationAttributeValueHelpers
     {
         var sourceName = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
         var isOptional = IsOptionalMember(member);
+        var attrModelStorageExpression = TryGetAttrModelStorageValueExpression(member, valueExpression);
+        if (attrModelStorageExpression != null)
+        {
+            if (!isOptional)
+            {
+                return "new NamedAttribute(" + sourceName + ", " + attrModelStorageExpression + ")";
+            }
+
+            if (IsPrimitiveValueType(member.TypeName) || member.ConstraintStrategy!.IsEnum)
+            {
+                var typedStorageExpression = TryGetAttrModelStorageValueExpression(member, valueExpression + ".Value");
+                return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", " + typedStorageExpression + ") : null";
+            }
+
+            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + attrModelStorageExpression + ") : null";
+        }
+
         // ConstraintStrategy is always non-null for attribute members.
         var strategy = member.ConstraintStrategy!;
 
@@ -166,6 +206,54 @@ internal static class OperationAttributeValueHelpers
         return member.TypeName.EndsWith("?", System.StringComparison.Ordinal);
     }
 
+    private static string? TryGetAttrModelGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName, bool isOptional)
+    {
+        var storageTypeName = member.AttrStorageTypeName;
+        var convertExpression = member.AttrConvertFromStorageExpression;
+        if (string.IsNullOrEmpty(storageTypeName) || string.IsNullOrEmpty(convertExpression))
+        {
+            return null;
+        }
+
+        var castPrefix = "((" + storageTypeName + ")";
+        var convertedRequired = ApplyAttrModelStorageConversion(convertExpression!, castPrefix + "Attributes[" + sourceNameLiteral + "].Value)");
+        var defaultValue = member.AttrDefaultValueExpression;
+        if (!string.IsNullOrEmpty(defaultValue))
+        {
+            var convertedOptionalWithDefault = ApplyAttrModelStorageConversion(convertExpression!, castPrefix + localName + ".Value)");
+            return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + convertedOptionalWithDefault + " : " + defaultValue;
+        }
+
+        if (!isOptional)
+        {
+            return convertedRequired;
+        }
+
+        var convertedOptional = ApplyAttrModelStorageConversion(convertExpression!, castPrefix + localName + ".Value)");
+        return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + convertedOptional + " : null";
+    }
+
+    private static string? TryGetAttrModelStorageValueExpression(GeneratedMember member, string valueExpression)
+    {
+        if (!string.IsNullOrEmpty(member.AttrConstBuilderCallExpression))
+        {
+            return member.AttrConstBuilderCallExpression!.Replace("$0", valueExpression);
+        }
+
+        var storageTypeName = member.AttrStorageTypeName;
+        if (string.IsNullOrEmpty(storageTypeName))
+        {
+            return null;
+        }
+
+        return "new " + storageTypeName + "(" + valueExpression + ")";
+    }
+
+    private static string ApplyAttrModelStorageConversion(string conversionExpression, string storageExpression)
+    {
+        return conversionExpression.Replace("$_self", storageExpression);
+    }
+
     private static string GetPrimitiveValueAccessExpression(GeneratedMember member, string localName, string sourceNameLiteral, bool isOptional)
     {
         var castExpr = "((" + member.ConstraintClassName + ")";
@@ -184,7 +272,16 @@ internal static class OperationAttributeValueHelpers
 
     private static bool IsPrimitiveValueType(string typeName)
     {
-        return string.Equals(typeName.TrimEnd('?'), "bool", StringComparison.Ordinal)
+        var trimmedTypeName = typeName.TrimEnd('?');
+        return string.Equals(trimmedTypeName, "bool", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "byte", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "sbyte", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "short", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ushort", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "int", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "uint", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "long", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ulong", StringComparison.Ordinal)
             || string.Equals(typeName.TrimEnd('?'), "BigInteger", StringComparison.Ordinal)
             || string.Equals(typeName.TrimEnd('?'), "global::MLIR.Numerics.ApInt", StringComparison.Ordinal)
             || string.Equals(typeName.TrimEnd('?'), "ApInt", StringComparison.Ordinal)

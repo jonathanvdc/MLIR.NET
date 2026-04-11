@@ -544,15 +544,15 @@ public sealed class DialectImporterTests
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
 
         var boolAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "BoolAttr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.BooleanAttributeValue", boolAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", boolAttr.CsharpStorageType);
         Assert.Equal("bool", boolAttr.CsharpReturnType);
-        Assert.Equal("$_self.Value", boolAttr.CsharpConvertFromStorage);
+        Assert.Equal("$_self is global::MLIR.Semantics.Attributes.Primitives.BooleanAttributeValue bv ? bv.Value : ((global::MLIR.IntegerAttr)$_self).Value.ToUInt64() != 0", boolAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.Bool($0)", boolAttr.CsharpConstBuilderCall);
 
         var i32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "I32Attr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue", i32Attr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", i32Attr.CsharpStorageType);
         Assert.Equal("uint", i32Attr.CsharpReturnType);
-        Assert.Equal("(uint)$_self.Value.ToUInt64()", i32Attr.CsharpConvertFromStorage);
+        Assert.Equal("(uint)(($_self is global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue iv ? iv.Value : ((global::MLIR.IntegerAttr)$_self).Value).ToUInt64())", i32Attr.CsharpConvertFromStorage);
 
         var si32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "SI32Attr");
         Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue", si32Attr.CsharpStorageType);
@@ -570,14 +570,14 @@ public sealed class DialectImporterTests
         Assert.Equal("$_self.Value", f16Attr.CsharpConvertFromStorage);
 
         var f32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F32Attr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue", f32Attr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", f32Attr.CsharpStorageType);
         Assert.Equal("global::MLIR.Numerics.ApFloat", f32Attr.CsharpReturnType);
-        Assert.Equal("$_self.Value", f32Attr.CsharpConvertFromStorage);
+        Assert.Equal("$_self is global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue fv ? fv.Value : ((global::MLIR.FloatAttr)$_self).Value", f32Attr.CsharpConvertFromStorage);
 
         var f64Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F64Attr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue", f64Attr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", f64Attr.CsharpStorageType);
         Assert.Equal("global::MLIR.Numerics.ApFloat", f64Attr.CsharpReturnType);
-        Assert.Equal("$_self.Value", f64Attr.CsharpConvertFromStorage);
+        Assert.Equal("$_self is global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue fv ? fv.Value : ((global::MLIR.FloatAttr)$_self).Value", f64Attr.CsharpConvertFromStorage);
 
         var bf16Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "BF16Attr");
         Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue", bf16Attr.CsharpStorageType);
@@ -585,9 +585,9 @@ public sealed class DialectImporterTests
         Assert.Equal("$_self.Value", bf16Attr.CsharpConvertFromStorage);
 
         var strAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "StrAttr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue", strAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", strAttr.CsharpStorageType);
         Assert.Equal("string", strAttr.CsharpReturnType);
-        Assert.Equal("$_self.Value", strAttr.CsharpConvertFromStorage);
+        Assert.Equal("$_self is global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue sv ? sv.Value : ((global::MLIR.StringAttr)$_self).Value", strAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.String($0)", strAttr.CsharpConstBuilderCall);
 
         var typeAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "TypeAttr");

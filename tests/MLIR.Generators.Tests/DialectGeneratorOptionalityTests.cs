@@ -24,11 +24,12 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public global::MLIR.Numerics.ApInt? Value",
+            "public uint? Value",
             "get => Attributes.TryGet(\"value\",",
-            "set => SetAttribute(\"value\", value.HasValue",
+            "is global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue iv ? iv.Value",
+            "set => SetAttribute(\"value\", value.HasValue ? global::MLIR.Semantics.ConstantAttributeFactory.I32(value.Value) : null)",
             "NamedAttributeCollection attributes,",
-            "global::MLIR.Numerics.ApInt? value,",
+            "uint? value,",
             "attributes: context.Attributes,",
             "attributes,");
         AssertDoesNotContainAny(
@@ -78,15 +79,15 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public global::MLIR.Numerics.ApInt Value",
-            "I32AttrConstraintAttributeValue)Attributes[\"value\"].Value).Value;",
-            "new NamedAttribute(\"value\", new",
-            "global::MLIR.Numerics.ApInt value,",
+            "public uint Value",
+            "is global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue iv ? iv.Value",
+            "new NamedAttribute(\"value\", global::MLIR.Semantics.ConstantAttributeFactory.I32(value))",
+            "uint value,",
             "operation.RequiredAttribute(\"value\",");
         AssertDoesNotContainAny(
             registrationSource,
-            "public global::MLIR.Numerics.ApInt? Value",
-            "global::MLIR.Numerics.ApInt? value,",
+            "public uint? Value",
+            "uint? value,",
             "operation.OptionalAttribute(\"value\")");
     }
 
@@ -104,13 +105,13 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "public global::MLIR.Numerics.ApInt? OptAttr",
+            "public uint? OptAttr",
             "Attributes.TryGet(\"optAttr\",",
             "set => SetAttribute(\"optAttr\", value.HasValue",
             "operation.OptionalAttribute(\"optAttr\",");
         AssertDoesNotContainAny(
             registrationSource,
-            "public global::MLIR.Numerics.ApInt OptAttr",
+            "public uint OptAttr",
             "operation.RequiredAttribute(\"optAttr\")");
     }
 
@@ -181,8 +182,8 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
             registrationSource,
             "operation.OptionalAttribute(\"stride\",",
             "operation.OptionalAttribute(\"padding\",",
-            "public global::MLIR.Numerics.ApInt? Stride",
-            "public global::MLIR.Numerics.ApInt? Padding");
+            "public uint? Stride",
+            "public uint? Padding");
         AssertDoesNotContainAny(
             registrationSource,
             "operation.RequiredAttribute(\"stride\")",

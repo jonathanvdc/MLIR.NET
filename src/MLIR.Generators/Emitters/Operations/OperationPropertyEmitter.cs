@@ -258,6 +258,20 @@ internal static class OperationPropertyEmitter
             // ConstraintStrategy is always non-null for attribute members: the planner
             // sets it to at least FallbackAttributeConstraintCodeStrategy.Instance.
             var strategy = member.ConstraintStrategy!;
+            var hasAttrModelTyping = !string.IsNullOrEmpty(member.AttrStorageTypeName)
+                && !string.IsNullOrEmpty(member.AttrConvertFromStorageExpression);
+
+            if (hasAttrModelTyping && !strategy.IsUnit && !strategy.IsEnum)
+            {
+                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
+                builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
+                builder.AppendLine("    }");
+                continue;
+            }
 
             if (strategy.IsUnit)
             {

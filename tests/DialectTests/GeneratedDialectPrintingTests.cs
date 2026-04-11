@@ -33,7 +33,7 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
 
         Assert.DoesNotContain("\"miniarith.constant\"", printed);
         Assert.Contains("miniarith.constant", printed);
-        Assert.Equal(ApInt.Parse(64, "42"), operation.Value);
+        Assert.Equal(42u, operation.Value);
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 

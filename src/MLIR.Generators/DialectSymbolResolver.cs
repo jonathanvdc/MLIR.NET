@@ -7,6 +7,7 @@ using MLIR.ODS.Model;
 internal sealed class DialectSymbolResolver
 {
     private readonly Dictionary<string, string> attributeTypesByRecordName;
+    private readonly Dictionary<string, AttrModel> attrsByRecordName;
     private readonly Dictionary<string, string> attributeConstraintTypesByRecordName;
     private readonly Dictionary<string, AttributeConstraintCodeStrategy> attributeConstraintStrategiesByRecordName;
     private readonly Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName;
@@ -16,6 +17,7 @@ internal sealed class DialectSymbolResolver
 
     private DialectSymbolResolver(
         Dictionary<string, string> attributeTypesByRecordName,
+        Dictionary<string, AttrModel> attrsByRecordName,
         Dictionary<string, string> attributeConstraintTypesByRecordName,
         Dictionary<string, AttributeConstraintCodeStrategy> attributeConstraintStrategiesByRecordName,
         Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName,
@@ -24,6 +26,7 @@ internal sealed class DialectSymbolResolver
         Dictionary<string, string> typeTypesByRecordName)
     {
         this.attributeTypesByRecordName = attributeTypesByRecordName;
+        this.attrsByRecordName = attrsByRecordName;
         this.attributeConstraintTypesByRecordName = attributeConstraintTypesByRecordName;
         this.attributeConstraintStrategiesByRecordName = attributeConstraintStrategiesByRecordName;
         this.attributeConstraintElementRecordNamesByRecordName = attributeConstraintElementRecordNamesByRecordName;
@@ -35,6 +38,7 @@ internal sealed class DialectSymbolResolver
     public static DialectSymbolResolver Create(IReadOnlyList<DialectModel> dialects)
     {
         var attributeTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
+        var attrsByRecordName = new Dictionary<string, AttrModel>(StringComparer.Ordinal);
         var attributeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var attributeConstraintStrategiesByRecordName = new Dictionary<string, AttributeConstraintCodeStrategy>(StringComparer.Ordinal);
         var attributeConstraintElementRecordNamesByRecordName = new Dictionary<string, string?>(StringComparer.Ordinal);
@@ -53,6 +57,11 @@ internal sealed class DialectSymbolResolver
                     enumTypesByRecordName[attribute.RecordName] = generatedNamespace + "." + EnumHelpers.GetCSharpEnumTypeName(attribute.EnumModel);
                     attributeConstraintStrategiesByRecordName[attribute.RecordName] = EnumAttributeConstraintCodeStrategy.Instance;
                 }
+            }
+
+            foreach (var attr in dialect.Attrs)
+            {
+                attrsByRecordName[attr.RecordName] = attr;
             }
 
             foreach (var attributeConstraint in dialect.AttributeConstraints)
@@ -82,6 +91,7 @@ internal sealed class DialectSymbolResolver
 
         return new DialectSymbolResolver(
             attributeTypesByRecordName,
+            attrsByRecordName,
             attributeConstraintTypesByRecordName,
             attributeConstraintStrategiesByRecordName,
             attributeConstraintElementRecordNamesByRecordName,
@@ -137,6 +147,11 @@ internal sealed class DialectSymbolResolver
         return attributeConstraintElementRecordNamesByRecordName.TryGetValue(recordName, out var elementRecordName)
             ? elementRecordName
             : null;
+    }
+
+    public AttrModel? TryResolveAttrModel(string recordName)
+    {
+        return attrsByRecordName.TryGetValue(recordName, out var attr) ? attr : null;
     }
 
     public string? TryResolveEnumTypeName(string recordName)
