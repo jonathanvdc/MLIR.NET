@@ -28,7 +28,8 @@ public static class ConstantAttributeFactory
     /// </summary>
     public static IntegerAttr Bool(bool value)
     {
-        return new IntegerAttr(TypeFactory.I1, ApInt.FromInt64(1, value ? 1 : 0), syntax: null);
+        var type = TypeFactory.I1;
+        return new IntegerAttr(type, ApInt.FromInt64(type.Width, value ? 1 : 0), syntax: null);
     }
 
     /// <summary>
