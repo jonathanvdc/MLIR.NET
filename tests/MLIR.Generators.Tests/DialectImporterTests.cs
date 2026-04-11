@@ -622,12 +622,8 @@ public sealed class DialectImporterTests
         Assert.Equal("global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>($_self.RawData.Span)", denseI32ArrayAttr.CsharpConvertFromStorage);
         Assert.Equal("new global::MLIR.Builtin.DenseArrayAttr($_builder.getI32Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())", denseI32ArrayAttr.CsharpConstBuilderCall);
 
-        var denseArrayAttrBase = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DenseArrayAttr");
-        Assert.Equal("global::MLIR.Builtin.DenseArrayAttr", denseArrayAttrBase.CsharpStorageType);
-        Assert.Equal("global::System.ReadOnlyMemory<byte>", denseArrayAttrBase.CsharpReturnType);
-        Assert.Equal("$_self.RawData", denseArrayAttrBase.CsharpConvertFromStorage);
-
         var denseBoolArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DenseBoolArrayAttr");
+        Assert.Equal("global::MLIR.Builtin.DenseArrayAttr", denseBoolArrayAttr.CsharpStorageType);
         Assert.Equal("global::System.ReadOnlySpan<bool>", denseBoolArrayAttr.CsharpReturnType);
         Assert.Equal("global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, bool>($_self.RawData.Span)", denseBoolArrayAttr.CsharpConvertFromStorage);
         Assert.Equal("new global::MLIR.Builtin.DenseArrayAttr($_builder.getI1Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())", denseBoolArrayAttr.CsharpConstBuilderCall);

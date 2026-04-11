@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MLIR.Generators\MLIR.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\MLIR.Text\MLIR.Text.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\MLIR.ODS\MLIR.ODS.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
