@@ -31,8 +31,8 @@ def Builtin_DictionaryParameter : AttrOrTypeParameter<
 }
 
 extends Builtin_DenseArrayRawDataParameter : MLIRNet_AttrOrTypeParameterExtension {
-  let csharpType = "global::System.Collections.Generic.IReadOnlyList<byte>";
-  let csharpDefault = "global::System.Array.Empty<byte>()";
+  let csharpType = "global::System.ReadOnlyMemory<byte>";
+  let csharpDefault = "global::System.ReadOnlyMemory<byte>.Empty";
 }
 
 extends Builtin_TypeAttr : MLIRNet_AttrOrTypeDefExtension {
