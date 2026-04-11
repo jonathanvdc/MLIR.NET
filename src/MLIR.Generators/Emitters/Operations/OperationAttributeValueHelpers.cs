@@ -282,12 +282,12 @@ internal static class OperationAttributeValueHelpers
             || string.Equals(trimmedTypeName, "uint", StringComparison.Ordinal)
             || string.Equals(trimmedTypeName, "long", StringComparison.Ordinal)
             || string.Equals(trimmedTypeName, "ulong", StringComparison.Ordinal)
-            || string.Equals(typeName.TrimEnd('?'), "BigInteger", StringComparison.Ordinal)
-            || string.Equals(typeName.TrimEnd('?'), "global::MLIR.Numerics.ApInt", StringComparison.Ordinal)
-            || string.Equals(typeName.TrimEnd('?'), "ApInt", StringComparison.Ordinal)
-            || string.Equals(typeName.TrimEnd('?'), "global::MLIR.Numerics.ApFloat", StringComparison.Ordinal)
-            || string.Equals(typeName.TrimEnd('?'), "ApFloat", StringComparison.Ordinal)
-            || string.Equals(typeName.TrimEnd('?'), "float", StringComparison.Ordinal)
-            || string.Equals(typeName.TrimEnd('?'), "double", StringComparison.Ordinal);
+            || string.Equals(trimmedTypeName, "BigInteger", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "global::MLIR.Numerics.ApInt", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ApInt", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "global::MLIR.Numerics.ApFloat", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ApFloat", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "float", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "double", StringComparison.Ordinal);
     }
 }
