@@ -114,76 +114,48 @@ public static class ConstantAttributeFactory
 
     private static IReadOnlyList<bool> ToList(ReadOnlySpan<bool> values)
     {
-        var result = new bool[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
-            result[i] = values[i];
-        }
-
-        return result;
+        return values.ToArray();
     }
 
     private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<sbyte> values, int bitWidth)
     {
-        var result = new ApInt[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
-            result[i] = ApInt.FromInt64(bitWidth, values[i]);
-        }
-
-        return result;
+        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
     }
 
     private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<short> values, int bitWidth)
     {
-        var result = new ApInt[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
-            result[i] = ApInt.FromInt64(bitWidth, values[i]);
-        }
-
-        return result;
+        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
     }
 
     private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<int> values, int bitWidth)
     {
-        var result = new ApInt[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
-            result[i] = ApInt.FromInt64(bitWidth, values[i]);
-        }
-
-        return result;
+        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
     }
 
     private static IReadOnlyList<ApInt> ToSignedApIntList(ReadOnlySpan<long> values, int bitWidth)
     {
-        var result = new ApInt[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
-            result[i] = ApInt.FromInt64(bitWidth, values[i]);
-        }
-
-        return result;
+        return ToConvertedList(values, static (value, width) => ApInt.FromInt64(width, value), bitWidth);
     }
 
     private static IReadOnlyList<ApFloat> ToSingleApFloatList(ReadOnlySpan<float> values)
     {
-        var result = new ApFloat[values.Length];
-        for (var i = 0; i < values.Length; i++)
-        {
-            result[i] = ApFloat.FromSingle(FloatSemantics.IEEESingle, values[i]);
-        }
-
-        return result;
+        return ToConvertedList(values, static (value, _) => ApFloat.FromSingle(FloatSemantics.IEEESingle, value), 0);
     }
 
     private static IReadOnlyList<ApFloat> ToDoubleApFloatList(ReadOnlySpan<double> values)
     {
-        var result = new ApFloat[values.Length];
+        return ToConvertedList(values, static (value, _) => ApFloat.FromDouble(FloatSemantics.IEEEDouble, value), 0);
+    }
+
+    private static IReadOnlyList<TResult> ToConvertedList<TSource, TResult>(
+        ReadOnlySpan<TSource> values,
+        Func<TSource, int, TResult> convert,
+        int state)
+    {
+        var result = new TResult[values.Length];
         for (var i = 0; i < values.Length; i++)
         {
-            result[i] = ApFloat.FromDouble(FloatSemantics.IEEEDouble, values[i]);
+            result[i] = convert(values[i], state);
         }
 
         return result;
