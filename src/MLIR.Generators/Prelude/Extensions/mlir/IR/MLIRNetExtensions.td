@@ -134,6 +134,8 @@ class MLIRNet_AttrExtension {
   // C# expression that converts storage into the exposed result type.
   string csharpConvertFromStorage = ?;
   // C# expression that builds a storage value from a constant input.
+  // Prefer delegating to global::MLIR.Semantics.ConstantAttributeFactory so constant
+  // construction logic stays centralized and consistent across constraints.
   string csharpConstBuilderCall = ?;
   // C# expression for the default result value, if any.
   string csharpDefaultValue = ?;

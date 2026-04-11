@@ -15,14 +15,14 @@ extends StringBasedAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue";
   let csharpReturnType = "string";
   let csharpConvertFromStorage = "$_self.Value";
-  let csharpConstBuilderCall = "new global::MLIR.Semantics.Attributes.Primitives.SyntheticStringAttributeValue($0)";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.String($0)";
 }
 
 extends BoolAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.BooleanAttributeValue";
   let csharpReturnType = "bool";
   let csharpConvertFromStorage = "$_self.Value";
-  let csharpConstBuilderCall = "$_builder.getBoolAttr($0)";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.Bool($0)";
 }
 
 extends TypeAttr : MLIRNet_AttrExtension {
@@ -218,49 +218,49 @@ extends DenseBoolArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Builtin.DenseArrayAttr";
   let csharpReturnType = "global::System.ReadOnlySpan<bool>";
   let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, bool>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "new global::MLIR.Builtin.DenseArrayAttr($_builder.getI1Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseBool($0)";
 }
 
 extends DenseI8ArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Builtin.DenseArrayAttr";
   let csharpReturnType = "global::System.ReadOnlySpan<sbyte>";
   let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, sbyte>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "new global::MLIR.Builtin.DenseArrayAttr($_builder.getI8Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI8($0)";
 }
 
 extends DenseI16ArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Builtin.DenseArrayAttr";
   let csharpReturnType = "global::System.ReadOnlySpan<short>";
   let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, short>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "new global::MLIR.Builtin.DenseArrayAttr($_builder.getI16Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI16($0)";
 }
 
 extends DenseI32ArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Builtin.DenseArrayAttr";
   let csharpReturnType = "global::System.ReadOnlySpan<int>";
   let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "new global::MLIR.Builtin.DenseArrayAttr($_builder.getI32Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI32($0)";
 }
 
 extends DenseI64ArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Builtin.DenseArrayAttr";
   let csharpReturnType = "global::System.ReadOnlySpan<long>";
   let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, long>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "new global::MLIR.Builtin.DenseArrayAttr($_builder.getI64Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI64($0)";
 }
 
 extends DenseF32ArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Builtin.DenseArrayAttr";
   let csharpReturnType = "global::System.ReadOnlySpan<float>";
   let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "new global::MLIR.Builtin.DenseArrayAttr($_builder.getF32Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseF32($0)";
 }
 
 extends DenseF64ArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Builtin.DenseArrayAttr";
   let csharpReturnType = "global::System.ReadOnlySpan<double>";
   let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, double>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "new global::MLIR.Builtin.DenseArrayAttr($_builder.getF64Type(), $0.Length, global::System.Runtime.InteropServices.MemoryMarshal.AsBytes($0).ToArray())";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseF64($0)";
 }
 
 extends BoolArrayAttr : MLIRNet_AttrExtension {
@@ -315,14 +315,14 @@ extends SymbolRefAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
   let csharpReturnType = "global::MLIR.Semantics.SymbolRefAttr";
   let csharpConvertFromStorage = "$_self";
-  let csharpConstBuilderCall = "new global::MLIR.Semantics.SymbolRefAttr($0.RootReference, $0.NestedReferences)";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.SymbolRef($0)";
 }
 
 extends FlatSymbolRefAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
   let csharpReturnType = "string";
   let csharpConvertFromStorage = "$_self.RootReference";
-  let csharpConstBuilderCall = "new global::MLIR.Semantics.SymbolRefAttr($0)";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.FlatSymbolRef($0)";
 }
 
 extends AffineMapAttr : MLIRNet_AttrExtension {
