@@ -5,6 +5,7 @@ using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -28,12 +29,17 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         if (syntax is not StringAttributeValueSyntax stringSyntax)
         {
             throw new InvalidOperationException("Expected a string literal syntax for a primitive string attribute.");
         }
 
-        return definition.Factory(new AttributeValueConstructionContext(stringSyntax, definition.Name, definition, stringSyntax.Location));
+        return definition.Factory(binder.CreateAttributeValueConstructionContext(stringSyntax, definition.Name, definition, stringSyntax.Location));
     }
 
     /// <inheritdoc/>

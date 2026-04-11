@@ -5,6 +5,7 @@ using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Numerics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -44,9 +45,14 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         if (syntax is FloatingPointAttributeValueSyntax floatingPointSyntax)
         {
-            return definition.Factory(new AttributeValueConstructionContext(floatingPointSyntax, definition.Name, definition, floatingPointSyntax.Location));
+            return definition.Factory(binder.CreateAttributeValueConstructionContext(floatingPointSyntax, definition.Name, definition, floatingPointSyntax.Location));
         }
         else if (syntax is IntegerAttributeValueSyntax integerSyntax)
         {
@@ -60,7 +66,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
                     integerSyntax.SignToken.HasValue
                         ? integerSyntax.SignToken.Value.Text + integerSyntax.IntegerToken.Text
                         : integerSyntax.IntegerToken.Text));
-            return definition.Factory(new AttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
+            return definition.Factory(binder.CreateAttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
         }
         else
         {

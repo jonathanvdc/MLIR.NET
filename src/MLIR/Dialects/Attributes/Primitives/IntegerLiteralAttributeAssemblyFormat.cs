@@ -7,6 +7,7 @@ using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -34,12 +35,17 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         if (syntax is not IntegerAttributeValueSyntax integerSyntax)
         {
             throw new InvalidOperationException("Expected an integer literal syntax for a primitive integer attribute.");
         }
 
-        return definition.Factory(new AttributeValueConstructionContext(integerSyntax, definition.Name, definition, integerSyntax.Location));
+        return definition.Factory(binder.CreateAttributeValueConstructionContext(integerSyntax, definition.Name, definition, integerSyntax.Location));
     }
 
     /// <inheritdoc/>

@@ -4,6 +4,7 @@ using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -37,12 +38,17 @@ public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         if (syntax is not BooleanAttributeValueSyntax booleanSyntax)
         {
             throw new InvalidOperationException("Expected a boolean literal syntax for a primitive boolean attribute.");
         }
 
-        return definition.Factory(new AttributeValueConstructionContext(booleanSyntax, definition.Name, definition, booleanSyntax.Location));
+        return definition.Factory(binder.CreateAttributeValueConstructionContext(booleanSyntax, definition.Name, definition, booleanSyntax.Location));
     }
 
     /// <inheritdoc/>

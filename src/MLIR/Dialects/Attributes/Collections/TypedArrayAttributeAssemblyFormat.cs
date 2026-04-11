@@ -60,7 +60,7 @@ public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     {
         var normalizedSyntax = syntax as ArrayAttributeValueSyntax
             ?? throw new InvalidOperationException("Unexpected syntax for typed array attribute. Expected an array attribute literal such as '[1, 2]'.");
-        return definition.Factory(new AttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        return definition.Factory(binder.CreateAttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
     }
 
     /// <inheritdoc/>

@@ -30,7 +30,7 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
         var normalizedSyntax = NormalizeSyntax(syntax, definition, binder);
-        return definition.Factory(new AttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        return definition.Factory(binder.CreateAttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
     }
 
     /// <inheritdoc/>
