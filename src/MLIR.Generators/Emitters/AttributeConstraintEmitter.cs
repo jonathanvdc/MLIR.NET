@@ -19,10 +19,52 @@ internal static class AttributeConstraintEmitter
         {
             EmitTypedArrayConstraint(builder, attributeConstraint, resolver);
         }
+        else if (strategy.IsPrimitive && strategy.GetFactoryExpression(attributeConstraint.RecordName) != null)
+        {
+            // Primitive (non-enum) constraint: emit only the static AttributeConstraintDefinition.
+            // No constraint wrapper class is generated; the factory produces the typed attr directly.
+            EmitPrimitiveConstraintDefinition(builder, attributeConstraint, strategy);
+        }
         else
         {
             EmitStandardConstraint(builder, attributeConstraint, strategy);
         }
+    }
+
+    /// <summary>
+    /// Emits a minimal static class that carries only the
+    /// <c>AttributeConstraintDefinition</c> for a primitive (non-enum) constraint.
+    /// The factory lambda creates a typed attr (<c>IntegerAttr</c>, <c>FloatAttr</c>,
+    /// or <c>StringAttr</c>) directly, so no constraint wrapper class is needed.
+    /// </summary>
+    private static void EmitPrimitiveConstraintDefinition(
+        StringBuilder builder,
+        AttributeConstraintModel attributeConstraint,
+        AttributeConstraintCodeStrategy strategy)
+    {
+        var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
+        var factoryExpression = strategy.GetFactoryExpression(attributeConstraint.RecordName)!;
+        builder.AppendLine("public static class " + className);
+        builder.AppendLine("{");
+        builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
+        builder.Append("        new AttributeConstraintDefinition(");
+        builder.Append(EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
+        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression(attributeConstraint.RecordName);
+        if (assemblyFormatExpression != null)
+        {
+            builder.Append(", " + assemblyFormatExpression);
+        }
+        else
+        {
+            var assemblyFormatType = strategy.GetAssemblyFormatType(attributeConstraint.RecordName);
+            if (assemblyFormatType != null)
+            {
+                builder.Append(", new " + assemblyFormatType + "()");
+            }
+        }
+
+        builder.AppendLine(", factory: " + factoryExpression + ");");
+        builder.AppendLine("}");
     }
 
     private static void EmitEnumConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, EnumModel enumModel)
@@ -139,7 +181,15 @@ internal static class AttributeConstraintEmitter
             ? FallbackAttributeConstraintCodeStrategy.Instance
             : resolver.TryResolveAttributeConstraintStrategy(elementRecordName!);
         var elementTypeName = GetTypedArrayElementTypeName(elementRecordName, elementStrategy, resolver);
-        var elementUsesPayload = elementStrategy.UsesTypedArrayElementPayload;
+        // When the element strategy provides a direct decode expression, use it to avoid
+        // instantiating a now-removed constraint wrapper class.
+        var elementDecodeExpression = string.IsNullOrEmpty(elementRecordName)
+            ? null
+            : elementStrategy.GetTypedArrayElementDecodeExpression(elementRecordName!);
+        var elementToSyntaxExpression = string.IsNullOrEmpty(elementRecordName)
+            ? null
+            : elementStrategy.GetTypedArrayElementToSyntaxExpression(elementRecordName!);
+        var elementUsesPayload = elementDecodeExpression == null && elementStrategy.UsesTypedArrayElementPayload;
         var assemblyFormatType = className + "AssemblyFormat";
 
         builder.AppendLine("public sealed class " + className + " : TypedArrayAttributeValue<" + elementTypeName + ">");
@@ -173,7 +223,13 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("        for (var i = 0; i < arraySyntax.Items.Count; i++)");
         builder.AppendLine("        {");
         builder.AppendLine("            var itemSyntax = arraySyntax.Items[i];");
-        if (elementUsesPayload)
+        if (elementDecodeExpression != null)
+        {
+            // Primitive element: decode directly without a wrapper class.
+            var decodeExpr = elementDecodeExpression.Replace("{itemSyntax}", "itemSyntax");
+            builder.AppendLine("            items.Add(" + decodeExpr + ");");
+        }
+        else if (elementUsesPayload)
         {
             var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
             var elementPayloadProperty = GetTypedArrayElementPayloadPropertyName(elementRecordName, elementStrategy);
@@ -195,7 +251,13 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("{");
         builder.AppendLine("    protected override MLIR.Syntax.AttributeValueSyntax ElementToSyntax(" + elementTypeName + " element, MLIR.Transforms.ConcreteSyntaxBuilderContext context)");
         builder.AppendLine("    {");
-        if (elementUsesPayload)
+        if (elementToSyntaxExpression != null)
+        {
+            // Primitive element: build syntax without a wrapper class instance.
+            var toSyntaxExpr = elementToSyntaxExpression.Replace("{element}", "element").Replace("{context}", "context");
+            builder.AppendLine("        return " + toSyntaxExpr + ";");
+        }
+        else if (elementUsesPayload)
         {
             var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
             builder.AppendLine("        return context.BuildAttributeValueSyntax(new " + elementClassName + "(element));");

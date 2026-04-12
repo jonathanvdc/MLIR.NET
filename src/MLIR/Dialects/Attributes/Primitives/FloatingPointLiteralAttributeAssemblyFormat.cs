@@ -1,5 +1,6 @@
 namespace MLIR.Dialects.Attributes.Primitives;
 
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
@@ -77,9 +78,17 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is FloatingPointAttributeValue floatingPointAttribute)
+        if (attribute is FloatAttr floatAttr)
         {
-            var value = floatingPointAttribute.Value;
+            var value = floatAttr.Value;
+            return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(FloatingPointLiteralParser.Format(value)), value);
+        }
+
+        // Fallback: normalize via the attribute's existing syntax when the attribute is not a
+        // FloatAttr (e.g., a user-defined test attribute value backed by the parsed form).
+        if (attribute.Syntax is FloatingPointAttributeValueSyntax fpSyntax)
+        {
+            var value = fpSyntax.Value;
             return FloatingPointAssemblyFormatHelper.BuildSyntax(new RawSyntaxText(FloatingPointLiteralParser.Format(value)), value);
         }
 

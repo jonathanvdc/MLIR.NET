@@ -213,8 +213,8 @@ internal static class OperationPropertyEmitter
         builder.AppendLine("    /// <remarks>This property is generated because this operation has the ODS <c>Symbol</c> trait.</remarks>");
         builder.AppendLine("    public string? SymbolName");
         builder.AppendLine("    {");
-        builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is StringAttributeValue sv ? sv.Value : null;");
-        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new SyntheticStringAttributeValue(value) : null);");
+        builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is global::MLIR.StringAttr sv ? sv.Value : null;");
+        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? global::MLIR.Semantics.ConstantAttributeFactory.String(value) : null);");
         builder.AppendLine("    }");
         builder.AppendLine();
     }

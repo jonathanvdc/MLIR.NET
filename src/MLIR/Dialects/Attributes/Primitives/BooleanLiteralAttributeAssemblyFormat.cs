@@ -1,8 +1,8 @@
 namespace MLIR.Dialects.Attributes.Primitives;
 
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
@@ -54,9 +54,17 @@ public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is BooleanAttributeValue booleanAttribute)
+        if (attribute is IntegerAttr integerAttr)
         {
-            return new BooleanAttributeValueSyntax(TokenFactory.Identifier(booleanAttribute.Value ? "true" : "false"), booleanAttribute.Value);
+            var value = integerAttr.Value.ToUInt64() != 0;
+            return new BooleanAttributeValueSyntax(TokenFactory.Identifier(value ? "true" : "false"), value);
+        }
+
+        // Fallback: use existing syntax for attributes that aren't IntegerAttr
+        // (e.g., a user-defined test attribute).
+        if (attribute.Syntax is BooleanAttributeValueSyntax boolSyntax)
+        {
+            return new BooleanAttributeValueSyntax(TokenFactory.Identifier(boolSyntax.Value ? "true" : "false"), boolSyntax.Value);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive boolean attributes require syntax to rebuild their assembly form.");

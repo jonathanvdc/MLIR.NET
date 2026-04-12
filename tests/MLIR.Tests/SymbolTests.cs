@@ -1,12 +1,13 @@
 namespace MLIR.Tests;
 
 using System.Collections.Generic;
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
-using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using Xunit;
+using SymbolRefAttr = MLIR.Semantics.SymbolRefAttr;
 
 /// <summary>
 /// Tests for the <see cref="Operation.GetSymbol{TSymbol}"/>,
@@ -38,14 +39,14 @@ public sealed class SymbolTests
 
         public string? SymbolName
         {
-            get => Attributes.TryGet("sym_name", out var attr) && attr.Value is StringAttributeValue sv ? sv.Value : null;
-            set => SetAttribute("sym_name", value != null ? new SyntheticStringAttributeValue(value) : null);
+            get => Attributes.TryGet("sym_name", out var attr) && attr.Value is StringAttr sv ? sv.Value : null;
+            set => SetAttribute("sym_name", value != null ? ConstantAttributeFactory.String(value) : null);
         }
 
         private static NamedAttributeCollection CreateAttributes(string symbolName)
         {
             return NamedAttributeCollection.Create(
-                new NamedAttribute("sym_name", new SyntheticStringAttributeValue(symbolName)));
+                new NamedAttribute("sym_name", ConstantAttributeFactory.String(symbolName)));
         }
     }
 
@@ -94,7 +95,7 @@ public sealed class SymbolTests
         var leafSymbol = new TestSymbolOp("leaf");
 
         // Give innerModule a sym_name so it can be resolved by nested refs
-        innerModule.SetAttribute("sym_name", new SyntheticStringAttributeValue("inner"));
+        innerModule.SetAttribute("sym_name", ConstantAttributeFactory.String("inner"));
 
         var outerBlock = new Block("^bb0", [], [innerModule, barOp, leafSymbol]);
         var outerRegion = new Region(null, [outerBlock]);
@@ -274,16 +275,14 @@ public sealed class SymbolTests
     }
 
     // ---------------------------------------------------------------------------
-    // SyntheticStringAttributeValue tests
+    // StringAttr-backed symbol name attribute tests
     // ---------------------------------------------------------------------------
 
     [Fact]
-    public void SyntheticStringAttributeValueReturnsCorrectValue()
+    public void StringAttrSymbolNameAttributeReturnsCorrectValue()
     {
-        var attr = new SyntheticStringAttributeValue("hello");
-        Assert.Equal("hello", attr.Value);
-        Assert.Null(attr.Name);
-        Assert.Null(attr.Definition);
+        var attr = ConstantAttributeFactory.String("hello");
+        Assert.Equal("hello", ((StringAttr)attr).Value);
         Assert.Null(attr.Syntax);
     }
 
@@ -292,9 +291,9 @@ public sealed class SymbolTests
     {
         var op = new TestSymbolOp("main");
 
-        // The TestSymbolOp uses SyntheticStringAttributeValue, so reading it back should work.
+        // The TestSymbolOp uses ConstantAttributeFactory.String, so reading it back as StringAttr should work.
         Assert.True(op.Attributes.TryGet("sym_name", out var attr));
-        var sv = Assert.IsAssignableFrom<StringAttributeValue>(attr.Value);
+        var sv = Assert.IsType<StringAttr>(attr.Value);
         Assert.Equal("main", sv.Value);
     }
 
@@ -426,7 +425,7 @@ public sealed class SymbolTests
     {
         public RawSymbolAttributeOp(string symbolName)
             : base(null, [], NamedAttributeCollection.Create(
-                new NamedAttribute("sym_name", new SyntheticStringAttributeValue(symbolName))))
+                new NamedAttribute("sym_name", ConstantAttributeFactory.String(symbolName))))
         {
         }
 

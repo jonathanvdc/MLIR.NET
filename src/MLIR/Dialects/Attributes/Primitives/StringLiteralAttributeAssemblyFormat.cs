@@ -1,9 +1,9 @@
 namespace MLIR.Dialects.Attributes.Primitives;
 
 using System.Text;
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
@@ -45,10 +45,18 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is StringAttributeValue stringAttribute)
+        if (attribute is StringAttr stringAttr)
         {
-            var quoted = Quote(stringAttribute.Value);
-            return new StringAttributeValueSyntax(TokenFactory.StringLiteral(quoted), stringAttribute.Value);
+            var quoted = Quote(stringAttr.Value);
+            return new StringAttributeValueSyntax(TokenFactory.StringLiteral(quoted), stringAttr.Value);
+        }
+
+        // Fallback: use existing syntax for attributes that aren't StringAttr
+        // (e.g., a user-defined test attribute).
+        if (attribute.Syntax is StringAttributeValueSyntax strSyntax)
+        {
+            var quoted = Quote(strSyntax.Value);
+            return new StringAttributeValueSyntax(TokenFactory.StringLiteral(quoted), strSyntax.Value);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive string attributes require syntax to rebuild their assembly form.");
