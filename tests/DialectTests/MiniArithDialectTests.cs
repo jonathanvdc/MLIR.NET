@@ -115,7 +115,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var operation = Assert.IsType<MiniArith_ConstantOp>(Assert.Single(module.Operations));
         Assert.Equal("miniarith.constant", operation.Name);
         Assert.Equal("%result", operation.ResultValue.Name);
-        Assert.Equal(ApInt.Parse(64, "42"), operation.Value);
+        Assert.Equal(42u, operation.Value);
         Assert.Null(operation.TypeSignatureReference);
     }
 
@@ -169,7 +169,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             CreateMiniArithRegistry());
 
         Assert.Equal("%lhs", operation.Lhs.Name);
-        Assert.Equal(ApInt.Parse(64, "1"), operation.Value);
+        Assert.Equal(1u, operation.Value);
     }
 
     [Fact]
@@ -247,8 +247,8 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         var value = operation.Value;
         Assert.IsType<ElementsAttributeValueSyntax>(value.Syntax);
         var payload = Assert.IsAssignableFrom<ArrayAttributeValue>(value.Payload);
-        var first = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[0]);
-        var second = Assert.IsAssignableFrom<IntegerAttributeValue>(payload.Items[1]);
+        var first = Assert.IsAssignableFrom<IntegerAttr>(payload.Items[0]);
+        var second = Assert.IsAssignableFrom<IntegerAttr>(payload.Items[1]);
         Assert.Equal(ApInt.Parse(64, "1"), first.Value);
         Assert.Equal(ApInt.Parse(64, "2"), second.Value);
         Assert.Equal("tensor<2xi32>", value.TypeSyntax.ToString());
@@ -263,10 +263,10 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
 
         var value = operation.Value;
         Assert.IsType<DictionaryAttributeValueSyntax>(value.Syntax);
-        var inner = Assert.IsAssignableFrom<IntegerAttributeValue>(value.Attributes["inner"].Value);
+        var inner = Assert.IsAssignableFrom<IntegerAttr>(value.Attributes["inner"].Value);
         var nested = Assert.IsAssignableFrom<DictionaryAttributeValue>(value.Attributes["nested"].Value);
-        var flag = Assert.IsAssignableFrom<BooleanAttributeValue>(nested.Attributes["flag"].Value);
+        var flag = Assert.IsAssignableFrom<IntegerAttr>(nested.Attributes["flag"].Value);
         Assert.Equal(ApInt.Parse(64, "1"), inner.Value);
-        Assert.True(flag.Value);
+        Assert.True(flag.Value.ToUInt64() != 0);
     }
 }

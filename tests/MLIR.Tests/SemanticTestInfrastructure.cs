@@ -337,46 +337,54 @@ public sealed partial class SemanticTests
         }
     }
 
-    private sealed class TestF32AttributeValue : MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue
+    private sealed class TestF32AttributeValue : AttributeValue
     {
+        private readonly MLIR.Numerics.ApFloat floatValue;
+
         public TestF32AttributeValue(AttributeValueConstructionContext context)
-            : base(context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value)
+            : base(context.Syntax, context.Location)
         {
+            floatValue = ((FloatingPointAttributeValueSyntax)context.Syntax).Value;
             Name = context.Name;
             Definition = context.Definition;
         }
 
         public TestF32AttributeValue(float value)
-            : base(MLIR.Numerics.ApFloat.FromSingle(MLIR.Numerics.FloatSemantics.IEEESingle, value))
+            : base(null, MLIR.Semantics.SourceLocation.Unknown)
         {
+            floatValue = MLIR.Numerics.ApFloat.FromSingle(MLIR.Numerics.FloatSemantics.IEEESingle, value);
         }
 
         public override string? Name { get; }
 
         public override AttributeConstraintDefinition? Definition { get; }
 
-        public new float Value => base.Value.ToSingle();
+        public float Value => floatValue.ToSingle();
     }
 
-    private sealed class TestF64AttributeValue : MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue
+    private sealed class TestF64AttributeValue : AttributeValue
     {
+        private readonly MLIR.Numerics.ApFloat floatValue;
+
         public TestF64AttributeValue(AttributeValueConstructionContext context)
-            : base(context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value)
+            : base(context.Syntax, context.Location)
         {
+            floatValue = ((FloatingPointAttributeValueSyntax)context.Syntax).Value;
             Name = context.Name;
             Definition = context.Definition;
         }
 
         public TestF64AttributeValue(double value)
-            : base(MLIR.Numerics.ApFloat.FromDouble(MLIR.Numerics.FloatSemantics.IEEEDouble, value))
+            : base(null, MLIR.Semantics.SourceLocation.Unknown)
         {
+            floatValue = MLIR.Numerics.ApFloat.FromDouble(MLIR.Numerics.FloatSemantics.IEEEDouble, value);
         }
 
         public override string? Name { get; }
 
         public override AttributeConstraintDefinition? Definition { get; }
 
-        public new double Value => base.Value.ToDouble();
+        public double Value => floatValue.ToDouble();
     }
 
     private sealed class BuiltinIntegerTypeSyntax : TypeSyntax

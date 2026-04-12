@@ -2,7 +2,7 @@ namespace MLIR.Semantics;
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using MLIR.Semantics.Attributes.Primitives;
+using MLIR;
 
 /// <summary>
 /// Base class for operations that carry the MLIR <c>SymbolTable</c> ODS trait.
@@ -106,7 +106,7 @@ public abstract class SymbolTableOperation : Operation
                     {
                         symName = symbolOp.SymbolName;
                     }
-                    else if (op.Attributes.TryGet(SymNameAttributeName, out var attr) && attr.Value is StringAttributeValue sv)
+                    else if (op.Attributes.TryGet(SymNameAttributeName, out var attr) && attr.Value is StringAttr sv)
                     {
                         symName = sv.Value;
                     }

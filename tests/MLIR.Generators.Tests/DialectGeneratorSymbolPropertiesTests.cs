@@ -66,8 +66,8 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
 
         Assert.Contains("public string? SymbolName", source);
         Assert.Contains("Attributes.TryGet(\"sym_name\",", source);
-        Assert.Contains("StringAttributeValue sv", source);
-        Assert.Contains("SyntheticStringAttributeValue(value)", source);
+        Assert.Contains("StringAttr sv", source);
+        Assert.Contains("ConstantAttributeFactory.String(value)", source);
     }
 
     [Fact]

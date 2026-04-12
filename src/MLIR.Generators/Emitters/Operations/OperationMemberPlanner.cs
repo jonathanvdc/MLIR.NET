@@ -9,7 +9,7 @@ using MLIR.ODS.Model;
 internal sealed class GeneratedMember
 {
     public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
-        : this(propertyName, parameterName, typeName, sourceName, null, null, null, false)
+        : this(propertyName, parameterName, typeName, sourceName, null, null, null, null, null, null, null, false)
     {
     }
 
@@ -21,6 +21,10 @@ internal sealed class GeneratedMember
         string? constraintRecordName,
         AttributeConstraintCodeStrategy? constraintStrategy,
         string? constraintClassName,
+        string? attrStorageTypeName = null,
+        string? attrConvertFromStorageExpression = null,
+        string? attrConstBuilderCallExpression = null,
+        string? attrDefaultValueExpression = null,
         bool isVariadic = false)
     {
         PropertyName = propertyName;
@@ -30,6 +34,10 @@ internal sealed class GeneratedMember
         ConstraintRecordName = constraintRecordName;
         ConstraintStrategy = constraintStrategy;
         ConstraintClassName = constraintClassName;
+        AttrStorageTypeName = attrStorageTypeName;
+        AttrConvertFromStorageExpression = attrConvertFromStorageExpression;
+        AttrConstBuilderCallExpression = attrConstBuilderCallExpression;
+        AttrDefaultValueExpression = attrDefaultValueExpression;
         IsVariadic = isVariadic;
     }
 
@@ -51,6 +59,14 @@ internal sealed class GeneratedMember
     public AttributeConstraintCodeStrategy? ConstraintStrategy { get; }
 
     public string? ConstraintClassName { get; }
+
+    public string? AttrStorageTypeName { get; }
+
+    public string? AttrConvertFromStorageExpression { get; }
+
+    public string? AttrConstBuilderCallExpression { get; }
+
+    public string? AttrDefaultValueExpression { get; }
 
     /// <summary>
     /// Gets a value indicating whether this member is variadic (zero or more values).
@@ -117,7 +133,7 @@ internal static class OperationMemberPlanner
                 typeName = requiredVariables.Contains(operand.Name) ? "Value" : "Value?";
             }
 
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, null, null, null, operand.IsVariadic));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, operand.Name, null, null, null, isVariadic: operand.IsVariadic));
         }
 
         return members;
@@ -147,7 +163,7 @@ internal static class OperationMemberPlanner
                 typeName = "OperationResult";
             }
 
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, result.Name, null, null, null, result.IsVariadic));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, result.Name, null, null, null, isVariadic: result.IsVariadic));
         }
 
         return members;
@@ -164,6 +180,9 @@ internal static class OperationMemberPlanner
             var isRequired = requiredVariables.Contains(attributeName);
 
             var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
+            var attrModel = !string.IsNullOrEmpty(constraintRecordName)
+                ? resolver.TryResolveAttrModel(constraintRecordName!)
+                : null;
             // Start with the fallback strategy so that attributes without a recognised
             // constraint kind always produce AttributeValue-typed properties.
             AttributeConstraintCodeStrategy constraintStrategy = FallbackAttributeConstraintCodeStrategy.Instance;
@@ -172,26 +191,70 @@ internal static class OperationMemberPlanner
             if (!string.IsNullOrEmpty(constraintRecordName))
             {
                 var nonNullConstraintRecordName = constraintRecordName!;
-                // Only upgrade from the fallback when a generated class exists for the
-                // constraint, because the emitter needs the class name to produce casts.
-                var resolvedClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
-                if (resolvedClassName != null)
-                {
-                    constraintStrategy = resolver.TryResolveAttributeConstraintStrategy(nonNullConstraintRecordName);
-                    constraintClassName = resolvedClassName;
-                }
+                constraintStrategy = resolver.TryResolveAttributeConstraintStrategy(nonNullConstraintRecordName);
+                constraintClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
             }
 
-            var typeName = GetAttributeTypeName(constraintRecordName, constraintStrategy, isRequired, resolver);
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, attributeName, constraintRecordName, constraintStrategy, constraintClassName));
+            var useAttrModelTyping = ShouldUseAttrModelTyping(attrModel, constraintStrategy);
+            var typeName = GetAttributeTypeName(constraintRecordName, useAttrModelTyping ? attrModel : null, constraintStrategy, isRequired, resolver);
+            members.Add(new GeneratedMember(
+                propertyName,
+                GetParameterName(propertyName),
+                typeName,
+                attributeName,
+                constraintRecordName,
+                constraintStrategy,
+                constraintClassName,
+                attrStorageTypeName: useAttrModelTyping ? attrModel?.CsharpStorageType : null,
+                attrConvertFromStorageExpression: useAttrModelTyping ? attrModel?.CsharpConvertFromStorage : null,
+                attrConstBuilderCallExpression: useAttrModelTyping ? attrModel?.CsharpConstBuilderCall : null,
+                attrDefaultValueExpression: useAttrModelTyping ? attrModel?.CsharpDefaultValue : null));
         }
 
         return members;
     }
 
-    private static string GetAttributeTypeName(string? constraintRecordName, AttributeConstraintCodeStrategy strategy, bool isRequired, DialectSymbolResolver resolver)
+    private static string GetAttributeTypeName(string? constraintRecordName, AttrModel? attrModel, AttributeConstraintCodeStrategy strategy, bool isRequired, DialectSymbolResolver resolver)
     {
+        if (!strategy.IsUnit
+            && attrModel?.CsharpReturnType is string returnType
+            && returnType.Length > 0
+            && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
+            && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal))
+        {
+            if (isRequired || !string.IsNullOrEmpty(attrModel.CsharpDefaultValue))
+            {
+                return returnType;
+            }
+
+            return returnType.EndsWith("?", StringComparison.Ordinal) ? returnType : returnType + "?";
+        }
+
         return strategy.GetOperationPropertyTypeName(constraintRecordName ?? string.Empty, isRequired, resolver);
+    }
+
+    private static bool ShouldUseAttrModelTyping(AttrModel? attrModel, AttributeConstraintCodeStrategy strategy)
+    {
+        if (attrModel is null || strategy.IsUnit || strategy.IsEnum || strategy.IsTypedArray || !strategy.IsPrimitive)
+        {
+            return false;
+        }
+
+        var returnType = attrModel.CsharpReturnType;
+        var storageType = attrModel.CsharpStorageType;
+        if (string.IsNullOrEmpty(returnType)
+            || string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
+            || string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (string.Equals(storageType, "global::MLIR.Semantics.SymbolRefAttr", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static IReadOnlyList<GeneratedMember> GetRegionMembers(OperationModel operation, HashSet<string> requiredVariables)
@@ -211,7 +274,7 @@ internal static class OperationMemberPlanner
                 typeName = requiredVariables.Contains(region.Name) ? "Region" : "Region?";
             }
 
-            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, region.Name, null, null, null, region.IsVariadic));
+            members.Add(new GeneratedMember(propertyName, GetParameterName(propertyName), typeName, region.Name, null, null, null, isVariadic: region.IsVariadic));
         }
 
         return members;

@@ -213,8 +213,8 @@ internal static class OperationPropertyEmitter
         builder.AppendLine("    /// <remarks>This property is generated because this operation has the ODS <c>Symbol</c> trait.</remarks>");
         builder.AppendLine("    public string? SymbolName");
         builder.AppendLine("    {");
-        builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is StringAttributeValue sv ? sv.Value : null;");
-        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? new SyntheticStringAttributeValue(value) : null);");
+        builder.AppendLine("        get => Attributes.TryGet(\"sym_name\", out var symAttr) && symAttr.Value is global::MLIR.StringAttr sv ? sv.Value : null;");
+        builder.AppendLine("        set => SetAttribute(\"sym_name\", value != null ? global::MLIR.Semantics.ConstantAttributeFactory.String(value) : null);");
         builder.AppendLine("    }");
         builder.AppendLine();
     }
@@ -258,6 +258,20 @@ internal static class OperationPropertyEmitter
             // ConstraintStrategy is always non-null for attribute members: the planner
             // sets it to at least FallbackAttributeConstraintCodeStrategy.Instance.
             var strategy = member.ConstraintStrategy!;
+            var useAttrModelTyping = !string.IsNullOrEmpty(member.AttrStorageTypeName)
+                && !string.IsNullOrEmpty(member.AttrConvertFromStorageExpression);
+
+            if (useAttrModelTyping && !strategy.IsUnit && !strategy.IsEnum)
+            {
+                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+                builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
+                builder.AppendLine("    {");
+                builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
+                builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
+                builder.AppendLine("    }");
+                continue;
+            }
 
             if (strategy.IsUnit)
             {

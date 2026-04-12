@@ -12,16 +12,16 @@ extends Attr : MLIRNet_AttrExtension {
 }
 
 extends StringBasedAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.StringAttributeValue";
+  let csharpStorageType = "global::MLIR.StringAttr";
   let csharpReturnType = "string";
   let csharpConvertFromStorage = "$_self.Value";
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.String($0)";
 }
 
 extends BoolAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.BooleanAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "bool";
-  let csharpConvertFromStorage = "$_self.Value";
+  let csharpConvertFromStorage = "$_self.Value.ToUInt64() != 0";
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.Bool($0)";
 }
 
@@ -65,145 +65,148 @@ extends TypedArrayAttrBase : MLIRNet_AttrExtension {
 // Integer attrs all use the semantic integer-value storage layer; the concrete leaf
 // definitions refine only the exposed return type and conversion expression.
 extends AnyIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApInt";
   let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends SignlessIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApInt";
   let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends SignedIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApInt";
   let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends UnsignedIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApInt";
   let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends I1Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "bool";
   let csharpConvertFromStorage = "$_self.Value.ToUInt64() != 0";
 }
 
 extends I8Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "byte";
   let csharpConvertFromStorage = "(byte)$_self.Value.ToUInt64()";
 }
 
 extends I16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "ushort";
   let csharpConvertFromStorage = "(ushort)$_self.Value.ToUInt64()";
 }
 
 extends I32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "uint";
   let csharpConvertFromStorage = "(uint)$_self.Value.ToUInt64()";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.I32($0)";
 }
 
 extends I64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "ulong";
   let csharpConvertFromStorage = "$_self.Value.ToUInt64()";
 }
 
 extends SI1Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "bool";
   let csharpConvertFromStorage = "$_self.Value.ToInt64() != 0";
 }
 
 extends SI8Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "sbyte";
   let csharpConvertFromStorage = "(sbyte)$_self.Value.ToInt64()";
 }
 
 extends SI16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "short";
   let csharpConvertFromStorage = "(short)$_self.Value.ToInt64()";
 }
 
 extends SI32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "int";
   let csharpConvertFromStorage = "(int)$_self.Value.ToInt64()";
 }
 
 extends SI64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "long";
   let csharpConvertFromStorage = "$_self.Value.ToInt64()";
 }
 
 extends UI1Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "bool";
   let csharpConvertFromStorage = "$_self.Value.ToUInt64() != 0";
 }
 
 extends UI8Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "byte";
   let csharpConvertFromStorage = "(byte)$_self.Value.ToUInt64()";
 }
 
 extends UI16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "ushort";
   let csharpConvertFromStorage = "(ushort)$_self.Value.ToUInt64()";
 }
 
 extends UI32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "uint";
   let csharpConvertFromStorage = "(uint)$_self.Value.ToUInt64()";
 }
 
 extends UI64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.IntegerAttributeValue";
+  let csharpStorageType = "global::MLIR.IntegerAttr";
   let csharpReturnType = "ulong";
   let csharpConvertFromStorage = "$_self.Value.ToUInt64()";
 }
 
 extends FloatAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpStorageType = "global::MLIR.FloatAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApFloat";
   let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends F16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpStorageType = "global::MLIR.FloatAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApFloat";
   let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends F32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpStorageType = "global::MLIR.FloatAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApFloat";
   let csharpConvertFromStorage = "$_self.Value";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.F32($0)";
 }
 
 extends F64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpStorageType = "global::MLIR.FloatAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApFloat";
   let csharpConvertFromStorage = "$_self.Value";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.F64($0)";
 }
 
 extends BF16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Primitives.FloatingPointAttributeValue";
+  let csharpStorageType = "global::MLIR.FloatAttr";
   let csharpReturnType = "global::MLIR.Numerics.ApFloat";
   let csharpConvertFromStorage = "$_self.Value";
 }

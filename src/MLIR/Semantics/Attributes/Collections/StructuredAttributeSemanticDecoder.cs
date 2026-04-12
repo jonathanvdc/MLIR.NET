@@ -3,6 +3,7 @@ namespace MLIR.Semantics.Attributes.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
+using MLIR;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
@@ -96,10 +97,14 @@ public static class StructuredAttributeSemanticDecoder
     {
         return syntax switch
         {
-            BooleanAttributeValueSyntax booleanSyntax => new DecodedBooleanAttributeValue(booleanSyntax),
-            IntegerAttributeValueSyntax integerSyntax => new DecodedIntegerAttributeValue(integerSyntax),
-            FloatingPointAttributeValueSyntax floatingPointSyntax => new DecodedFloatingPointAttributeValue(floatingPointSyntax),
-            StringAttributeValueSyntax stringSyntax => new DecodedStringAttributeValue(stringSyntax),
+            BooleanAttributeValueSyntax booleanSyntax =>
+                new IntegerAttr(TypeFactory.I1, ApInt.FromInt64(1, booleanSyntax.Value ? 1 : 0), booleanSyntax),
+            IntegerAttributeValueSyntax integerSyntax =>
+                new IntegerAttr(TypeFactory.I(integerSyntax.Value.BitWidth), integerSyntax.Value, integerSyntax),
+            FloatingPointAttributeValueSyntax floatingPointSyntax =>
+                new FloatAttr(TypeFactory.F64, floatingPointSyntax.Value, floatingPointSyntax),
+            StringAttributeValueSyntax stringSyntax =>
+                new StringAttr(stringSyntax.Value, TypeFactory.None, stringSyntax),
             UnitAttributeValueSyntax unitSyntax => new DecodedUnitAttributeValue(unitSyntax),
             TypeAttributeValueSyntax typeSyntax => new DecodedTypeAttributeValue(typeSyntax),
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
@@ -177,28 +182,30 @@ public static class StructuredAttributeSemanticDecoder
         var text = syntax.RawText.Text;
         if (text == "true" || text == "false")
         {
-            return new DecodedBooleanAttributeValue(new BooleanAttributeValueSyntax(TokenFactory.Identifier(text), text == "true"));
+            var boolSyntax = new BooleanAttributeValueSyntax(TokenFactory.Identifier(text), text == "true");
+            return new IntegerAttr(TypeFactory.I1, ApInt.FromInt64(1, text == "true" ? 1 : 0), boolSyntax);
         }
 
         if (text.Length >= 2 && text[0] == '"' && text[text.Length - 1] == '"')
         {
-            return new DecodedStringAttributeValue(
-                new StringAttributeValueSyntax(TokenFactory.StringLiteral(text), StringLiteralAttributeAssemblyFormat.Unescape(text)));
+            var value = StringLiteralAttributeAssemblyFormat.Unescape(text);
+            var strSyntax = new StringAttributeValueSyntax(TokenFactory.StringLiteral(text), value);
+            return new StringAttr(value, TypeFactory.None, strSyntax);
         }
 
         if (BigInteger.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integerValue))
         {
-            return new DecodedIntegerAttributeValue(
-                new IntegerAttributeValueSyntax(
-                    TokenFactory.Integer(text),
-                    ApInt.Parse(64, integerValue.ToString(CultureInfo.InvariantCulture), isSigned: true)));
+            var intSyntax = new IntegerAttributeValueSyntax(
+                TokenFactory.Integer(text),
+                ApInt.Parse(64, integerValue.ToString(CultureInfo.InvariantCulture), isSigned: true));
+            return new IntegerAttr(TypeFactory.I64, intSyntax.Value, intSyntax);
         }
 
         if (LooksLikeFloatingPointLiteral(text))
         {
-            return new DecodedFloatingPointAttributeValue(new FloatingPointAttributeValueSyntax(
-                new RawSyntaxText(text),
-                FloatingPointLiteralParser.Parse(text)));
+            var fpValue = FloatingPointLiteralParser.Parse(text);
+            var fpSyntax = new FloatingPointAttributeValueSyntax(new RawSyntaxText(text), fpValue);
+            return new FloatAttr(TypeFactory.F64, fpValue, fpSyntax);
         }
 
         return new UnknownAttributeValue(syntax, null, null, syntax.Location);
@@ -238,54 +245,6 @@ public static class StructuredAttributeSemanticDecoder
                 semantics = FloatSemantics.IEEEDouble;
                 return false;
         }
-    }
-
-    private sealed class DecodedBooleanAttributeValue : BooleanAttributeValue
-    {
-        public DecodedBooleanAttributeValue(BooleanAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.Value)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedIntegerAttributeValue : IntegerAttributeValue
-    {
-        public DecodedIntegerAttributeValue(IntegerAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeIntegerValue(syntax))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedFloatingPointAttributeValue : FloatingPointAttributeValue
-    {
-        public DecodedFloatingPointAttributeValue(FloatingPointAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.Value)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedStringAttributeValue : StringAttributeValue
-    {
-        public DecodedStringAttributeValue(StringAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.Value)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
     private sealed class DecodedUnitAttributeValue : UnitAttributeValue

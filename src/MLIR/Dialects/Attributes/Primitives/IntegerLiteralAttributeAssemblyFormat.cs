@@ -2,10 +2,10 @@ namespace MLIR.Dialects.Attributes.Primitives;
 
 using System.Globalization;
 using System.Numerics;
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Numerics;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
@@ -51,9 +51,16 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is IntegerAttributeValue integerAttribute)
+        if (attribute is IntegerAttr integerAttr)
         {
-            return CreateSyntax(integerAttribute.Value);
+            return CreateSyntax(integerAttr.Value);
+        }
+
+        // Fallback: use existing syntax when the attribute is not an IntegerAttr
+        // (e.g., a user-defined test attribute or an enum constraint wrapper).
+        if (attribute.Syntax is IntegerAttributeValueSyntax intSyntax)
+        {
+            return CreateSyntax(intSyntax.Value);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive integer attributes require syntax to rebuild their assembly form.");

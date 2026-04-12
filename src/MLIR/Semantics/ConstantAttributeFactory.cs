@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using MLIR;
 using MLIR.Numerics;
+using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Primitives;
 
 /// <summary>
 /// Provides ergonomic helpers for constructing constant semantic attribute values.
@@ -30,6 +32,40 @@ public static class ConstantAttributeFactory
     {
         var type = TypeFactory.I1;
         return new IntegerAttr(type, ApInt.FromInt64(type.Width, value ? 1 : 0), syntax: null);
+    }
+
+    /// <summary>
+    /// Creates an <c>i32</c> integer attribute.
+    /// </summary>
+    public static IntegerAttr I32(uint value)
+    {
+        var apInt = ApInt.FromUInt64(TypeFactory.I32.Width, value);
+        return new IntegerAttr(
+            TypeFactory.I32,
+            apInt,
+            syntax: new IntegerAttributeValueSyntax(TokenFactory.Integer(value.ToString(System.Globalization.CultureInfo.InvariantCulture)), apInt));
+    }
+
+    /// <summary>
+    /// Creates an <c>f32</c> floating-point attribute.
+    /// </summary>
+    public static FloatAttr F32(ApFloat value)
+    {
+        return new FloatAttr(
+            TypeFactory.F32,
+            value,
+            syntax: new FloatingPointAttributeValueSyntax(new RawSyntaxText(value.ToString()), value));
+    }
+
+    /// <summary>
+    /// Creates an <c>f64</c> floating-point attribute.
+    /// </summary>
+    public static FloatAttr F64(ApFloat value)
+    {
+        return new FloatAttr(
+            TypeFactory.F64,
+            value,
+            syntax: new FloatingPointAttributeValueSyntax(new RawSyntaxText(value.ToString()), value));
     }
 
     /// <summary>
