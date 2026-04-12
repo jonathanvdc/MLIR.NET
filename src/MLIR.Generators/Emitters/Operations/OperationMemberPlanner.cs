@@ -171,12 +171,15 @@ internal static class OperationMemberPlanner
 
     private static IReadOnlyList<GeneratedMember> GetAttributeMembers(OperationModel operation, HashSet<string> requiredVariables, DialectSymbolResolver resolver)
     {
+        var hasSymbol = HasTrait(operation.Traits, "Symbol");
         var members = new List<GeneratedMember>(operation.Attributes.Count);
         for (var i = 0; i < operation.Attributes.Count; i++)
         {
             var attribute = operation.Attributes[i];
             var attributeName = attribute.Name;
-            var propertyName = DialectGeneratorNaming.ToPascalCase(attributeName);
+            var propertyName = hasSymbol && string.Equals(attributeName, "sym_name", StringComparison.Ordinal)
+                ? "SymbolName"
+                : DialectGeneratorNaming.ToPascalCase(attributeName);
             var isRequired = requiredVariables.Contains(attributeName);
 
             var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
@@ -212,6 +215,25 @@ internal static class OperationMemberPlanner
         }
 
         return members;
+    }
+
+    private static bool HasTrait(IReadOnlyList<TraitModel> traits, string recordName)
+    {
+        for (var i = 0; i < traits.Count; i++)
+        {
+            var trait = traits[i];
+            if (string.Equals(trait.RecordName, recordName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (trait is TraitListModel traitList && HasTrait(traitList.Traits, recordName))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string GetAttributeTypeName(string? constraintRecordName, AttrModel? attrModel, AttributeConstraintCodeStrategy strategy, bool isRequired, DialectSymbolResolver resolver)
