@@ -31,6 +31,10 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
     }
 
     /// <inheritdoc/>
+    /// <summary>
+    /// Encodes integer elements into a raw dense payload with the element width selected by
+    /// <paramref name="constraintName"/>.
+    /// </summary>
     protected override System.ReadOnlyMemory<byte> EncodeRawData(string? constraintName, IReadOnlyList<ApInt> items)
     {
         var bitWidth = GetConstraintBitWidth(constraintName);
@@ -44,6 +48,10 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
     }
 
     /// <inheritdoc/>
+    /// <summary>
+    /// Decodes a raw dense payload into integer elements with bit width determined by
+    /// <paramref name="constraintName"/>.
+    /// </summary>
     protected override IReadOnlyList<ApInt> DecodeItems(string? constraintName, System.ReadOnlyMemory<byte> rawData)
     {
         var bitWidth = GetConstraintBitWidth(constraintName);
@@ -74,6 +82,10 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
         return new RawTypeSyntax(new RawSyntaxText("i" + GetConstraintBitWidth(constraintName)));
     }
 
+    /// <summary>
+    /// Converts a list of <see cref="ApInt"/> values to a byte payload using the concrete
+    /// primitive integer representation <typeparamref name="TInteger"/>.
+    /// </summary>
     private static System.ReadOnlyMemory<byte> EncodeIntegers<TInteger>(
         IReadOnlyList<ApInt> items,
         System.Func<ApInt, TInteger> convert)
@@ -88,6 +100,10 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
         return MemoryMarshal.AsBytes(values.AsSpan()).ToArray();
     }
 
+    /// <summary>
+    /// Converts a raw dense byte payload to a list of <see cref="ApInt"/> values using
+    /// <typeparamref name="TInteger"/> as the storage element representation.
+    /// </summary>
     private static IReadOnlyList<ApInt> DecodeIntegers<TInteger>(
         System.ReadOnlyMemory<byte> rawData,
         System.Func<TInteger, ApInt> convert)
@@ -103,6 +119,10 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
         return items;
     }
 
+    /// <summary>
+    /// Resolves the fixed integer bit width associated with a dense integer constraint name.
+    /// Defaults to 32-bit integers for unknown or null constraint names.
+    /// </summary>
     private static int GetConstraintBitWidth(string? constraintName)
     {
         return constraintName switch

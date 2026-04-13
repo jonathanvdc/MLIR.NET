@@ -103,12 +103,18 @@ public sealed class DenseFloatingPointArrayAttributeAssemblyFormat : DenseArrayA
         return new RawTypeSyntax(new RawSyntaxText(elementTypeText));
     }
 
+    /// <summary>
+    /// Determines whether the active dense floating-point constraint is <c>f32</c>.
+    /// </summary>
     private bool IsF32Constraint(string? constraintName)
     {
         return string.Equals(constraintName, "DenseF32ArrayAttr", System.StringComparison.Ordinal)
             || string.Equals(elementTypeText, "f32", System.StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Gets the floating-point semantics used to parse and normalize dense element literals.
+    /// </summary>
     private FloatSemantics GetSemantics()
     {
         return IsF32Constraint(null) ? FloatSemantics.IEEESingle : FloatSemantics.IEEEDouble;
