@@ -122,6 +122,37 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Fact]
+    public void TypedArrayAttrConstraintsAreGeneratedAsConstraintOnlyStaticClasses()
+    {
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new MLIR.Generators.DialectGenerator(),
+            (
+                "mydialect.td",
+                ComposeMyDialectSource(
+                    [
+                        "def MyDialect_ArrayConstraintOp : MyDialect_Op<\"array_constraint\", []> {",
+                        "  let arguments = (ins I32ArrayAttr:$ints, StrArrayAttr:$strings, IndexListArrayAttr:$indexLists, I32:$input);",
+                        "  let results = (outs I32:$result);",
+                        "  let assemblyFormat = \"$ints `,` $strings `,` $indexLists `,` $input attr-dict `:` type($result)\";",
+                        "};",
+                    ])));
+
+        var preludeSource = Assert.Single(
+            generatedSources.Where(static result => result.HintName == "PreludeDialectRegistration.g.cs")).SourceText.ToString();
+
+        AssertContainsAll(
+            preludeSource,
+            "public static class I32ArrayAttrConstraintAttributeValue",
+            "public static class StrArrayAttrConstraintAttributeValue",
+            "public static class IndexListArrayAttrConstraintAttributeValue");
+        AssertDoesNotContainAny(
+            preludeSource,
+            "public sealed class I32ArrayAttrConstraintAttributeValue :",
+            "public sealed class StrArrayAttrConstraintAttributeValue :",
+            "public sealed class IndexListArrayAttrConstraintAttributeValue :");
+    }
+
+    [Fact]
     public void GeneratesTypedEnumAttributesAndOperationsWithoutDuplicateEnumDeclarations()
     {
         var registrationSource = GenerateRegistrationSource(

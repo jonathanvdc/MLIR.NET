@@ -28,7 +28,7 @@ internal static class OperationAttributeValueHelpers
             return valueAccess;
         }
 
-        if (strategy.IsDenseCollection || strategy.IsTypedArray)
+        if (strategy.IsDenseCollection)
         {
             var denseCollectionCastExpr = "((" + member.ConstraintClassName + ")";
             if (isOptional)
@@ -37,6 +37,17 @@ internal static class OperationAttributeValueHelpers
             }
 
             return denseCollectionCastExpr + "Attributes[" + sourceNameLiteral + "].Value).Items";
+        }
+
+        if (strategy.IsTypedArray)
+        {
+            var constraintClass = member.ConstraintClassName!;
+            if (isOptional)
+            {
+                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + constraintClass + ".GetItems(" + localName + ".Value) : null";
+            }
+
+            return constraintClass + ".GetItems(Attributes[" + sourceNameLiteral + "].Value)";
         }
 
         var baseTypeName = isOptional ? member.TypeName.Substring(0, member.TypeName.Length - 1) : member.TypeName;
@@ -107,7 +118,7 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
         }
 
-        if (strategy.IsDenseCollection || strategy.IsTypedArray)
+        if (strategy.IsDenseCollection)
         {
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
@@ -116,6 +127,17 @@ internal static class OperationAttributeValueHelpers
             }
 
             return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
+        }
+
+        if (strategy.IsTypedArray)
+        {
+            var constraintClass = member.ConstraintClassName!;
+            if (!isOptional)
+            {
+                return constraintClass + ".Create(" + valueExpression + ")";
+            }
+
+            return valueExpression + " != null ? " + constraintClass + ".Create(" + valueExpression + ") : null";
         }
 
         // Generic AttributeValue: pass through directly (already nullable if optional).
@@ -177,7 +199,7 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
         }
 
-        if (strategy.IsDenseCollection || strategy.IsTypedArray)
+        if (strategy.IsDenseCollection)
         {
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
@@ -186,6 +208,17 @@ internal static class OperationAttributeValueHelpers
             }
 
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
+        }
+
+        if (strategy.IsTypedArray)
+        {
+            var constraintClass = member.ConstraintClassName!;
+            if (!isOptional)
+            {
+                return "new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + "))";
+            }
+
+            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + ")) : null";
         }
 
         if (!isOptional)
