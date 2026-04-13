@@ -197,6 +197,8 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
         builder.AppendLine("        new AttributeConstraintDefinition(");
         builder.Append("            " + EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
+        // The constraint definition factory receives parsing context data; construct the
+        // nested Value directly so Name/Definition and source locations are preserved.
         builder.AppendLine(", new " + assemblyFormatType + "(), factory: static context => new Value(context));");
         builder.AppendLine();
         builder.AppendLine("    public static global::MLIR.Semantics.AttributeValue Create(global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> items)");
@@ -236,9 +238,11 @@ internal static class AttributeConstraintEmitter
             var decodeExpr = elementDecodeExpression.Replace("{itemSyntax}", "itemSyntax");
             builder.AppendLine("            items.Add(" + decodeExpr + ");");
         }
-        else if (elementStrategy.IsTypedArray)
+        else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
         {
             var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
+            // Nested typed-array constraints recurse through the element constraint's
+            // helper so arrays-of-arrays decode as IReadOnlyList<IReadOnlyList<...>>.
             builder.AppendLine("            items.Add(" + elementClassName + ".GetItems(MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue(itemSyntax)));");
         }
         else if (elementUsesPayload)
@@ -285,7 +289,7 @@ internal static class AttributeConstraintEmitter
             var toSyntaxExpr = elementToSyntaxExpression.Replace("{element}", "element").Replace("{context}", "context");
             builder.AppendLine("        return " + toSyntaxExpr + ";");
         }
-        else if (elementStrategy.IsTypedArray)
+        else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
         {
             var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
             builder.AppendLine("        return context.BuildAttributeValueSyntax(" + elementClassName + ".Create(element));");
