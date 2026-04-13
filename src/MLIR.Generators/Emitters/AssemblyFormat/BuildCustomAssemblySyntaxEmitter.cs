@@ -26,6 +26,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private readonly string className;
     private readonly DialectSymbolResolver resolver;
     private readonly System.Collections.Generic.HashSet<string> requiredVariables;
+    private readonly bool hasSymbolTrait;
     private int fieldIndex;
 
     private BuildCustomAssemblySyntaxEmitter(OperationModel operation, OperationBodySyntaxMetadata metadata, DialectSymbolResolver resolver)
@@ -34,6 +35,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         this.metadata = metadata;
         this.resolver = resolver;
         this.requiredVariables = AssemblyFormatAnalyzer.GetRequiredVariables(operation);
+        hasSymbolTrait = OperationPropertyEmitter.HasTrait(operation.Traits, "Symbol");
         className = DialectGeneratorNaming.GetOperationClassName(operation);
     }
 
@@ -428,7 +430,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     /// </summary>
     private string BuildVariableExpression(string variableName, bool nullable)
     {
-        var propName = DialectGeneratorNaming.ToPascalCase(variableName);
+        var propName = GetOperationPropertyName(variableName);
         if (EmitterHelpers.ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
         {
             // Required attribute: access via Attributes collection to get the AttributeValue,
@@ -591,7 +593,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     /// </summary>
     private string BuildAnchorCondition(string anchorName)
     {
-        var propName = DialectGeneratorNaming.ToPascalCase(anchorName);
+        var propName = GetOperationPropertyName(anchorName);
         if (EmitterHelpers.ContainsName(operation.Attributes, anchorName, static attribute => attribute.Name))
         {
             // Non-required UnitAttributes are represented as 'bool' (a value type).
@@ -637,7 +639,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         {
             if (elem is OilistVariableElement variable)
             {
-                var propName = DialectGeneratorNaming.ToPascalCase(variable.Name);
+                var propName = GetOperationPropertyName(variable.Name);
                 if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
                 {
                     // Non-required UnitAttributes are 'bool': emit the value directly.
@@ -665,6 +667,13 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     private static string DeclareOrAssign(string varName, string expr, bool declare, string csType)
     {
         return declare ? "var " + varName + " = " + expr : varName + " = " + expr;
+    }
+
+    private string GetOperationPropertyName(string variableName)
+    {
+        return hasSymbolTrait && string.Equals(variableName, "sym_name", StringComparison.Ordinal)
+            ? "SymbolName"
+            : DialectGeneratorNaming.ToPascalCase(variableName);
     }
 
 }

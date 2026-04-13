@@ -17,7 +17,7 @@ internal static class OperationPropertyEmitter
         EmitBlockAndOperationsConvenienceProperties(builder, operation, plan.Regions);
         EmitSymbolProperties(builder, operation);
         EmitOperandAndResultProperties(builder, plan.Operands, plan.Results, operation);
-        EmitAttributeProperties(builder, plan.Attributes);
+        EmitAttributeProperties(builder, plan.Attributes, operation);
     }
 
     // Base-class member names in Operation that an operand or result property might shadow.
@@ -249,11 +249,23 @@ internal static class OperationPropertyEmitter
         }
     }
 
-    private static void EmitAttributeProperties(StringBuilder builder, IReadOnlyList<GeneratedMember> attributeMembers)
+    private static void EmitAttributeProperties(
+        StringBuilder builder,
+        IReadOnlyList<GeneratedMember> attributeMembers,
+        OperationModel operation)
     {
+        var hasSymbol = HasTrait(operation.Traits, "Symbol");
+        var emittedAnyProperty = false;
         for (var i = 0; i < attributeMembers.Count; i++)
         {
             var member = attributeMembers[i];
+            if (hasSymbol && string.Equals(member.SourceName, "sym_name", StringComparison.Ordinal))
+            {
+                // Symbol-trait ops expose sym_name via the dedicated SymbolName property.
+                // Skip the generic attribute property to avoid emitting both SymbolName and SymName.
+                continue;
+            }
+
             var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
             // ConstraintStrategy is always non-null for attribute members: the planner
             // sets it to at least FallbackAttributeConstraintCodeStrategy.Instance.
@@ -270,6 +282,7 @@ internal static class OperationPropertyEmitter
                 builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
                 builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
                 builder.AppendLine("    }");
+                emittedAnyProperty = true;
                 continue;
             }
 
@@ -286,6 +299,7 @@ internal static class OperationPropertyEmitter
                 builder.AppendLine("        get => Attributes.Contains(" + sourceNameLiteral + ");");
                 builder.AppendLine("        set => SetAttribute(" + sourceNameLiteral + ", value ? " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + " : null);");
                 builder.AppendLine("    }");
+                emittedAnyProperty = true;
                 continue;
             }
 
@@ -298,6 +312,7 @@ internal static class OperationPropertyEmitter
                 builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
                 builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
                 builder.AppendLine("    }");
+                emittedAnyProperty = true;
             }
             else if (strategy.IsDenseCollection || strategy.IsTypedArray)
             {
@@ -308,6 +323,7 @@ internal static class OperationPropertyEmitter
                 builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
                 builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
                 builder.AppendLine("    }");
+                emittedAnyProperty = true;
             }
             else
             {
@@ -331,10 +347,11 @@ internal static class OperationPropertyEmitter
                 }
 
                 builder.AppendLine("    }");
+                emittedAnyProperty = true;
             }
         }
 
-        if (attributeMembers.Count > 0)
+        if (emittedAnyProperty)
         {
             builder.AppendLine();
         }

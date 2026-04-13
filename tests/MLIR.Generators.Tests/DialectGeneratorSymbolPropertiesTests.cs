@@ -18,6 +18,17 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         "};",
     ];
 
+    // An op with the Symbol trait that also explicitly declares the underlying sym_name attribute.
+    private static readonly string[] SymbolOpWithExplicitSymNameAttrLines =
+    [
+        "include \"mlir/IR/SymbolInterfaces.td\"",
+        string.Empty,
+        "def MyDialect_FuncWithExplicitSymNameAttrOp : MyDialect_Op<\"func_with_explicit_sym_name\", [Symbol]> {",
+        "  let summary = \"A named function operation with explicit sym_name attr\";",
+        "  let arguments = (ins SymbolNameAttr:$sym_name);",
+        "};",
+    ];
+
     // An op that only has the SymbolTable trait.
     private static readonly string[] SymbolTableOnlyOpLines =
     [
@@ -76,6 +87,15 @@ public sealed class DialectGeneratorSymbolPropertiesTests : DialectGeneratorTest
         var source = GenerateMyDialectRegistrationSource(SymbolOnlyOpLines);
 
         Assert.Contains("ODS <c>Symbol</c> trait", source);
+    }
+
+    [Fact]
+    public void SymbolOpWithExplicitSymNameAttributeDoesNotGenerateSymNameProperty()
+    {
+        var source = GenerateMyDialectRegistrationSource(SymbolOpWithExplicitSymNameAttrLines);
+
+        Assert.Contains("public string? SymbolName", source);
+        Assert.DoesNotContain(" SymName", source);
     }
 
     [Fact]
