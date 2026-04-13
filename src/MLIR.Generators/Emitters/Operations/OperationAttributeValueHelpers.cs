@@ -30,13 +30,13 @@ internal static class OperationAttributeValueHelpers
 
         if (strategy.IsDenseCollection)
         {
-            var denseCollectionCastExpr = "((" + member.ConstraintClassName + ")";
+            var constraintClass = member.ConstraintClassName!;
             if (isOptional)
             {
-                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + denseCollectionCastExpr + localName + ".Value).Items : null";
+                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + constraintClass + ".GetItems(" + localName + ".Value) : null";
             }
 
-            return denseCollectionCastExpr + "Attributes[" + sourceNameLiteral + "].Value).Items";
+            return constraintClass + ".GetItems(Attributes[" + sourceNameLiteral + "].Value)";
         }
 
         if (strategy.IsTypedArray)
@@ -123,10 +123,10 @@ internal static class OperationAttributeValueHelpers
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
             {
-                return "new " + constraintClass + "(" + valueExpression + ")";
+                return constraintClass + ".Create(" + valueExpression + ")";
             }
 
-            return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
+            return valueExpression + " != null ? " + constraintClass + ".Create(" + valueExpression + ") : null";
         }
 
         if (strategy.IsTypedArray)
@@ -204,10 +204,10 @@ internal static class OperationAttributeValueHelpers
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
             {
-                return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + "))";
+                return "new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + "))";
             }
 
-            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
+            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + ")) : null";
         }
 
         if (strategy.IsTypedArray)

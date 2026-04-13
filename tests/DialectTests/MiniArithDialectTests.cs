@@ -232,9 +232,9 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
 
         var value = operation.Value;
         Assert.IsType<DenseArrayAttributeValueSyntax>(operation.Attributes["value"].Value.Syntax);
-        Assert.Equal(2, value.Count);
-        Assert.Equal(ApInt.Parse(64, "1"), value[0]);
-        Assert.Equal(ApInt.Parse(64, "2"), value[1]);
+        Assert.Equal(2, value.Length);
+        Assert.Equal(1, value[0]);
+        Assert.Equal(2, value[1]);
     }
 
     [Fact]

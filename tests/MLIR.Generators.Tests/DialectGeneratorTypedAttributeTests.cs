@@ -47,15 +47,15 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Theory]
-    [InlineData("DenseI32ArrayAttr", "indices", "global::MLIR.Numerics.ApInt", "DenseIntegerArrayAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
-    [InlineData("DenseBoolArrayAttr", "flags", "bool", "DenseBooleanArrayAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "Flags")]
-    [InlineData("DenseF32ArrayAttr", "coeffs", "global::MLIR.Numerics.ApFloat", "DenseFloatingPointArrayAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Coeffs")]
-    [InlineData("DenseF64ArrayAttr", "weights", "global::MLIR.Numerics.ApFloat", "DenseFloatingPointArrayAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Weights")]
+    [InlineData("DenseI32ArrayAttr", "indices", "global::System.ReadOnlySpan<int>", "DenseI32ArrayAttrConstraintAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
+    [InlineData("DenseBoolArrayAttr", "flags", "global::System.ReadOnlySpan<bool>", "DenseBoolArrayAttrConstraintAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "Flags")]
+    [InlineData("DenseF32ArrayAttr", "coeffs", "global::System.ReadOnlySpan<float>", "DenseF32ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Coeffs")]
+    [InlineData("DenseF64ArrayAttr", "weights", "global::System.ReadOnlySpan<double>", "DenseF64ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Weights")]
     public void GeneratesDenseArrayAttributePropertyWithTypedItemsList(
         string constraintType,
         string attributeName,
-        string elementType,
-        string attributeValueType,
+        string propertyType,
+        string constraintClassName,
         string assemblyFormatType,
         string propertyName)
     {
@@ -79,12 +79,18 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            $"public IReadOnlyList<{elementType}> {propertyName}",
-            $"IReadOnlyList<{elementType}> {attributeName},");
+            $"public {propertyType} {propertyName}",
+            $"{propertyType} {attributeName},");
         AssertContainsAll(
             preludeSource,
-            attributeValueType,
+            $"public static class {constraintClassName}",
             assemblyFormatType);
+        AssertDoesNotContainAny(
+            preludeSource,
+            $"public sealed class {constraintClassName} :",
+            "DenseBooleanArrayAttributeValue",
+            "DenseIntegerArrayAttributeValue",
+            "DenseFloatingPointArrayAttributeValue");
     }
 
     [Fact]
