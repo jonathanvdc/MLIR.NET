@@ -28,17 +28,6 @@ internal static class OperationAttributeValueHelpers
             return valueAccess;
         }
 
-        if (strategy.IsDenseCollection)
-        {
-            var constraintClass = member.ConstraintClassName!;
-            if (isOptional)
-            {
-                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + constraintClass + ".GetItems(" + localName + ".Value) : null";
-            }
-
-            return constraintClass + ".GetItems(Attributes[" + sourceNameLiteral + "].Value)";
-        }
-
         if (strategy.IsTypedArray)
         {
             var constraintClass = member.ConstraintClassName!;
@@ -118,17 +107,6 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
         }
 
-        if (strategy.IsDenseCollection)
-        {
-            var constraintClass = member.ConstraintClassName!;
-            if (!isOptional)
-            {
-                return constraintClass + ".Create(" + valueExpression + ")";
-            }
-
-            return valueExpression + " != null ? " + constraintClass + ".Create(" + valueExpression + ") : null";
-        }
-
         if (strategy.IsTypedArray)
         {
             var constraintClass = member.ConstraintClassName!;
@@ -197,17 +175,6 @@ internal static class OperationAttributeValueHelpers
             }
 
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
-        }
-
-        if (strategy.IsDenseCollection)
-        {
-            var constraintClass = member.ConstraintClassName!;
-            if (!isOptional)
-            {
-                return "new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + "))";
-            }
-
-            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + ")) : null";
         }
 
         if (strategy.IsTypedArray)

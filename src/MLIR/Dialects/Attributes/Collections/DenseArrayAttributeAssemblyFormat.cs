@@ -1,9 +1,9 @@
 namespace MLIR.Dialects.Attributes.Collections;
 
 using System.Collections.Generic;
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes.Collections;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Text;
@@ -84,13 +84,19 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
         var normalizedSyntax = NormalizeSyntax(syntax, definition, binder);
-        return definition.Factory(binder.CreateAttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        var items = new List<TElement>(normalizedSyntax.Items.Count);
+        for (var i = 0; i < normalizedSyntax.Items.Count; i++)
+        {
+            items.Add(ElementFromSyntax(normalizedSyntax.Items[i]));
+        }
+
+        return CreateDenseArrayAttribute(normalizedSyntax, definition.Name, items);
     }
 
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is not DenseArrayAttributeValue<TElement> denseArray)
+        if (attribute is not DenseArrayAttr denseArray)
         {
             return attribute.Syntax ?? throw new System.InvalidOperationException("Dense array attributes require syntax to rebuild their assembly form.");
         }
@@ -100,10 +106,12 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             return denseArraySyntax;
         }
 
-        var itemSyntax = new List<AttributeValueSyntax>(denseArray.Items.Count);
-        for (var i = 0; i < denseArray.Items.Count; i++)
+        var constraintName = attribute.Definition?.Name ?? attribute.Name;
+        var items = DecodeItems(constraintName, denseArray.RawData);
+        var itemSyntax = new List<AttributeValueSyntax>(items.Count);
+        for (var i = 0; i < items.Count; i++)
         {
-            itemSyntax.Add(ElementToSyntax(denseArray.Items[i]));
+            itemSyntax.Add(ElementToSyntax(items[i]));
         }
 
         var separators = new List<Token>(itemSyntax.Count > 0 ? itemSyntax.Count - 1 : 0);
@@ -127,9 +135,41 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     protected abstract AttributeValueSyntax ElementToSyntax(TElement element);
 
     /// <summary>
+    /// Decodes a dense-element syntax node into a semantic element value.
+    /// </summary>
+    protected abstract TElement ElementFromSyntax(AttributeValueSyntax syntax);
+
+    /// <summary>
+    /// Encodes dense items to the byte payload used by <see cref="DenseArrayAttr"/>.
+    /// </summary>
+    protected abstract System.ReadOnlyMemory<byte> EncodeRawData(string? constraintName, IReadOnlyList<TElement> items);
+
+    /// <summary>
+    /// Decodes a raw dense byte payload into dense elements.
+    /// </summary>
+    protected abstract IReadOnlyList<TElement> DecodeItems(string? constraintName, System.ReadOnlyMemory<byte> rawData);
+
+    /// <summary>
+    /// Gets the semantic element type for the given dense-array constraint.
+    /// </summary>
+    protected abstract TypeReference GetElementType(string? constraintName);
+
+    /// <summary>
     /// Returns the MLIR element-type syntax for the given constraint name (e.g. <c>i32</c>, <c>f32</c>).
     /// </summary>
     protected abstract TypeSyntax GetElementTypeSyntax(string? constraintName);
+
+    private DenseArrayAttr CreateDenseArrayAttribute(
+        DenseArrayAttributeValueSyntax syntax,
+        string? constraintName,
+        IReadOnlyList<TElement> items)
+    {
+        return new DenseArrayAttr(
+            GetElementType(constraintName),
+            items.Count,
+            EncodeRawData(constraintName, items),
+            syntax);
+    }
 
     private static DenseArrayAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {

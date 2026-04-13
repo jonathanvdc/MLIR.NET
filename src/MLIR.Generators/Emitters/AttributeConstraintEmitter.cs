@@ -78,10 +78,6 @@ internal static class AttributeConstraintEmitter
         DialectSymbolResolver resolver)
     {
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
-        var valueTypeName = strategy.GetAttributeValueTypeName(attributeConstraint.RecordName, resolver)
-            ?? "global::MLIR.Semantics.AttributeValue";
-        var itemTypeName = GetDenseCollectionItemTypeName(attributeConstraint.RecordName);
-        var typeFactoryExpression = GetDenseCollectionTypeFactoryExpression(attributeConstraint.RecordName);
 
         builder.AppendLine("public static class " + className);
         builder.AppendLine("{");
@@ -102,256 +98,8 @@ internal static class AttributeConstraintEmitter
             }
         }
 
-        builder.AppendLine(", factory: static context => CreateFromContext(context));");
-        builder.AppendLine();
-        builder.AppendLine("    public static global::MLIR.Semantics.AttributeValue Create(" + valueTypeName + " items)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return CreateDenseArray(items, syntax: null);");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public static " + valueTypeName + " GetItems(global::MLIR.Semantics.AttributeValue attribute)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (attribute is global::MLIR.DenseArrayAttr denseArrayAttr)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return DecodeItems(denseArrayAttr.RawData);");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        if (attribute.Syntax is MLIR.Syntax.Attributes.Collections.DenseArrayAttributeValueSyntax denseArraySyntax)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return DecodeItems(denseArraySyntax);");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        throw new global::System.InvalidOperationException(\"Expected a dense array attribute value for dense constraint item extraction.\");");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static global::MLIR.Semantics.AttributeValue CreateFromContext(AttributeValueConstructionContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (context.Syntax is not MLIR.Syntax.Attributes.Collections.DenseArrayAttributeValueSyntax denseArraySyntax)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            throw new global::System.InvalidOperationException(\"Expected dense array syntax when binding a dense array attribute constraint.\");");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return CreateDenseArray(DecodeItems(denseArraySyntax), denseArraySyntax);");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static global::MLIR.DenseArrayAttr CreateDenseArray(" + valueTypeName + " items, MLIR.Syntax.AttributeValueSyntax? syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new global::MLIR.DenseArrayAttr(" + typeFactoryExpression + ", items.Count, EncodeRawData(items), syntax);");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static " + valueTypeName + " DecodeItems(MLIR.Syntax.Attributes.Collections.DenseArrayAttributeValueSyntax denseArraySyntax)");
-        builder.AppendLine("    {");
-        EmitDenseDecodeItemsFromSyntax(builder, attributeConstraint.RecordName);
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static " + valueTypeName + " DecodeItems(global::System.ReadOnlyMemory<byte> rawData)");
-        builder.AppendLine("    {");
-        EmitDenseDecodeItemsFromRawData(builder, attributeConstraint.RecordName, itemTypeName);
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static global::System.ReadOnlyMemory<byte> EncodeRawData(" + valueTypeName + " items)");
-        builder.AppendLine("    {");
-        EmitDenseEncodeRawData(builder, attributeConstraint.RecordName);
-        builder.AppendLine("    }");
-        if (IsDenseIntegerRecord(attributeConstraint.RecordName))
-        {
-            builder.AppendLine();
-            builder.AppendLine("    private static " + itemTypeName + " ToIntegerItem(global::MLIR.Numerics.ApInt value)");
-            builder.AppendLine("    {");
-            EmitDenseIntegerConversion(builder, attributeConstraint.RecordName);
-            builder.AppendLine("    }");
-            builder.AppendLine();
-            builder.AppendLine("    private static global::MLIR.Numerics.ApInt ToApInt(" + itemTypeName + " value)");
-            builder.AppendLine("    {");
-            EmitDenseIntegerApIntConversion(builder, attributeConstraint.RecordName);
-            builder.AppendLine("    }");
-        }
+        builder.AppendLine(");");
         builder.AppendLine("}");
-    }
-
-    private static string GetDenseCollectionTypeFactoryExpression(string recordName)
-    {
-        return recordName switch
-        {
-            "DenseBoolArrayAttr" => "global::MLIR.Semantics.TypeFactory.I1",
-            "DenseI8ArrayAttr" => "global::MLIR.Semantics.TypeFactory.I8",
-            "DenseI16ArrayAttr" => "global::MLIR.Semantics.TypeFactory.I16",
-            "DenseI32ArrayAttr" => "global::MLIR.Semantics.TypeFactory.I32",
-            "DenseI64ArrayAttr" => "global::MLIR.Semantics.TypeFactory.I64",
-            "DenseF32ArrayAttr" => "global::MLIR.Semantics.TypeFactory.F32",
-            "DenseF64ArrayAttr" => "global::MLIR.Semantics.TypeFactory.F64",
-            _ => "global::MLIR.Semantics.TypeFactory.None",
-        };
-    }
-
-    private static string GetDenseCollectionItemTypeName(string recordName)
-    {
-        return recordName switch
-        {
-            "DenseBoolArrayAttr" => "bool",
-            "DenseI8ArrayAttr" => "sbyte",
-            "DenseI16ArrayAttr" => "short",
-            "DenseI32ArrayAttr" => "int",
-            "DenseI64ArrayAttr" => "long",
-            "DenseF32ArrayAttr" => "float",
-            "DenseF64ArrayAttr" => "double",
-            _ => "int",
-        };
-    }
-
-    private static bool IsDenseIntegerRecord(string recordName)
-    {
-        return recordName is "DenseI8ArrayAttr" or "DenseI16ArrayAttr" or "DenseI32ArrayAttr" or "DenseI64ArrayAttr";
-    }
-
-    private static void EmitDenseDecodeItemsFromSyntax(StringBuilder builder, string recordName)
-    {
-        if (recordName == "DenseBoolArrayAttr")
-        {
-            builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeBooleanItems(denseArraySyntax.Items.Items);");
-            return;
-        }
-
-        if (recordName == "DenseF32ArrayAttr")
-        {
-            builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(denseArraySyntax.Items.Items, global::MLIR.Numerics.FloatSemantics.IEEESingle);");
-            return;
-        }
-
-        if (recordName == "DenseF64ArrayAttr")
-        {
-            builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(denseArraySyntax.Items.Items, global::MLIR.Numerics.FloatSemantics.IEEEDouble);");
-            return;
-        }
-
-        builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeIntegerItems(denseArraySyntax.Items.Items);");
-    }
-
-    private static void EmitDenseDecodeItemsFromRawData(StringBuilder builder, string recordName, string itemTypeName)
-    {
-        if (recordName == "DenseBoolArrayAttr")
-        {
-            builder.AppendLine("        var span = global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, bool>(rawData.Span);");
-            builder.AppendLine("        var items = new global::System.Collections.Generic.List<bool>(span.Length);");
-            builder.AppendLine("        for (var i = 0; i < span.Length; i++)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            items.Add(span[i]);");
-            builder.AppendLine("        }");
-            builder.AppendLine("        return items;");
-            return;
-        }
-
-        if (recordName == "DenseF32ArrayAttr" || recordName == "DenseF64ArrayAttr")
-        {
-            var floatType = recordName == "DenseF32ArrayAttr" ? "float" : "double";
-            var semantics = recordName == "DenseF32ArrayAttr"
-                ? "global::MLIR.Numerics.FloatSemantics.IEEESingle"
-                : "global::MLIR.Numerics.FloatSemantics.IEEEDouble";
-            builder.AppendLine("        var span = global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, " + floatType + ">(rawData.Span);");
-            builder.AppendLine("        var items = new global::System.Collections.Generic.List<global::MLIR.Numerics.ApFloat>(span.Length);");
-            builder.AppendLine("        for (var i = 0; i < span.Length; i++)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            items.Add(global::MLIR.Numerics.ApFloat.FromDouble(" + semantics + ", span[i]));");
-            builder.AppendLine("        }");
-            builder.AppendLine("        return items;");
-            return;
-        }
-
-        builder.AppendLine("        var span = global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, " + itemTypeName + ">(rawData.Span);");
-        builder.AppendLine("        var items = new global::System.Collections.Generic.List<global::MLIR.Numerics.ApInt>(span.Length);");
-        builder.AppendLine("        for (var i = 0; i < span.Length; i++)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            items.Add(ToApInt(span[i]));");
-        builder.AppendLine("        }");
-        builder.AppendLine("        return items;");
-    }
-
-    private static void EmitDenseEncodeRawData(StringBuilder builder, string recordName)
-    {
-        if (recordName == "DenseBoolArrayAttr")
-        {
-            builder.AppendLine("        var values = new bool[items.Count];");
-            builder.AppendLine("        for (var i = 0; i < items.Count; i++)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            values[i] = items[i];");
-            builder.AppendLine("        }");
-            builder.AppendLine("        return global::System.Runtime.InteropServices.MemoryMarshal.AsBytes(values.AsSpan()).ToArray();");
-            return;
-        }
-
-        if (recordName == "DenseF32ArrayAttr")
-        {
-            builder.AppendLine("        var values = new float[items.Count];");
-            builder.AppendLine("        for (var i = 0; i < items.Count; i++)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            values[i] = items[i].ToSingle();");
-            builder.AppendLine("        }");
-            builder.AppendLine("        return global::System.Runtime.InteropServices.MemoryMarshal.AsBytes(values.AsSpan()).ToArray();");
-            return;
-        }
-
-        if (recordName == "DenseF64ArrayAttr")
-        {
-            builder.AppendLine("        var values = new double[items.Count];");
-            builder.AppendLine("        for (var i = 0; i < items.Count; i++)");
-            builder.AppendLine("        {");
-            builder.AppendLine("            values[i] = items[i].ToDouble();");
-            builder.AppendLine("        }");
-            builder.AppendLine("        return global::System.Runtime.InteropServices.MemoryMarshal.AsBytes(values.AsSpan()).ToArray();");
-            return;
-        }
-
-        var itemTypeName = GetDenseCollectionItemTypeName(recordName);
-        builder.AppendLine("        var values = new " + itemTypeName + "[items.Count];");
-        builder.AppendLine("        for (var i = 0; i < items.Count; i++)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            values[i] = ToIntegerItem(items[i]);");
-        builder.AppendLine("        }");
-        builder.AppendLine("        return global::System.Runtime.InteropServices.MemoryMarshal.AsBytes(values.AsSpan()).ToArray();");
-    }
-
-    private static void EmitDenseIntegerConversion(StringBuilder builder, string recordName)
-    {
-        switch (recordName)
-        {
-            case "DenseI8ArrayAttr":
-                builder.AppendLine("        return (sbyte)value.ToInt64();");
-                break;
-            case "DenseI16ArrayAttr":
-                builder.AppendLine("        return (short)value.ToInt64();");
-                break;
-            case "DenseI32ArrayAttr":
-                builder.AppendLine("        return (int)value.ToInt64();");
-                break;
-            case "DenseI64ArrayAttr":
-                builder.AppendLine("        return value.ToInt64();");
-                break;
-            default:
-                builder.AppendLine("        return 0;");
-                break;
-        }
-    }
-
-    private static void EmitDenseIntegerApIntConversion(StringBuilder builder, string recordName)
-    {
-        switch (recordName)
-        {
-            case "DenseI8ArrayAttr":
-                builder.AppendLine("        return global::MLIR.Numerics.ApInt.FromInt64(8, value);");
-                break;
-            case "DenseI16ArrayAttr":
-                builder.AppendLine("        return global::MLIR.Numerics.ApInt.FromInt64(16, value);");
-                break;
-            case "DenseI32ArrayAttr":
-                builder.AppendLine("        return global::MLIR.Numerics.ApInt.FromInt64(32, value);");
-                break;
-            case "DenseI64ArrayAttr":
-                builder.AppendLine("        return global::MLIR.Numerics.ApInt.FromInt64(64, value);");
-                break;
-            default:
-                builder.AppendLine("        return global::MLIR.Numerics.ApInt.Zero(64);");
-                break;
-        }
     }
 
     private static void EmitEnumConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, EnumModel enumModel)
@@ -525,11 +273,6 @@ internal static class AttributeConstraintEmitter
             var decodeExpr = elementDecodeExpression.Replace("{itemSyntax}", "itemSyntax");
             builder.AppendLine("            items.Add(" + decodeExpr + ");");
         }
-        else if (elementStrategy.IsDenseCollection && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            builder.AppendLine("            items.Add(" + elementClassName + ".GetItems(MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue(itemSyntax)));");
-        }
         else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
         {
             var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
@@ -580,11 +323,6 @@ internal static class AttributeConstraintEmitter
             // Primitive element: build syntax without a wrapper class instance.
             var toSyntaxExpr = elementToSyntaxExpression.Replace("{element}", "element").Replace("{context}", "context");
             builder.AppendLine("        return " + toSyntaxExpr + ";");
-        }
-        else if (elementStrategy.IsDenseCollection && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            builder.AppendLine("        return context.BuildAttributeValueSyntax(" + elementClassName + ".Create(element));");
         }
         else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
         {

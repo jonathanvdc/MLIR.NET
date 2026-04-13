@@ -47,16 +47,17 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Theory]
-    [InlineData("DenseI32ArrayAttr", "indices", "global::System.ReadOnlySpan<int>", "DenseI32ArrayAttrConstraintAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
-    [InlineData("DenseBoolArrayAttr", "flags", "global::System.ReadOnlySpan<bool>", "DenseBoolArrayAttrConstraintAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "Flags")]
-    [InlineData("DenseF32ArrayAttr", "coeffs", "global::System.ReadOnlySpan<float>", "DenseF32ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Coeffs")]
-    [InlineData("DenseF64ArrayAttr", "weights", "global::System.ReadOnlySpan<double>", "DenseF64ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Weights")]
+    [InlineData("DenseI32ArrayAttr", "indices", "global::System.ReadOnlySpan<int>", "DenseI32ArrayAttrConstraintAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "DenseI32", "Indices")]
+    [InlineData("DenseBoolArrayAttr", "flags", "global::System.ReadOnlySpan<bool>", "DenseBoolArrayAttrConstraintAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "DenseBool", "Flags")]
+    [InlineData("DenseF32ArrayAttr", "coeffs", "global::System.ReadOnlySpan<float>", "DenseF32ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "DenseF32", "Coeffs")]
+    [InlineData("DenseF64ArrayAttr", "weights", "global::System.ReadOnlySpan<double>", "DenseF64ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "DenseF64", "Weights")]
     public void GeneratesDenseArrayAttributePropertyWithTypedItemsList(
         string constraintType,
         string attributeName,
         string propertyType,
         string constraintClassName,
         string assemblyFormatType,
+        string constantFactoryMethodName,
         string propertyName)
     {
         var generatedSources = GeneratorTestHelpers.RunGenerator(
@@ -80,7 +81,8 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             $"public {propertyType} {propertyName}",
-            $"{propertyType} {attributeName},");
+            $"{propertyType} {attributeName},",
+            $"global::MLIR.Semantics.ConstantAttributeFactory.{constantFactoryMethodName}(value)");
         AssertContainsAll(
             preludeSource,
             $"public static class {constraintClassName}",
@@ -91,6 +93,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "DenseBooleanArrayAttributeValue",
             "DenseIntegerArrayAttributeValue",
             "DenseFloatingPointArrayAttributeValue");
+        Assert.DoesNotContain(constraintClassName + ".Create(", registrationSource, System.StringComparison.Ordinal);
     }
 
     [Fact]
