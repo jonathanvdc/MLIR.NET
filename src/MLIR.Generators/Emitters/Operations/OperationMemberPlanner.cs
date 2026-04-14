@@ -103,28 +103,20 @@ internal sealed class OperationMemberPlan
 internal sealed class AttributePropertyPlan
 {
     public AttributePropertyPlan(
-        string sourceName,
         string propertyName,
         string publicType,
-        bool isOptional,
         string getterExpression,
         string setterExpression)
     {
-        SourceName = sourceName;
         PropertyName = propertyName;
         PublicType = publicType;
-        IsOptional = isOptional;
         GetterExpression = getterExpression;
         SetterExpression = setterExpression;
     }
 
-    public string SourceName { get; }
-
     public string PropertyName { get; }
 
     public string PublicType { get; }
-
-    public bool IsOptional { get; }
 
     public string GetterExpression { get; }
 
@@ -159,25 +151,11 @@ internal static class AttributePropertyPlanner
             return null;
         }
 
-        var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
         // ConstraintStrategy is always non-null for attribute members: the planner
         // sets it to at least FallbackAttributeConstraintCodeStrategy.Instance.
         var strategy = member.ConstraintStrategy!;
-        var useAttrModelTyping = !string.IsNullOrEmpty(member.AttrStorageTypeName)
-            && !string.IsNullOrEmpty(member.AttrConvertFromStorageExpression);
         var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
         var localName = EmitterHelpers.LowerFirst(member.PropertyName);
-
-        if (useAttrModelTyping && !strategy.IsUnit && !strategy.IsEnum)
-        {
-            return new AttributePropertyPlan(
-                member.SourceName,
-                member.PropertyName,
-                member.TypeName,
-                isOptional,
-                OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName),
-                OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
-        }
 
         if (strategy.IsUnit)
         {
@@ -187,43 +165,15 @@ internal static class AttributePropertyPlanner
             }
 
             return new AttributePropertyPlan(
-                member.SourceName,
                 member.PropertyName,
                 member.TypeName,
-                isOptional,
                 "Attributes.Contains(" + sourceNameLiteral + ")",
                 "SetAttribute(" + sourceNameLiteral + ", value ? " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + " : null)");
         }
 
-        if (strategy.IsPrimitive || strategy.IsDenseCollection || strategy.IsTypedArray)
-        {
-            return new AttributePropertyPlan(
-                member.SourceName,
-                member.PropertyName,
-                member.TypeName,
-                isOptional,
-                OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName),
-                OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
-        }
-
-        if (!isOptional)
-        {
-            var baseTypeName = member.TypeName;
-            var castExpr = "(" + baseTypeName + ")";
-            return new AttributePropertyPlan(
-                member.SourceName,
-                member.PropertyName,
-                member.TypeName,
-                isOptional,
-                castExpr + "Attributes[" + sourceNameLiteral + "].Value",
-                OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
-        }
-
         return new AttributePropertyPlan(
-            member.SourceName,
             member.PropertyName,
             member.TypeName,
-            isOptional,
             OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName),
             OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
     }
