@@ -187,7 +187,7 @@ public sealed partial class SemanticTests
             new Dialect(
                 "builtin",
                 [],
-                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat(), factory: static context => new DenseAttributeValue(context))],
+                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
 
         var module = Binder.BindModule(
@@ -245,7 +245,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void OperationAssemblyFormatCanBindF32AttributesAsSinglePrecisionValues()
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEESingle), factory: static context => new TestF32AttributeValue(context));
+        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
         var registry = new DialectRegistry();
         registry.RegisterDialect(
             Dialect.Create(
@@ -273,7 +273,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void OperationAssemblyFormatCanBindF64AttributesAsDoublePrecisionValues()
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEEDouble), factory: static context => new TestF64AttributeValue(context));
+        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
         var registry = new DialectRegistry();
         registry.RegisterDialect(
             Dialect.Create(
@@ -302,7 +302,7 @@ public sealed partial class SemanticTests
     [InlineData("+1.500", 1.5f)]
     public void OperationAssemblyFormatCanRoundTripF32Attributes(string sourceValue, float expectedValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEESingle), factory: static context => new TestF32AttributeValue(context));
+        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var source = $"%0 = arith.constant {sourceValue} : f32";
@@ -321,7 +321,7 @@ public sealed partial class SemanticTests
     [InlineData("-3.125e200", -3.125e200)]
     public void OperationAssemblyFormatCanRoundTripF64Attributes(string sourceValue, double expectedValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEEDouble), factory: static context => new TestF64AttributeValue(context));
+        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var source = $"%0 = arith.constant {sourceValue} : f64";
@@ -341,7 +341,7 @@ public sealed partial class SemanticTests
     [InlineData("+1.", 1f)]
     public void OperationAssemblyFormatCanParseAdditionalF32FloatForms(string sourceValue, float expectedValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEESingle), factory: static context => new TestF32AttributeValue(context));
+        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -360,7 +360,7 @@ public sealed partial class SemanticTests
     [InlineData("0x7fc00000", "nan", 0f)]
     public void OperationAssemblyFormatCanBindMoreF32FloatForms(string sourceValue, string kind, float expectedValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEESingle), factory: static context => new TestF32AttributeValue(context));
+        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -392,7 +392,7 @@ public sealed partial class SemanticTests
     [InlineData("+1.", 1d)]
     public void OperationAssemblyFormatCanParseAdditionalF64FloatForms(string sourceValue, double expectedValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEEDouble), factory: static context => new TestF64AttributeValue(context));
+        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -411,7 +411,7 @@ public sealed partial class SemanticTests
     [InlineData("0x7ff8000000000000", "nan", 0d)]
     public void OperationAssemblyFormatCanBindMoreF64FloatForms(string sourceValue, string kind, double expectedValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new FloatingPointLiteralAttributeAssemblyFormat(FloatSemantics.IEEEDouble), factory: static context => new TestF64AttributeValue(context));
+        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -590,17 +590,12 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
-    public void BinderPassesTypedAttributeSelfTypeToAttributeFactory()
+    public void BinderPassesTypedAttributeSelfTypeToAttributeAssemblyFormatBind()
     {
         AttributeValueConstructionContext? capturedContext = null;
         var valueConstraint = new AttributeConstraintDefinition(
             "test.int",
-            new IntegerLiteralAttributeAssemblyFormat(),
-            context =>
-            {
-                capturedContext = context;
-                return new UnknownAttributeValue(context.Syntax, context.Name, context.Definition, context.Location);
-            });
+            new CapturingIntegerAttributeAssemblyFormat(context => capturedContext = context));
         var registry = new DialectRegistry();
         registry.RegisterDialect(new Dialect("test", [new OperationDefinition("test.op", attributeDefinitions: [new OperationAttributeDefinition("value", true, valueConstraint)])]));
 

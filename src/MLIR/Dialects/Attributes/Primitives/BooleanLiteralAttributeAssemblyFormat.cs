@@ -48,7 +48,7 @@ public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
             throw new InvalidOperationException("Expected a boolean literal syntax for a primitive boolean attribute.");
         }
 
-        return definition.Factory(binder.CreateAttributeValueConstructionContext(booleanSyntax, definition.Name, definition, booleanSyntax.Location));
+        return new IntegerAttr(TypeFactory.I1, MLIR.Numerics.ApInt.FromInt64(1, booleanSyntax.Value ? 1 : 0), booleanSyntax);
     }
 
     /// <inheritdoc/>

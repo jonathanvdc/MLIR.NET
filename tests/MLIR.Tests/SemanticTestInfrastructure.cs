@@ -5,6 +5,8 @@ using System.Globalization;
 using System.Linq;
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Attributes.Primitives;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
@@ -718,6 +720,76 @@ public sealed partial class SemanticTests
             }
 
             return attribute.Syntax ?? throw new InvalidOperationException("i32 attributes require syntax to rebuild their assembly form.");
+        }
+    }
+
+    private sealed class TestF32AttributeAssemblyFormat : IAttributeAssemblyFormat
+    {
+        private readonly FloatingPointLiteralAttributeAssemblyFormat singlePrecisionFormat = new(FloatSemantics.IEEESingle);
+
+        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+        {
+            return singlePrecisionFormat.TryParse(context);
+        }
+
+        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+        {
+            return new TestF32AttributeValue(
+                binder.CreateAttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));
+        }
+
+        public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
+        {
+            return singlePrecisionFormat.BuildCustomAssemblySyntax(attribute, context);
+        }
+    }
+
+    private sealed class TestF64AttributeAssemblyFormat : IAttributeAssemblyFormat
+    {
+        private readonly FloatingPointLiteralAttributeAssemblyFormat doublePrecisionFormat = new(FloatSemantics.IEEEDouble);
+
+        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+        {
+            return doublePrecisionFormat.TryParse(context);
+        }
+
+        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+        {
+            return new TestF64AttributeValue(
+                binder.CreateAttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));
+        }
+
+        public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
+        {
+            return doublePrecisionFormat.BuildCustomAssemblySyntax(attribute, context);
+        }
+    }
+
+    private sealed class CapturingIntegerAttributeAssemblyFormat : IAttributeAssemblyFormat
+    {
+        private readonly Action<AttributeValueConstructionContext> onContextBound;
+        private readonly IntegerLiteralAttributeAssemblyFormat integerLiteralFormat = new();
+
+        public CapturingIntegerAttributeAssemblyFormat(Action<AttributeValueConstructionContext> onContextBound)
+        {
+            this.onContextBound = onContextBound;
+        }
+
+        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+        {
+            return integerLiteralFormat.TryParse(context);
+        }
+
+        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+        {
+            var constructionContext = binder.CreateAttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location);
+            onContextBound(constructionContext);
+            return new UnknownAttributeValue(constructionContext.Syntax, constructionContext.Name, constructionContext.Definition, constructionContext.Location);
+        }
+
+        public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
+        {
+            return integerLiteralFormat.BuildCustomAssemblySyntax(attribute, context);
         }
     }
 }

@@ -53,7 +53,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
 
         if (syntax is FloatingPointAttributeValueSyntax floatingPointSyntax)
         {
-            return definition.Factory(binder.CreateAttributeValueConstructionContext(floatingPointSyntax, definition.Name, definition, floatingPointSyntax.Location));
+            return new FloatAttr(GetResultType(), floatingPointSyntax.Value, floatingPointSyntax);
         }
         else if (syntax is IntegerAttributeValueSyntax integerSyntax)
         {
@@ -67,7 +67,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
                     integerSyntax.SignToken.HasValue
                         ? integerSyntax.SignToken.Value.Text + integerSyntax.IntegerToken.Text
                         : integerSyntax.IntegerToken.Text));
-            return definition.Factory(binder.CreateAttributeValueConstructionContext(convertedSyntax, definition.Name, definition, integerSyntax.Location));
+            return new FloatAttr(GetResultType(), convertedSyntax.Value, convertedSyntax);
         }
         else
         {
@@ -93,5 +93,17 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Primitive floating-point attributes require syntax to rebuild their assembly form.");
+    }
+
+    private TypeReference GetResultType()
+    {
+        return semantics switch
+        {
+            var s when s.Equals(FloatSemantics.IEEEHalf) => TypeFactory.F16,
+            var s when s.Equals(FloatSemantics.BFloat16) => TypeFactory.BF16,
+            var s when s.Equals(FloatSemantics.IEEESingle) => TypeFactory.F32,
+            var s when s.Equals(FloatSemantics.TF32) => TypeFactory.TF32,
+            _ => TypeFactory.F64,
+        };
     }
 }

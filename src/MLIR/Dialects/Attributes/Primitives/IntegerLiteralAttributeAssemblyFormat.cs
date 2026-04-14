@@ -45,7 +45,7 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
             throw new InvalidOperationException("Expected an integer literal syntax for a primitive integer attribute.");
         }
 
-        return definition.Factory(binder.CreateAttributeValueConstructionContext(integerSyntax, definition.Name, definition, integerSyntax.Location));
+        return new IntegerAttr(TypeFactory.I(integerSyntax.Value.BitWidth), integerSyntax.Value, integerSyntax);
     }
 
     /// <inheritdoc/>

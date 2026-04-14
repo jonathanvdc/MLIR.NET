@@ -437,15 +437,21 @@ public sealed class Binder
 
         AttributeValue attribute;
         var location = outerSyntax.Location;
-        if (definition != null)
+        if (definition?.AssemblyFormat != null)
         {
-            attribute = definition.AssemblyFormat != null
-                ? BindAttributeValueWithAssemblyFormat(syntaxNode, definition, selfTypeReference)
-                : definition.Factory(CreateAttributeValueConstructionContext(syntaxNode, canonicalName, definition, location, selfTypeReference));
+            attribute = BindAttributeValueWithAssemblyFormat(syntaxNode, definition, selfTypeReference);
         }
         else
         {
             attribute = StructuredAttributeSemanticDecoder.DecodeValue(outerSyntax);
+            if (attribute is UnknownAttributeValue)
+            {
+                attribute = new UnknownAttributeValue(
+                    outerSyntax,
+                    definition?.Name ?? canonicalName,
+                    definition,
+                    location);
+            }
         }
 
         return attribute;

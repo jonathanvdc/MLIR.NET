@@ -81,16 +81,11 @@ internal static class AttributeEmitter
             : generatedFormatClassName != null
                 ? "new " + generatedFormatClassName + "()"
                 : null;
-        string? factoryExpression = hasAssemblyFormat
-            ? "static context => " + generatedFormatClassName + ".BindValue(context.Syntax!, context.Binder ?? throw new global::System.InvalidOperationException(\"Attribute construction requires a binder when an assembly format is present.\"))"
-            : assemblyFormatExpression != null
-            ? "static context => context.Definition.AssemblyFormat!.Bind(context.Syntax!, context.Definition, context.Binder ?? throw new global::System.InvalidOperationException(\"Attribute construction requires a binder when an assembly format is present.\"))"
-            : null;
 
         builder.AppendLine("public sealed class " + className + " : AttributeValue");
         builder.AppendLine("{");
 
-        EmitAttributeDefinition(builder, attribute, className, parameters, assemblyFormatExpression, factoryExpression);
+        EmitAttributeDefinition(builder, attribute, className, parameters, assemblyFormatExpression);
         builder.AppendLine();
 
         EmitTypedAttributeConstructor(builder, className, parameters);
@@ -111,16 +106,14 @@ internal static class AttributeEmitter
         AttributeModel attribute,
         string className,
         IReadOnlyList<AttrOrTypeParameterModel> parameters,
-        string? assemblyFormatExpression,
-        string? factoryExpression)
+        string? assemblyFormatExpression)
     {
         builder.AppendLine("    public static AttributeDefinition AttributeDefinition { get; } =");
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "AttributeDefinition",
             attribute.Name,
-            assemblyFormatExpression,
-            factoryExpression);
+            assemblyFormatExpression);
     }
 
     private static void EmitTypedAttributeConstructor(
@@ -183,8 +176,7 @@ internal static class AttributeEmitter
             builder,
             "AttributeDefinition",
             attribute.Name,
-            "new " + className + "AssemblyFormat()",
-            "static context => " + className + "AssemblyFormat.BindValue(context.Syntax!)");
+            "new " + className + "AssemblyFormat()");
         builder.AppendLine();
 
         // Typed constructor

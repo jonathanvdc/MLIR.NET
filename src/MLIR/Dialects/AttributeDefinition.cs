@@ -12,13 +12,11 @@ using MLIR.Semantics;
 /// <param name="name">The canonical attribute name.</param>
 /// <param name="assemblyFormat">The optional custom assembly interpretation hook.</param>
 /// <param name="parserAliases">Additional names that may be used to resolve this attribute during parsing.</param>
-/// <param name="factory">The typed attribute-value factory.</param>
 public sealed class AttributeDefinition(
     string name,
     IAttributeAssemblyFormat? assemblyFormat = null,
-    IReadOnlyList<string>? parserAliases = null,
-    System.Func<AttributeValueConstructionContext, AttributeValue>? factory = null)
-    : AttributeConstraintDefinition(name, assemblyFormat, factory)
+    IReadOnlyList<string>? parserAliases = null)
+    : AttributeConstraintDefinition(name, assemblyFormat)
 {
     /// <summary>
     /// Gets the canonical attribute name.
