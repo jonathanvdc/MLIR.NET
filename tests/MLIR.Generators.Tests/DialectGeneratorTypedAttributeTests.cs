@@ -111,11 +111,11 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "public IReadOnlyList<string> Strings",
-            "public IReadOnlyList<TypeSyntax> Types",
+            "public IReadOnlyList<TypeReference> Types",
             "public IReadOnlyList<NamedAttributeCollection> Dicts",
             "public IReadOnlyList<IReadOnlyList<global::MLIR.Numerics.ApInt>> IndexLists",
             "IReadOnlyList<string> strings,",
-            "IReadOnlyList<TypeSyntax> types,",
+            "IReadOnlyList<TypeReference> types,",
             "IReadOnlyList<NamedAttributeCollection> dicts,",
             "IReadOnlyList<IReadOnlyList<global::MLIR.Numerics.ApInt>> indexLists,",
             "StrArrayAttrConstraintAttributeValue",

@@ -209,7 +209,8 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             "%result = miniarith.add_type_immediate i32, %lhs : i32",
             CreateMiniArithRegistry());
 
-        Assert.Equal("i32", operation.Value.TypeSyntax.ToString());
+        var typeReference = Assert.IsAssignableFrom<TypeReference>(operation.Value.Value);
+        Assert.Equal("i32", typeReference.Syntax!.ToString());
         Assert.IsType<TypeAttributeValueSyntax>(operation.Value.Syntax);
     }
 

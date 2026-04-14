@@ -26,13 +26,13 @@ extends BoolAttr : MLIRNet_AttrExtension {
 }
 
 extends TypeAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.TypeAttributeValue";
-  let csharpReturnType = "global::MLIR.Syntax.TypeSyntax";
-  let csharpConvertFromStorage = "$_self.TypeSyntax";
+  let csharpStorageType = "global::MLIR.TypeAttr";
+  let csharpReturnType = "global::MLIR.Semantics.TypeReference";
+  let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends UnitAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.UnitAttributeValue";
+  let csharpStorageType = "global::MLIR.UnitAttr";
   let csharpReturnType = "bool";
   let csharpConvertFromStorage = "$_self != null";
   let csharpDefaultValue = "false";
@@ -309,8 +309,8 @@ extends StrArrayAttr : MLIRNet_AttrExtension {
 }
 
 extends TypeArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Syntax.TypeSyntax>";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>";
+  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.TypeReference>";
+  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>";
   let csharpConvertFromStorage = "$_self.Items";
 }
 

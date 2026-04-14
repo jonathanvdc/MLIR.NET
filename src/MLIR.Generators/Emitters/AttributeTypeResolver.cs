@@ -9,7 +9,7 @@ internal static class AttributeTypeResolver
     /// <remarks>
     /// This type is used for typed-array element types and for primitive-style property access
     /// expressions.  It differs from the operation-member property type for some constraints
-    /// (e.g. <c>TypeAttr</c> returns <c>"TypeSyntax"</c> here but <c>"TypeAttributeValue"</c>
+    /// (e.g. <c>TypeAttr</c> returns <c>"TypeReference"</c> here but <c>"TypeAttr"</c>
     /// as an operation property).
     /// </remarks>
     public static string? GetAttributeValueTypeName(string? constraintRecordName, DialectSymbolResolver resolver)

@@ -60,7 +60,7 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
             "bool optionalFlag,");
         AssertDoesNotContainAny(
             registrationSource,
-            "public UnitAttributeValue RequiredFlag",
+            "public UnitAttr RequiredFlag",
             "public bool RequiredFlag");
     }
 
