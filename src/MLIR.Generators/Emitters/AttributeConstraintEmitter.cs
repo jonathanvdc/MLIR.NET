@@ -229,112 +229,37 @@ internal static class AttributeConstraintEmitter
             : elementStrategy.GetTypedArrayElementEncodeExpression(elementRecordName!);
         var elementUsesPayload = elementDecodeExpression == null && elementStrategy.UsesTypedArrayElementPayload;
         var assemblyFormatType = className + "AssemblyFormat";
+        var decodeExpression = BuildTypedArrayElementDecodeFromValueExpression(
+            elementRecordName,
+            elementTypeName,
+            elementStrategy,
+            resolver,
+            elementDecodeExpression,
+            elementDecodeFromValueExpression,
+            elementUsesPayload);
+        var encodeExpression = BuildTypedArrayElementEncodeExpression(
+            elementRecordName,
+            elementTypeName,
+            elementStrategy,
+            resolver,
+            elementEncodeExpression,
+            elementUsesPayload);
 
         builder.AppendLine("public static class " + className);
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
         builder.AppendLine("        new AttributeConstraintDefinition(");
         builder.Append("            " + EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        builder.AppendLine(", new " + assemblyFormatType + "(), factory: static context =>");
-        builder.AppendLine("            context.Syntax is global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax arraySyntax");
-        builder.AppendLine("                ? new global::MLIR.ArrayAttr(global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeItems(arraySyntax.Items.Items), arraySyntax)");
-        builder.AppendLine("                : new global::MLIR.ArrayAttr(global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>(), context.Syntax));");
+        builder.AppendLine(", new " + assemblyFormatType + "(), factory: static context => global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindFromSyntax(context.Syntax));");
         builder.AppendLine();
         builder.AppendLine("    public static global::MLIR.Semantics.AttributeValue Create(global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> items)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return new global::MLIR.ArrayAttr(EncodeItems(items));");
+        builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create(items, static element => " + encodeExpression + ");");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public static global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> GetItems(global::MLIR.Semantics.AttributeValue attribute)");
         builder.AppendLine("    {");
-        builder.AppendLine("        if (attribute is global::MLIR.ArrayAttr arrayAttr)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return DecodeItems(arrayAttr.Value);");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return DecodeItemsFromSyntax(attribute.Syntax);");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> DecodeItems(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue> storageItems)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        var items = new global::System.Collections.Generic.List<" + elementTypeName + ">(storageItems.Count);");
-        builder.AppendLine("        for (var i = 0; i < storageItems.Count; i++)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            var itemValue = storageItems[i];");
-        if (elementDecodeFromValueExpression != null)
-        {
-            var decodeFromValueExpr = elementDecodeFromValueExpression.Replace("{itemValue}", "itemValue");
-            builder.AppendLine("            items.Add(" + decodeFromValueExpr + ");");
-        }
-        else if (elementDecodeExpression != null)
-        {
-            var decodeExpr = elementDecodeExpression.Replace("{itemSyntax}", "itemValue.Syntax");
-            builder.AppendLine("            items.Add(" + decodeExpr + ");");
-        }
-        else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            builder.AppendLine("            items.Add(" + elementClassName + ".GetItems(itemValue));");
-        }
-        else if (elementUsesPayload)
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            var elementPayloadProperty = GetTypedArrayElementPayloadPropertyName(elementRecordName, elementStrategy);
-            builder.AppendLine("            if (itemValue is " + elementClassName + " typedElement)");
-            builder.AppendLine("            {");
-            builder.AppendLine("                items.Add(typedElement." + elementPayloadProperty + ");");
-            builder.AppendLine("                continue;");
-            builder.AppendLine("            }");
-            builder.AppendLine();
-            builder.AppendLine("            throw new global::System.InvalidOperationException(\"Unexpected typed array element storage value type.\");");
-        }
-        else
-        {
-            builder.AppendLine("            items.Add((" + elementTypeName + ")itemValue);");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return items;");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> DecodeItemsFromSyntax(MLIR.Syntax.AttributeValueSyntax? syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (syntax is not MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax arraySyntax)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return global::System.Array.Empty<" + elementTypeName + ">();");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return DecodeItems(global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeItems(arraySyntax.Items.Items));");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue> EncodeItems(global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> items)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        var storageItems = new global::System.Collections.Generic.List<global::MLIR.Semantics.AttributeValue>(items.Count);");
-        builder.AppendLine("        for (var i = 0; i < items.Count; i++)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            var element = items[i];");
-        if (elementEncodeExpression != null)
-        {
-            var encodeExpr = elementEncodeExpression.Replace("{element}", "element");
-            builder.AppendLine("            storageItems.Add(" + encodeExpr + ");");
-        }
-        else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            builder.AppendLine("            storageItems.Add(" + elementClassName + ".Create(element));");
-        }
-        else if (elementUsesPayload)
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            builder.AppendLine("            storageItems.Add(new " + elementClassName + "(element));");
-        }
-        else
-        {
-            builder.AppendLine("            storageItems.Add(element);");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return storageItems;");
+        builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems(attribute, static itemValue => " + decodeExpression + ");");
         builder.AppendLine("    }");
         builder.AppendLine("}");
         builder.AppendLine();
@@ -375,6 +300,73 @@ internal static class AttributeConstraintEmitter
         }
 
         return elementStrategy.GetTypedArrayElementPayloadPropertyName();
+    }
+
+    private static string BuildTypedArrayElementDecodeFromValueExpression(
+        string? elementRecordName,
+        string elementTypeName,
+        AttributeConstraintCodeStrategy elementStrategy,
+        DialectSymbolResolver resolver,
+        string? elementDecodeExpression,
+        string? elementDecodeFromValueExpression,
+        bool elementUsesPayload)
+    {
+        if (!string.IsNullOrEmpty(elementDecodeFromValueExpression))
+        {
+            return elementDecodeFromValueExpression!.Replace("{itemValue}", "itemValue");
+        }
+
+        if (!string.IsNullOrEmpty(elementDecodeExpression))
+        {
+            return elementDecodeExpression!.Replace(
+                "{itemSyntax}",
+                "itemValue.Syntax ?? throw new global::System.InvalidOperationException(\"Typed array element syntax was not available.\")");
+        }
+
+        if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
+        {
+            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
+            return elementClassName + ".GetItems(itemValue)";
+        }
+
+        if (elementUsesPayload)
+        {
+            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
+            var elementPayloadProperty = GetTypedArrayElementPayloadPropertyName(elementRecordName, elementStrategy);
+            return "itemValue is " + elementClassName + " typedElement ? typedElement." + elementPayloadProperty +
+                " : throw new global::System.InvalidOperationException(\"Unexpected typed array element storage value type.\")";
+        }
+
+        return "(" + elementTypeName + ")itemValue";
+    }
+
+    private static string BuildTypedArrayElementEncodeExpression(
+        string? elementRecordName,
+        string elementTypeName,
+        AttributeConstraintCodeStrategy elementStrategy,
+        DialectSymbolResolver resolver,
+        string? elementEncodeExpression,
+        bool elementUsesPayload)
+    {
+        if (!string.IsNullOrEmpty(elementEncodeExpression))
+        {
+            return elementEncodeExpression!.Replace("{element}", "element");
+        }
+
+        if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
+        {
+            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
+            return elementClassName + ".Create(element)";
+        }
+
+        if (elementUsesPayload)
+        {
+            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
+            return "new " + elementClassName + "(element)";
+        }
+
+        _ = elementTypeName;
+        return "(global::MLIR.Semantics.AttributeValue)element";
     }
 
     private static void EmitStandardConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy strategy)

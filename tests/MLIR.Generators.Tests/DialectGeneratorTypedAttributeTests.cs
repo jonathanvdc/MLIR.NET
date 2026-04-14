@@ -163,8 +163,8 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "private sealed class Value :");
         AssertContainsAll(
             preludeSource,
-            "new global::MLIR.ArrayAttr(",
-            "if (attribute is global::MLIR.ArrayAttr arrayAttr)");
+            "ArrayAttrConstraintHelpers.Create(",
+            "ArrayAttrConstraintHelpers.GetItems(");
     }
 
     [Fact]

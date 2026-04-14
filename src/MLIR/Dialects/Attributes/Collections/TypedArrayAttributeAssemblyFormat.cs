@@ -72,7 +72,7 @@ public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAs
 
         if (attribute is not ArrayAttr arrayAttr)
         {
-            return attribute.Syntax ?? throw new System.InvalidOperationException("Typed array attributes require ArrayAttr storage or reusable syntax to rebuild their assembly form.");
+            return attribute.Syntax ?? throw new System.InvalidOperationException("Array attributes require ArrayAttr storage or reusable syntax to rebuild their assembly form.");
         }
 
         var items = new List<AttributeValueSyntax>(arrayAttr.Value.Count);

@@ -606,7 +606,7 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.ArrayAttr", arrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>", arrayAttr.CsharpReturnType);
         Assert.Equal("$_self.Value", arrayAttr.CsharpConvertFromStorage);
-        Assert.Equal("new global::MLIR.ArrayAttr($0)", arrayAttr.CsharpConstBuilderCall);
+        Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.Array($0)", arrayAttr.CsharpConstBuilderCall);
 
         var i32ArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "I32ArrayAttr");
         Assert.Equal(AttributeConstraintKind.TypedArrayAttribute, i32ArrayAttr.Kind);

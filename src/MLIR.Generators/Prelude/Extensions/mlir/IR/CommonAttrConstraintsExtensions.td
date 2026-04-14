@@ -54,7 +54,7 @@ extends ArrayAttrBase : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
   let csharpConvertFromStorage = "$_self.Value";
-  let csharpConstBuilderCall = "new global::MLIR.ArrayAttr($0)";
+  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.Array($0)";
 }
 
 // Integer attrs all use the semantic integer-value storage layer; the concrete leaf
