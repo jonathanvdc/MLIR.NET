@@ -17,7 +17,7 @@ internal static class OperationPropertyEmitter
         EmitBlockAndOperationsConvenienceProperties(builder, operation, plan.Regions);
         EmitSymbolProperties(builder, operation);
         EmitOperandAndResultProperties(builder, plan.Operands, plan.Results, operation);
-        EmitAttributeProperties(builder, plan.Attributes, operation);
+        EmitAttributeProperties(builder, plan.AttributeProperties);
     }
 
     // Base-class member names in Operation that an operand or result property might shadow.
@@ -251,110 +251,24 @@ internal static class OperationPropertyEmitter
 
     private static void EmitAttributeProperties(
         StringBuilder builder,
-        IReadOnlyList<GeneratedMember> attributeMembers,
-        OperationModel operation)
+        IReadOnlyList<AttributePropertyPlan> attributePropertyPlans)
     {
-        var hasSymbol = HasTrait(operation.Traits, "Symbol");
-        var emittedAnyProperty = false;
-        for (var i = 0; i < attributeMembers.Count; i++)
+        if (attributePropertyPlans.Count == 0)
         {
-            var member = attributeMembers[i];
-            if (hasSymbol && string.Equals(member.SourceName, "sym_name", StringComparison.Ordinal))
-            {
-                // Symbol-trait ops expose sym_name via the dedicated SymbolName property.
-                // Skip the generic attribute property to avoid emitting both SymbolName and SymName.
-                continue;
-            }
-
-            var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
-            // ConstraintStrategy is always non-null for attribute members: the planner
-            // sets it to at least FallbackAttributeConstraintCodeStrategy.Instance.
-            var strategy = member.ConstraintStrategy!;
-            var useAttrModelTyping = !string.IsNullOrEmpty(member.AttrStorageTypeName)
-                && !string.IsNullOrEmpty(member.AttrConvertFromStorageExpression);
-
-            if (useAttrModelTyping && !strategy.IsUnit && !strategy.IsEnum)
-            {
-                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
-                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
-                builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
-                builder.AppendLine("    {");
-                builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
-                builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
-                builder.AppendLine("    }");
-                emittedAnyProperty = true;
-                continue;
-            }
-
-            if (strategy.IsUnit)
-            {
-                if (!string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
-                builder.AppendLine("    public bool " + member.PropertyName);
-                builder.AppendLine("    {");
-                builder.AppendLine("        get => Attributes.Contains(" + sourceNameLiteral + ");");
-                builder.AppendLine("        set => SetAttribute(" + sourceNameLiteral + ", value ? " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + " : null);");
-                builder.AppendLine("    }");
-                emittedAnyProperty = true;
-                continue;
-            }
-
-            if (strategy.IsPrimitive)
-            {
-                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
-                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
-                builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
-                builder.AppendLine("    {");
-                builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
-                builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
-                builder.AppendLine("    }");
-                emittedAnyProperty = true;
-            }
-            else if (strategy.IsDenseCollection || strategy.IsTypedArray)
-            {
-                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
-                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
-                builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
-                builder.AppendLine("    {");
-                builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
-                builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
-                builder.AppendLine("    }");
-                emittedAnyProperty = true;
-            }
-            else
-            {
-                var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
-                var baseTypeName = isOptional ? member.TypeName.Substring(0, member.TypeName.Length - 1) : member.TypeName;
-                var castExpr = "(" + baseTypeName + ")";
-                var localName = EmitterHelpers.LowerFirst(member.PropertyName);
-
-                builder.AppendLine("    public " + member.TypeName + " " + member.PropertyName);
-                builder.AppendLine("    {");
-
-                if (!isOptional)
-                {
-                    builder.AppendLine("        get => " + castExpr + "Attributes[" + sourceNameLiteral + "].Value;");
-                    builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
-                }
-                else
-                {
-                    builder.AppendLine("        get => " + OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName) + ";");
-                    builder.AppendLine("        set => " + OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value") + ";");
-                }
-
-                builder.AppendLine("    }");
-                emittedAnyProperty = true;
-            }
+            return;
         }
 
-        if (emittedAnyProperty)
+        for (var i = 0; i < attributePropertyPlans.Count; i++)
         {
-            builder.AppendLine();
+            var attributePropertyPlan = attributePropertyPlans[i];
+            builder.AppendLine("    public " + attributePropertyPlan.PublicType + " " + attributePropertyPlan.PropertyName);
+            builder.AppendLine("    {");
+            builder.AppendLine("        get => " + attributePropertyPlan.GetterExpression + ";");
+            builder.AppendLine("        set => " + attributePropertyPlan.SetterExpression + ";");
+            builder.AppendLine("    }");
         }
+
+        builder.AppendLine();
     }
 
 }

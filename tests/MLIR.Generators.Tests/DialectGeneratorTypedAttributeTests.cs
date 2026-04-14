@@ -10,9 +10,9 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         var registrationSource = GenerateMiniArithRegistrationSource(
             [
                 "def MiniArith_AddImmOp : MiniArith_Op<\"add_imm\", []> {",
-                "  let arguments = (ins I32Attr:$intVal, BoolAttr:$boolVal, StrAttr:$strVal, F32Attr:$floatVal, F64Attr:$doubleVal);",
+                "  let arguments = (ins I32Attr:$intVal, BoolAttr:$boolVal, StrAttr:$strVal, F32Attr:$floatVal, F64Attr:$doubleVal, AnyAttr:$fallback);",
                 "  let results = (outs I32:$result);",
-                "  let assemblyFormat = \"$intVal `,` $boolVal `,` $strVal `,` $floatVal `,` $doubleVal attr-dict `:` type($result)\";",
+                "  let assemblyFormat = \"$intVal `,` $boolVal `,` $strVal `,` $floatVal `,` $doubleVal `,` $fallback attr-dict `:` type($result)\";",
                 "};",
             ]);
 
@@ -28,6 +28,9 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "((global::MLIR.FloatAttr)Attributes[\"floatVal\"].Value).Value",
             "public global::MLIR.Numerics.ApFloat DoubleVal",
             "((global::MLIR.FloatAttr)Attributes[\"doubleVal\"].Value).Value",
+            " Fallback",
+            "Attributes[\"fallback\"].Value;",
+            "SetAttribute(\"fallback\", value);",
             "SetAttribute(\"intVal\", global::MLIR.Semantics.ConstantAttributeFactory.I32(value));",
             "SetAttribute(\"floatVal\", global::MLIR.Semantics.ConstantAttributeFactory.F32(value));",
             "SetAttribute(\"doubleVal\", global::MLIR.Semantics.ConstantAttributeFactory.F64(value));",
@@ -43,6 +46,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public NamedAttribute StrVal",
             "public NamedAttribute FloatVal",
             "public NamedAttribute DoubleVal",
+            "public NamedAttribute Fallback",
             "NamedAttribute intVal,");
     }
 
