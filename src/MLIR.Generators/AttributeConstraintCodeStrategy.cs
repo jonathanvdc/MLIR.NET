@@ -754,7 +754,7 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseBooleanArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<bool>",
-        baseType: "DenseBooleanArrayAttributeValue",
+        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseBooleanArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeBooleanItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
@@ -762,7 +762,7 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseIntegerArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApInt>",
-        baseType: "DenseIntegerArrayAttributeValue",
+        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseIntegerArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
         primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeIntegerItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
@@ -770,7 +770,7 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF32ArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
-        baseType: "DenseFloatingPointArrayAttributeValue",
+        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")",
         primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items, global::MLIR.Numerics.FloatSemantics.IEEESingle)",
@@ -778,7 +778,7 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF64ArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
-        baseType: "DenseFloatingPointArrayAttributeValue",
+        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")",
         primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items, global::MLIR.Numerics.FloatSemantics.IEEEDouble)",

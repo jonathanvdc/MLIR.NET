@@ -47,16 +47,17 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Theory]
-    [InlineData("DenseI32ArrayAttr", "indices", "global::MLIR.Numerics.ApInt", "DenseIntegerArrayAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "Indices")]
-    [InlineData("DenseBoolArrayAttr", "flags", "bool", "DenseBooleanArrayAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "Flags")]
-    [InlineData("DenseF32ArrayAttr", "coeffs", "global::MLIR.Numerics.ApFloat", "DenseFloatingPointArrayAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Coeffs")]
-    [InlineData("DenseF64ArrayAttr", "weights", "global::MLIR.Numerics.ApFloat", "DenseFloatingPointArrayAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "Weights")]
+    [InlineData("DenseI32ArrayAttr", "indices", "global::System.ReadOnlySpan<int>", "DenseI32ArrayAttrConstraintAttributeValue", "DenseIntegerArrayAttributeAssemblyFormat", "DenseI32", "Indices")]
+    [InlineData("DenseBoolArrayAttr", "flags", "global::System.ReadOnlySpan<bool>", "DenseBoolArrayAttrConstraintAttributeValue", "DenseBooleanArrayAttributeAssemblyFormat", "DenseBool", "Flags")]
+    [InlineData("DenseF32ArrayAttr", "coeffs", "global::System.ReadOnlySpan<float>", "DenseF32ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "DenseF32", "Coeffs")]
+    [InlineData("DenseF64ArrayAttr", "weights", "global::System.ReadOnlySpan<double>", "DenseF64ArrayAttrConstraintAttributeValue", "DenseFloatingPointArrayAttributeAssemblyFormat", "DenseF64", "Weights")]
     public void GeneratesDenseArrayAttributePropertyWithTypedItemsList(
         string constraintType,
         string attributeName,
-        string elementType,
-        string attributeValueType,
+        string propertyType,
+        string constraintClassName,
         string assemblyFormatType,
+        string constantFactoryMethodName,
         string propertyName)
     {
         var generatedSources = GeneratorTestHelpers.RunGenerator(
@@ -79,12 +80,20 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            $"public IReadOnlyList<{elementType}> {propertyName}",
-            $"IReadOnlyList<{elementType}> {attributeName},");
+            $"public {propertyType} {propertyName}",
+            $"{propertyType} {attributeName},",
+            $"global::MLIR.Semantics.ConstantAttributeFactory.{constantFactoryMethodName}(value)");
         AssertContainsAll(
             preludeSource,
-            attributeValueType,
+            $"public static class {constraintClassName}",
             assemblyFormatType);
+        AssertDoesNotContainAny(
+            preludeSource,
+            $"public sealed class {constraintClassName} :",
+            "DenseBooleanArrayAttributeValue",
+            "DenseIntegerArrayAttributeValue",
+            "DenseFloatingPointArrayAttributeValue");
+        Assert.DoesNotContain(constraintClassName + ".Create(", registrationSource, System.StringComparison.Ordinal);
     }
 
     [Fact]
@@ -119,6 +128,37 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public NamedAttribute Types",
             "public NamedAttribute Dicts",
             "public NamedAttribute IndexLists");
+    }
+
+    [Fact]
+    public void TypedArrayAttrConstraintsAreGeneratedAsConstraintOnlyStaticClasses()
+    {
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new MLIR.Generators.DialectGenerator(),
+            (
+                "mydialect.td",
+                ComposeMyDialectSource(
+                    [
+                        "def MyDialect_ArrayConstraintOp : MyDialect_Op<\"array_constraint\", []> {",
+                        "  let arguments = (ins I32ArrayAttr:$ints, StrArrayAttr:$strings, IndexListArrayAttr:$indexLists, I32:$input);",
+                        "  let results = (outs I32:$result);",
+                        "  let assemblyFormat = \"$ints `,` $strings `,` $indexLists `,` $input attr-dict `:` type($result)\";",
+                        "};",
+                    ])));
+
+        var preludeSource = Assert.Single(
+            generatedSources.Where(static result => result.HintName == "PreludeDialectRegistration.g.cs")).SourceText.ToString();
+
+        AssertContainsAll(
+            preludeSource,
+            "public static class I32ArrayAttrConstraintAttributeValue",
+            "public static class StrArrayAttrConstraintAttributeValue",
+            "public static class IndexListArrayAttrConstraintAttributeValue");
+        AssertDoesNotContainAny(
+            preludeSource,
+            "public sealed class I32ArrayAttrConstraintAttributeValue :",
+            "public sealed class StrArrayAttrConstraintAttributeValue :",
+            "public sealed class IndexListArrayAttrConstraintAttributeValue :");
     }
 
     [Fact]

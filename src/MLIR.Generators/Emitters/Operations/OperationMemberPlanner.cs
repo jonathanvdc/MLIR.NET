@@ -257,7 +257,11 @@ internal static class OperationMemberPlanner
 
     private static bool ShouldUseAttrModelTyping(AttrModel? attrModel, AttributeConstraintCodeStrategy strategy)
     {
-        if (attrModel is null || strategy.IsUnit || strategy.IsEnum || strategy.IsTypedArray || !strategy.IsPrimitive)
+        if (attrModel is null
+            || strategy.IsUnit
+            || strategy.IsEnum
+            || strategy.IsTypedArray
+            || (!strategy.IsPrimitive && !strategy.IsDenseCollection))
         {
             return false;
         }

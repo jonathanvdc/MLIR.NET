@@ -76,12 +76,22 @@ public static class ConstantAttributeFactory
         return Dense(TypeFactory.I1, values);
     }
 
+    internal static DenseArrayAttr DenseBool(ReadOnlySpan<bool> values, AttributeValueSyntax syntax)
+    {
+        return Dense(TypeFactory.I1, values, syntax);
+    }
+
     /// <summary>
     /// Creates a dense-array attribute with <c>i8</c> elements.
     /// </summary>
     public static DenseArrayAttr DenseI8(ReadOnlySpan<sbyte> values)
     {
         return Dense(TypeFactory.I8, values);
+    }
+
+    internal static DenseArrayAttr DenseI8(ReadOnlySpan<sbyte> values, AttributeValueSyntax syntax)
+    {
+        return Dense(TypeFactory.I8, values, syntax);
     }
 
     /// <summary>
@@ -92,12 +102,22 @@ public static class ConstantAttributeFactory
         return Dense(TypeFactory.I16, values);
     }
 
+    internal static DenseArrayAttr DenseI16(ReadOnlySpan<short> values, AttributeValueSyntax syntax)
+    {
+        return Dense(TypeFactory.I16, values, syntax);
+    }
+
     /// <summary>
     /// Creates a dense-array attribute with <c>i32</c> elements.
     /// </summary>
     public static DenseArrayAttr DenseI32(ReadOnlySpan<int> values)
     {
         return Dense(TypeFactory.I32, values);
+    }
+
+    internal static DenseArrayAttr DenseI32(ReadOnlySpan<int> values, AttributeValueSyntax syntax)
+    {
+        return Dense(TypeFactory.I32, values, syntax);
     }
 
     /// <summary>
@@ -108,6 +128,11 @@ public static class ConstantAttributeFactory
         return Dense(TypeFactory.I64, values);
     }
 
+    internal static DenseArrayAttr DenseI64(ReadOnlySpan<long> values, AttributeValueSyntax syntax)
+    {
+        return Dense(TypeFactory.I64, values, syntax);
+    }
+
     /// <summary>
     /// Creates a dense-array attribute with <c>f32</c> elements.
     /// </summary>
@@ -116,12 +141,22 @@ public static class ConstantAttributeFactory
         return Dense(TypeFactory.F32, values);
     }
 
+    internal static DenseArrayAttr DenseF32(ReadOnlySpan<float> values, AttributeValueSyntax syntax)
+    {
+        return Dense(TypeFactory.F32, values, syntax);
+    }
+
     /// <summary>
     /// Creates a dense-array attribute with <c>f64</c> elements.
     /// </summary>
     public static DenseArrayAttr DenseF64(ReadOnlySpan<double> values)
     {
         return Dense(TypeFactory.F64, values);
+    }
+
+    internal static DenseArrayAttr DenseF64(ReadOnlySpan<double> values, AttributeValueSyntax syntax)
+    {
+        return Dense(TypeFactory.F64, values, syntax);
     }
 
     /// <summary>
@@ -151,6 +186,12 @@ public static class ConstantAttributeFactory
     private static DenseArrayAttr Dense<T>(TypeReference elementType, ReadOnlySpan<T> values)
         where T : struct
     {
-        return new DenseArrayAttr(elementType, values.Length, MemoryMarshal.AsBytes(values).ToArray(), syntax: null);
+        return Dense(elementType, values, syntax: null);
+    }
+
+    private static DenseArrayAttr Dense<T>(TypeReference elementType, ReadOnlySpan<T> values, AttributeValueSyntax? syntax)
+        where T : struct
+    {
+        return new DenseArrayAttr(elementType, values.Length, MemoryMarshal.AsBytes(values).ToArray(), syntax);
     }
 }

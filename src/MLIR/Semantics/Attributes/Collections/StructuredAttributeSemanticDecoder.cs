@@ -121,13 +121,18 @@ public static class StructuredAttributeSemanticDecoder
         var typeText = syntax.ElementTypeSyntax.ToString();
         if (TryGetFloatingPointSemantics(typeText, out var semantics))
         {
-            return new DecodedDenseFloatingPointArrayAttributeValue(syntax, semantics);
+            return typeText == "f32"
+                ? ConstantAttributeFactory.DenseF32(ToFloatArray(DecodeFloatingPointItems(syntax.Items.Items, semantics)), syntax)
+                : ConstantAttributeFactory.DenseF64(ToDoubleArray(DecodeFloatingPointItems(syntax.Items.Items, semantics)), syntax);
         }
 
         return typeText switch
         {
-            "i1" => new DecodedDenseBooleanArrayAttributeValue(syntax),
-            "i8" or "i16" or "i32" or "i64" => new DecodedDenseIntegerArrayAttributeValue(syntax),
+            "i1" => ConstantAttributeFactory.DenseBool(ToBoolArray(DecodeBooleanItems(syntax.Items.Items)), syntax),
+            "i8" => ConstantAttributeFactory.DenseI8(ToSByteArray(DecodeIntegerItems(syntax.Items.Items)), syntax),
+            "i16" => ConstantAttributeFactory.DenseI16(ToInt16Array(DecodeIntegerItems(syntax.Items.Items)), syntax),
+            "i32" => ConstantAttributeFactory.DenseI32(ToInt32Array(DecodeIntegerItems(syntax.Items.Items)), syntax),
+            "i64" => ConstantAttributeFactory.DenseI64(ToInt64Array(DecodeIntegerItems(syntax.Items.Items)), syntax),
             _ => throw new System.NotSupportedException($"Unsupported dense array element type '{typeText}'."),
         };
     }
@@ -283,42 +288,6 @@ public static class StructuredAttributeSemanticDecoder
         public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
-    private sealed class DecodedDenseIntegerArrayAttributeValue : DenseIntegerArrayAttributeValue
-    {
-        public DecodedDenseIntegerArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeIntegerItems(syntax.Items.Items))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedDenseBooleanArrayAttributeValue : DenseBooleanArrayAttributeValue
-    {
-        public DecodedDenseBooleanArrayAttributeValue(DenseArrayAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeBooleanItems(syntax.Items.Items))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedDenseFloatingPointArrayAttributeValue : DenseFloatingPointArrayAttributeValue
-    {
-        public DecodedDenseFloatingPointArrayAttributeValue(DenseArrayAttributeValueSyntax syntax, FloatSemantics semantics)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeFloatingPointItems(syntax.Items.Items, semantics))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
     private sealed class DecodedDictionaryAttributeValue : DictionaryAttributeValue
     {
         public DecodedDictionaryAttributeValue(DictionaryAttributeValueSyntax syntax)
@@ -341,5 +310,92 @@ public static class StructuredAttributeSemanticDecoder
         public override string? Name => null;
 
         public override Dialects.AttributeConstraintDefinition? Definition => null;
+    }
+
+    private static bool[] ToBoolArray(IReadOnlyList<bool> items)
+    {
+        if (items is bool[] array)
+        {
+            return array;
+        }
+
+        if (items is List<bool> list)
+        {
+            return list.ToArray();
+        }
+
+        var result = new bool[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            result[i] = items[i];
+        }
+
+        return result;
+    }
+
+    private static sbyte[] ToSByteArray(IReadOnlyList<ApInt> items)
+    {
+        var result = new sbyte[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            result[i] = (sbyte)items[i].ToInt64();
+        }
+
+        return result;
+    }
+
+    private static short[] ToInt16Array(IReadOnlyList<ApInt> items)
+    {
+        var result = new short[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            result[i] = (short)items[i].ToInt64();
+        }
+
+        return result;
+    }
+
+    private static int[] ToInt32Array(IReadOnlyList<ApInt> items)
+    {
+        var result = new int[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            result[i] = (int)items[i].ToInt64();
+        }
+
+        return result;
+    }
+
+    private static long[] ToInt64Array(IReadOnlyList<ApInt> items)
+    {
+        var result = new long[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            result[i] = items[i].ToInt64();
+        }
+
+        return result;
+    }
+
+    private static float[] ToFloatArray(IReadOnlyList<ApFloat> items)
+    {
+        var result = new float[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            result[i] = items[i].ToSingle();
+        }
+
+        return result;
+    }
+
+    private static double[] ToDoubleArray(IReadOnlyList<ApFloat> items)
+    {
+        var result = new double[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            result[i] = items[i].ToDouble();
+        }
+
+        return result;
     }
 }

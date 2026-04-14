@@ -28,15 +28,15 @@ internal static class OperationAttributeValueHelpers
             return valueAccess;
         }
 
-        if (strategy.IsDenseCollection || strategy.IsTypedArray)
+        if (strategy.IsTypedArray)
         {
-            var denseCollectionCastExpr = "((" + member.ConstraintClassName + ")";
+            var constraintClass = member.ConstraintClassName!;
             if (isOptional)
             {
-                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + denseCollectionCastExpr + localName + ".Value).Items : null";
+                return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + constraintClass + ".GetItems(" + localName + ".Value) : null";
             }
 
-            return denseCollectionCastExpr + "Attributes[" + sourceNameLiteral + "].Value).Items";
+            return constraintClass + ".GetItems(Attributes[" + sourceNameLiteral + "].Value)";
         }
 
         var baseTypeName = isOptional ? member.TypeName.Substring(0, member.TypeName.Length - 1) : member.TypeName;
@@ -107,15 +107,15 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
         }
 
-        if (strategy.IsDenseCollection || strategy.IsTypedArray)
+        if (strategy.IsTypedArray)
         {
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
             {
-                return "new " + constraintClass + "(" + valueExpression + ")";
+                return constraintClass + ".Create(" + valueExpression + ")";
             }
 
-            return valueExpression + " != null ? new " + constraintClass + "(" + valueExpression + ") : null";
+            return valueExpression + " != null ? " + constraintClass + ".Create(" + valueExpression + ") : null";
         }
 
         // Generic AttributeValue: pass through directly (already nullable if optional).
@@ -177,15 +177,15 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
         }
 
-        if (strategy.IsDenseCollection || strategy.IsTypedArray)
+        if (strategy.IsTypedArray)
         {
             var constraintClass = member.ConstraintClassName!;
             if (!isOptional)
             {
-                return "new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + "))";
+                return "new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + "))";
             }
 
-            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", new " + constraintClass + "(" + valueExpression + ")) : null";
+            return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + ")) : null";
         }
 
         if (!isOptional)
