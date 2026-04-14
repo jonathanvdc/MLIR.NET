@@ -39,9 +39,9 @@ extends UnitAttr : MLIRNet_AttrExtension {
 }
 
 extends DictionaryAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.DictionaryAttributeValue";
+  let csharpStorageType = "global::MLIR.DictionaryAttr";
   let csharpReturnType = "global::MLIR.Semantics.NamedAttributeCollection";
-  let csharpConvertFromStorage = "$_self.Attributes";
+  let csharpConvertFromStorage = "$_self.Value";
 }
 
 extends ElementsAttrBase : MLIRNet_AttrExtension {

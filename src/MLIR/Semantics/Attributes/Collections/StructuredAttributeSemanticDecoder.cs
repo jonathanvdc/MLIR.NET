@@ -109,7 +109,7 @@ public static class StructuredAttributeSemanticDecoder
             TypeAttributeValueSyntax typeSyntax => new DecodedTypeAttributeValue(typeSyntax),
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
             ArrayAttributeValueSyntax arraySyntax => new DecodedArrayAttributeValue(arraySyntax),
-            DictionaryAttributeValueSyntax dictionarySyntax => new DecodedDictionaryAttributeValue(dictionarySyntax),
+            DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),
             ElementsAttributeValueSyntax elementsSyntax => new DecodedElementsAttributeValue(elementsSyntax),
             RawAttributeValueSyntax rawSyntax => DecodeRawValue(rawSyntax),
             _ => new UnknownAttributeValue(syntax, null, null, syntax.Location),
@@ -280,18 +280,6 @@ public static class StructuredAttributeSemanticDecoder
     {
         public DecodedArrayAttributeValue(ArrayAttributeValueSyntax syntax)
             : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeItems(syntax.Items.Items))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedDictionaryAttributeValue : DictionaryAttributeValue
-    {
-        public DecodedDictionaryAttributeValue(DictionaryAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeAttributes(syntax.Attributes.Items))
         {
         }
 

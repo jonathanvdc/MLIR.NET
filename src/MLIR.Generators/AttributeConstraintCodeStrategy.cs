@@ -366,7 +366,7 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
 
 /// <summary>
 /// Dictionary attribute (<c>DictionaryAttr</c>). Properties are exposed as
-/// <c>DictionaryAttributeValue</c>; the unwrapped value type for typed-array elements
+/// <c>DictionaryAttr</c>; the unwrapped value type for typed-array elements
 /// is <c>NamedAttributeCollection</c>.
 /// </summary>
 internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
@@ -374,8 +374,7 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     public static readonly DictionaryAttributeConstraintCodeStrategy Instance = new();
     private DictionaryAttributeConstraintCodeStrategy() { }
 
-    public override bool UsesTypedArrayElementPayload => true;
-    public override string GetTypedArrayElementPayloadPropertyName() => "Attributes";
+    public override bool UsesTypedArrayElementPayload => false;
 
     /// <summary>
     /// Returns <c>"NamedAttributeCollection"</c> – the unwrapped value type used for
@@ -385,28 +384,26 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "NamedAttributeCollection";
 
     /// <summary>
-    /// Returns <c>"DictionaryAttributeValue"</c> (required) or
-    /// <c>"DictionaryAttributeValue?"</c> (optional) – the type used for operation
+    /// Returns <c>"DictionaryAttr"</c> (required) or
+    /// <c>"DictionaryAttr?"</c> (optional) – the type used for operation
     /// member properties, which wraps the attribute in its constraint class.
     /// </summary>
     public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
-        isRequired ? "DictionaryAttributeValue" : "DictionaryAttributeValue?";
+        isRequired ? "DictionaryAttr" : "DictionaryAttr?";
 
-    public override string GetBaseType(string constraintRecordName) => "DictionaryAttributeValue";
     public override string? GetAssemblyFormatType(string constraintRecordName) => "DictionaryAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, DecodeAttributes(context.Syntax)";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "global::MLIR.Semantics.NamedAttributeCollection";
+    public override string? GetFactoryExpression(string constraintRecordName) =>
+        "static context => new global::MLIR.DictionaryAttr(" +
+        "(context.Syntax is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
+        "? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items) " +
+        ": global::MLIR.Semantics.NamedAttributeCollection.Empty), context.Syntax!)";
+    public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) =>
+        "{itemSyntax} is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
+        "? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items) " +
+        ": global::MLIR.Semantics.NamedAttributeCollection.Empty";
+    public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) =>
+        "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BuildSyntax({element}, {context})";
 
-    public override void EmitInnerHelpers(System.Text.StringBuilder builder, string className)
-    {
-        builder.AppendLine();
-        builder.AppendLine("    private static global::MLIR.Semantics.NamedAttributeCollection DecodeAttributes(MLIR.Syntax.AttributeValueSyntax? syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return syntax is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax");
-        builder.AppendLine("            ? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items)");
-        builder.AppendLine("            : global::MLIR.Semantics.NamedAttributeCollection.Empty;");
-        builder.AppendLine("    }");
-    }
 }
 
 /// <summary>

@@ -263,9 +263,9 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
 
         var value = operation.Value;
         Assert.IsType<DictionaryAttributeValueSyntax>(value.Syntax);
-        var inner = Assert.IsAssignableFrom<IntegerAttr>(value.Attributes["inner"].Value);
-        var nested = Assert.IsAssignableFrom<DictionaryAttributeValue>(value.Attributes["nested"].Value);
-        var flag = Assert.IsAssignableFrom<IntegerAttr>(nested.Attributes["flag"].Value);
+        var inner = Assert.IsAssignableFrom<IntegerAttr>(value.Value["inner"].Value);
+        var nested = Assert.IsAssignableFrom<DictionaryAttr>(value.Value["nested"].Value);
+        var flag = Assert.IsAssignableFrom<IntegerAttr>(nested.Value["flag"].Value);
         Assert.Equal(ApInt.Parse(64, "1"), inner.Value);
         Assert.True(flag.Value.ToUInt64() != 0);
     }
