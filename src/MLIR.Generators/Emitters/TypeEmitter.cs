@@ -95,9 +95,9 @@ internal static class TypeEmitter
     private static bool EmitIndexBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
     {
         EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public sealed partial class " + className + " : IndexTypeReference");
+        builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
-        builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
+        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
@@ -106,20 +106,13 @@ internal static class TypeEmitter
         builder.AppendLine();
         builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return new " + className + "(context.Syntax as BuiltinIndexTypeSyntax);");
+        builder.AppendLine("        return new " + className + "(context.Syntax);");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public " + className + "(BuiltinIndexTypeSyntax? syntax = null)");
+        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
         builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "()");
-        builder.AppendLine("        : base()");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
         builder.AppendLine("}");
         return true;
     }

@@ -44,7 +44,7 @@ public sealed partial class SemanticTests
 
         var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
         var tensor = Assert.IsType<TensorTypeReference>(function.Inputs[0]);
-        var index = Assert.IsType<IndexTypeReference>(function.Inputs[1]);
+        var index = Assert.IsType<IndexType>(function.Inputs[1]);
         var tuple = Assert.IsType<TupleTypeReference>(function.Results[0]);
         var vector = Assert.IsType<VectorTypeReference>(tuple.Elements[0]);
         var memref = Assert.IsType<MemRefTypeReference>(tuple.Elements[1]);
