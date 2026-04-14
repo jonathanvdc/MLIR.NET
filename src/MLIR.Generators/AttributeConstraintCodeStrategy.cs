@@ -227,6 +227,7 @@ internal abstract class AttributeConstraintCodeStrategy
     /// </summary>
     /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
     public virtual string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) => null;
+
 }
 
 internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy

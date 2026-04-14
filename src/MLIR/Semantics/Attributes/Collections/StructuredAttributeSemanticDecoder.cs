@@ -108,7 +108,7 @@ public static class StructuredAttributeSemanticDecoder
             UnitAttributeValueSyntax unitSyntax => new UnitAttr(unitSyntax),
             TypeAttributeValueSyntax typeSyntax => new TypeAttr(new UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location), typeSyntax),
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
-            ArrayAttributeValueSyntax arraySyntax => new DecodedArrayAttributeValue(arraySyntax),
+            ArrayAttributeValueSyntax arraySyntax => new ArrayAttr(DecodeItems(arraySyntax.Items.Items), arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),
             ElementsAttributeValueSyntax elementsSyntax => new DecodedElementsAttributeValue(elementsSyntax),
             RawAttributeValueSyntax rawSyntax => DecodeRawValue(rawSyntax),
@@ -250,18 +250,6 @@ public static class StructuredAttributeSemanticDecoder
                 semantics = FloatSemantics.IEEEDouble;
                 return false;
         }
-    }
-
-    private sealed class DecodedArrayAttributeValue : ArrayAttributeValue
-    {
-        public DecodedArrayAttributeValue(ArrayAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeItems(syntax.Items.Items))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
     private sealed class DecodedElementsAttributeValue : ElementsAttributeValue

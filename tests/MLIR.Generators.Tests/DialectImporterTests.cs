@@ -603,18 +603,18 @@ public sealed class DialectImporterTests
         Assert.Null(unitAttr.CsharpConstBuilderCall);
 
         var arrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "ArrayAttr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttributeValue", arrayAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.ArrayAttr", arrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>", arrayAttr.CsharpReturnType);
-        Assert.Equal("$_self.Items", arrayAttr.CsharpConvertFromStorage);
-        Assert.Null(arrayAttr.CsharpConstBuilderCall);
+        Assert.Equal("$_self.Value", arrayAttr.CsharpConvertFromStorage);
+        Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.Array($0)", arrayAttr.CsharpConstBuilderCall);
 
         var i32ArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "I32ArrayAttr");
         Assert.Equal(AttributeConstraintKind.TypedArrayAttribute, i32ArrayAttr.Kind);
         Assert.Equal("I32Attr", i32ArrayAttr.ElementConstraintRecordName);
-        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<int>", i32ArrayAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.ArrayAttr", i32ArrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<int>", i32ArrayAttr.CsharpReturnType);
-        Assert.Equal("$_self.Items", i32ArrayAttr.CsharpConvertFromStorage);
-        Assert.Null(i32ArrayAttr.CsharpConstBuilderCall);
+        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => (int)((global::MLIR.IntegerAttr)itemValue).Value.ToInt64())", i32ArrayAttr.CsharpConvertFromStorage);
+        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => global::MLIR.Semantics.ConstantAttributeFactory.I32(unchecked((uint)element)))", i32ArrayAttr.CsharpConstBuilderCall);
 
         var denseI32ArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DenseI32ArrayAttr");
         Assert.Equal(AttributeConstraintKind.DenseIntegerArrayAttribute, denseI32ArrayAttr.Kind);
@@ -667,9 +667,10 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.FlatSymbolRef($0)", flatSymbolRefAttr.CsharpConstBuilderCall);
 
         var dictArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DictArrayAttr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.NamedAttributeCollection>", dictArrayAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.ArrayAttr", dictArrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection>", dictArrayAttr.CsharpReturnType);
-        Assert.Null(dictArrayAttr.CsharpConstBuilderCall);
+        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.DictionaryAttr)itemValue).Value)", dictArrayAttr.CsharpConvertFromStorage);
+        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.DictionaryAttr(element, null))", dictArrayAttr.CsharpConstBuilderCall);
 
         Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MyP_FooAttr");
         Assert.DoesNotContain(dialect.Attrs, static attr => attr.RecordName == "MyP_FooAttr");

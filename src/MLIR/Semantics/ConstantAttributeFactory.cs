@@ -69,6 +69,14 @@ public static class ConstantAttributeFactory
     }
 
     /// <summary>
+    /// Creates an array attribute from semantic element values.
+    /// </summary>
+    public static ArrayAttr Array(IReadOnlyList<AttributeValue> values)
+    {
+        return new ArrayAttr(values, syntax: null);
+    }
+
+    /// <summary>
     /// Creates a dense-array attribute with <c>i1</c> elements.
     /// </summary>
     public static DenseArrayAttr DenseBool(ReadOnlySpan<bool> values)
@@ -164,7 +172,7 @@ public static class ConstantAttributeFactory
     /// </summary>
     public static SymbolRefAttr FlatSymbolRef(string rootReference)
     {
-        return new SymbolRefAttr(rootReference, Array.Empty<string>(), syntax: null);
+        return new SymbolRefAttr(rootReference, System.Array.Empty<string>(), syntax: null);
     }
 
     /// <summary>

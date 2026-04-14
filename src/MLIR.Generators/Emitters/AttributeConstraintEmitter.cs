@@ -216,15 +216,6 @@ internal static class AttributeConstraintEmitter
             ? FallbackAttributeConstraintCodeStrategy.Instance
             : resolver.TryResolveAttributeConstraintStrategy(elementRecordName!);
         var elementTypeName = GetTypedArrayElementTypeName(elementRecordName, elementStrategy, resolver);
-        // When the element strategy provides a direct decode expression, use it to avoid
-        // instantiating a now-removed constraint wrapper class.
-        var elementDecodeExpression = string.IsNullOrEmpty(elementRecordName)
-            ? null
-            : elementStrategy.GetTypedArrayElementDecodeExpression(elementRecordName!);
-        var elementToSyntaxExpression = string.IsNullOrEmpty(elementRecordName)
-            ? null
-            : elementStrategy.GetTypedArrayElementToSyntaxExpression(elementRecordName!);
-        var elementUsesPayload = elementDecodeExpression == null && elementStrategy.UsesTypedArrayElementPayload;
         var assemblyFormatType = className + "AssemblyFormat";
 
         builder.AppendLine("public static class " + className);
@@ -232,113 +223,12 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
         builder.AppendLine("        new AttributeConstraintDefinition(");
         builder.Append("            " + EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        // The constraint definition factory receives parsing context data; construct the
-        // nested Value directly so Name/Definition and source locations are preserved.
-        builder.AppendLine(", new " + assemblyFormatType + "(), factory: static context => new Value(context));");
-        builder.AppendLine();
-        builder.AppendLine("    public static global::MLIR.Semantics.AttributeValue Create(global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> items)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new Value(items);");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public static global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> GetItems(global::MLIR.Semantics.AttributeValue attribute)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (attribute is Value value)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return value.Items;");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        if (attribute is global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<" + elementTypeName + "> typedArray)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return typedArray.Items;");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return DecodeItems(attribute.Syntax);");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private static global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> DecodeItems(MLIR.Syntax.AttributeValueSyntax? syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (syntax is not MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax arraySyntax)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return global::System.Array.Empty<" + elementTypeName + ">();");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        var items = new global::System.Collections.Generic.List<" + elementTypeName + ">(arraySyntax.Items.Count);");
-        builder.AppendLine("        for (var i = 0; i < arraySyntax.Items.Count; i++)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            var itemSyntax = arraySyntax.Items[i];");
-        if (elementDecodeExpression != null)
-        {
-            // Primitive element: decode directly without a wrapper class.
-            var decodeExpr = elementDecodeExpression.Replace("{itemSyntax}", "itemSyntax");
-            builder.AppendLine("            items.Add(" + decodeExpr + ");");
-        }
-        else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            // Nested typed-array constraints recurse through the element constraint's
-            // helper so arrays-of-arrays decode as IReadOnlyList<IReadOnlyList<...>>.
-            builder.AppendLine("            items.Add(" + elementClassName + ".GetItems(MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue(itemSyntax)));");
-        }
-        else if (elementUsesPayload)
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            var elementPayloadProperty = GetTypedArrayElementPayloadPropertyName(elementRecordName, elementStrategy);
-            builder.AppendLine("            var itemValue = new " + elementClassName + "(new MLIR.Semantics.AttributeValueConstructionContext(itemSyntax, " + elementClassName + ".AttributeConstraintDefinition.Name, " + elementClassName + ".AttributeConstraintDefinition, itemSyntax.Location));");
-            builder.AppendLine("            items.Add(itemValue." + elementPayloadProperty + ");");
-        }
-        else
-        {
-            builder.AppendLine("            items.Add(MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue(itemSyntax));");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        return items;");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    private sealed class Value : TypedArrayAttributeValue<" + elementTypeName + ">");
-        builder.AppendLine("    {");
-        builder.AppendLine("        public Value(AttributeValueConstructionContext context)");
-        builder.AppendLine("            : base(context, DecodeItems(context.Syntax))");
-        builder.AppendLine("        {");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        public Value(global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> items)");
-        builder.AppendLine("            : base(items)");
-        builder.AppendLine("        {");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        public override string? Name => AttributeConstraintDefinition.Name;");
-        builder.AppendLine("        public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
-        builder.AppendLine("    }");
+        builder.AppendLine(", new " + assemblyFormatType + "(), factory: static context => global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindFromSyntax(context.Syntax));");
         builder.AppendLine("}");
         builder.AppendLine();
 
         builder.AppendLine("internal sealed class " + assemblyFormatType + " : TypedArrayAttributeAssemblyFormat<" + elementTypeName + ">");
         builder.AppendLine("{");
-        builder.AppendLine("    protected override MLIR.Syntax.AttributeValueSyntax ElementToSyntax(" + elementTypeName + " element, MLIR.Transforms.ConcreteSyntaxBuilderContext context)");
-        builder.AppendLine("    {");
-        if (elementToSyntaxExpression != null)
-        {
-            // Primitive element: build syntax without a wrapper class instance.
-            var toSyntaxExpr = elementToSyntaxExpression.Replace("{element}", "element").Replace("{context}", "context");
-            builder.AppendLine("        return " + toSyntaxExpr + ";");
-        }
-        else if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            builder.AppendLine("        return context.BuildAttributeValueSyntax(" + elementClassName + ".Create(element));");
-        }
-        else if (elementUsesPayload)
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            builder.AppendLine("        return context.BuildAttributeValueSyntax(new " + elementClassName + "(element));");
-        }
-        else
-        {
-            builder.AppendLine("        return context.BuildAttributeValueSyntax(element);");
-        }
-        builder.AppendLine("    }");
         builder.AppendLine("}");
     }
 
@@ -352,27 +242,6 @@ internal static class AttributeConstraintEmitter
         var nonNullRecordName = elementRecordName!;
         return elementStrategy.GetAttributeValueTypeName(nonNullRecordName, resolver)
             ?? "global::MLIR.Semantics.AttributeValue";
-    }
-
-    private static string GetTypedArrayElementClassName(string? elementRecordName, DialectSymbolResolver resolver)
-    {
-        if (string.IsNullOrEmpty(elementRecordName))
-        {
-            return "global::MLIR.Semantics.AttributeValue";
-        }
-
-        return resolver.TryResolveAttributeConstraintClassName(elementRecordName!)
-            ?? "global::MLIR.Semantics.AttributeValue";
-    }
-
-    private static string GetTypedArrayElementPayloadPropertyName(string? elementRecordName, AttributeConstraintCodeStrategy elementStrategy)
-    {
-        if (string.IsNullOrEmpty(elementRecordName))
-        {
-            return "Value";
-        }
-
-        return elementStrategy.GetTypedArrayElementPayloadPropertyName();
     }
 
     private static void EmitStandardConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy strategy)
