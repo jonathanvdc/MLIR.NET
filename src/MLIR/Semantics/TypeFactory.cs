@@ -16,7 +16,7 @@ using MLIR.Syntax;
 public static class TypeFactory
 {
     /// <summary>Gets the builtin <c>index</c> type.</summary>
-    public static IndexTypeReference Index { get; } = new();
+    public static IndexType Index { get; } = new();
 
     /// <summary>Gets the builtin <c>none</c> type.</summary>
     public static NoneType None { get; } = new();

@@ -585,7 +585,7 @@ public sealed class Binder
             case BuiltinFloatTypeSyntax floatSyntax:
                 return new FloatTypeReference(floatSyntax);
             case BuiltinIndexTypeSyntax indexSyntax:
-                return new IndexTypeReference(indexSyntax);
+                return new IndexType(indexSyntax);
             case BuiltinNoneTypeSyntax noneSyntax:
                 return new NoneType(noneSyntax);
             case TupleTypeSyntax tupleSyntax:

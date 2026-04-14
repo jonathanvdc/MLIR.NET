@@ -18,7 +18,7 @@ internal static class TypeConstraintEmitter
                 EmitExactFloatConstraint(builder, typeConstraint);
                 return;
             case TypeConstraintKind.IndexType:
-                EmitPrimitiveConstraint(builder, typeConstraint, "IndexTypeReference", "syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown");
+                EmitPrimitiveConstraint(builder, typeConstraint, "global::MLIR.IndexType", "syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown");
                 return;
             case TypeConstraintKind.NoneType:
                 EmitPrimitiveConstraint(builder, typeConstraint, "NoneType", "syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown");
@@ -107,7 +107,10 @@ internal static class TypeConstraintEmitter
     private static void EmitPrimitiveConstraint(StringBuilder builder, TypeConstraintModel typeConstraint, string baseTypeName, string baseArguments)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
-        var bindValueModifier = baseTypeName == "NoneType" ? "new static " : "static ";
+        var bindValueModifier =
+            baseTypeName == "NoneType" || baseTypeName == "global::MLIR.IndexType"
+                ? "new static "
+                : "static ";
         builder.AppendLine("public sealed partial class " + className + " : " + baseTypeName);
         builder.AppendLine("{");
         if (typeConstraint.CanonicalTypeName != null)
