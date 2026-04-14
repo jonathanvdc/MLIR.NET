@@ -3,7 +3,6 @@ namespace MLIR.Dialects.Attributes.Collections;
 using System.Collections.Generic;
 using MLIR.Dialects;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes.Collections;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Text;
@@ -36,16 +35,21 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is not DictionaryAttributeValue dictionaryAttribute)
+        if (attribute is not DictionaryAttr dictionaryAttribute)
         {
             return attribute.Syntax ?? throw new System.InvalidOperationException("Dictionary attributes require syntax to rebuild their assembly form.");
         }
 
-        var items = new List<NamedAttributeSyntax>(dictionaryAttribute.Attributes.Count);
-        var separators = new List<Token>(dictionaryAttribute.Attributes.Count > 0 ? dictionaryAttribute.Attributes.Count - 1 : 0);
-        for (var i = 0; i < dictionaryAttribute.Attributes.Count; i++)
+        return BuildSyntax(dictionaryAttribute.Value, context);
+    }
+
+    internal static DictionaryAttributeValueSyntax BuildSyntax(NamedAttributeCollection attributes, ConcreteSyntaxBuilderContext context)
+    {
+        var items = new List<NamedAttributeSyntax>(attributes.Count);
+        var separators = new List<Token>(attributes.Count > 0 ? attributes.Count - 1 : 0);
+        for (var i = 0; i < attributes.Count; i++)
         {
-            items.Add(context.BuildNamedAttributeSyntax(dictionaryAttribute.Attributes[i]));
+            items.Add(context.BuildNamedAttributeSyntax(attributes[i]));
             if (i > 0)
             {
                 separators.Add(TokenFactory.Comma());

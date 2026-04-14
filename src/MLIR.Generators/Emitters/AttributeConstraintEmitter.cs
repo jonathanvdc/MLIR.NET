@@ -23,10 +23,10 @@ internal static class AttributeConstraintEmitter
         {
             EmitDenseCollectionConstraintDefinition(builder, attributeConstraint, strategy, resolver);
         }
-        else if (strategy.IsPrimitive && strategy.GetFactoryExpression(attributeConstraint.RecordName) != null)
+        else if (strategy.GetFactoryExpression(attributeConstraint.RecordName) != null)
         {
-            // Primitive (non-enum) constraint: emit only the static AttributeConstraintDefinition.
-            // No constraint wrapper class is generated; the factory produces the typed attr directly.
+            // Factory-backed constraint: emit only the static AttributeConstraintDefinition.
+            // No constraint wrapper class is generated; the factory produces the storage attr directly.
             EmitPrimitiveConstraintDefinition(builder, attributeConstraint, strategy);
         }
         else
@@ -37,9 +37,9 @@ internal static class AttributeConstraintEmitter
 
     /// <summary>
     /// Emits a minimal static class that carries only the
-    /// <c>AttributeConstraintDefinition</c> for a primitive (non-enum) constraint.
-    /// The factory lambda creates a typed attr (<c>IntegerAttr</c>, <c>FloatAttr</c>,
-    /// or <c>StringAttr</c>) directly, so no constraint wrapper class is needed.
+    /// <c>AttributeConstraintDefinition</c> for a factory-backed constraint.
+    /// The factory lambda creates the storage attr directly, so no constraint wrapper
+    /// class is needed.
     /// </summary>
     private static void EmitPrimitiveConstraintDefinition(
         StringBuilder builder,
