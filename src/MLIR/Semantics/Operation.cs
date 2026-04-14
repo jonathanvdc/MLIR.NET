@@ -2,6 +2,7 @@ namespace MLIR.Semantics;
 
 using System;
 using System.Collections.Generic;
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;

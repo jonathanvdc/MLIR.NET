@@ -655,13 +655,13 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.DenseF64($0)", denseF64ArrayAttr.CsharpConstBuilderCall);
 
         var symbolRefAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "SymbolRefAttr");
-        Assert.Equal("global::MLIR.Semantics.SymbolRefAttr", symbolRefAttr.CsharpStorageType);
-        Assert.Equal("global::MLIR.Semantics.SymbolRefAttr", symbolRefAttr.CsharpReturnType);
+        Assert.Equal("global::MLIR.SymbolRefAttr", symbolRefAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.SymbolRefAttr", symbolRefAttr.CsharpReturnType);
         Assert.Equal("$_self", symbolRefAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.SymbolRef($0)", symbolRefAttr.CsharpConstBuilderCall);
 
         var flatSymbolRefAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "FlatSymbolRefAttr");
-        Assert.Equal("global::MLIR.Semantics.SymbolRefAttr", flatSymbolRefAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.SymbolRefAttr", flatSymbolRefAttr.CsharpStorageType);
         Assert.Equal("string", flatSymbolRefAttr.CsharpReturnType);
         Assert.Equal("$_self.RootReference", flatSymbolRefAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.FlatSymbolRef($0)", flatSymbolRefAttr.CsharpConstBuilderCall);
@@ -702,6 +702,10 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Semantics.TypeReference", sparseElementsAttr.Parameters[0].CsharpType);
         Assert.Equal("global::MLIR.Semantics.AttributeValue", sparseElementsAttr.Parameters[1].CsharpType);
         Assert.Equal("global::MLIR.Semantics.AttributeValue", sparseElementsAttr.Parameters[2].CsharpType);
+
+        var symbolRefAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_SymbolRefAttr");
+        Assert.Equal("string", symbolRefAttr.Parameters[0].CsharpType);
+        Assert.Equal("global::System.Collections.Generic.IReadOnlyList<string>", symbolRefAttr.Parameters[1].CsharpType);
 
         var stridedLayoutAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "StridedLayoutAttr");
         Assert.Equal("long?", stridedLayoutAttr.Parameters[0].CsharpType);

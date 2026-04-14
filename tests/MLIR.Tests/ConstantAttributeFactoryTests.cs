@@ -1,5 +1,6 @@
 namespace MLIR.Tests;
 
+using MLIR;
 using MLIR.Semantics;
 using Xunit;
 
@@ -40,7 +41,7 @@ public sealed class ConstantAttributeFactoryTests
     [Fact]
     public void SymbolRefCloneReturnsEquivalentReference()
     {
-        var reference = new SymbolRefAttr("root", ["nested"]);
+        var reference = new SymbolRefAttr("root", ["nested"], syntax: null);
 
         var clone = ConstantAttributeFactory.SymbolRef(reference);
 
@@ -56,6 +57,5 @@ public sealed class ConstantAttributeFactoryTests
 
         Assert.Equal("foo", reference.RootReference);
         Assert.Empty(reference.NestedReferences);
-        Assert.True(reference.IsFlat);
     }
 }

@@ -7,7 +7,6 @@ using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
 using MLIR.Syntax;
 using Xunit;
-using SymbolRefAttr = MLIR.Semantics.SymbolRefAttr;
 
 /// <summary>
 /// Tests for the <see cref="Operation.GetSymbol{TSymbol}"/>,
@@ -213,7 +212,7 @@ public sealed class SymbolTests
     {
         var (_, _, _, barOp, leafSymbol) = BuildAst();
 
-        var resolved = leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("bar"));
+        var resolved = leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("bar", [], syntax: null));
         Assert.Same(barOp, resolved);
     }
 
@@ -223,7 +222,7 @@ public sealed class SymbolTests
         var (_, _, fooOp, _, leafSymbol) = BuildAst();
 
         // "@inner::@foo" should find "foo" inside "inner".
-        var resolved = leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("inner", ["foo"]));
+        var resolved = leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("inner", ["foo"], syntax: null));
         Assert.Same(fooOp, resolved);
     }
 
@@ -232,7 +231,7 @@ public sealed class SymbolTests
     {
         var (_, _, _, _, leafSymbol) = BuildAst();
 
-        Assert.Null(leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("nonexistent")));
+        Assert.Null(leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("nonexistent", [], syntax: null)));
     }
 
     [Fact]
@@ -240,7 +239,7 @@ public sealed class SymbolTests
     {
         var (_, _, _, _, leafSymbol) = BuildAst();
 
-        Assert.Null(leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("inner", ["doesnotexist"])));
+        Assert.Null(leafSymbol.Resolve<TestSymbolOp>(new SymbolRefAttr("inner", ["doesnotexist"], syntax: null)));
     }
 
     // ---------------------------------------------------------------------------
@@ -248,30 +247,26 @@ public sealed class SymbolTests
     // ---------------------------------------------------------------------------
 
     [Fact]
-    public void SymbolRefAttrFlatToString()
+    public void SymbolRefAttrFlatHasExpectedComponents()
     {
-        var attr = new SymbolRefAttr("foo");
-        Assert.Equal("@foo", attr.ToString());
-        Assert.True(attr.IsFlat);
-        Assert.Equal("foo", attr.LeafReference);
+        var attr = new SymbolRefAttr("foo", [], syntax: null);
+        Assert.Equal("foo", attr.RootReference);
+        Assert.Empty(attr.NestedReferences);
     }
 
     [Fact]
-    public void SymbolRefAttrNestedToString()
+    public void SymbolRefAttrNestedHasExpectedComponents()
     {
-        var attr = new SymbolRefAttr("outer", ["inner"]);
-        Assert.Equal("@outer::@inner", attr.ToString());
-        Assert.False(attr.IsFlat);
-        Assert.Equal("inner", attr.LeafReference);
+        var attr = new SymbolRefAttr("outer", ["inner"], syntax: null);
         Assert.Equal("outer", attr.RootReference);
+        Assert.Equal("inner", attr.NestedReferences[0]);
     }
 
     [Fact]
-    public void SymbolRefAttrMultiLevelNestedToString()
+    public void SymbolRefAttrMultiLevelNestedHasExpectedLeafComponent()
     {
-        var attr = new SymbolRefAttr("a", ["b", "c"]);
-        Assert.Equal("@a::@b::@c", attr.ToString());
-        Assert.Equal("c", attr.LeafReference);
+        var attr = new SymbolRefAttr("a", ["b", "c"], syntax: null);
+        Assert.Equal("c", attr.NestedReferences[1]);
     }
 
     // ---------------------------------------------------------------------------
