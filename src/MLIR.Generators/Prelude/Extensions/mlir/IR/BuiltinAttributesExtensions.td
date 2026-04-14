@@ -47,6 +47,14 @@ extends Builtin_DenseArray : MLIRNet_AttrOrTypeDefExtension {
   );
 }
 
+extends Builtin_DenseTypedElementsAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    AttributeSelfTypeParameter<"", "ShapedType">:$type,
+    "global::MLIR.Semantics.AttributeValue":$rawData
+  );
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat()";
+}
+
 extends Builtin_ArrayAttr : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins Builtin_ArrayParameter:$value);
 }

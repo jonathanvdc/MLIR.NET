@@ -45,9 +45,9 @@ extends DictionaryAttrBase : MLIRNet_AttrExtension {
 }
 
 extends ElementsAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.ElementsAttributeValue";
-  let csharpReturnType = "global::MLIR.Semantics.AttributeValue";
-  let csharpConvertFromStorage = "$_self.Payload";
+  let csharpStorageType = "global::MLIR.DenseTypedElementsAttr";
+  let csharpReturnType = "global::MLIR.DenseTypedElementsAttr";
+  let csharpConvertFromStorage = "$_self";
 }
 
 extends ArrayAttrBase : MLIRNet_AttrExtension {

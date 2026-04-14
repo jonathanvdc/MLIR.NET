@@ -75,15 +75,22 @@ internal static class AttributeEmitter
     {
         var parameters = attribute.Parameters;
         var hasAssemblyFormat = attribute.AssemblyFormat != null;
-        var formatClassName = hasAssemblyFormat ? className + "AssemblyFormat" : null;
+        var generatedFormatClassName = hasAssemblyFormat ? className + "AssemblyFormat" : null;
+        var assemblyFormatExpression = !string.IsNullOrEmpty(attribute.CsharpAssemblyFormat)
+            ? attribute.CsharpAssemblyFormat
+            : generatedFormatClassName != null
+                ? "new " + generatedFormatClassName + "()"
+                : null;
         string? factoryExpression = hasAssemblyFormat
-            ? "static context => " + formatClassName + ".BindValue(context.Syntax!, context.Binder ?? throw new global::System.InvalidOperationException(\"Attribute construction requires a binder when an assembly format is present.\"))"
+            ? "static context => " + generatedFormatClassName + ".BindValue(context.Syntax!, context.Binder ?? throw new global::System.InvalidOperationException(\"Attribute construction requires a binder when an assembly format is present.\"))"
+            : assemblyFormatExpression != null
+            ? "static context => context.Definition.AssemblyFormat!.Bind(context.Syntax!, context.Definition, context.Binder ?? throw new global::System.InvalidOperationException(\"Attribute construction requires a binder when an assembly format is present.\"))"
             : null;
 
         builder.AppendLine("public sealed class " + className + " : AttributeValue");
         builder.AppendLine("{");
 
-        EmitAttributeDefinition(builder, attribute, className, parameters, formatClassName, factoryExpression);
+        EmitAttributeDefinition(builder, attribute, className, parameters, assemblyFormatExpression, factoryExpression);
         builder.AppendLine();
 
         EmitTypedAttributeConstructor(builder, className, parameters);
@@ -104,7 +111,7 @@ internal static class AttributeEmitter
         AttributeModel attribute,
         string className,
         IReadOnlyList<AttrOrTypeParameterModel> parameters,
-        string? formatClassName,
+        string? assemblyFormatExpression,
         string? factoryExpression)
     {
         builder.AppendLine("    public static AttributeDefinition AttributeDefinition { get; } =");
@@ -112,7 +119,7 @@ internal static class AttributeEmitter
             builder,
             "AttributeDefinition",
             attribute.Name,
-            formatClassName != null ? "new " + formatClassName + "()" : null,
+            assemblyFormatExpression,
             factoryExpression);
     }
 

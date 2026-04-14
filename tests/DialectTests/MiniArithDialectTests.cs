@@ -247,12 +247,12 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
 
         var value = operation.Value;
         Assert.IsType<ElementsAttributeValueSyntax>(value.Syntax);
-        var payload = Assert.IsAssignableFrom<ArrayAttr>(value.Payload);
+        var payload = Assert.IsAssignableFrom<ArrayAttr>(value.RawData);
         var first = Assert.IsAssignableFrom<IntegerAttr>(payload.Value[0]);
         var second = Assert.IsAssignableFrom<IntegerAttr>(payload.Value[1]);
         Assert.Equal(ApInt.Parse(64, "1"), first.Value);
         Assert.Equal(ApInt.Parse(64, "2"), second.Value);
-        Assert.Equal("tensor<2xi32>", value.TypeSyntax.ToString());
+        Assert.Equal("tensor<2xi32>", value.Type.Syntax!.ToString());
     }
 
     [Fact]

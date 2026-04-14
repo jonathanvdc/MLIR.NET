@@ -467,7 +467,8 @@ public sealed class Binder
             name,
             definition,
             location,
-            selfTypeReference ?? CurrentAttributeSelfTypeReference);
+            selfTypeReference ?? CurrentAttributeSelfTypeReference,
+            this);
     }
 
     private AttributeValue BindAttributeValueWithAssemblyFormat(

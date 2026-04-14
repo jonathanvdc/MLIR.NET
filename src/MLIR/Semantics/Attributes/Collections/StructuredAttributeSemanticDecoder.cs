@@ -110,7 +110,7 @@ public static class StructuredAttributeSemanticDecoder
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
             ArrayAttributeValueSyntax arraySyntax => new ArrayAttr(DecodeItems(arraySyntax.Items.Items), arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),
-            ElementsAttributeValueSyntax elementsSyntax => new DecodedElementsAttributeValue(elementsSyntax),
+            ElementsAttributeValueSyntax elementsSyntax => DecodeDenseTypedElementsValue(elementsSyntax),
             RawAttributeValueSyntax rawSyntax => DecodeRawValue(rawSyntax),
             _ => new UnknownAttributeValue(syntax, null, null, syntax.Location),
         };
@@ -252,16 +252,12 @@ public static class StructuredAttributeSemanticDecoder
         }
     }
 
-    private sealed class DecodedElementsAttributeValue : ElementsAttributeValue
+    private static AttributeValue DecodeDenseTypedElementsValue(ElementsAttributeValueSyntax syntax)
     {
-        public DecodedElementsAttributeValue(ElementsAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), DecodeValue(syntax.Payload), syntax.TypeSyntax)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
+        return new DenseTypedElementsAttr(
+            new UnknownTypeReference(syntax.TypeSyntax, null, null, syntax.TypeSyntax.Location),
+            DecodeValue(syntax.Payload),
+            syntax);
     }
 
     private static bool[] ToBoolArray(IReadOnlyList<bool> items)

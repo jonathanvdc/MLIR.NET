@@ -344,8 +344,9 @@ internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstrain
 }
 
 /// <summary>
-/// Elements attribute (e.g. <c>ElementsAttr</c>). Falls back to <c>AttributeValue</c>
-/// when used as a typed-array element (decoder uses the generic path).
+/// Elements attribute (e.g. <c>ElementsAttr</c>). Dense elements literals bind to the
+/// generated builtin <c>DenseTypedElementsAttr</c> class rather than to a handwritten
+/// constraint wrapper.
 /// </summary>
 internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
@@ -354,14 +355,14 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
 
     public override bool IsGenericTypedArrayElement => true;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "ElementsAttributeValue";
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "global::MLIR.DenseTypedElementsAttr";
 
-    public override string GetBaseType(string constraintRecordName) => "ElementsAttributeValue";
+    public override string GetBaseType(string constraintRecordName) => "global::MLIR.DenseTypedElementsAttr";
 
     public override string? GetAssemblyFormatType(string constraintRecordName) => "ElementsAttributeAssemblyFormat";
 
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) =>
-        "context, StructuredAttributeSemanticDecoder.DecodeValue(((ElementsAttributeValueSyntax)context.Syntax).Payload), ((ElementsAttributeValueSyntax)context.Syntax).TypeSyntax";
+    public override string? GetFactoryExpression(string constraintRecordName) =>
+        "static context => global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat.BindDenseTypedElements(context)";
 }
 
 /// <summary>
@@ -551,7 +552,7 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
     private static bool IsTypedArrayFallbackElementType(string elementTypeName) =>
         elementTypeName == "UnitAttr"
         || elementTypeName == "OpaqueAttr"
-        || elementTypeName == "ElementsAttributeValue";
+        || elementTypeName == "global::MLIR.DenseTypedElementsAttr";
 
     // Emission is handled by AttributeConstraintEmitter.EmitTypedArrayConstraint.
     public override string GetBaseType(string constraintRecordName) => "AttributeValue";

@@ -29,13 +29,14 @@ internal static class AttributeRecordImporter
             }
 
             var parameters = index.GetAttrOrTypeParameters(record);
+            var csharpAssemblyFormat = index.GetOptionalStringField(record, "csharpAssemblyFormat");
 
             var assemblyFormatString = index.GetOptionalStringField(record, "assemblyFormat");
             var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
                 ? AssemblyFormatParser.Parse(assemblyFormatString!)
                 : null;
 
-            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel, parameters, assemblyFormat));
+            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel, csharpAssemblyFormat, parameters, assemblyFormat));
         }
     }
 }

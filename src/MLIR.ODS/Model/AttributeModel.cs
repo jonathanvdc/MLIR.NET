@@ -11,6 +11,7 @@ public sealed class AttributeModel(
     string recordName,
     string? className = null,
     EnumModel? enumModel = null,
+    string? csharpAssemblyFormat = null,
     IReadOnlyList<AttrOrTypeParameterModel>? parameters = null,
     AssemblyFormatModel? assemblyFormat = null)
 {
@@ -33,6 +34,12 @@ public sealed class AttributeModel(
     /// Gets the enum model for this attribute, if it is backed by an enum definition.
     /// </summary>
     public EnumModel? EnumModel { get; } = enumModel;
+
+    /// <summary>
+    /// Gets the C# expression that instantiates a custom assembly-format helper, if the
+    /// ODS overlay supplied one for this attribute definition.
+    /// </summary>
+    public string? CsharpAssemblyFormat { get; } = csharpAssemblyFormat;
 
     /// <summary>
     /// Gets the ordered list of parameters declared in the <c>parameters</c> dag of this attribute definition.

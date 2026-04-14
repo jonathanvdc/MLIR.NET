@@ -691,6 +691,11 @@ public sealed class DialectImporterTests
         Assert.Equal("long", denseArrayAttr.Parameters[1].CsharpType);
         Assert.Equal("global::System.ReadOnlyMemory<byte>", denseArrayAttr.Parameters[2].CsharpType);
 
+        var denseTypedElementsAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_DenseTypedElementsAttr");
+        Assert.Equal("global::MLIR.Semantics.TypeReference", denseTypedElementsAttr.Parameters[0].CsharpType);
+        Assert.Equal("global::MLIR.Semantics.AttributeValue", denseTypedElementsAttr.Parameters[1].CsharpType);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat()", denseTypedElementsAttr.CsharpAssemblyFormat);
+
         var denseStringElementsAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_DenseStringElementsAttr");
         Assert.Equal("global::MLIR.Semantics.TypeReference", denseStringElementsAttr.Parameters[0].CsharpType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<string>", denseStringElementsAttr.Parameters[1].CsharpType);

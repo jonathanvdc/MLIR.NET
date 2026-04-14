@@ -1,5 +1,6 @@
 namespace MLIR.Dialects.Attributes.Collections;
 
+using MLIR;
 using MLIR.Dialects;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Collections;
@@ -63,28 +64,44 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
-        var normalizedSyntax = NormalizeSyntax(syntax, definition, binder);
-        return definition.Factory(binder.CreateAttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        var normalizedSyntax = NormalizeSyntax(syntax);
+        return BindDenseTypedElements(binder.CreateAttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
     }
 
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is not ElementsAttributeValue elementsAttribute)
+        if (attribute is not DenseTypedElementsAttr elementsAttribute)
         {
-            return attribute.Syntax ?? throw new System.InvalidOperationException("Elements attributes require syntax to rebuild their assembly form.");
+            return attribute.Syntax ?? throw new System.InvalidOperationException("Dense elements attributes require syntax to rebuild their assembly form.");
         }
 
         return new ElementsAttributeValueSyntax(
             TokenFactory.Identifier("dense"),
             TokenFactory.LessThan(),
-            context.BuildAttributeValueSyntax(elementsAttribute.Payload),
+            context.BuildAttributeValueSyntax(elementsAttribute.RawData),
             TokenFactory.GreaterThan(),
             TokenFactory.Colon(),
-            elementsAttribute.TypeSyntax);
+            context.BuildTypeSyntax(elementsAttribute.Type));
     }
 
-    private static ElementsAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    /// <summary>
+    /// Binds a parsed dense elements literal to the generated builtin dense-elements
+    /// attribute class. ODS constraints such as <c>AnyI32ElementsAttr</c> delegate here
+    /// so they do not need handwritten semantic wrapper classes.
+    /// </summary>
+    public static AttributeValue BindDenseTypedElements(AttributeValueConstructionContext context)
+    {
+        var elementsSyntax = NormalizeSyntax(context.Syntax);
+        var payload = StructuredAttributeSemanticDecoder.DecodeValue(elementsSyntax.Payload);
+        var type = context.Binder != null
+            ? context.Binder.BindTypeReference(elementsSyntax.TypeSyntax)
+            : new UnknownTypeReference(elementsSyntax.TypeSyntax, null, null, elementsSyntax.TypeSyntax.Location);
+
+        return new DenseTypedElementsAttr(type, payload, elementsSyntax);
+    }
+
+    private static ElementsAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax)
     {
         if (syntax is ElementsAttributeValueSyntax elementsSyntax)
         {
