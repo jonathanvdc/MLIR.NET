@@ -315,14 +315,14 @@ extends TypeArrayAttr : MLIRNet_AttrExtension {
 }
 
 extends SymbolRefAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
-  let csharpReturnType = "global::MLIR.Semantics.SymbolRefAttr";
+  let csharpStorageType = "global::MLIR.SymbolRefAttr";
+  let csharpReturnType = "global::MLIR.SymbolRefAttr";
   let csharpConvertFromStorage = "$_self";
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.SymbolRef($0)";
 }
 
 extends FlatSymbolRefAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.SymbolRefAttr";
+  let csharpStorageType = "global::MLIR.SymbolRefAttr";
   let csharpReturnType = "string";
   let csharpConvertFromStorage = "$_self.RootReference";
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.FlatSymbolRef($0)";

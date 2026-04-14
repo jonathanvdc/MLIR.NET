@@ -164,7 +164,7 @@ public static class ConstantAttributeFactory
     /// </summary>
     public static SymbolRefAttr FlatSymbolRef(string rootReference)
     {
-        return new SymbolRefAttr(rootReference);
+        return new SymbolRefAttr(rootReference, Array.Empty<string>(), syntax: null);
     }
 
     /// <summary>
@@ -172,7 +172,7 @@ public static class ConstantAttributeFactory
     /// </summary>
     public static SymbolRefAttr SymbolRef(string rootReference, IReadOnlyList<string> nestedReferences)
     {
-        return new SymbolRefAttr(rootReference, nestedReferences);
+        return new SymbolRefAttr(rootReference, nestedReferences, syntax: null);
     }
 
     /// <summary>

@@ -77,6 +77,13 @@ extends Builtin_SparseElementsAttr : MLIRNet_AttrOrTypeDefExtension {
   );
 }
 
+extends Builtin_SymbolRefAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "string":$rootReference,
+    "global::System.Collections.Generic.IReadOnlyList<string>":$nestedReferences
+  );
+}
+
 extends StridedLayoutAttr : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins
     "long?":$offset,

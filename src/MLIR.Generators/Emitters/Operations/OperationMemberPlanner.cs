@@ -275,7 +275,7 @@ internal static class OperationMemberPlanner
             return false;
         }
 
-        if (string.Equals(storageType, "global::MLIR.Semantics.SymbolRefAttr", StringComparison.Ordinal))
+        if (string.Equals(storageType, "global::MLIR.SymbolRefAttr", StringComparison.Ordinal))
         {
             return false;
         }
