@@ -239,7 +239,6 @@ internal static class AttributeConstraintEmitter
             elementUsesPayload);
         var encodeExpression = BuildTypedArrayElementEncodeExpression(
             elementRecordName,
-            elementTypeName,
             elementStrategy,
             resolver,
             elementEncodeExpression,
@@ -342,7 +341,6 @@ internal static class AttributeConstraintEmitter
 
     private static string BuildTypedArrayElementEncodeExpression(
         string? elementRecordName,
-        string elementTypeName,
         AttributeConstraintCodeStrategy elementStrategy,
         DialectSymbolResolver resolver,
         string? elementEncodeExpression,
@@ -365,7 +363,6 @@ internal static class AttributeConstraintEmitter
             return "new " + elementClassName + "(element)";
         }
 
-        _ = elementTypeName;
         return "(global::MLIR.Semantics.AttributeValue)element";
     }
 
