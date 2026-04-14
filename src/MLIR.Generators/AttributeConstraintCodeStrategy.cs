@@ -6,7 +6,6 @@ internal enum AttributeConstraintEmissionKind
 {
     StaticDefinition,
     EnumWrapper,
-    TypedArray,
 }
 
 /// <summary>
@@ -436,8 +435,9 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
 
     public override bool IsTypedArray => true;
     public override bool UsesTypedArrayElementPayload => true;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.TypedArray;
     public override string GetTypedArrayElementPayloadPropertyName() => "Items";
+    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) =>
+        "new global::MLIR.Dialects.Attributes.Collections.TypedArrayAttributeAssemblyFormat()";
 
     /// <summary>
     /// Returns the C# typed-array value type (e.g. <c>"IReadOnlyList&lt;string&gt;"</c>),
@@ -477,8 +477,6 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         elementTypeName == "UnitAttr"
         || elementTypeName == "OpaqueAttr"
         || elementTypeName == "global::MLIR.DenseTypedElementsAttr";
-
-    // Emission is handled by AttributeConstraintEmitter.EmitTypedArrayConstraint.
 }
 
 // =============================================================================
