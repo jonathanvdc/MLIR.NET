@@ -14,8 +14,8 @@ using MLIR.Transforms;
 /// </summary>
 /// <remarks>
 /// Element literals are parsed uniformly as <see cref="AttributeValueSyntax"/> items.
-/// The typed projection (<c>IReadOnlyList&lt;T&gt;</c>) for specific constraints is applied
-/// later by generated constraint overlays and <c>ArrayAttrConstraintHelpers</c>.
+/// Constraint-specific typed projections are applied later by generated overlays
+/// and <c>ArrayAttrConstraintHelpers</c>.
 /// </remarks>
 public sealed class TypedArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
