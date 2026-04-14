@@ -80,12 +80,14 @@ internal sealed class OperationMemberPlan
         IReadOnlyList<GeneratedMember> regions,
         IReadOnlyList<GeneratedMember> operands,
         IReadOnlyList<GeneratedMember> results,
-        IReadOnlyList<GeneratedMember> attributes)
+        IReadOnlyList<GeneratedMember> attributes,
+        IReadOnlyList<AttributePropertyPlan> attributeProperties)
     {
         Regions = regions;
         Operands = operands;
         Results = results;
         Attributes = attributes;
+        AttributeProperties = attributeProperties;
     }
 
     public IReadOnlyList<GeneratedMember> Regions { get; }
@@ -94,6 +96,156 @@ internal sealed class OperationMemberPlan
     public IReadOnlyList<GeneratedMember> Results { get; }
 
     public IReadOnlyList<GeneratedMember> Attributes { get; }
+
+    public IReadOnlyList<AttributePropertyPlan> AttributeProperties { get; }
+}
+
+internal sealed class AttributePropertyPlan
+{
+    public AttributePropertyPlan(
+        string sourceName,
+        string propertyName,
+        string publicType,
+        bool isOptional,
+        string getterExpression,
+        string setterExpression)
+    {
+        SourceName = sourceName;
+        PropertyName = propertyName;
+        PublicType = publicType;
+        IsOptional = isOptional;
+        GetterExpression = getterExpression;
+        SetterExpression = setterExpression;
+    }
+
+    public string SourceName { get; }
+
+    public string PropertyName { get; }
+
+    public string PublicType { get; }
+
+    public bool IsOptional { get; }
+
+    public string GetterExpression { get; }
+
+    public string SetterExpression { get; }
+}
+
+internal static class AttributePropertyPlanner
+{
+    public static IReadOnlyList<AttributePropertyPlan> Plan(IReadOnlyList<GeneratedMember> attributeMembers, OperationModel operation)
+    {
+        var hasSymbol = HasTrait(operation.Traits, "Symbol");
+        var plans = new List<AttributePropertyPlan>(attributeMembers.Count);
+
+        for (var i = 0; i < attributeMembers.Count; i++)
+        {
+            var plan = TryCreateAttributePropertyPlan(attributeMembers[i], hasSymbol);
+            if (plan is not null)
+            {
+                plans.Add(plan);
+            }
+        }
+
+        return plans;
+    }
+
+    private static AttributePropertyPlan? TryCreateAttributePropertyPlan(GeneratedMember member, bool hasSymbol)
+    {
+        if (hasSymbol && string.Equals(member.SourceName, "sym_name", StringComparison.Ordinal))
+        {
+            // Symbol-trait ops expose sym_name via the dedicated SymbolName property.
+            // Skip the generic attribute property to avoid emitting both SymbolName and SymName.
+            return null;
+        }
+
+        var isOptional = member.TypeName.EndsWith("?", StringComparison.Ordinal);
+        // ConstraintStrategy is always non-null for attribute members: the planner
+        // sets it to at least FallbackAttributeConstraintCodeStrategy.Instance.
+        var strategy = member.ConstraintStrategy!;
+        var useAttrModelTyping = !string.IsNullOrEmpty(member.AttrStorageTypeName)
+            && !string.IsNullOrEmpty(member.AttrConvertFromStorageExpression);
+        var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
+        var localName = EmitterHelpers.LowerFirst(member.PropertyName);
+
+        if (useAttrModelTyping && !strategy.IsUnit && !strategy.IsEnum)
+        {
+            return new AttributePropertyPlan(
+                member.SourceName,
+                member.PropertyName,
+                member.TypeName,
+                isOptional,
+                OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName),
+                OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
+        }
+
+        if (strategy.IsUnit)
+        {
+            if (!string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
+            {
+                return null;
+            }
+
+            return new AttributePropertyPlan(
+                member.SourceName,
+                member.PropertyName,
+                member.TypeName,
+                isOptional,
+                "Attributes.Contains(" + sourceNameLiteral + ")",
+                "SetAttribute(" + sourceNameLiteral + ", value ? " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + " : null)");
+        }
+
+        if (strategy.IsPrimitive || strategy.IsDenseCollection || strategy.IsTypedArray)
+        {
+            return new AttributePropertyPlan(
+                member.SourceName,
+                member.PropertyName,
+                member.TypeName,
+                isOptional,
+                OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName),
+                OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
+        }
+
+        if (!isOptional)
+        {
+            var baseTypeName = member.TypeName;
+            var castExpr = "(" + baseTypeName + ")";
+            return new AttributePropertyPlan(
+                member.SourceName,
+                member.PropertyName,
+                member.TypeName,
+                isOptional,
+                castExpr + "Attributes[" + sourceNameLiteral + "].Value",
+                OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
+        }
+
+        return new AttributePropertyPlan(
+            member.SourceName,
+            member.PropertyName,
+            member.TypeName,
+            isOptional,
+            OperationAttributeValueHelpers.GetAttributeGetterExpression(member, sourceNameLiteral, localName),
+            OperationAttributeValueHelpers.GetAttributeSetterExpression(member, sourceNameLiteral, "value"));
+    }
+
+    private static bool HasTrait(IReadOnlyList<TraitModel> traits, string recordName)
+    {
+        for (var i = 0; i < traits.Count; i++)
+        {
+            var trait = traits[i];
+            if (string.Equals(trait.RecordName, recordName, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (trait is TraitListModel traitList && HasTrait(traitList.Traits, recordName))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 internal static class OperationMemberPlanner
@@ -103,11 +255,17 @@ internal static class OperationMemberPlanner
         var requiredVariables = operation.AssemblyFormat != null
             ? AssemblyFormatAnalyzer.GetRequiredVariables(operation)
             : new HashSet<string>(StringComparer.Ordinal);
+        var regionMembers = GetRegionMembers(operation, requiredVariables);
+        var operandMembers = GetOperandMembers(operation, requiredVariables);
+        var resultMembers = GetResultMembers(operation);
+        var attributeMembers = GetAttributeMembers(operation, requiredVariables, resolver);
+        var attributeProperties = AttributePropertyPlanner.Plan(attributeMembers, operation);
         return new OperationMemberPlan(
-            GetRegionMembers(operation, requiredVariables),
-            GetOperandMembers(operation, requiredVariables),
-            GetResultMembers(operation),
-            GetAttributeMembers(operation, requiredVariables, resolver));
+            regionMembers,
+            operandMembers,
+            resultMembers,
+            attributeMembers,
+            attributeProperties);
     }
 
     private static string GetParameterName(string propertyName)
