@@ -2,6 +2,14 @@ namespace MLIR.Generators;
 
 using MLIR.ODS.Model;
 
+internal enum AttributeConstraintEmissionKind
+{
+    StaticDefinition,
+    Wrapper,
+    EnumWrapper,
+    TypedArray,
+}
+
 /// <summary>
 /// Encapsulates the code-generation behavior associated with a specific kind of attribute
 /// constraint. Concrete subclasses replace the per-kind switch expressions that previously
@@ -32,7 +40,7 @@ internal abstract class AttributeConstraintCodeStrategy
     /// <summary>
     /// Gets a value indicating whether this constraint is a primitive attribute (boolean,
     /// integer, string, floating-point, or enum). Primitive attributes have a simple C#
-    /// value type and use wrapper-class constructors in generated setters.
+    /// value type and generated setters can construct their semantic storage directly.
     /// </summary>
     public virtual bool IsPrimitive => false;
 
@@ -76,6 +84,11 @@ internal abstract class AttributeConstraintCodeStrategy
     /// <c>StructuredAttributeSemanticDecoder.DecodeValue</c>.
     /// </summary>
     public virtual bool UsesTypedArrayElementPayload => false;
+
+    /// <summary>
+    /// Gets the shape of generated code this constraint requires.
+    /// </summary>
+    public virtual AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.Wrapper;
 
     // -------------------------------------------------------------------------
     // Primitive value access
@@ -147,7 +160,7 @@ internal abstract class AttributeConstraintCodeStrategy
     /// (e.g. <c>"BooleanAttributeValue"</c>). Defaults to <c>"AttributeValue"</c>.
     /// </summary>
     /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string GetBaseType(string constraintRecordName) => "AttributeValue";
+    public virtual string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
 
     /// <summary>
     /// Returns the name of the assembly-format type to register with
@@ -172,39 +185,28 @@ internal abstract class AttributeConstraintCodeStrategy
     /// to use the default <c>(context.Syntax, context.Location)</c> call.
     /// </summary>
     /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetPrimitiveBaseConstructor(string constraintRecordName) => null;
+    public virtual string? GetWrapperContextBaseArguments(string constraintRecordName) => null;
 
     /// <summary>
     /// Returns the C# type of the single parameter for the generated "value" convenience
     /// constructor, or <see langword="null"/> when no value constructor should be emitted.
     /// </summary>
     /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetValueConstructorParameter(string constraintRecordName) => null;
+    public virtual string? GetWrapperValueConstructorParameter(string constraintRecordName) => null;
 
     /// <summary>
     /// Emits additional private helper members (e.g. <c>DecodeTypeSyntax</c> or
     /// <c>DecodeAttributes</c>) inside the generated constraint class body.
-    /// Called by <c>AttributeConstraintEmitter.EmitStandardConstraint</c> after the
+    /// Called by <c>AttributeConstraintEmitter</c> after the
     /// constructor declarations. The default implementation emits nothing.
     /// </summary>
     /// <param name="builder">The string builder to append to.</param>
     /// <param name="className">The generated class name for context.</param>
-    public virtual void EmitInnerHelpers(System.Text.StringBuilder builder, string className) { }
+    public virtual void EmitWrapperMembers(System.Text.StringBuilder builder, string className) { }
 
     // -------------------------------------------------------------------------
-    // Primitive attr factory and typed-array decode/encode
+    // Typed-array decode/encode
     // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns a C# lambda expression that the <c>AttributeConstraintDefinition</c> factory
-    /// should use when no constraint wrapper class is generated. The expression receives a
-    /// single <c>context</c> parameter of type
-    /// <c>AttributeValueConstructionContext</c> and returns an <c>AttributeValue</c>.
-    /// Returns <see langword="null"/> when the old constraint-class factory path should be
-    /// used instead.
-    /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetFactoryExpression(string constraintRecordName) => null;
 
     /// <summary>
     /// Returns a C# expression that extracts the typed element value directly from a
@@ -233,55 +235,40 @@ internal abstract class AttributeConstraintCodeStrategy
 internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
     private readonly string attributeValueTypeName;
-    private readonly string baseType;
     private readonly string? assemblyFormatType;
     private readonly string? assemblyFormatConstructionExpression;
-    private readonly string? primitiveBaseConstructor;
-    private readonly string? valueConstructorParameter;
     private readonly string primitiveValueAccess;
     private readonly string typedArrayElementPayloadPropertyName;
-    private readonly string? factoryExpression;
     private readonly string? typedArrayElementDecodeExpression;
     private readonly string? typedArrayElementToSyntaxExpression;
 
     public PrimitiveAttributeConstraintCodeStrategy(
         string attributeValueTypeName,
-        string baseType,
         string? assemblyFormatType,
         string? assemblyFormatConstructionExpression,
-        string? primitiveBaseConstructor,
-        string? valueConstructorParameter,
         string primitiveValueAccess = ".Value",
         string typedArrayElementPayloadPropertyName = "Value",
-        string? factoryExpression = null,
         string? typedArrayElementDecodeExpression = null,
         string? typedArrayElementToSyntaxExpression = null)
     {
         this.attributeValueTypeName = attributeValueTypeName;
-        this.baseType = baseType;
         this.assemblyFormatType = assemblyFormatType;
         this.assemblyFormatConstructionExpression = assemblyFormatConstructionExpression;
-        this.primitiveBaseConstructor = primitiveBaseConstructor;
-        this.valueConstructorParameter = valueConstructorParameter;
         this.primitiveValueAccess = primitiveValueAccess;
         this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
-        this.factoryExpression = factoryExpression;
         this.typedArrayElementDecodeExpression = typedArrayElementDecodeExpression;
         this.typedArrayElementToSyntaxExpression = typedArrayElementToSyntaxExpression;
     }
 
     public override bool IsPrimitive => true;
     public override bool UsesTypedArrayElementPayload => typedArrayElementDecodeExpression == null;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => attributeValueTypeName;
     public override string GetPrimitiveValueAccess(string typeName) => primitiveValueAccess;
     public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
-    public override string GetBaseType(string constraintRecordName) => baseType;
     public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
     public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => assemblyFormatConstructionExpression;
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => primitiveBaseConstructor;
-    public override string? GetValueConstructorParameter(string constraintRecordName) => valueConstructorParameter;
-    public override string? GetFactoryExpression(string constraintRecordName) => factoryExpression;
     public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) => typedArrayElementDecodeExpression;
     public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) => typedArrayElementToSyntaxExpression;
 }
@@ -289,41 +276,30 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
 internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
     private readonly string attributeValueTypeName;
-    private readonly string baseType;
     private readonly string? assemblyFormatType;
     private readonly string? assemblyFormatConstructionExpression;
-    private readonly string? primitiveBaseConstructor;
-    private readonly string? valueConstructorParameter;
     private readonly string typedArrayElementPayloadPropertyName;
 
     public DensePrimitiveArrayAttributeConstraintCodeStrategy(
         string attributeValueTypeName,
-        string baseType,
         string? assemblyFormatType,
         string? assemblyFormatConstructionExpression,
-        string? primitiveBaseConstructor,
-        string? valueConstructorParameter,
         string typedArrayElementPayloadPropertyName = "Items")
     {
         this.attributeValueTypeName = attributeValueTypeName;
-        this.baseType = baseType;
         this.assemblyFormatType = assemblyFormatType;
         this.assemblyFormatConstructionExpression = assemblyFormatConstructionExpression;
-        this.primitiveBaseConstructor = primitiveBaseConstructor;
-        this.valueConstructorParameter = valueConstructorParameter;
         this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
     }
 
     public override bool IsDenseCollection => true;
     public override bool UsesTypedArrayElementPayload => true;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => attributeValueTypeName;
     public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
-    public override string GetBaseType(string constraintRecordName) => baseType;
     public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
     public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => assemblyFormatConstructionExpression;
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => primitiveBaseConstructor;
-    public override string? GetValueConstructorParameter(string constraintRecordName) => valueConstructorParameter;
 }
 
 
@@ -340,7 +316,7 @@ internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstrain
     public override bool IsGenericTypedArrayElement => true;
 
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "AttributeValue";
-    public override string GetBaseType(string constraintRecordName) => "AttributeValue";
+    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
 }
 
 /// <summary>
@@ -354,15 +330,13 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
     private ElementsAttributeConstraintCodeStrategy() { }
 
     public override bool IsGenericTypedArrayElement => true;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "global::MLIR.DenseTypedElementsAttr";
 
-    public override string GetBaseType(string constraintRecordName) => "global::MLIR.DenseTypedElementsAttr";
+    public override string GetWrapperBaseType(string constraintRecordName) => "global::MLIR.DenseTypedElementsAttr";
 
     public override string? GetAssemblyFormatType(string constraintRecordName) => "ElementsAttributeAssemblyFormat";
-
-    public override string? GetFactoryExpression(string constraintRecordName) =>
-        "static context => global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat.BindDenseTypedElements(context)";
 }
 
 /// <summary>
@@ -376,6 +350,7 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     private DictionaryAttributeConstraintCodeStrategy() { }
 
     public override bool UsesTypedArrayElementPayload => false;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     /// <summary>
     /// Returns <c>"NamedAttributeCollection"</c> – the unwrapped value type used for
@@ -393,11 +368,6 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
         isRequired ? "DictionaryAttr" : "DictionaryAttr?";
 
     public override string? GetAssemblyFormatType(string constraintRecordName) => "DictionaryAttributeAssemblyFormat";
-    public override string? GetFactoryExpression(string constraintRecordName) =>
-        "static context => new global::MLIR.DictionaryAttr(" +
-        "(context.Syntax is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
-        "? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items) " +
-        ": global::MLIR.Semantics.NamedAttributeCollection.Empty), context.Syntax!)";
     public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) =>
         "{itemSyntax} is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
         "? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items) " +
@@ -418,6 +388,7 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
     private TypeAttributeConstraintCodeStrategy() { }
 
     public override bool UsesTypedArrayElementPayload => false;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     /// <summary>
     /// Returns <c>"TypeReference"</c> – the unwrapped value type used for typed-array
@@ -432,12 +403,8 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
         isRequired ? "TypeAttr" : "TypeAttr?";
 
-    public override string GetBaseType(string constraintRecordName) => "AttributeValue";
+    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
     public override string? GetAssemblyFormatType(string constraintRecordName) => "TypeAttributeAssemblyFormat";
-    public override string? GetFactoryExpression(string constraintRecordName) =>
-        "static context => context.Syntax is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
-        "? new global::MLIR.TypeAttr(new global::MLIR.Semantics.UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location), context.Syntax) " +
-        ": throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\")";
     public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) =>
         "{itemSyntax} is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
         "? new global::MLIR.Semantics.UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location) " +
@@ -458,6 +425,7 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
 
     public override bool IsUnit => true;
     public override bool IsGenericTypedArrayElement => true;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "UnitAttr";
 
@@ -468,10 +436,8 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
         isRequired ? "UnitAttr" : "bool";
 
-    public override string GetBaseType(string constraintRecordName) => "AttributeValue";
+    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
     public override string? GetAssemblyFormatType(string constraintRecordName) => "UnitAttributeAssemblyFormat";
-    public override string? GetFactoryExpression(string constraintRecordName) =>
-        "static context => new global::MLIR.UnitAttr(context.Syntax)";
 }
 
 
@@ -487,6 +453,7 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
     public override bool IsPrimitive => true;
     public override bool IsEnum => true;
     public override bool UsesTypedArrayElementPayload => true;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.EnumWrapper;
     public override string GetTypedArrayElementPayloadPropertyName() => "TypedValue";
     public override string GetPrimitiveValueAccess(string typeName) => ".TypedValue";
 
@@ -499,7 +466,7 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
 
     // Emission helpers are not used for enum constraints – they are handled by
     // AttributeConstraintEmitter.EmitEnumConstraint, which has its own specialised code.
-    public override string GetBaseType(string constraintRecordName) => "IntegerAttributeValue";
+    public override string GetWrapperBaseType(string constraintRecordName) => "IntegerAttributeValue";
 }
 
 /// <summary>
@@ -513,6 +480,7 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
 
     public override bool IsTypedArray => true;
     public override bool UsesTypedArrayElementPayload => true;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.TypedArray;
     public override string GetTypedArrayElementPayloadPropertyName() => "Items";
 
     /// <summary>
@@ -555,7 +523,7 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         || elementTypeName == "global::MLIR.DenseTypedElementsAttr";
 
     // Emission is handled by AttributeConstraintEmitter.EmitTypedArrayConstraint.
-    public override string GetBaseType(string constraintRecordName) => "AttributeValue";
+    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
 }
 
 // =============================================================================
@@ -615,16 +583,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 {
     private static readonly PrimitiveAttributeConstraintCodeStrategy BooleanLiteralStrategy = new(
         attributeValueTypeName: "bool",
-        baseType: "BooleanAttributeValue",
         assemblyFormatType: "BooleanLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
-        primitiveBaseConstructor: "context, ((BooleanAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "bool",
-        factoryExpression:
-            "static context => new global::MLIR.IntegerAttr(" +
-            "global::MLIR.Semantics.TypeFactory.I1, " +
-            "global::MLIR.Numerics.ApInt.FromInt64(1, ((global::MLIR.Syntax.Attributes.Primitives.BooleanAttributeValueSyntax)context.Syntax).Value ? 1 : 0), " +
-            "context.Syntax)",
         typedArrayElementDecodeExpression:
             "((global::MLIR.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value.ToUInt64() != 0",
         typedArrayElementToSyntaxExpression:
@@ -632,14 +592,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy IntegerLiteralStrategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApInt",
-        baseType: "IntegerAttributeValue",
         assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
-        primitiveBaseConstructor: "context, ((IntegerAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::MLIR.Numerics.ApInt",
-        factoryExpression:
-            "static context => { var __intSyntax = (global::MLIR.Syntax.Attributes.Primitives.IntegerAttributeValueSyntax)context.Syntax; " +
-            "return new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I(__intSyntax.Value.BitWidth), __intSyntax.Value, __intSyntax); }",
         typedArrayElementDecodeExpression:
             "((global::MLIR.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
@@ -647,16 +601,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
-        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::MLIR.Numerics.ApFloat",
-        factoryExpression:
-            "static context => new global::MLIR.FloatAttr(" +
-            "global::MLIR.Semantics.TypeFactory.F64, " +
-            "((global::MLIR.Syntax.Attributes.Primitives.FloatingPointAttributeValueSyntax)context.Syntax).Value, " +
-            "context.Syntax)",
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
@@ -664,16 +610,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F16Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)",
-        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::MLIR.Numerics.ApFloat",
-        factoryExpression:
-            "static context => new global::MLIR.FloatAttr(" +
-            "global::MLIR.Semantics.TypeFactory.F16, " +
-            "((global::MLIR.Syntax.Attributes.Primitives.FloatingPointAttributeValueSyntax)context.Syntax).Value, " +
-            "context.Syntax)",
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
@@ -681,16 +619,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)",
-        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::MLIR.Numerics.ApFloat",
-        factoryExpression:
-            "static context => new global::MLIR.FloatAttr(" +
-            "global::MLIR.Semantics.TypeFactory.F32, " +
-            "((global::MLIR.Syntax.Attributes.Primitives.FloatingPointAttributeValueSyntax)context.Syntax).Value, " +
-            "context.Syntax)",
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
@@ -698,16 +628,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy BF16Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)",
-        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::MLIR.Numerics.ApFloat",
-        factoryExpression:
-            "static context => new global::MLIR.FloatAttr(" +
-            "global::MLIR.Semantics.TypeFactory.BF16, " +
-            "((global::MLIR.Syntax.Attributes.Primitives.FloatingPointAttributeValueSyntax)context.Syntax).Value, " +
-            "context.Syntax)",
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
@@ -715,16 +637,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F64Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        baseType: "FloatingPointAttributeValue",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
-        primitiveBaseConstructor: "context, ((FloatingPointAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "global::MLIR.Numerics.ApFloat",
-        factoryExpression:
-            "static context => new global::MLIR.FloatAttr(" +
-            "global::MLIR.Semantics.TypeFactory.F64, " +
-            "((global::MLIR.Syntax.Attributes.Primitives.FloatingPointAttributeValueSyntax)context.Syntax).Value, " +
-            "context.Syntax)",
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
@@ -732,16 +646,8 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy StringLiteralStrategy = new(
         attributeValueTypeName: "string",
-        baseType: "StringAttributeValue",
         assemblyFormatType: "StringLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
-        primitiveBaseConstructor: "context, ((StringAttributeValueSyntax)context.Syntax).Value",
-        valueConstructorParameter: "string",
-        factoryExpression:
-            "static context => new global::MLIR.StringAttr(" +
-            "((global::MLIR.Syntax.Attributes.Primitives.StringAttributeValueSyntax)context.Syntax).Value, " +
-            "global::MLIR.Semantics.TypeFactory.None, " +
-            "context.Syntax)",
         typedArrayElementDecodeExpression:
             "((global::MLIR.StringAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
@@ -749,35 +655,23 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseBooleanArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<bool>",
-        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseBooleanArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null,
-        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeBooleanItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
-        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<bool>");
+        assemblyFormatConstructionExpression: null);
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseIntegerArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApInt>",
-        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseIntegerArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null,
-        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeIntegerItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items)",
-        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApInt>");
+        assemblyFormatConstructionExpression: null);
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF32ArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
-        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")",
-        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items, global::MLIR.Numerics.FloatSemantics.IEEESingle)",
-        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApFloat>");
+        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")");
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF64ArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
-        baseType: "global::MLIR.DenseArrayAttr",
         assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")",
-        primitiveBaseConstructor: "context, StructuredAttributeSemanticDecoder.DecodeFloatingPointItems(((DenseArrayAttributeValueSyntax)context.Syntax).Items.Items, global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
-        valueConstructorParameter: "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Numerics.ApFloat>");
+        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")");
 
     /// <summary>
     /// Returns the strategy singleton for the given <paramref name="kind"/> and

@@ -1,6 +1,5 @@
 namespace MLIR.Generators.Emitters;
 
-using System.Collections.Generic;
 using System.Text;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
@@ -10,38 +9,29 @@ internal static class AttributeConstraintEmitter
     public static void Emit(StringBuilder builder, AttributeConstraintModel attributeConstraint, DialectSymbolResolver resolver)
     {
         var strategy = resolver.TryResolveAttributeConstraintStrategy(attributeConstraint.RecordName);
-
-        if (strategy.IsEnum && attributeConstraint.EnumModel != null)
+        switch (strategy.EmissionKind)
         {
-            EmitEnumConstraint(builder, attributeConstraint, attributeConstraint.EnumModel);
-        }
-        else if (strategy.IsTypedArray)
-        {
-            EmitTypedArrayConstraint(builder, attributeConstraint, resolver);
-        }
-        else if (strategy.IsDenseCollection)
-        {
-            EmitDenseCollectionConstraintDefinition(builder, attributeConstraint, strategy, resolver);
-        }
-        else if (strategy.GetFactoryExpression(attributeConstraint.RecordName) != null)
-        {
-            // Storage-backed constraint: emit only the static AttributeConstraintDefinition.
-            // No constraint wrapper class is generated.
-            EmitPrimitiveConstraintDefinition(builder, attributeConstraint, strategy);
-        }
-        else
-        {
-            EmitStandardConstraint(builder, attributeConstraint, strategy);
+            case AttributeConstraintEmissionKind.StaticDefinition:
+                EmitStaticConstraintDefinition(builder, attributeConstraint, strategy);
+                break;
+            case AttributeConstraintEmissionKind.EnumWrapper when attributeConstraint.EnumModel != null:
+                EmitEnumConstraint(builder, attributeConstraint, attributeConstraint.EnumModel);
+                break;
+            case AttributeConstraintEmissionKind.TypedArray:
+                EmitTypedArrayConstraint(builder, attributeConstraint, resolver);
+                break;
+            default:
+                EmitWrapperConstraint(builder, attributeConstraint, strategy);
+                break;
         }
     }
 
     /// <summary>
     /// Emits a minimal static class that carries only the
-    /// <c>AttributeConstraintDefinition</c> for a factory-backed constraint.
-    /// The factory lambda creates the storage attr directly, so no constraint wrapper
-    /// class is needed.
+    /// <c>AttributeConstraintDefinition</c> for constraints that bind to existing
+    /// semantic storage types and do not need generated wrapper classes.
     /// </summary>
-    private static void EmitPrimitiveConstraintDefinition(
+    private static void EmitStaticConstraintDefinition(
         StringBuilder builder,
         AttributeConstraintModel attributeConstraint,
         AttributeConstraintCodeStrategy strategy)
@@ -50,55 +40,51 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("public static class " + className);
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
-        builder.Append("        new AttributeConstraintDefinition(");
-        builder.Append(EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression(attributeConstraint.RecordName);
-        if (assemblyFormatExpression != null)
-        {
-            builder.Append(", " + assemblyFormatExpression);
-        }
-        else
-        {
-            var assemblyFormatType = strategy.GetAssemblyFormatType(attributeConstraint.RecordName);
-            if (assemblyFormatType != null)
-            {
-                builder.Append(", new " + assemblyFormatType + "()");
-            }
-        }
-
-        builder.AppendLine(");");
+        AppendAttributeConstraintDefinition(builder, attributeConstraint, strategy, "        ");
         builder.AppendLine("}");
     }
 
-    private static void EmitDenseCollectionConstraintDefinition(
+    private static void AppendAttributeConstraintDefinition(
         StringBuilder builder,
         AttributeConstraintModel attributeConstraint,
         AttributeConstraintCodeStrategy strategy,
-        DialectSymbolResolver resolver)
+        string indent)
     {
-        var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
+        AppendAttributeConstraintDefinition(
+            builder,
+            attributeConstraint.Name,
+            GetAssemblyFormatExpression(attributeConstraint.RecordName, strategy),
+            indent);
+    }
 
-        builder.AppendLine("public static class " + className);
-        builder.AppendLine("{");
-        builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
-        builder.Append("        new AttributeConstraintDefinition(");
-        builder.Append(EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression(attributeConstraint.RecordName);
+    private static void AppendAttributeConstraintDefinition(
+        StringBuilder builder,
+        string constraintName,
+        string? assemblyFormatExpression,
+        string indent)
+    {
+        builder.Append(indent);
+        builder.Append("new AttributeConstraintDefinition(");
+        builder.Append(EmitterHelpers.ToCSharpStringLiteral(constraintName));
         if (assemblyFormatExpression != null)
         {
-            builder.Append(", " + assemblyFormatExpression);
-        }
-        else
-        {
-            var assemblyFormatType = strategy.GetAssemblyFormatType(attributeConstraint.RecordName);
-            if (assemblyFormatType != null)
-            {
-                builder.Append(", new " + assemblyFormatType + "()");
-            }
+            builder.Append(", ");
+            builder.Append(assemblyFormatExpression);
         }
 
         builder.AppendLine(");");
-        builder.AppendLine("}");
+    }
+
+    private static string? GetAssemblyFormatExpression(string recordName, AttributeConstraintCodeStrategy strategy)
+    {
+        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression(recordName);
+        if (assemblyFormatExpression != null)
+        {
+            return assemblyFormatExpression;
+        }
+
+        var assemblyFormatType = strategy.GetAssemblyFormatType(recordName);
+        return assemblyFormatType != null ? "new " + assemblyFormatType + "()" : null;
     }
 
     private static void EmitEnumConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, EnumModel enumModel)
@@ -111,9 +97,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("public sealed class " + className + " : IntegerAttributeValue");
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
-        builder.AppendLine("        new AttributeConstraintDefinition(");
-        builder.Append("            " + EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        builder.AppendLine(", new " + assemblyFormatType + "());");
+        AppendAttributeConstraintDefinition(builder, attributeConstraint.Name, "new " + assemblyFormatType + "()", "        ");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
         builder.AppendLine("        : base(context, ParseValue(context.Syntax))");
@@ -226,9 +210,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("public static class " + className);
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
-        builder.AppendLine("        new AttributeConstraintDefinition(");
-        builder.Append("            " + EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        builder.AppendLine(", new " + assemblyFormatType + "());");
+        AppendAttributeConstraintDefinition(builder, attributeConstraint.Name, "new " + assemblyFormatType + "()", "        ");
         builder.AppendLine("}");
         builder.AppendLine();
 
@@ -249,36 +231,20 @@ internal static class AttributeConstraintEmitter
             ?? "global::MLIR.Semantics.AttributeValue";
     }
 
-    private static void EmitStandardConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy strategy)
+    private static void EmitWrapperConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy strategy)
     {
         var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
-        var baseType = strategy.GetBaseType(attributeConstraint.RecordName);
+        var baseType = strategy.GetWrapperBaseType(attributeConstraint.RecordName);
         builder.AppendLine("public sealed class " + className + " : " + baseType);
         builder.AppendLine("{");
         builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
-        builder.Append("        new AttributeConstraintDefinition(");
-        builder.Append(EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
-        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression(attributeConstraint.RecordName);
-        if (assemblyFormatExpression != null)
-        {
-            builder.Append(", " + assemblyFormatExpression);
-        }
-        else
-        {
-            var assemblyFormatType = strategy.GetAssemblyFormatType(attributeConstraint.RecordName);
-            if (assemblyFormatType != null)
-            {
-                builder.Append(", new " + assemblyFormatType + "()");
-            }
-        }
-
-        builder.AppendLine(");");
+        AppendAttributeConstraintDefinition(builder, attributeConstraint, strategy, "        ");
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
-        var primitiveBaseConstructor = strategy.GetPrimitiveBaseConstructor(attributeConstraint.RecordName);
-        if (primitiveBaseConstructor != null)
+        var wrapperBaseArguments = strategy.GetWrapperContextBaseArguments(attributeConstraint.RecordName);
+        if (wrapperBaseArguments != null)
         {
-            builder.AppendLine("        : base(" + primitiveBaseConstructor + ")");
+            builder.AppendLine("        : base(" + wrapperBaseArguments + ")");
         }
         else
         {
@@ -287,7 +253,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    {");
         builder.AppendLine("    }");
 
-        var valueConstructorParam = strategy.GetValueConstructorParameter(attributeConstraint.RecordName);
+        var valueConstructorParam = strategy.GetWrapperValueConstructorParameter(attributeConstraint.RecordName);
         if (valueConstructorParam != null)
         {
             builder.AppendLine();
@@ -297,7 +263,7 @@ internal static class AttributeConstraintEmitter
             builder.AppendLine("    }");
         }
 
-        strategy?.EmitInnerHelpers(builder, className);
+        strategy.EmitWrapperMembers(builder, className);
 
         builder.AppendLine();
         builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
