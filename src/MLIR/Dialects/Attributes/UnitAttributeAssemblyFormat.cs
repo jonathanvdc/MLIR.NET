@@ -28,7 +28,7 @@ public sealed class UnitAttributeAssemblyFormat : IAttributeAssemblyFormat
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
         var normalizedSyntax = syntax as UnitAttributeValueSyntax ?? new UnitAttributeValueSyntax(TokenFactory.Identifier("unit"));
-        return definition.Factory(binder.CreateAttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        return new UnitAttr(normalizedSyntax);
     }
 
     /// <inheritdoc/>

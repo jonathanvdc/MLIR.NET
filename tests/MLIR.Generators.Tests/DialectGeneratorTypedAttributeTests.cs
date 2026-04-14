@@ -376,8 +376,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             registrationSource,
             "public global::MLIR.Semantics.TypeReference Type { get; }",
             "public SelfAttr(global::MLIR.Semantics.TypeReference type, MLIR.Syntax.AttributeValueSyntax? syntax = null)",
-            "new AttributeDefinition(\"test.self\", new SelfAttrAssemblyFormat(),",
-            "SelfAttrAssemblyFormat.BindValue(context.Syntax!",
+            "new AttributeDefinition(\"test.self\", new SelfAttrAssemblyFormat())",
             "BindValue(AttributeValueSyntax syntax, Binder binder)",
             "binder.BindTypeReference(structured.TypeSyntax.TypeSyntax)");
     }

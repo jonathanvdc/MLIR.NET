@@ -111,6 +111,7 @@ public static class StructuredAttributeSemanticDecoder
             ArrayAttributeValueSyntax arraySyntax => new ArrayAttr(DecodeItems(arraySyntax.Items.Items), arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),
             ElementsAttributeValueSyntax elementsSyntax => DecodeDenseTypedElementsValue(elementsSyntax),
+            TypedAttributeValueSyntax typedSyntax => DecodeTypedValue(typedSyntax),
             RawAttributeValueSyntax rawSyntax => DecodeRawValue(rawSyntax),
             _ => new UnknownAttributeValue(syntax, null, null, syntax.Location),
         };
@@ -258,6 +259,28 @@ public static class StructuredAttributeSemanticDecoder
             new UnknownTypeReference(syntax.TypeSyntax, null, null, syntax.TypeSyntax.Location),
             DecodeValue(syntax.Payload),
             syntax);
+    }
+
+    private static AttributeValue DecodeTypedValue(TypedAttributeValueSyntax syntax)
+    {
+        var payload = DecodeValue(syntax.AttributeSyntax);
+        if (payload is UnknownAttributeValue)
+        {
+            return new UnknownAttributeValue(syntax, null, null, syntax.Location);
+        }
+
+        return payload switch
+        {
+            IntegerAttr integer => new IntegerAttr(integer.Type, integer.Value, syntax),
+            FloatAttr floatingPoint => new FloatAttr(floatingPoint.Type, floatingPoint.Value, syntax),
+            StringAttr str => new StringAttr(str.Value, str.Type, syntax),
+            UnitAttr => new UnitAttr(syntax),
+            TypeAttr type => new TypeAttr(type.Value, syntax),
+            ArrayAttr array => new ArrayAttr(array.Value, syntax),
+            DictionaryAttr dictionary => new DictionaryAttr(dictionary.Value, syntax),
+            DenseTypedElementsAttr elements => new DenseTypedElementsAttr(elements.Type, elements.RawData, syntax),
+            _ => payload,
+        };
     }
 
     private static bool[] ToBoolArray(IReadOnlyList<bool> items)

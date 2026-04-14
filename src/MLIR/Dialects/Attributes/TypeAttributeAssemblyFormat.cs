@@ -30,7 +30,8 @@ public sealed class TypeAttributeAssemblyFormat : IAttributeAssemblyFormat
         var typeSyntax = syntax is TypeAttributeValueSyntax typeAttributeSyntax
             ? typeAttributeSyntax.TypeSyntax
             : throw new InvalidOperationException("Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.");
-        return definition.Factory(binder.CreateAttributeValueConstructionContext(new TypeAttributeValueSyntax(typeSyntax), definition.Name, definition, syntax.Location));
+        var normalizedSyntax = new TypeAttributeValueSyntax(typeSyntax);
+        return new TypeAttr(binder.BindTypeReference(typeSyntax), normalizedSyntax);
     }
 
     /// <inheritdoc/>

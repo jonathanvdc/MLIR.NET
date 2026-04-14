@@ -39,7 +39,7 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
             throw new InvalidOperationException("Expected a string literal syntax for a primitive string attribute.");
         }
 
-        return definition.Factory(binder.CreateAttributeValueConstructionContext(stringSyntax, definition.Name, definition, stringSyntax.Location));
+        return new StringAttr(stringSyntax.Value, TypeFactory.None, stringSyntax);
     }
 
     /// <inheritdoc/>
