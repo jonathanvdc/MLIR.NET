@@ -14,16 +14,33 @@ internal static class AttributeConstraintEmitter
             case AttributeConstraintEmissionKind.StaticDefinition:
                 EmitStaticConstraintDefinition(builder, attributeConstraint, strategy);
                 break;
-            case AttributeConstraintEmissionKind.EnumWrapper when attributeConstraint.EnumModel != null:
-                EmitEnumConstraint(builder, attributeConstraint, attributeConstraint.EnumModel);
+            case AttributeConstraintEmissionKind.EnumWrapper:
+                EmitEnumConstraint(builder, attributeConstraint, RequireEnumModel(attributeConstraint));
                 break;
             case AttributeConstraintEmissionKind.TypedArray:
                 EmitTypedArrayConstraint(builder, attributeConstraint, resolver);
                 break;
             default:
-                EmitWrapperConstraint(builder, attributeConstraint, strategy);
-                break;
+                throw new System.InvalidOperationException(
+                    "Unsupported attribute constraint emission kind '"
+                    + strategy.EmissionKind
+                    + "' for constraint '"
+                    + attributeConstraint.RecordName
+                    + "'.");
         }
+    }
+
+    private static EnumModel RequireEnumModel(AttributeConstraintModel attributeConstraint)
+    {
+        if (attributeConstraint.EnumModel != null)
+        {
+            return attributeConstraint.EnumModel;
+        }
+
+        throw new System.InvalidOperationException(
+            "Attribute constraint '"
+            + attributeConstraint.RecordName
+            + "' is classified as an enum attribute but no enum model was imported.");
     }
 
     /// <summary>
@@ -229,45 +246,5 @@ internal static class AttributeConstraintEmitter
         var nonNullRecordName = elementRecordName!;
         return elementStrategy.GetAttributeValueTypeName(nonNullRecordName, resolver)
             ?? "global::MLIR.Semantics.AttributeValue";
-    }
-
-    private static void EmitWrapperConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy strategy)
-    {
-        var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
-        var baseType = strategy.GetWrapperBaseType(attributeConstraint.RecordName);
-        builder.AppendLine("public sealed class " + className + " : " + baseType);
-        builder.AppendLine("{");
-        builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
-        AppendAttributeConstraintDefinition(builder, attributeConstraint, strategy, "        ");
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(AttributeValueConstructionContext context)");
-        var wrapperBaseArguments = strategy.GetWrapperContextBaseArguments(attributeConstraint.RecordName);
-        if (wrapperBaseArguments != null)
-        {
-            builder.AppendLine("        : base(" + wrapperBaseArguments + ")");
-        }
-        else
-        {
-            builder.AppendLine("        : base(context.Syntax, context.Location)");
-        }
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-
-        var valueConstructorParam = strategy.GetWrapperValueConstructorParameter(attributeConstraint.RecordName);
-        if (valueConstructorParam != null)
-        {
-            builder.AppendLine();
-            builder.AppendLine("    public " + className + "(" + valueConstructorParam + " value)");
-            builder.AppendLine("        : base(value)");
-            builder.AppendLine("    {");
-            builder.AppendLine("    }");
-        }
-
-        strategy.EmitWrapperMembers(builder, className);
-
-        builder.AppendLine();
-        builder.AppendLine("    public override string? Name => AttributeConstraintDefinition.Name;");
-        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeConstraintDefinition;");
-        builder.AppendLine("}");
     }
 }

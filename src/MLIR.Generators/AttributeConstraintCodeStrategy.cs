@@ -5,7 +5,6 @@ using MLIR.ODS.Model;
 internal enum AttributeConstraintEmissionKind
 {
     StaticDefinition,
-    Wrapper,
     EnumWrapper,
     TypedArray,
 }
@@ -151,17 +150,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// </summary>
     public virtual string GetTypedArrayElementPayloadPropertyName() => "Value";
 
-    // -------------------------------------------------------------------------
-    // Constraint class emission helpers
-    // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns the C# base class for the generated attribute constraint class
-    /// (e.g. <c>"BooleanAttributeValue"</c>). Defaults to <c>"AttributeValue"</c>.
-    /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
-
     /// <summary>
     /// Returns the name of the assembly-format type to register with
     /// <c>AttributeConstraintDefinition</c>, or <see langword="null"/> when no custom
@@ -178,31 +166,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// </summary>
     /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
     public virtual string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => null;
-
-    /// <summary>
-    /// Returns the argument list to pass to the base-class constructor from the
-    /// <c>AttributeValueConstructionContext</c> constructor, or <see langword="null"/>
-    /// to use the default <c>(context.Syntax, context.Location)</c> call.
-    /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetWrapperContextBaseArguments(string constraintRecordName) => null;
-
-    /// <summary>
-    /// Returns the C# type of the single parameter for the generated "value" convenience
-    /// constructor, or <see langword="null"/> when no value constructor should be emitted.
-    /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetWrapperValueConstructorParameter(string constraintRecordName) => null;
-
-    /// <summary>
-    /// Emits additional private helper members (e.g. <c>DecodeTypeSyntax</c> or
-    /// <c>DecodeAttributes</c>) inside the generated constraint class body.
-    /// Called by <c>AttributeConstraintEmitter</c> after the
-    /// constructor declarations. The default implementation emits nothing.
-    /// </summary>
-    /// <param name="builder">The string builder to append to.</param>
-    /// <param name="className">The generated class name for context.</param>
-    public virtual void EmitWrapperMembers(System.Text.StringBuilder builder, string className) { }
 
     // -------------------------------------------------------------------------
     // Typed-array decode/encode
@@ -459,9 +422,7 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) =>
         resolver.TryResolveEnumTypeName(constraintRecordName);
 
-    // Emission helpers are not used for enum constraints – they are handled by
-    // AttributeConstraintEmitter.EmitEnumConstraint, which has its own specialised code.
-    public override string GetWrapperBaseType(string constraintRecordName) => "IntegerAttributeValue";
+    // Emission is handled by AttributeConstraintEmitter.EmitEnumConstraint.
 }
 
 /// <summary>
