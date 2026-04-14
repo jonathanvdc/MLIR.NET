@@ -51,15 +51,10 @@ extends ElementsAttrBase : MLIRNet_AttrExtension {
 }
 
 extends ArrayAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.ArrayAttributeValue";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
-  let csharpConvertFromStorage = "$_self.Items";
-}
-
-extends TypedArrayAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.AttributeValue>";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "$_self.Value";
+  let csharpConstBuilderCall = "new global::MLIR.ArrayAttr($0)";
 }
 
 // Integer attrs all use the semantic integer-value storage layer; the concrete leaf
@@ -267,51 +262,59 @@ extends DenseF64ArrayAttr : MLIRNet_AttrExtension {
 }
 
 extends BoolArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<bool>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<bool>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.BoolArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.BoolArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends I32ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<int>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<int>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.I32ArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.I32ArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends I64ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<long>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<long>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.I64ArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.I64ArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends I64SmallVectorArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<long>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<long>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.I64SmallVectorArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.I64SmallVectorArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends F32ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<float>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<float>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.F32ArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.F32ArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends F64ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<double>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<double>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.F64ArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.F64ArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends StrArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<string>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<string>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.StrArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.StrArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends TypeArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.TypeReference>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.TypeArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.TypeArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 extends SymbolRefAttr : MLIRNet_AttrExtension {
@@ -341,9 +344,10 @@ extends IntegerSetAttr : MLIRNet_AttrExtension {
 }
 
 extends DictArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.Attributes.Collections.TypedArrayAttributeValue<global::MLIR.Semantics.NamedAttributeCollection>";
+  let csharpStorageType = "global::MLIR.ArrayAttr";
   let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection>";
-  let csharpConvertFromStorage = "$_self.Items";
+  let csharpConvertFromStorage = "global::MLIR.DictArrayAttrConstraintAttributeValue.GetItems($_self)";
+  let csharpConstBuilderCall = "global::MLIR.DictArrayAttrConstraintAttributeValue.Create($0)";
 }
 
 #endif // COMMON_ATTR_CONSTRAINTS_EXTENSIONS_TD

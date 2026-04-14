@@ -158,7 +158,13 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             preludeSource,
             "public sealed class I32ArrayAttrConstraintAttributeValue :",
             "public sealed class StrArrayAttrConstraintAttributeValue :",
-            "public sealed class IndexListArrayAttrConstraintAttributeValue :");
+            "public sealed class IndexListArrayAttrConstraintAttributeValue :",
+            "TypedArrayAttributeValue<",
+            "private sealed class Value :");
+        AssertContainsAll(
+            preludeSource,
+            "new global::MLIR.ArrayAttr(",
+            "if (attribute is global::MLIR.ArrayAttr arrayAttr)");
     }
 
     [Fact]

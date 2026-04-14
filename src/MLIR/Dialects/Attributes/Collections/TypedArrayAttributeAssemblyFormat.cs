@@ -3,7 +3,6 @@ namespace MLIR.Dialects.Attributes.Collections;
 using System.Collections.Generic;
 using MLIR.Dialects;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes.Collections;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Text;
@@ -66,20 +65,20 @@ public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is not TypedArrayAttributeValue<TElement> typedArray)
-        {
-            return attribute.Syntax ?? throw new System.InvalidOperationException("Typed array attributes require syntax to rebuild their assembly form.");
-        }
-
         if (attribute.Syntax is ArrayAttributeValueSyntax arraySyntax)
         {
             return arraySyntax;
         }
 
-        var items = new List<AttributeValueSyntax>(typedArray.Items.Count);
-        for (var i = 0; i < typedArray.Items.Count; i++)
+        if (attribute is not ArrayAttr arrayAttr)
         {
-            items.Add(ElementToSyntax(typedArray.Items[i], context));
+            return attribute.Syntax ?? throw new System.InvalidOperationException("Typed array attributes require ArrayAttr storage or reusable syntax to rebuild their assembly form.");
+        }
+
+        var items = new List<AttributeValueSyntax>(arrayAttr.Value.Count);
+        for (var i = 0; i < arrayAttr.Value.Count; i++)
+        {
+            items.Add(context.BuildAttributeValueSyntax(arrayAttr.Value[i]));
         }
 
         var separators = new List<Token>(items.Count > 0 ? items.Count - 1 : 0);
@@ -94,9 +93,4 @@ public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             separators,
             TokenFactory.RBracket());
     }
-
-    /// <summary>
-    /// Converts a single typed item to its attribute-value syntax representation.
-    /// </summary>
-    protected abstract AttributeValueSyntax ElementToSyntax(TElement element, ConcreteSyntaxBuilderContext context);
 }
