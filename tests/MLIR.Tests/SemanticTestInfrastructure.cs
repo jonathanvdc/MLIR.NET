@@ -725,11 +725,11 @@ public sealed partial class SemanticTests
 
     private sealed class TestF32AttributeAssemblyFormat : IAttributeAssemblyFormat
     {
-        private readonly FloatingPointLiteralAttributeAssemblyFormat innerFormat = new(FloatSemantics.IEEESingle);
+        private readonly FloatingPointLiteralAttributeAssemblyFormat singlePrecisionFormat = new(FloatSemantics.IEEESingle);
 
         public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
-            return innerFormat.TryParse(context);
+            return singlePrecisionFormat.TryParse(context);
         }
 
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
@@ -740,17 +740,17 @@ public sealed partial class SemanticTests
 
         public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
         {
-            return innerFormat.BuildCustomAssemblySyntax(attribute, context);
+            return singlePrecisionFormat.BuildCustomAssemblySyntax(attribute, context);
         }
     }
 
     private sealed class TestF64AttributeAssemblyFormat : IAttributeAssemblyFormat
     {
-        private readonly FloatingPointLiteralAttributeAssemblyFormat innerFormat = new(FloatSemantics.IEEEDouble);
+        private readonly FloatingPointLiteralAttributeAssemblyFormat doublePrecisionFormat = new(FloatSemantics.IEEEDouble);
 
         public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
-            return innerFormat.TryParse(context);
+            return doublePrecisionFormat.TryParse(context);
         }
 
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
@@ -761,14 +761,14 @@ public sealed partial class SemanticTests
 
         public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
         {
-            return innerFormat.BuildCustomAssemblySyntax(attribute, context);
+            return doublePrecisionFormat.BuildCustomAssemblySyntax(attribute, context);
         }
     }
 
     private sealed class CapturingIntegerAttributeAssemblyFormat : IAttributeAssemblyFormat
     {
         private readonly Action<AttributeValueConstructionContext> onContextBound;
-        private readonly IntegerLiteralAttributeAssemblyFormat innerFormat = new();
+        private readonly IntegerLiteralAttributeAssemblyFormat integerLiteralFormat = new();
 
         public CapturingIntegerAttributeAssemblyFormat(Action<AttributeValueConstructionContext> onContextBound)
         {
@@ -777,7 +777,7 @@ public sealed partial class SemanticTests
 
         public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
-            return innerFormat.TryParse(context);
+            return integerLiteralFormat.TryParse(context);
         }
 
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
@@ -789,7 +789,7 @@ public sealed partial class SemanticTests
 
         public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
         {
-            return innerFormat.BuildCustomAssemblySyntax(attribute, context);
+            return integerLiteralFormat.BuildCustomAssemblySyntax(attribute, context);
         }
     }
 }

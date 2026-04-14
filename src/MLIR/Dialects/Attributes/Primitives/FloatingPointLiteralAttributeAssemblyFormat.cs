@@ -97,26 +97,13 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
 
     private TypeReference GetResultType()
     {
-        if (semantics.Equals(FloatSemantics.IEEEHalf))
+        return semantics switch
         {
-            return TypeFactory.F16;
-        }
-
-        if (semantics.Equals(FloatSemantics.BFloat16))
-        {
-            return TypeFactory.BF16;
-        }
-
-        if (semantics.Equals(FloatSemantics.IEEESingle))
-        {
-            return TypeFactory.F32;
-        }
-
-        if (semantics.Equals(FloatSemantics.TF32))
-        {
-            return TypeFactory.TF32;
-        }
-
-        return TypeFactory.F64;
+            var s when s.Equals(FloatSemantics.IEEEHalf) => TypeFactory.F16,
+            var s when s.Equals(FloatSemantics.BFloat16) => TypeFactory.BF16,
+            var s when s.Equals(FloatSemantics.IEEESingle) => TypeFactory.F32,
+            var s when s.Equals(FloatSemantics.TF32) => TypeFactory.TF32,
+            _ => TypeFactory.F64,
+        };
     }
 }

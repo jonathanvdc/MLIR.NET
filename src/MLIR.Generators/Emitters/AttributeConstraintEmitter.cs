@@ -135,7 +135,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine();
 
         // Enum value parser
-        builder.AppendLine("    internal static " + enumTypeName + " ParseEnumValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
+        builder.AppendLine("    private static " + enumTypeName + " ParseEnumValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("        if (syntax == null) return default;");
         builder.AppendLine("        if (syntax is MLIR.Syntax.Attributes.Primitives.IntegerAttributeValueSyntax integerSyntax)");
@@ -151,6 +151,12 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("    private static global::MLIR.Numerics.ApInt ParseValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("        return global::MLIR.Numerics.ApInt.FromUInt64(64, global::System.Convert.ToUInt64(ParseEnumValue(syntax)));");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+
+        builder.AppendLine("    internal static " + className + " BindValue(MLIR.Syntax.AttributeValueSyntax syntax)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return new " + className + "(ParseEnumValue(syntax));");
         builder.AppendLine("    }");
         builder.AppendLine();
 
@@ -195,7 +201,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine();
         builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
         builder.AppendLine("    {");
-        builder.AppendLine("        return new " + className + "(" + className + ".ParseEnumValue(syntax));");
+        builder.AppendLine("        return " + className + ".BindValue(syntax);");
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
