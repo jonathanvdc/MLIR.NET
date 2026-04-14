@@ -88,7 +88,7 @@ internal abstract class AttributeConstraintCodeStrategy
     /// <summary>
     /// Gets the shape of generated code this constraint requires.
     /// </summary>
-    public virtual AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.Wrapper;
+    public virtual AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     // -------------------------------------------------------------------------
     // Primitive value access
@@ -316,7 +316,6 @@ internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstrain
     public override bool IsGenericTypedArrayElement => true;
 
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "AttributeValue";
-    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
 }
 
 /// <summary>
@@ -333,8 +332,6 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "global::MLIR.DenseTypedElementsAttr";
-
-    public override string GetWrapperBaseType(string constraintRecordName) => "global::MLIR.DenseTypedElementsAttr";
 
     public override string? GetAssemblyFormatType(string constraintRecordName) => "ElementsAttributeAssemblyFormat";
 }
@@ -403,7 +400,6 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
         isRequired ? "TypeAttr" : "TypeAttr?";
 
-    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
     public override string? GetAssemblyFormatType(string constraintRecordName) => "TypeAttributeAssemblyFormat";
     public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) =>
         "{itemSyntax} is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
@@ -436,7 +432,6 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
         isRequired ? "UnitAttr" : "bool";
 
-    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
     public override string? GetAssemblyFormatType(string constraintRecordName) => "UnitAttributeAssemblyFormat";
 }
 
@@ -523,7 +518,6 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         || elementTypeName == "global::MLIR.DenseTypedElementsAttr";
 
     // Emission is handled by AttributeConstraintEmitter.EmitTypedArrayConstraint.
-    public override string GetWrapperBaseType(string constraintRecordName) => "AttributeValue";
 }
 
 // =============================================================================
