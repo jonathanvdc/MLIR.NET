@@ -260,8 +260,7 @@ internal static class OperationMemberPlanner
         if (attrModel is null
             || strategy.IsUnit
             || strategy.IsEnum
-            || strategy.IsTypedArray
-            || (!strategy.IsPrimitive && !strategy.IsDenseCollection))
+            || (!strategy.IsPrimitive && !strategy.IsDenseCollection && !strategy.IsTypedArray))
         {
             return false;
         }

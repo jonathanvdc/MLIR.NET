@@ -110,18 +110,15 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
 
         AssertContainsAll(
             registrationSource,
-            "public IReadOnlyList<string> Strings",
-            "public IReadOnlyList<TypeReference> Types",
-            "public IReadOnlyList<NamedAttributeCollection> Dicts",
-            "public IReadOnlyList<IReadOnlyList<global::MLIR.Numerics.ApInt>> IndexLists",
+            "IReadOnlyList<string> Strings",
+            "IReadOnlyList<global::MLIR.Semantics.TypeReference> Types",
+            "IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection> Dicts",
             "IReadOnlyList<string> strings,",
-            "IReadOnlyList<TypeReference> types,",
-            "IReadOnlyList<NamedAttributeCollection> dicts,",
-            "IReadOnlyList<IReadOnlyList<global::MLIR.Numerics.ApInt>> indexLists,",
+            "IReadOnlyList<global::MLIR.Semantics.TypeReference> types,",
+            "IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection> dicts,",
             "StrArrayAttrConstraintAttributeValue",
             "TypeArrayAttrConstraintAttributeValue",
-            "DictArrayAttrConstraintAttributeValue",
-            "IndexListArrayAttrConstraintAttributeValue");
+            "DictArrayAttrConstraintAttributeValue");
         AssertDoesNotContainAny(
             registrationSource,
             "public NamedAttribute Strings",
@@ -148,6 +145,8 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
 
         var preludeSource = Assert.Single(
             generatedSources.Where(static result => result.HintName == "PreludeDialectRegistration.g.cs")).SourceText.ToString();
+        var registrationSource = Assert.Single(
+            generatedSources.Where(static result => result.HintName == "MydialectDialectRegistration.g.cs")).SourceText.ToString();
 
         AssertContainsAll(
             preludeSource,
@@ -161,10 +160,14 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public sealed class IndexListArrayAttrConstraintAttributeValue :",
             "TypedArrayAttributeValue<",
             "private sealed class Value :");
-        AssertContainsAll(
+        AssertDoesNotContainAny(
             preludeSource,
-            "ArrayAttrConstraintHelpers.Create(",
-            "ArrayAttrConstraintHelpers.GetItems(");
+            "I32ArrayAttrConstraintAttributeValue.Create(",
+            "I32ArrayAttrConstraintAttributeValue.GetItems(",
+            "StrArrayAttrConstraintAttributeValue.Create(",
+            "StrArrayAttrConstraintAttributeValue.GetItems(",
+            "IndexListArrayAttrConstraintAttributeValue.Create(",
+            "IndexListArrayAttrConstraintAttributeValue.GetItems(");
     }
 
     [Fact]

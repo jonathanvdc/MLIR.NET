@@ -228,20 +228,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
     public virtual string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) => null;
 
-    /// <summary>
-    /// Returns a C# expression that extracts the typed element value directly from a decoded
-    /// semantic <c>AttributeValue</c> when the constraint is used as a typed-array element type.
-    /// The placeholder <c>{itemValue}</c> in the returned expression is replaced by the local
-    /// variable name at the call site.
-    /// </summary>
-    public virtual string? GetTypedArrayElementDecodeFromValueExpression(string constraintRecordName) => null;
-
-    /// <summary>
-    /// Returns a C# expression that converts a typed element value into a semantic
-    /// <c>AttributeValue</c> for typed-array storage. The placeholder <c>{element}</c> is replaced
-    /// by the element local variable name at the call site.
-    /// </summary>
-    public virtual string? GetTypedArrayElementEncodeExpression(string constraintRecordName) => null;
 }
 
 internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
@@ -257,8 +243,6 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
     private readonly string? factoryExpression;
     private readonly string? typedArrayElementDecodeExpression;
     private readonly string? typedArrayElementToSyntaxExpression;
-    private readonly string? typedArrayElementDecodeFromValueExpression;
-    private readonly string? typedArrayElementEncodeExpression;
 
     public PrimitiveAttributeConstraintCodeStrategy(
         string attributeValueTypeName,
@@ -271,9 +255,7 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
         string typedArrayElementPayloadPropertyName = "Value",
         string? factoryExpression = null,
         string? typedArrayElementDecodeExpression = null,
-        string? typedArrayElementToSyntaxExpression = null,
-        string? typedArrayElementDecodeFromValueExpression = null,
-        string? typedArrayElementEncodeExpression = null)
+        string? typedArrayElementToSyntaxExpression = null)
     {
         this.attributeValueTypeName = attributeValueTypeName;
         this.baseType = baseType;
@@ -286,8 +268,6 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
         this.factoryExpression = factoryExpression;
         this.typedArrayElementDecodeExpression = typedArrayElementDecodeExpression;
         this.typedArrayElementToSyntaxExpression = typedArrayElementToSyntaxExpression;
-        this.typedArrayElementDecodeFromValueExpression = typedArrayElementDecodeFromValueExpression;
-        this.typedArrayElementEncodeExpression = typedArrayElementEncodeExpression;
     }
 
     public override bool IsPrimitive => true;
@@ -304,8 +284,6 @@ internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstr
     public override string? GetFactoryExpression(string constraintRecordName) => factoryExpression;
     public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) => typedArrayElementDecodeExpression;
     public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) => typedArrayElementToSyntaxExpression;
-    public override string? GetTypedArrayElementDecodeFromValueExpression(string constraintRecordName) => typedArrayElementDecodeFromValueExpression;
-    public override string? GetTypedArrayElementEncodeExpression(string constraintRecordName) => typedArrayElementEncodeExpression;
 }
 
 internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
@@ -423,12 +401,8 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
         "{itemSyntax} is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
         "? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items) " +
         ": global::MLIR.Semantics.NamedAttributeCollection.Empty";
-    public override string? GetTypedArrayElementDecodeFromValueExpression(string constraintRecordName) =>
-        "((global::MLIR.DictionaryAttr){itemValue}).Value";
     public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) =>
         "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BuildSyntax({element}, {context})";
-    public override string? GetTypedArrayElementEncodeExpression(string constraintRecordName) =>
-        "new global::MLIR.DictionaryAttr({element}, null)";
 
 }
 
@@ -467,12 +441,8 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
         "{itemSyntax} is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
         "? new global::MLIR.Semantics.UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location) " +
         ": throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\")";
-    public override string? GetTypedArrayElementDecodeFromValueExpression(string constraintRecordName) =>
-        "((global::MLIR.TypeAttr){itemValue}).Value";
     public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) =>
         "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax({context}.BuildTypeSyntax({element}))";
-    public override string? GetTypedArrayElementEncodeExpression(string constraintRecordName) =>
-        "new global::MLIR.TypeAttr({element}, null)";
 }
 
 /// <summary>
@@ -657,11 +627,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value.ToUInt64() != 0",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I1, global::MLIR.Numerics.ApInt.FromInt64(1, {element} ? 1 : 0), null))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.IntegerAttr){itemValue}).Value.ToUInt64() != 0",
-        typedArrayElementEncodeExpression:
-            "new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I1, global::MLIR.Numerics.ApInt.FromInt64(1, {element} ? 1 : 0), null)");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I1, global::MLIR.Numerics.ApInt.FromInt64(1, {element} ? 1 : 0), null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy IntegerLiteralStrategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApInt",
@@ -676,11 +642,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I({element}.BitWidth), {element}, null))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.IntegerAttr){itemValue}).Value",
-        typedArrayElementEncodeExpression:
-            "new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I({element}.BitWidth), {element}, null)");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I({element}.BitWidth), {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
@@ -697,11 +659,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.FloatAttr){itemValue}).Value",
-        typedArrayElementEncodeExpression:
-            "new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null)");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F16Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
@@ -718,11 +676,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F16, {element}, null))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.FloatAttr){itemValue}).Value",
-        typedArrayElementEncodeExpression:
-            "new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F16, {element}, null)");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F16, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
@@ -739,11 +693,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, {element}, null))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.FloatAttr){itemValue}).Value",
-        typedArrayElementEncodeExpression:
-            "new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, {element}, null)");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy BF16Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
@@ -760,11 +710,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.BF16, {element}, null))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.FloatAttr){itemValue}).Value",
-        typedArrayElementEncodeExpression:
-            "new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.BF16, {element}, null)");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.BF16, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F64Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
@@ -781,11 +727,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.FloatAttr){itemValue}).Value",
-        typedArrayElementEncodeExpression:
-            "new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null)");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy StringLiteralStrategy = new(
         attributeValueTypeName: "string",
@@ -802,11 +744,7 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementDecodeExpression:
             "((global::MLIR.StringAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(global::MLIR.Semantics.ConstantAttributeFactory.String({element}))",
-        typedArrayElementDecodeFromValueExpression:
-            "((global::MLIR.StringAttr){itemValue}).Value",
-        typedArrayElementEncodeExpression:
-            "global::MLIR.Semantics.ConstantAttributeFactory.String({element})");
+            "{context}.BuildAttributeValueSyntax(global::MLIR.Semantics.ConstantAttributeFactory.String({element}))");
 
     private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseBooleanArrayStrategy = new(
         attributeValueTypeName: "IReadOnlyList<bool>",

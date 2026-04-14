@@ -216,33 +216,7 @@ internal static class AttributeConstraintEmitter
             ? FallbackAttributeConstraintCodeStrategy.Instance
             : resolver.TryResolveAttributeConstraintStrategy(elementRecordName!);
         var elementTypeName = GetTypedArrayElementTypeName(elementRecordName, elementStrategy, resolver);
-        // When the element strategy provides a direct decode expression, use it to avoid
-        // instantiating a now-removed constraint wrapper class.
-        var elementDecodeExpression = string.IsNullOrEmpty(elementRecordName)
-            ? null
-            : elementStrategy.GetTypedArrayElementDecodeExpression(elementRecordName!);
-        var elementDecodeFromValueExpression = string.IsNullOrEmpty(elementRecordName)
-            ? null
-            : elementStrategy.GetTypedArrayElementDecodeFromValueExpression(elementRecordName!);
-        var elementEncodeExpression = string.IsNullOrEmpty(elementRecordName)
-            ? null
-            : elementStrategy.GetTypedArrayElementEncodeExpression(elementRecordName!);
-        var elementUsesPayload = elementDecodeExpression == null && elementStrategy.UsesTypedArrayElementPayload;
         var assemblyFormatType = className + "AssemblyFormat";
-        var decodeExpression = BuildTypedArrayElementDecodeFromValueExpression(
-            elementRecordName,
-            elementTypeName,
-            elementStrategy,
-            resolver,
-            elementDecodeExpression,
-            elementDecodeFromValueExpression,
-            elementUsesPayload);
-        var encodeExpression = BuildTypedArrayElementEncodeExpression(
-            elementRecordName,
-            elementStrategy,
-            resolver,
-            elementEncodeExpression,
-            elementUsesPayload);
 
         builder.AppendLine("public static class " + className);
         builder.AppendLine("{");
@@ -250,16 +224,6 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("        new AttributeConstraintDefinition(");
         builder.Append("            " + EmitterHelpers.ToCSharpStringLiteral(attributeConstraint.Name));
         builder.AppendLine(", new " + assemblyFormatType + "(), factory: static context => global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindFromSyntax(context.Syntax));");
-        builder.AppendLine();
-        builder.AppendLine("    public static global::MLIR.Semantics.AttributeValue Create(global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> items)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create(items, static element => " + encodeExpression + ");");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public static global::System.Collections.Generic.IReadOnlyList<" + elementTypeName + "> GetItems(global::MLIR.Semantics.AttributeValue attribute)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems(attribute, static itemValue => " + decodeExpression + ");");
-        builder.AppendLine("    }");
         builder.AppendLine("}");
         builder.AppendLine();
 
@@ -278,92 +242,6 @@ internal static class AttributeConstraintEmitter
         var nonNullRecordName = elementRecordName!;
         return elementStrategy.GetAttributeValueTypeName(nonNullRecordName, resolver)
             ?? "global::MLIR.Semantics.AttributeValue";
-    }
-
-    private static string GetTypedArrayElementClassName(string? elementRecordName, DialectSymbolResolver resolver)
-    {
-        if (string.IsNullOrEmpty(elementRecordName))
-        {
-            return "global::MLIR.Semantics.AttributeValue";
-        }
-
-        return resolver.TryResolveAttributeConstraintClassName(elementRecordName!)
-            ?? "global::MLIR.Semantics.AttributeValue";
-    }
-
-    private static string GetTypedArrayElementPayloadPropertyName(string? elementRecordName, AttributeConstraintCodeStrategy elementStrategy)
-    {
-        if (string.IsNullOrEmpty(elementRecordName))
-        {
-            return "Value";
-        }
-
-        return elementStrategy.GetTypedArrayElementPayloadPropertyName();
-    }
-
-    private static string BuildTypedArrayElementDecodeFromValueExpression(
-        string? elementRecordName,
-        string elementTypeName,
-        AttributeConstraintCodeStrategy elementStrategy,
-        DialectSymbolResolver resolver,
-        string? elementDecodeExpression,
-        string? elementDecodeFromValueExpression,
-        bool elementUsesPayload)
-    {
-        if (!string.IsNullOrEmpty(elementDecodeFromValueExpression))
-        {
-            return elementDecodeFromValueExpression!.Replace("{itemValue}", "itemValue");
-        }
-
-        if (!string.IsNullOrEmpty(elementDecodeExpression))
-        {
-            return elementDecodeExpression!.Replace(
-                "{itemSyntax}",
-                "itemValue.Syntax ?? throw new global::System.InvalidOperationException(\"Typed array element syntax was not available.\")");
-        }
-
-        if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            return elementClassName + ".GetItems(itemValue)";
-        }
-
-        if (elementUsesPayload)
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            var elementPayloadProperty = GetTypedArrayElementPayloadPropertyName(elementRecordName, elementStrategy);
-            return "itemValue is " + elementClassName + " typedElement ? typedElement." + elementPayloadProperty +
-                " : throw new global::System.InvalidOperationException(\"Unexpected typed array element storage value type.\")";
-        }
-
-        return "(" + elementTypeName + ")itemValue";
-    }
-
-    private static string BuildTypedArrayElementEncodeExpression(
-        string? elementRecordName,
-        AttributeConstraintCodeStrategy elementStrategy,
-        DialectSymbolResolver resolver,
-        string? elementEncodeExpression,
-        bool elementUsesPayload)
-    {
-        if (!string.IsNullOrEmpty(elementEncodeExpression))
-        {
-            return elementEncodeExpression!.Replace("{element}", "element");
-        }
-
-        if (elementStrategy.IsTypedArray && !string.IsNullOrEmpty(elementRecordName))
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            return elementClassName + ".Create(element)";
-        }
-
-        if (elementUsesPayload)
-        {
-            var elementClassName = GetTypedArrayElementClassName(elementRecordName, resolver);
-            return "new " + elementClassName + "(element)";
-        }
-
-        return "(global::MLIR.Semantics.AttributeValue)element";
     }
 
     private static void EmitStandardConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, AttributeConstraintCodeStrategy strategy)
