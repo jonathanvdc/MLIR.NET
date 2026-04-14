@@ -17,9 +17,6 @@ internal static class AttributeConstraintEmitter
             case AttributeConstraintEmissionKind.EnumWrapper:
                 EmitEnumConstraint(builder, attributeConstraint, RequireEnumModel(attributeConstraint));
                 break;
-            case AttributeConstraintEmissionKind.TypedArray:
-                EmitTypedArrayConstraint(builder, attributeConstraint, resolver);
-                break;
             default:
                 throw new System.InvalidOperationException(
                     "Unsupported attribute constraint emission kind '"
@@ -214,37 +211,4 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("}");
     }
 
-    private static void EmitTypedArrayConstraint(StringBuilder builder, AttributeConstraintModel attributeConstraint, DialectSymbolResolver resolver)
-    {
-        var className = DialectGeneratorNaming.GetAttributeConstraintClassName(attributeConstraint);
-        var elementRecordName = attributeConstraint.ElementConstraintRecordName;
-        var elementStrategy = string.IsNullOrEmpty(elementRecordName)
-            ? FallbackAttributeConstraintCodeStrategy.Instance
-            : resolver.TryResolveAttributeConstraintStrategy(elementRecordName!);
-        var elementTypeName = GetTypedArrayElementTypeName(elementRecordName, elementStrategy, resolver);
-        var assemblyFormatType = className + "AssemblyFormat";
-
-        builder.AppendLine("public static class " + className);
-        builder.AppendLine("{");
-        builder.AppendLine("    public static AttributeConstraintDefinition AttributeConstraintDefinition { get; } =");
-        AppendAttributeConstraintDefinition(builder, attributeConstraint.Name, "new " + assemblyFormatType + "()", "        ");
-        builder.AppendLine("}");
-        builder.AppendLine();
-
-        builder.AppendLine("internal sealed class " + assemblyFormatType + " : TypedArrayAttributeAssemblyFormat<" + elementTypeName + ">");
-        builder.AppendLine("{");
-        builder.AppendLine("}");
-    }
-
-    private static string GetTypedArrayElementTypeName(string? elementRecordName, AttributeConstraintCodeStrategy elementStrategy, DialectSymbolResolver resolver)
-    {
-        if (string.IsNullOrEmpty(elementRecordName) || elementStrategy.IsGenericTypedArrayElement)
-        {
-            return "global::MLIR.Semantics.AttributeValue";
-        }
-
-        var nonNullRecordName = elementRecordName!;
-        return elementStrategy.GetAttributeValueTypeName(nonNullRecordName, resolver)
-            ?? "global::MLIR.Semantics.AttributeValue";
-    }
 }

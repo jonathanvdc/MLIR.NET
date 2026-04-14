@@ -9,9 +9,10 @@ using MLIR.Text;
 using MLIR.Transforms;
 
 /// <summary>
-/// Base class for parsing array attribute literals whose items are strongly typed.
+/// Reusable assembly format for parsing and printing typed-array attributes that
+/// are stored as <see cref="ArrayAttr"/>.
 /// </summary>
-public abstract class TypedArrayAttributeAssemblyFormat<TElement> : IAttributeAssemblyFormat
+public sealed class TypedArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
