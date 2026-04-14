@@ -591,12 +591,12 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.String($0)", strAttr.CsharpConstBuilderCall);
 
         var typeAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "TypeAttr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.TypeAttributeValue", typeAttr.CsharpStorageType);
-        Assert.Equal("global::MLIR.Syntax.TypeSyntax", typeAttr.CsharpReturnType);
-        Assert.Equal("$_self.TypeSyntax", typeAttr.CsharpConvertFromStorage);
+        Assert.Equal("global::MLIR.TypeAttr", typeAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Semantics.TypeReference", typeAttr.CsharpReturnType);
+        Assert.Equal("$_self.Value", typeAttr.CsharpConvertFromStorage);
 
         var unitAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "UnitAttr");
-        Assert.Equal("global::MLIR.Semantics.Attributes.UnitAttributeValue", unitAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.UnitAttr", unitAttr.CsharpStorageType);
         Assert.Equal("bool", unitAttr.CsharpReturnType);
         Assert.True(unitAttr.IsOptional);
         Assert.Equal("false", unitAttr.CsharpDefaultValue);

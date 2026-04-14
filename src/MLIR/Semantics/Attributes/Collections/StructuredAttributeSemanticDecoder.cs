@@ -105,8 +105,8 @@ public static class StructuredAttributeSemanticDecoder
                 new FloatAttr(TypeFactory.F64, floatingPointSyntax.Value, floatingPointSyntax),
             StringAttributeValueSyntax stringSyntax =>
                 new StringAttr(stringSyntax.Value, TypeFactory.None, stringSyntax),
-            UnitAttributeValueSyntax unitSyntax => new DecodedUnitAttributeValue(unitSyntax),
-            TypeAttributeValueSyntax typeSyntax => new DecodedTypeAttributeValue(typeSyntax),
+            UnitAttributeValueSyntax unitSyntax => new UnitAttr(unitSyntax),
+            TypeAttributeValueSyntax typeSyntax => new TypeAttr(new UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location), typeSyntax),
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
             ArrayAttributeValueSyntax arraySyntax => new DecodedArrayAttributeValue(arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),
@@ -250,30 +250,6 @@ public static class StructuredAttributeSemanticDecoder
                 semantics = FloatSemantics.IEEEDouble;
                 return false;
         }
-    }
-
-    private sealed class DecodedUnitAttributeValue : UnitAttributeValue
-    {
-        public DecodedUnitAttributeValue(UnitAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location))
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
-    }
-
-    private sealed class DecodedTypeAttributeValue : TypeAttributeValue
-    {
-        public DecodedTypeAttributeValue(TypeAttributeValueSyntax syntax)
-            : base(new AttributeValueConstructionContext(syntax, null!, null!, syntax.Location), syntax.TypeSyntax)
-        {
-        }
-
-        public override string? Name => null;
-
-        public override Dialects.AttributeConstraintDefinition? Definition => null;
     }
 
     private sealed class DecodedArrayAttributeValue : ArrayAttributeValue

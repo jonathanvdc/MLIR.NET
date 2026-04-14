@@ -2,7 +2,6 @@ namespace MLIR.Dialects.Attributes;
 
 using MLIR.Dialects;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Text;
@@ -37,9 +36,10 @@ public sealed class TypeAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
-        if (attribute is TypeAttributeValue typeAttribute)
+        if (attribute is TypeAttr typeAttribute)
         {
-            return new TypeAttributeValueSyntax(typeAttribute.TypeSyntax);
+            var typeSyntax = typeAttribute.Value.Syntax ?? context.BuildTypeSyntax(typeAttribute.Value);
+            return new TypeAttributeValueSyntax(typeSyntax);
         }
 
         return attribute.Syntax ?? throw new System.InvalidOperationException("Type attributes require syntax to rebuild their assembly form.");

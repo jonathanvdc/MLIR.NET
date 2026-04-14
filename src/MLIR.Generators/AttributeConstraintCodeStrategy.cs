@@ -50,8 +50,8 @@ internal abstract class AttributeConstraintCodeStrategy
 
     /// <summary>
     /// Gets a value indicating whether this constraint is a unit attribute.
-    /// Required unit attributes are typed <c>UnitAttributeValue</c>; optional ones are
-    /// exposed as <c>bool</c> (present/absent) rather than <c>UnitAttributeValue?</c>.
+    /// Required unit attributes are typed <c>UnitAttr</c>; optional ones are
+    /// exposed as <c>bool</c> (present/absent) rather than <c>UnitAttr?</c>.
     /// </summary>
     public virtual bool IsUnit => false;
 
@@ -328,7 +328,7 @@ internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : Attri
 
 /// <summary>
 /// Opaque attribute (e.g. <c>AnyAttr</c>, <c>LocationAttr</c>). Preserved as a generic
-/// <c>OpaqueAttributeValue</c>; falls back to <c>AttributeValue</c> when used as a
+/// <c>AttributeValue</c>; falls back to <c>AttributeValue</c> when used as a
 /// typed-array element.
 /// </summary>
 internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
@@ -338,9 +338,8 @@ internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstrain
 
     public override bool IsGenericTypedArrayElement => true;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "OpaqueAttributeValue";
-    public override string GetBaseType(string constraintRecordName) => "OpaqueAttributeValue";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context";
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "AttributeValue";
+    public override string GetBaseType(string constraintRecordName) => "AttributeValue";
 }
 
 /// <summary>
@@ -408,50 +407,46 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
 
 /// <summary>
 /// Type attribute (<c>TypeAttr</c>). Properties are exposed as
-/// <c>TypeAttributeValue</c>; the unwrapped value for typed-array elements is
-/// <c>TypeSyntax</c>.
+/// <c>TypeAttr</c>; the unwrapped value for typed-array elements is
+/// <c>TypeReference</c>.
 /// </summary>
 internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
     public static readonly TypeAttributeConstraintCodeStrategy Instance = new();
     private TypeAttributeConstraintCodeStrategy() { }
 
-    public override bool UsesTypedArrayElementPayload => true;
-    public override string GetTypedArrayElementPayloadPropertyName() => "TypeSyntax";
+    public override bool UsesTypedArrayElementPayload => false;
 
     /// <summary>
-    /// Returns <c>"TypeSyntax"</c> – the unwrapped value type used for typed-array
+    /// Returns <c>"TypeReference"</c> – the unwrapped value type used for typed-array
     /// element extraction.
     /// </summary>
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "TypeSyntax";
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "TypeReference";
 
     /// <summary>
-    /// Returns <c>"TypeAttributeValue"</c> (required) or <c>"TypeAttributeValue?"</c>
+    /// Returns <c>"TypeAttr"</c> (required) or <c>"TypeAttr?"</c>
     /// (optional) – the type used for operation member properties.
     /// </summary>
     public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
-        isRequired ? "TypeAttributeValue" : "TypeAttributeValue?";
+        isRequired ? "TypeAttr" : "TypeAttr?";
 
-    public override string GetBaseType(string constraintRecordName) => "TypeAttributeValue";
+    public override string GetBaseType(string constraintRecordName) => "AttributeValue";
     public override string? GetAssemblyFormatType(string constraintRecordName) => "TypeAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context, DecodeTypeSyntax(context.Syntax)";
-    public override string? GetValueConstructorParameter(string constraintRecordName) => "global::MLIR.Syntax.TypeSyntax";
-
-    public override void EmitInnerHelpers(System.Text.StringBuilder builder, string className)
-    {
-        builder.AppendLine();
-        builder.AppendLine("    private static global::MLIR.Syntax.TypeSyntax DecodeTypeSyntax(MLIR.Syntax.AttributeValueSyntax? syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return syntax is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax");
-        builder.AppendLine("            ? typeSyntax.TypeSyntax");
-        builder.AppendLine("            : throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\");");
-        builder.AppendLine("    }");
-    }
+    public override string? GetFactoryExpression(string constraintRecordName) =>
+        "static context => context.Syntax is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
+        "? new global::MLIR.TypeAttr(new global::MLIR.Semantics.UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location), context.Syntax) " +
+        ": throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\")";
+    public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) =>
+        "{itemSyntax} is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
+        "? new global::MLIR.Semantics.UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location) " +
+        ": throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\")";
+    public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) =>
+        "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax({context}.BuildTypeSyntax({element}))";
 }
 
 /// <summary>
 /// Unit attribute (<c>UnitAttr</c>). Optional properties are exposed as <c>bool</c>
-/// rather than <c>UnitAttributeValue?</c>. Falls back to <c>AttributeValue</c> when
+/// rather than <c>UnitAttr?</c>. Falls back to <c>AttributeValue</c> when
 /// used as a typed-array element.
 /// </summary>
 internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
@@ -462,18 +457,19 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
     public override bool IsUnit => true;
     public override bool IsGenericTypedArrayElement => true;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "UnitAttributeValue";
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "UnitAttr";
 
     /// <summary>
-    /// Required unit attributes are typed <c>UnitAttributeValue</c>; optional ones are
-    /// exposed as <c>bool</c> (present/absent) rather than <c>UnitAttributeValue?</c>.
+    /// Required unit attributes are typed <c>UnitAttr</c>; optional ones are
+    /// exposed as <c>bool</c> (present/absent) rather than <c>UnitAttr?</c>.
     /// </summary>
     public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
-        isRequired ? "UnitAttributeValue" : "bool";
+        isRequired ? "UnitAttr" : "bool";
 
-    public override string GetBaseType(string constraintRecordName) => "UnitAttributeValue";
+    public override string GetBaseType(string constraintRecordName) => "AttributeValue";
     public override string? GetAssemblyFormatType(string constraintRecordName) => "UnitAttributeAssemblyFormat";
-    public override string? GetPrimitiveBaseConstructor(string constraintRecordName) => "context";
+    public override string? GetFactoryExpression(string constraintRecordName) =>
+        "static context => new global::MLIR.UnitAttr(context.Syntax)";
 }
 
 
@@ -552,8 +548,8 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
     /// generic <c>IReadOnlyList&lt;AttributeValue&gt;</c> typed-array representation.
     /// </summary>
     private static bool IsTypedArrayFallbackElementType(string elementTypeName) =>
-        elementTypeName == "UnitAttributeValue"
-        || elementTypeName == "OpaqueAttributeValue"
+        elementTypeName == "UnitAttr"
+        || elementTypeName == "OpaqueAttr"
         || elementTypeName == "ElementsAttributeValue";
 
     // Emission is handled by AttributeConstraintEmitter.EmitTypedArrayConstraint.
