@@ -12,6 +12,11 @@ using MLIR.Transforms;
 /// Reusable assembly format for parsing and printing typed-array attributes that
 /// are stored as <see cref="ArrayAttr"/>.
 /// </summary>
+/// <remarks>
+/// Element literals are parsed uniformly as <see cref="AttributeValueSyntax"/> items.
+/// The typed projection (<c>IReadOnlyList&lt;T&gt;</c>) for specific constraints is applied
+/// later by generated constraint overlays and <c>ArrayAttrConstraintHelpers</c>.
+/// </remarks>
 public sealed class TypedArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
