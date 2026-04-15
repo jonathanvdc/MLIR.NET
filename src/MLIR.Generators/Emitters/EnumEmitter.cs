@@ -20,7 +20,7 @@ internal static class EnumEmitter
         16 => "global::MLIR.Semantics.TypeFactory.I16",
         32 => "global::MLIR.Semantics.TypeFactory.I32",
         64 => "global::MLIR.Semantics.TypeFactory.I64",
-        _ => "global::MLIR.Semantics.TypeFactory.I(" + bitwidth + ")",
+        _ => $"global::MLIR.Semantics.TypeFactory.I({bitwidth})",
     };
 
     public static string GetEnumToIntegerAttrExpression(EnumModel enumModel, string enumValueExpression, string syntaxExpression)

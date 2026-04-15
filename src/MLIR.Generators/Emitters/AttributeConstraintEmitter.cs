@@ -158,7 +158,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("            return context.BuildAttributeValueSyntax(fallbackIntegerAttr);");
         builder.AppendLine("        }");
         builder.AppendLine();
-        builder.AppendLine("        throw new global::System.InvalidOperationException(\"Enum constraints require IntegerAttr storage for custom assembly emission.\");");
+        builder.AppendLine("        throw new global::System.InvalidOperationException(\"Enum constraints require IntegerAttr storage for custom assembly emission, but received \" + attribute.GetType().FullName + \".\");");
         builder.AppendLine("    }");
         builder.AppendLine("}");
     }

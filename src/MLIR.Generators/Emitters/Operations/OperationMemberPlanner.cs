@@ -307,8 +307,8 @@ internal static class OperationMemberPlanner
             }
 
             var useAttrModelTyping = ShouldUseAttrModelTyping(attrModel, constraintStrategy);
-            var enumModel = !string.IsNullOrEmpty(constraintRecordName) && constraintStrategy.IsEnum
-                ? resolver.TryResolveEnumModel(constraintRecordName!)
+            var enumModel = constraintStrategy.IsEnum && constraintRecordName is string enumConstraintRecordName
+                ? resolver.TryResolveEnumModel(enumConstraintRecordName)
                 : null;
             var typeName = GetAttributeTypeName(constraintRecordName, useAttrModelTyping ? attrModel : null, constraintStrategy, isRequired, resolver);
             members.Add(new GeneratedMember(
