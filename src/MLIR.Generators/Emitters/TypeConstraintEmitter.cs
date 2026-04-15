@@ -18,29 +18,20 @@ using MLIR.ODS.Model;
 /// </remarks>
 internal static class TypeConstraintEmitter
 {
-    public static void Emit(StringBuilder builder, TypeConstraintModel typeConstraint)
-    {
-        EmitStaticConstraintClass(builder, typeConstraint);
-    }
-
     /// <summary>
     /// Emits a <c>public static partial class</c> that exposes a single
     /// <c>TypeConstraintDefinition</c> property.
     /// </summary>
-    private static void EmitStaticConstraintClass(StringBuilder builder, TypeConstraintModel typeConstraint)
+    public static void Emit(StringBuilder builder, TypeConstraintModel typeConstraint)
     {
         var className = DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint);
+        var nameArgument = typeConstraint.CanonicalTypeName != null
+            ? EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName)
+            : string.Empty;
         builder.AppendLine("public static partial class " + className);
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeConstraintDefinition TypeConstraintDefinition { get; } =");
-        if (typeConstraint.CanonicalTypeName != null)
-        {
-            builder.AppendLine("        new TypeConstraintDefinition(" + EmitterHelpers.ToCSharpStringLiteral(typeConstraint.CanonicalTypeName) + ");");
-        }
-        else
-        {
-            builder.AppendLine("        new TypeConstraintDefinition();");
-        }
+        builder.AppendLine("        new TypeConstraintDefinition(" + nameArgument + ");");
         builder.AppendLine("}");
     }
 
