@@ -3,8 +3,12 @@ namespace MLIR.Dialects;
 using MLIR.Semantics;
 
 /// <summary>
-/// Describes a dialect-defined type.
+/// Describes a concrete dialect-defined type (<c>TypeDef</c> in ODS).
 /// </summary>
+/// <remarks>
+/// Concrete type definitions are also valid type constraints, so this class derives from
+/// <see cref="TypeConstraintDefinition"/>.
+/// </remarks>
 /// <remarks>
 /// Initializes a new instance of the <see cref="TypeDefinition"/> class.
 /// </remarks>
@@ -15,16 +19,16 @@ public sealed class TypeDefinition(
     string name,
     ITypeAssemblyFormat? assemblyFormat = null,
     System.Func<TypeReferenceConstructionContext, TypeReference>? factory = null)
+    : TypeConstraintDefinition(name, assemblyFormat)
 {
     /// <summary>
     /// Gets the canonical type name.
     /// </summary>
-    public string Name { get; } = name;
-
-    /// <summary>
-    /// Gets the custom assembly interpretation hook, if one is registered.
-    /// </summary>
-    public ITypeAssemblyFormat? AssemblyFormat { get; } = assemblyFormat;
+    /// <remarks>
+    /// This narrows <see cref="TypeConstraintDefinition.Name"/> back to a non-null contract for
+    /// concrete <c>TypeDef</c> registrations.
+    /// </remarks>
+    public new string Name { get; } = name;
 
     /// <summary>
     /// Gets the typed type-reference factory.

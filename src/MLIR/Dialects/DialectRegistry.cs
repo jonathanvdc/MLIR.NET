@@ -14,6 +14,7 @@ public sealed class DialectRegistry
     private readonly Dictionary<string, AttributeDefinition> attributesByParserName = new Dictionary<string, AttributeDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, AttributeConstraintDefinition> attributeConstraintsByName = new Dictionary<string, AttributeConstraintDefinition>(StringComparer.Ordinal);
     private readonly Dictionary<string, TypeDefinition> typesByName = new Dictionary<string, TypeDefinition>(StringComparer.Ordinal);
+    private readonly Dictionary<string, TypeConstraintDefinition> typeConstraintsByName = new Dictionary<string, TypeConstraintDefinition>(StringComparer.Ordinal);
 
     /// <summary>
     /// Gets the dialects currently registered in the registry.
@@ -90,6 +91,25 @@ public sealed class DialectRegistry
             {
                 throw new ArgumentException($"The type '{type.Name}' is already registered.", nameof(dialect));
             }
+
+            if (typeConstraintsByName.ContainsKey(type.Name))
+            {
+                throw new ArgumentException($"The type constraint '{type.Name}' is already registered.", nameof(dialect));
+            }
+        }
+
+        foreach (var typeConstraint in dialect.TypeConstraints)
+        {
+            var constraintName = typeConstraint.Name;
+            if (constraintName != null && typeConstraintsByName.ContainsKey(constraintName))
+            {
+                throw new ArgumentException($"The type constraint '{constraintName}' is already registered.", nameof(dialect));
+            }
+
+            if (constraintName != null && typesByName.ContainsKey(constraintName))
+            {
+                throw new ArgumentException($"The type '{constraintName}' is already registered.", nameof(dialect));
+            }
         }
 
         dialectsByName.Add(dialect.Name, dialect);
@@ -120,6 +140,16 @@ public sealed class DialectRegistry
         foreach (var type in dialect.Types)
         {
             typesByName.Add(type.Name, type);
+            typeConstraintsByName.Add(type.Name, type);
+        }
+
+        foreach (var typeConstraint in dialect.TypeConstraints)
+        {
+            var constraintName = typeConstraint.Name;
+            if (constraintName != null)
+            {
+                typeConstraintsByName.Add(constraintName, typeConstraint);
+            }
         }
     }
 
@@ -200,5 +230,13 @@ public sealed class DialectRegistry
     public bool TryGetType(string name, out TypeDefinition type)
     {
         return typesByName.TryGetValue(name, out type!);
+    }
+
+    /// <summary>
+    /// Tries to resolve a type constraint definition by name.
+    /// </summary>
+    public bool TryResolveTypeConstraint(string name, out TypeConstraintDefinition typeConstraint)
+    {
+        return typeConstraintsByName.TryGetValue(name, out typeConstraint!);
     }
 }

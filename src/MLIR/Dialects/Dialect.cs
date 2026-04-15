@@ -15,13 +15,15 @@ using System.Collections.Generic;
 /// <param name="types">The type definitions exported by the dialect.</param>
 /// <param name="attributeConstraints">The context-directed attribute constraint definitions exported by the dialect.</param>
 /// <param name="dependencies">Dialect registrations that must be registered before this one.</param>
+/// <param name="typeConstraints">The context-directed type constraint definitions exported by the dialect.</param>
 public sealed class Dialect(
     string name,
     IReadOnlyList<OperationDefinition> operations,
     IReadOnlyList<AttributeDefinition>? attributes = null,
     IReadOnlyList<TypeDefinition>? types = null,
     IReadOnlyList<AttributeConstraintDefinition>? attributeConstraints = null,
-    IReadOnlyList<Func<Dialect>>? dependencies = null)
+    IReadOnlyList<Func<Dialect>>? dependencies = null,
+    IReadOnlyList<TypeConstraintDefinition>? typeConstraints = null)
 {
     /// <summary>
     /// Creates a dialect from a fluent builder callback.
@@ -63,6 +65,11 @@ public sealed class Dialect(
     public IReadOnlyList<TypeDefinition> Types { get; } = types ?? EmptyTypes;
 
     /// <summary>
+    /// Gets the context-directed type constraint definitions exported by the dialect.
+    /// </summary>
+    public IReadOnlyList<TypeConstraintDefinition> TypeConstraints { get; } = typeConstraints ?? EmptyTypeConstraints;
+
+    /// <summary>
     /// Gets the dialect registrations that must be registered before this dialect.
     /// </summary>
     public IReadOnlyList<Func<Dialect>> Dependencies { get; } = dependencies ?? EmptyDependencies;
@@ -70,5 +77,6 @@ public sealed class Dialect(
     private static readonly IReadOnlyList<AttributeDefinition> EmptyAttributes = new AttributeDefinition[0];
     private static readonly IReadOnlyList<AttributeConstraintDefinition> EmptyAttributeConstraints = new AttributeConstraintDefinition[0];
     private static readonly IReadOnlyList<TypeDefinition> EmptyTypes = new TypeDefinition[0];
+    private static readonly IReadOnlyList<TypeConstraintDefinition> EmptyTypeConstraints = new TypeConstraintDefinition[0];
     private static readonly IReadOnlyList<Func<Dialect>> EmptyDependencies = new Func<Dialect>[0];
 }

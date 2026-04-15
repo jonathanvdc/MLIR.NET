@@ -31,4 +31,25 @@ public sealed partial class SemanticTests
         Assert.Contains("already registered", attributeException.Message);
         Assert.Contains("already registered", typeException.Message);
     }
+
+    [Fact]
+    public void RegistryResolvesStandaloneAndConcreteTypeConstraints()
+    {
+        var registry = new DialectRegistry();
+        var standaloneConstraint = new TypeConstraintDefinition("AnyType");
+        var concreteType = new TypeDefinition("i32");
+        registry.RegisterDialect(new Dialect("builtin", [], [], [concreteType], [], [], [standaloneConstraint]));
+
+        Assert.True(registry.TryResolveTypeConstraint("AnyType", out var resolvedStandaloneConstraint));
+        Assert.Same(standaloneConstraint, resolvedStandaloneConstraint);
+
+        Assert.True(registry.TryResolveTypeConstraint("i32", out var resolvedConcreteConstraint));
+        Assert.Same(concreteType, resolvedConcreteConstraint);
+        Assert.IsType<TypeDefinition>(resolvedConcreteConstraint);
+
+        Assert.True(registry.TryGetType("i32", out var resolvedConcreteType));
+        Assert.Same(concreteType, resolvedConcreteType);
+
+        Assert.False(registry.TryGetType("AnyType", out _));
+    }
 }
