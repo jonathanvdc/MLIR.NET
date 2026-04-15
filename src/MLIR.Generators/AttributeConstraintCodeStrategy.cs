@@ -5,7 +5,6 @@ using MLIR.ODS.Model;
 internal enum AttributeConstraintEmissionKind
 {
     StaticDefinition,
-    EnumWrapper,
 }
 
 /// <summary>
@@ -63,7 +62,8 @@ internal abstract class AttributeConstraintCodeStrategy
 
     /// <summary>
     /// Gets a value indicating whether this constraint is an enum attribute.
-    /// Enum attributes require a dedicated enum-wrapper setter path in generated code.
+    /// Enum attributes use generated enum property types while storing semantic payloads
+    /// in <c>IntegerAttr</c>.
     /// </summary>
     public virtual bool IsEnum => false;
 
@@ -409,10 +409,10 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
 
     public override bool IsPrimitive => true;
     public override bool IsEnum => true;
-    public override bool UsesTypedArrayElementPayload => true;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.EnumWrapper;
-    public override string GetTypedArrayElementPayloadPropertyName() => "TypedValue";
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
     public override string GetPrimitiveValueAccess(string typeName) => ".TypedValue";
+    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) =>
+        "new " + global::MLIR.Generators.Emitters.EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(constraintRecordName) + "()";
 
     /// <summary>
     /// Returns the fully-qualified generated enum type name for this constraint, looked
@@ -421,7 +421,7 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) =>
         resolver.TryResolveEnumTypeName(constraintRecordName);
 
-    // Emission is handled by AttributeConstraintEmitter.EmitEnumConstraint.
+    // Emission is handled through static constraint-definition generation.
 }
 
 /// <summary>
