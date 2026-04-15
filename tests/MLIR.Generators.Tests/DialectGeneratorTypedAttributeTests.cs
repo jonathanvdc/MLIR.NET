@@ -249,6 +249,102 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Fact]
+    public void PureEnumConstraintsUsedByOperationDoNotGenerateEnumAttrWrapperClass()
+    {
+        var registrationSource = GenerateRegistrationSource(
+            "myarith.td",
+            "MyarithDialectRegistration.g.cs",
+            ComposeSource(
+                [
+                    "include \"mlir/IR/EnumAttr.td\"",
+                    string.Empty,
+                    "class MyArith_Op<string mnemonic, list<Trait> traits = []> : Op<MyArith_Dialect, mnemonic, traits>;",
+                    "def MyArith_Dialect : Dialect {",
+                    "  let name = \"myarith\";",
+                    "  let cppNamespace = \"::mlir::myarith\";",
+                    "};",
+                    "def MYARITH_PRED_EQ : I32EnumAttrCase<\"eq\", 0>;",
+                    "def MYARITH_PRED_NE : I32EnumAttrCase<\"ne\", 1>;",
+                    "def MyArith_CmpPredicate : I32EnumAttr<\"CmpPredicate\", \"cmp predicate\", [MYARITH_PRED_EQ, MYARITH_PRED_NE]> {",
+                    "  let cppNamespace = \"::mlir::myarith\";",
+                    "};",
+                    "def MYARITH_FLAG_NONE : I32BitEnumAttrCaseNone<\"none\">;",
+                    "def MYARITH_FLAG_X : I32BitEnumAttrCaseBit<\"x\", 0>;",
+                    "def MYARITH_FLAG_Y : I32BitEnumAttrCaseBit<\"y\", 1>;",
+                    "def MyArith_CmpMask : I32BitEnumAttr<\"CmpMask\", \"cmp mask\", [MYARITH_FLAG_NONE, MYARITH_FLAG_X, MYARITH_FLAG_Y]> {",
+                    "  let cppNamespace = \"::mlir::myarith\";",
+                    "};",
+                    "def MyArith_CmpOp : MyArith_Op<\"cmp\", []> {",
+                    "  let arguments = (ins MyArith_CmpPredicate:$predicate, MyArith_CmpMask:$mask, I32:$lhs, I32:$rhs);",
+                    "  let results = (outs I1:$result);",
+                    "  let assemblyFormat = \"$predicate `,` $mask `,` $lhs `,` $rhs attr-dict `:` type($result)\";",
+                    "};",
+                ]));
+
+        AssertContainsAll(
+            registrationSource,
+            "public enum CmpPredicate : uint",
+            "public enum CmpMask : uint",
+            "public MLIR.Myarith.CmpPredicate Predicate",
+            "public MLIR.Myarith.CmpMask Mask",
+            "MyArithCmpPredicateConstraintAttributeValue",
+            "MyArithCmpMaskConstraintAttributeValue",
+            "get => ((MLIR.Myarith.MyArithCmpPredicateConstraintAttributeValue)Attributes[\"predicate\"].Value).TypedValue;",
+            "get => ((MLIR.Myarith.MyArithCmpMaskConstraintAttributeValue)Attributes[\"mask\"].Value).TypedValue;");
+
+        AssertDoesNotContainAny(
+            registrationSource,
+            "public sealed class CmpPredicateAttr : AttributeValue",
+            "public sealed class CmpMaskAttr : AttributeValue",
+            "new MLIR.Myarith.CmpPredicateAttr(value)",
+            "new MLIR.Myarith.CmpMaskAttr(value)",
+            "((MLIR.Myarith.CmpPredicateAttr)Attributes[\"predicate\"].Value).",
+            "((MLIR.Myarith.CmpMaskAttr)Attributes[\"mask\"].Value).");
+    }
+
+    [Fact]
+    public void EnumAttrDefinitionsStillGenerateDedicatedSemanticAttributeClass()
+    {
+        var registrationSource = GenerateRegistrationSource(
+            "myarith.td",
+            "MyarithDialectRegistration.g.cs",
+            ComposeSource(
+                [
+                    "include \"mlir/IR/EnumAttr.td\"",
+                    string.Empty,
+                    "class MyArith_Op<string mnemonic, list<Trait> traits = []> : Op<MyArith_Dialect, mnemonic, traits>;",
+                    "def MyArith_Dialect : Dialect {",
+                    "  let name = \"myarith\";",
+                    "  let cppNamespace = \"::mlir::myarith\";",
+                    "};",
+                    "def MYARITH_PRED_EQ : I64EnumAttrCase<\"eq\", 0>;",
+                    "def MYARITH_PRED_NE : I64EnumAttrCase<\"ne\", 1>;",
+                    "def MyArith_CmpPredicate : I64EnumAttr<\"CmpPredicate\", \"cmp predicate\", [MYARITH_PRED_EQ, MYARITH_PRED_NE]> {",
+                    "  let cppNamespace = \"::mlir::myarith\";",
+                    "};",
+                    "def MyArith_CmpPredicateAttr : EnumAttr<MyArith_Dialect, MyArith_CmpPredicate, \"cmp_predicate\"> {",
+                    "  let assemblyFormat = \"`<` $value `>`\";",
+                    "};",
+                    "def MyArith_CmpOp : MyArith_Op<\"cmp\", []> {",
+                    "  let arguments = (ins MyArith_CmpPredicateAttr:$predicate, I32:$lhs, I32:$rhs);",
+                    "  let results = (outs I1:$result);",
+                    "  let assemblyFormat = \"$predicate `,` $lhs `,` $rhs attr-dict `:` type($result)\";",
+                    "};",
+                ]));
+
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class CmpPredicateAttr : AttributeValue",
+            "public MLIR.Myarith.CmpPredicate Predicate",
+            "get => ((MLIR.Myarith.CmpPredicateAttr)Attributes[\"predicate\"].Value).TypedValue;",
+            "new MLIR.Myarith.CmpPredicateAttr(value)");
+
+        AssertDoesNotContainAny(
+            registrationSource,
+            "((global::MLIR.IntegerAttr)Attributes[\"predicate\"].Value).Value.ToUInt64()");
+    }
+
+    [Fact]
     public void EnumConstraintWithCppNamespaceIsPlacedInMatchingDialectNamespace()
     {
         // This covers the case from the issue: an I64EnumAttr (attribute constraint, not an
