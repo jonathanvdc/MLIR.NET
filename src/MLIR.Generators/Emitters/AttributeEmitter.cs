@@ -198,10 +198,22 @@ internal static class AttributeEmitter
         builder.AppendLine();
 
         // ParseEnumValue helper
-        EmitEnumParseHelper(builder, enumModel, enumTypeName, isBitEnum: enumModel.IsBitEnum, indent: "    ");
+        EnumEmitter.EmitParseEnumValueHelperMethod(
+            builder,
+            enumModel,
+            enumTypeName,
+            "    ",
+            "public static",
+            includeIntegerLiteralSyntaxFallback: false,
+            allowBitEnumAngleBrackets: enumModel.IsBitEnum);
 
         // PrintEnumValue helper
-        EmitEnumPrintHelper(builder, enumModel, enumTypeName, isBitEnum: enumModel.IsBitEnum, indent: "    ");
+        EnumEmitter.EmitPrintEnumValueHelperMethod(
+            builder,
+            enumModel,
+            enumTypeName,
+            "    ",
+            "internal");
 
         builder.AppendLine("}");
         builder.AppendLine();
@@ -210,106 +222,16 @@ internal static class AttributeEmitter
         EmitEnumAssemblyFormatClass(builder, className, enumTypeName, enumModel);
     }
 
-    private static void EmitEnumParseHelper(StringBuilder builder, EnumModel enumModel, string enumTypeName, bool isBitEnum, string indent)
-    {
-        builder.AppendLine(indent + "public static " + enumTypeName + " ParseEnumValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
-        builder.AppendLine(indent + "{");
-        builder.AppendLine(indent + "    if (syntax == null) return default;");
-        builder.AppendLine(indent + "    var raw = syntax.ToString();");
-        if (isBitEnum)
-        {
-            builder.AppendLine(indent + "    if (raw.Length >= 2 && raw[0] == '<' && raw[raw.Length - 1] == '>')");
-            builder.AppendLine(indent + "    {");
-            builder.AppendLine(indent + "        raw = raw.Substring(1, raw.Length - 2).Trim();");
-            builder.AppendLine(indent + "    }");
-        }
-
-        EnumEmitter.EmitParseExpression(builder, enumModel, enumTypeName, "raw", indent + "    ");
-        builder.AppendLine(indent + "}");
-        builder.AppendLine();
-    }
-
-    private static void EmitEnumPrintHelper(StringBuilder builder, EnumModel enumModel, string enumTypeName, bool isBitEnum, string indent)
-    {
-        builder.AppendLine(indent + "internal string PrintEnumValue(" + enumTypeName + " value)");
-        builder.AppendLine(indent + "{");
-        EnumEmitter.EmitFormatExpression(builder, enumModel, "value", indent + "    ");
-        builder.AppendLine(indent + "}");
-        builder.AppendLine();
-    }
-
     private static void EmitEnumAssemblyFormatClass(StringBuilder builder, string attributeClassName, string enumTypeName, EnumModel enumModel)
     {
         var formatClassName = attributeClassName + "AssemblyFormat";
         builder.AppendLine("internal sealed class " + formatClassName + " : IAttributeAssemblyFormat");
         builder.AppendLine("{");
-        builder.AppendLine("    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var firstToken)");
-        builder.AppendLine("            && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out firstToken)");
-        if (enumModel.IsBitEnum)
-        {
-            builder.AppendLine("            && !context.TryMatch(MLIR.Text.TokenKind.LessThan, out firstToken))");
-        }
-        else
-        {
-            builder.AppendLine(")");
-        }
-        builder.AppendLine("        {");
-        builder.AppendLine("            return ParseResult<AttributeValueSyntax>.NoMatch();");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        var rawText = firstToken.Text;");
-        if (enumModel.IsBitEnum)
-        {
-            var sepKind = EnumEmitter.GetSeparatorTokenKind(enumModel);
-            builder.AppendLine("        if (firstToken.Text == \"<\")");
-            builder.AppendLine("        {");
-            builder.AppendLine("            if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
-            builder.AppendLine("                && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
-            builder.AppendLine("            {");
-            builder.AppendLine("                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location.Line, firstToken.Location.Column));");
-            builder.AppendLine("            }");
-            builder.AppendLine();
-            builder.AppendLine("            rawText += nextToken.Text;");
-            builder.AppendLine("            while (context.TryMatch(MLIR.Text." + sepKind + ", out _))");
-            builder.AppendLine("            {");
-            builder.AppendLine("                rawText += " + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator) + ";");
-                builder.AppendLine("                if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out nextToken)");
-                builder.AppendLine("                    && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
-                builder.AppendLine("                {");
-                builder.AppendLine("                    return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location.Line, firstToken.Location.Column));");
-                builder.AppendLine("                }");
-            builder.AppendLine();
-            builder.AppendLine("                rawText += nextToken.Text;");
-            builder.AppendLine("            }");
-            builder.AppendLine();
-            builder.AppendLine("            var greaterThanResult = context.Expect(MLIR.Text.TokenKind.GreaterThan, \"Expected '>' to close the enum attribute.\");");
-            builder.AppendLine("            if (!greaterThanResult.IsSuccess)");
-            builder.AppendLine("            {");
-            builder.AppendLine("                return ParseResult<AttributeValueSyntax>.Failure(greaterThanResult.Diagnostic!);");
-            builder.AppendLine("            }");
-            builder.AppendLine("            rawText += greaterThanResult.Value.Text;");
-            builder.AppendLine("        }");
-            builder.AppendLine("        else");
-            builder.AppendLine("        {");
-            builder.AppendLine("            while (context.TryMatch(MLIR.Text." + sepKind + ", out _))");
-            builder.AppendLine("            {");
-            builder.AppendLine("                if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
-            builder.AppendLine("                    && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
-            builder.AppendLine("                {");
-            builder.AppendLine("                    break;");
-            builder.AppendLine("                }");
-            builder.AppendLine();
-            builder.AppendLine("                rawText += " + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator) + " + nextToken.Text;");
-            builder.AppendLine("            }");
-            builder.AppendLine("        }");
-        }
-
-        builder.AppendLine();
-        builder.AppendLine("        return ParseResult<AttributeValueSyntax>.Success(new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(rawText)));");
-        builder.AppendLine("    }");
-        builder.AppendLine();
+        EnumEmitter.EmitAssemblyFormatTryParseMethod(
+            builder,
+            enumModel,
+            "    ",
+            allowBitEnumAngleBrackets: enumModel.IsBitEnum);
         builder.AppendLine("    public static AttributeValue BindValue(AttributeValueSyntax syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("        return new " + attributeClassName + "(" + attributeClassName + ".ParseEnumValue(syntax));");

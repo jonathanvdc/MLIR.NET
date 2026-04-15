@@ -88,6 +88,147 @@ internal static class EnumEmitter
         builder.AppendLine(indent + "return " + infoClassName + ".Format(" + valueExpression + ");");
     }
 
+    public static void EmitParseEnumValueHelperMethod(
+        StringBuilder builder,
+        EnumModel enumModel,
+        string enumTypeName,
+        string indent,
+        string accessibility,
+        bool includeIntegerLiteralSyntaxFallback,
+        bool allowBitEnumAngleBrackets)
+    {
+        builder.AppendLine(indent + accessibility + " " + enumTypeName + " ParseEnumValue(MLIR.Syntax.AttributeValueSyntax? syntax)");
+        builder.AppendLine(indent + "{");
+        builder.AppendLine(indent + "    if (syntax == null) return default;");
+        if (includeIntegerLiteralSyntaxFallback)
+        {
+            builder.AppendLine(indent + "    if (syntax is MLIR.Syntax.Attributes.Primitives.IntegerAttributeValueSyntax integerSyntax)");
+            builder.AppendLine(indent + "    {");
+            builder.AppendLine(indent + "        return " + GetIntegerToEnumExpression(enumModel, "integerSyntax.Value", "default") + ";");
+            builder.AppendLine(indent + "    }");
+        }
+
+        builder.AppendLine(indent + "    var raw = syntax.ToString();");
+        if (allowBitEnumAngleBrackets && enumModel.IsBitEnum)
+        {
+            builder.AppendLine(indent + "    if (raw.Length >= 2 && raw[0] == '<' && raw[raw.Length - 1] == '>')");
+            builder.AppendLine(indent + "    {");
+            builder.AppendLine(indent + "        raw = raw.Substring(1, raw.Length - 2).Trim();");
+            builder.AppendLine(indent + "    }");
+        }
+
+        EmitParseExpression(builder, enumModel, enumTypeName, "raw", indent + "    ");
+        builder.AppendLine(indent + "}");
+        builder.AppendLine();
+    }
+
+    public static void EmitPrintEnumValueHelperMethod(
+        StringBuilder builder,
+        EnumModel enumModel,
+        string enumTypeName,
+        string indent,
+        string accessibility)
+    {
+        builder.AppendLine(indent + accessibility + " string PrintEnumValue(" + enumTypeName + " value)");
+        builder.AppendLine(indent + "{");
+        EmitFormatExpression(builder, enumModel, "value", indent + "    ");
+        builder.AppendLine(indent + "}");
+        builder.AppendLine();
+    }
+
+    public static void EmitAssemblyFormatTryParseMethod(
+        StringBuilder builder,
+        EnumModel enumModel,
+        string indent,
+        bool allowBitEnumAngleBrackets)
+    {
+        builder.AppendLine(indent + "public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)");
+        builder.AppendLine(indent + "{");
+        builder.AppendLine(indent + "    if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var firstToken)");
+        builder.AppendLine(indent + "        && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out firstToken)");
+        if (allowBitEnumAngleBrackets && enumModel.IsBitEnum)
+        {
+            builder.AppendLine(indent + "        && !context.TryMatch(MLIR.Text.TokenKind.LessThan, out firstToken))");
+        }
+        else
+        {
+            builder.AppendLine(indent + "        )");
+        }
+
+        builder.AppendLine(indent + "    {");
+        builder.AppendLine(indent + "        return ParseResult<AttributeValueSyntax>.NoMatch();");
+        builder.AppendLine(indent + "    }");
+        builder.AppendLine();
+        builder.AppendLine(indent + "    var rawText = firstToken.Text;");
+
+        if (enumModel.IsBitEnum)
+        {
+            var sepKind = GetSeparatorTokenKind(enumModel);
+            if (allowBitEnumAngleBrackets)
+            {
+                builder.AppendLine(indent + "    if (firstToken.Text == \"<\")");
+                builder.AppendLine(indent + "    {");
+                builder.AppendLine(indent + "        if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
+                builder.AppendLine(indent + "            && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
+                builder.AppendLine(indent + "        {");
+                builder.AppendLine(indent + "            return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location.Line, firstToken.Location.Column));");
+                builder.AppendLine(indent + "        }");
+                builder.AppendLine();
+                builder.AppendLine(indent + "        rawText += nextToken.Text;");
+                builder.AppendLine(indent + "        while (context.TryMatch(MLIR.Text." + sepKind + ", out _))");
+                builder.AppendLine(indent + "        {");
+                builder.AppendLine(indent + "            rawText += " + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator) + ";");
+                builder.AppendLine(indent + "            if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out nextToken)");
+                builder.AppendLine(indent + "                && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
+                builder.AppendLine(indent + "            {");
+                builder.AppendLine(indent + "                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location.Line, firstToken.Location.Column));");
+                builder.AppendLine(indent + "            }");
+                builder.AppendLine();
+                builder.AppendLine(indent + "            rawText += nextToken.Text;");
+                builder.AppendLine(indent + "        }");
+                builder.AppendLine();
+                builder.AppendLine(indent + "        var greaterThanResult = context.Expect(MLIR.Text.TokenKind.GreaterThan, \"Expected '>' to close the enum attribute.\");");
+                builder.AppendLine(indent + "        if (!greaterThanResult.IsSuccess)");
+                builder.AppendLine(indent + "        {");
+                builder.AppendLine(indent + "            return ParseResult<AttributeValueSyntax>.Failure(greaterThanResult.Diagnostic!);");
+                builder.AppendLine(indent + "        }");
+                builder.AppendLine(indent + "        rawText += greaterThanResult.Value.Text;");
+                builder.AppendLine(indent + "    }");
+                builder.AppendLine(indent + "    else");
+                builder.AppendLine(indent + "    {");
+                builder.AppendLine(indent + "        while (context.TryMatch(MLIR.Text." + sepKind + ", out _))");
+                builder.AppendLine(indent + "        {");
+                builder.AppendLine(indent + "            if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
+                builder.AppendLine(indent + "                && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
+                builder.AppendLine(indent + "            {");
+                builder.AppendLine(indent + "                break;");
+                builder.AppendLine(indent + "            }");
+                builder.AppendLine();
+                builder.AppendLine(indent + "            rawText += " + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator) + " + nextToken.Text;");
+                builder.AppendLine(indent + "        }");
+                builder.AppendLine(indent + "    }");
+            }
+            else
+            {
+                builder.AppendLine(indent + "    while (context.TryMatch(MLIR.Text." + sepKind + ", out _))");
+                builder.AppendLine(indent + "    {");
+                builder.AppendLine(indent + "        if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
+                builder.AppendLine(indent + "            && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
+                builder.AppendLine(indent + "        {");
+                builder.AppendLine(indent + "            break;");
+                builder.AppendLine(indent + "        }");
+                builder.AppendLine();
+                builder.AppendLine(indent + "        rawText += " + EmitterHelpers.ToCSharpStringLiteral(enumModel.Separator) + " + nextToken.Text;");
+                builder.AppendLine(indent + "    }");
+            }
+        }
+
+        builder.AppendLine();
+        builder.AppendLine(indent + "    return ParseResult<AttributeValueSyntax>.Success(new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(rawText)));");
+        builder.AppendLine(indent + "}");
+        builder.AppendLine();
+    }
+
     private static void EmitEnumType(StringBuilder builder, EnumModel enumModel)
     {
         var enumTypeName = EnumHelpers.GetCSharpEnumTypeName(enumModel);
