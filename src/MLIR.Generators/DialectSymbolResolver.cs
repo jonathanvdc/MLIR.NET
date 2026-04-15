@@ -11,6 +11,7 @@ internal sealed class DialectSymbolResolver
     private readonly Dictionary<string, string> attributeConstraintTypesByRecordName;
     private readonly Dictionary<string, AttributeConstraintCodeStrategy> attributeConstraintStrategiesByRecordName;
     private readonly Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName;
+    private readonly Dictionary<string, EnumModel> enumModelsByRecordName;
     private readonly Dictionary<string, string> enumTypesByRecordName;
     private readonly Dictionary<string, string> typeConstraintTypesByRecordName;
     private readonly Dictionary<string, string> typeTypesByRecordName;
@@ -21,6 +22,7 @@ internal sealed class DialectSymbolResolver
         Dictionary<string, string> attributeConstraintTypesByRecordName,
         Dictionary<string, AttributeConstraintCodeStrategy> attributeConstraintStrategiesByRecordName,
         Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName,
+        Dictionary<string, EnumModel> enumModelsByRecordName,
         Dictionary<string, string> enumTypesByRecordName,
         Dictionary<string, string> typeConstraintTypesByRecordName,
         Dictionary<string, string> typeTypesByRecordName)
@@ -30,6 +32,7 @@ internal sealed class DialectSymbolResolver
         this.attributeConstraintTypesByRecordName = attributeConstraintTypesByRecordName;
         this.attributeConstraintStrategiesByRecordName = attributeConstraintStrategiesByRecordName;
         this.attributeConstraintElementRecordNamesByRecordName = attributeConstraintElementRecordNamesByRecordName;
+        this.enumModelsByRecordName = enumModelsByRecordName;
         this.enumTypesByRecordName = enumTypesByRecordName;
         this.typeConstraintTypesByRecordName = typeConstraintTypesByRecordName;
         this.typeTypesByRecordName = typeTypesByRecordName;
@@ -42,6 +45,7 @@ internal sealed class DialectSymbolResolver
         var attributeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var attributeConstraintStrategiesByRecordName = new Dictionary<string, AttributeConstraintCodeStrategy>(StringComparer.Ordinal);
         var attributeConstraintElementRecordNamesByRecordName = new Dictionary<string, string?>(StringComparer.Ordinal);
+        var enumModelsByRecordName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
         var enumTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -71,6 +75,7 @@ internal sealed class DialectSymbolResolver
                 attributeConstraintElementRecordNamesByRecordName[attributeConstraint.RecordName] = attributeConstraint.ElementConstraintRecordName;
                 if (attributeConstraint.EnumModel != null)
                 {
+                    enumModelsByRecordName[attributeConstraint.RecordName] = attributeConstraint.EnumModel;
                     enumTypesByRecordName[attributeConstraint.RecordName] = generatedNamespace + "." + EnumHelpers.GetCSharpEnumTypeName(attributeConstraint.EnumModel);
                 }
 
@@ -95,6 +100,7 @@ internal sealed class DialectSymbolResolver
             attributeConstraintTypesByRecordName,
             attributeConstraintStrategiesByRecordName,
             attributeConstraintElementRecordNamesByRecordName,
+            enumModelsByRecordName,
             enumTypesByRecordName,
             typeConstraintTypesByRecordName,
             typeTypesByRecordName);
@@ -157,6 +163,11 @@ internal sealed class DialectSymbolResolver
     public string? TryResolveEnumTypeName(string recordName)
     {
         return enumTypesByRecordName.TryGetValue(recordName, out var enumTypeName) ? enumTypeName : null;
+    }
+
+    public EnumModel? TryResolveEnumModel(string recordName)
+    {
+        return enumModelsByRecordName.TryGetValue(recordName, out var enumModel) ? enumModel : null;
     }
 
     public string? TryResolveTypeDefinitionExpression(string recordName)

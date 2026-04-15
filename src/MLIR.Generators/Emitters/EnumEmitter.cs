@@ -8,6 +8,46 @@ using MLIR.ODS.Model;
 
 internal static class EnumEmitter
 {
+    public static string GetEnumConstraintAssemblyFormatTypeName(string constraintRecordName)
+    {
+        return DialectGeneratorNaming.ToPascalCase(constraintRecordName.Replace('.', '_')) + "ConstraintAttributeValueAssemblyFormat";
+    }
+
+    public static string GetIntegerTypeFactoryExpression(int bitwidth) => bitwidth switch
+    {
+        1 => "global::MLIR.Semantics.TypeFactory.I1",
+        8 => "global::MLIR.Semantics.TypeFactory.I8",
+        16 => "global::MLIR.Semantics.TypeFactory.I16",
+        32 => "global::MLIR.Semantics.TypeFactory.I32",
+        64 => "global::MLIR.Semantics.TypeFactory.I64",
+        _ => $"global::MLIR.Semantics.TypeFactory.I({bitwidth})",
+    };
+
+    public static string GetEnumToIntegerAttrExpression(EnumModel enumModel, string enumValueExpression, string syntaxExpression)
+    {
+        return "new global::MLIR.IntegerAttr("
+            + GetIntegerTypeFactoryExpression(enumModel.Bitwidth)
+            + ", global::MLIR.Numerics.ApInt.FromUInt64("
+            + enumModel.Bitwidth
+            + ", (ulong)"
+            + enumValueExpression
+            + "), "
+            + syntaxExpression
+            + ")";
+    }
+
+    public static string GetIntegerToEnumExpression(EnumModel enumModel, string apIntExpression, string fallbackExpression)
+    {
+        var enumTypeName = EnumHelpers.GetCSharpEnumTypeName(enumModel);
+        return GetEnumInfoClassName(enumModel)
+            + ".TryFromInteger("
+            + apIntExpression
+            + ", out "
+            + enumTypeName
+            + " enumValue) ? enumValue : "
+            + fallbackExpression;
+    }
+
     public static void EmitSharedDefinitions(StringBuilder builder, EnumModel enumModel)
     {
         EmitEnumType(builder, enumModel);

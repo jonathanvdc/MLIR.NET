@@ -307,6 +307,9 @@ internal static class OperationMemberPlanner
             }
 
             var useAttrModelTyping = ShouldUseAttrModelTyping(attrModel, constraintStrategy);
+            var enumModel = constraintStrategy.IsEnum && constraintRecordName is string enumConstraintRecordName
+                ? resolver.TryResolveEnumModel(enumConstraintRecordName)
+                : null;
             var typeName = GetAttributeTypeName(constraintRecordName, useAttrModelTyping ? attrModel : null, constraintStrategy, isRequired, resolver);
             members.Add(new GeneratedMember(
                 propertyName,
@@ -316,9 +319,9 @@ internal static class OperationMemberPlanner
                 constraintRecordName,
                 constraintStrategy,
                 constraintClassName,
-                attrStorageTypeName: useAttrModelTyping ? attrModel?.CsharpStorageType : null,
-                attrConvertFromStorageExpression: useAttrModelTyping ? attrModel?.CsharpConvertFromStorage : null,
-                attrConstBuilderCallExpression: useAttrModelTyping ? attrModel?.CsharpConstBuilderCall : null,
+                attrStorageTypeName: GetAttrStorageTypeName(useAttrModelTyping ? attrModel : null, enumModel),
+                attrConvertFromStorageExpression: GetAttrConvertFromStorageExpression(useAttrModelTyping ? attrModel : null, enumModel),
+                attrConstBuilderCallExpression: GetAttrConstBuilderCallExpression(useAttrModelTyping ? attrModel : null, enumModel),
                 attrDefaultValueExpression: useAttrModelTyping ? attrModel?.CsharpDefaultValue : null));
         }
 
@@ -388,6 +391,46 @@ internal static class OperationMemberPlanner
         }
 
         return true;
+    }
+
+    private static string? GetAttrStorageTypeName(AttrModel? attrModel, EnumModel? enumModel)
+    {
+        if (attrModel?.CsharpStorageType is string storageType)
+        {
+            return storageType;
+        }
+
+        return enumModel != null ? "global::MLIR.IntegerAttr" : null;
+    }
+
+    private static string? GetAttrConvertFromStorageExpression(AttrModel? attrModel, EnumModel? enumModel)
+    {
+        if (attrModel?.CsharpConvertFromStorage is string convertExpression)
+        {
+            return convertExpression;
+        }
+
+        if (enumModel == null)
+        {
+            return null;
+        }
+
+        return EnumEmitter.GetIntegerToEnumExpression(enumModel, "$_self.Value", "default");
+    }
+
+    private static string? GetAttrConstBuilderCallExpression(AttrModel? attrModel, EnumModel? enumModel)
+    {
+        if (attrModel?.CsharpConstBuilderCall is string constBuilderCall)
+        {
+            return constBuilderCall;
+        }
+
+        if (enumModel == null)
+        {
+            return null;
+        }
+
+        return EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "$0", "null");
     }
 
     private static IReadOnlyList<GeneratedMember> GetRegionMembers(OperationModel operation, HashSet<string> requiredVariables)
