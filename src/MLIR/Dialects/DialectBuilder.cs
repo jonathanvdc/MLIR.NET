@@ -13,6 +13,7 @@ public sealed class DialectBuilder
     private readonly List<AttributeDefinition> attributes = new List<AttributeDefinition>();
     private readonly List<AttributeConstraintDefinition> attributeConstraints = new List<AttributeConstraintDefinition>();
     private readonly List<TypeDefinition> types = new List<TypeDefinition>();
+    private readonly List<TypeConstraintDefinition> typeConstraints = new List<TypeConstraintDefinition>();
     private readonly List<Func<Dialect>> dependencies = new List<Func<Dialect>>();
 
     /// <summary>
@@ -72,6 +73,15 @@ public sealed class DialectBuilder
     }
 
     /// <summary>
+    /// Adds a type constraint definition.
+    /// </summary>
+    public DialectBuilder AddTypeConstraint(TypeConstraintDefinition typeConstraint)
+    {
+        typeConstraints.Add(typeConstraint);
+        return this;
+    }
+
+    /// <summary>
     /// Adds a dialect registration dependency.
     /// </summary>
     public DialectBuilder AddDependency(Func<Dialect> dependency)
@@ -85,6 +95,6 @@ public sealed class DialectBuilder
     /// </summary>
     public Dialect Build(IReadOnlyList<Func<Dialect>>? dependencies = null)
     {
-        return new Dialect(name, operations, attributes, types, attributeConstraints, dependencies ?? this.dependencies);
+        return new Dialect(name, operations, attributes, types, attributeConstraints, dependencies ?? this.dependencies, typeConstraints);
     }
 }
