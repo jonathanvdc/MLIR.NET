@@ -154,25 +154,28 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             preludeSource,
             "namespace MLIR.Prelude;",
             "public static class PreludeDialectRegistration",
-            "public sealed partial class I32ConstraintTypeReference : global::MLIR.IntegerType",
-            "public sealed partial class F32ConstraintTypeReference : FloatTypeReference",
-            "public sealed partial class IndexConstraintTypeReference : global::MLIR.IndexType",
-            "public sealed partial class NoneTypeConstraintTypeReference : NoneType",
-            "public sealed partial class AnyTupleConstraintTypeReference : TupleTypeReference",
-            "public sealed partial class FunctionTypeConstraintTypeReference : FunctionTypeReference",
-            "public sealed partial class AnyTensorConstraintTypeReference : TensorTypeReference",
-            "public sealed partial class AnyVectorOfAnyRankConstraintTypeReference : VectorTypeReference",
-            "public sealed partial class AnyMemRefConstraintTypeReference : MemRefTypeReference",
-            "dialect.AddType(I32ConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(F32ConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(IndexConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(NoneTypeConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(AnyTupleConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(FunctionTypeConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(AnyTensorConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(AnyVectorOfAnyRankConstraintTypeReference.TypeDefinition);",
-            "dialect.AddType(AnyMemRefConstraintTypeReference.TypeDefinition);");
+            "public static partial class I32ConstraintTypeReference",
+            "public static partial class F32ConstraintTypeReference",
+            "public static partial class IndexConstraintTypeReference",
+            "public static partial class NoneTypeConstraintTypeReference",
+            "public static partial class AnyTupleConstraintTypeReference",
+            "public static partial class FunctionTypeConstraintTypeReference",
+            "public static partial class AnyTensorConstraintTypeReference",
+            "public static partial class AnyVectorOfAnyRankConstraintTypeReference",
+            "public static partial class AnyMemRefConstraintTypeReference",
+            "dialect.AddTypeConstraint(I32ConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(F32ConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(IndexConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(NoneTypeConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(AnyTupleConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(FunctionTypeConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(AnyTensorConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(AnyVectorOfAnyRankConstraintTypeReference.TypeConstraintDefinition);",
+            "dialect.AddTypeConstraint(AnyMemRefConstraintTypeReference.TypeConstraintDefinition);");
         Assert.DoesNotContain("global::MLIR.Prelude.PreludeDialectRegistration.Create", preludeSource);
+        // Type constraints must not expose TypeDefinition and must not register as dialect types.
+        Assert.DoesNotContain("I32ConstraintTypeReference.TypeDefinition", preludeSource);
+        Assert.DoesNotContain("dialect.AddType(I32ConstraintTypeReference", preludeSource);
 
         AssertContainsAll(
             registrationSource,
