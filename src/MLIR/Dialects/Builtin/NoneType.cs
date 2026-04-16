@@ -16,14 +16,6 @@ namespace MLIR;
 public partial class NoneType : TypeReference
 {
     /// <summary>
-    /// Initializes a new parsed builtin none type.
-    /// </summary>
-    public NoneType(BuiltinNoneTypeSyntax syntax)
-        : this(syntax, syntax.Location)
-    {
-    }
-
-    /// <summary>
     /// Initializes a new synthetic builtin none type.
     /// </summary>
     public NoneType()
