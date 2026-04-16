@@ -3,10 +3,8 @@ namespace MLIR.Transforms;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MLIR.Construction;
 using MLIR.Semantics;
 using MLIR.Syntax;
-using MLIR.Syntax.Types.Collections;
 
 /// <summary>
 /// Builds concrete syntax trees from semantic MLIR modules, synthesizing missing nodes when needed and honoring
