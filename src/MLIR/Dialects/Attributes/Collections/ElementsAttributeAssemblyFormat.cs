@@ -97,7 +97,7 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
         var payload = StructuredAttributeSemanticDecoder.DecodeValue(elementsSyntax.Payload);
         var type = context.Binder != null
             ? context.Binder.BindTypeReference(elementsSyntax.TypeSyntax)
-            : new UnknownTypeReference(elementsSyntax.TypeSyntax, null, null, elementsSyntax.TypeSyntax.Location);
+            : new UnknownTypeReference(elementsSyntax.TypeSyntax, null, null);
 
         return new DenseTypedElementsAttr(type, payload, elementsSyntax);
     }

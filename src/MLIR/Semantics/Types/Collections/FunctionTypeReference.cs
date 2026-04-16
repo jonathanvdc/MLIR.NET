@@ -18,7 +18,7 @@ public class FunctionTypeReference : TypeReference
     /// Initializes a new parsed builtin function type reference.
     /// </summary>
     public FunctionTypeReference(FunctionTypeSyntax syntax, IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results)
-        : this(inputs, results, syntax, syntax.Location)
+        : this(inputs, results, syntax)
     {
     }
 
@@ -26,7 +26,7 @@ public class FunctionTypeReference : TypeReference
     /// Initializes a new synthetic builtin function type reference.
     /// </summary>
     public FunctionTypeReference(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results)
-        : this(inputs, results, null, SourceLocation.Unknown)
+        : this(inputs, results, null)
     {
     }
 
@@ -46,8 +46,8 @@ public class FunctionTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private FunctionTypeReference(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax, location)
+    private FunctionTypeReference(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results, TypeSyntax? syntax)
+        : base(syntax)
     {
         Inputs = inputs;
         Results = results;

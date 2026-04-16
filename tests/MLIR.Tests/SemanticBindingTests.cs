@@ -183,7 +183,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void UnknownTypeReferencesDoNotCompareEqualToKnownTypesWithTheSameName()
     {
-        var unknown = new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown);
+        var unknown = new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null);
         var known = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32")).Operations[0].TypeSignatureReference!;
 
         Assert.NotEqual(unknown, known);

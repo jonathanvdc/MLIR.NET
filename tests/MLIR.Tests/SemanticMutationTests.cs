@@ -154,7 +154,7 @@ public sealed partial class SemanticTests
         var typeSyntax = new RawTypeSyntax(new RawSyntaxText("i32"));
         var argument = new BlockArgument(
             new BlockArgumentSyntax(TokenFactory.SsaName("%arg0"), TokenFactory.Colon(), typeSyntax),
-            new UnknownTypeReference(typeSyntax, "i32", null, SourceLocation.Unknown));
+            new UnknownTypeReference(typeSyntax, "i32", null));
         var operation = new GenericOperation(
             new OperationSyntax([], "\"test.op\"", [], [], [], [], null),
             "test.op",
@@ -286,8 +286,8 @@ public sealed partial class SemanticTests
     public void RenameUniquifiesConflictingNamesWithinABlock()
     {
         var block = new Block("^entry", [], []);
-        var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
-        var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+        var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null));
+        var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null));
 
         block.AddArgument(first);
         block.AddArgument(second);
@@ -303,8 +303,8 @@ public sealed partial class SemanticTests
     public void RenameCanRejectConflictingNamesWhenUniquifyIsDisabled()
     {
         var block = new Block("^entry", [], []);
-        var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
-        var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown));
+        var first = new BlockArgument(new BlockArgumentSyntax("%arg0", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null));
+        var second = new BlockArgument(new BlockArgumentSyntax("%arg1", new RawSyntaxText("i32")), new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null));
 
         block.AddArgument(first);
         block.AddArgument(second);

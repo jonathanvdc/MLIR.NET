@@ -53,7 +53,7 @@ internal static class TypeEmitter
             !string.IsNullOrEmpty(type.CsharpAssemblyFormat) ? type.CsharpAssemblyFormat : null);
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("        : base(syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -124,7 +124,7 @@ internal static class TypeEmitter
         }
 
         builder.AppendLine("TypeSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("        : base(syntax)");
         builder.AppendLine("    {");
         foreach (var param in parameters)
         {

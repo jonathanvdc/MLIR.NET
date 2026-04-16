@@ -437,7 +437,6 @@ public sealed class Binder
         }
 
         AttributeValue attribute;
-        var location = outerSyntax.Location;
         if (definition?.AssemblyFormat != null)
         {
             attribute = BindAttributeValueWithAssemblyFormat(syntaxNode, definition, selfTypeReference);
@@ -450,8 +449,7 @@ public sealed class Binder
                 attribute = new UnknownAttributeValue(
                     outerSyntax,
                     definition?.Name ?? canonicalName,
-                    definition,
-                    location);
+                    definition);
             }
         }
 
@@ -564,7 +562,7 @@ public sealed class Binder
             }
             catch (MLIR.Text.ParseException)
             {
-                return new UnknownTypeReference(rawTypeSyntax, TryGetTypeDefinitionName(rawTypeSyntax.RawText.Text), null, rawTypeSyntax.Location);
+                return new UnknownTypeReference(rawTypeSyntax, TryGetTypeDefinitionName(rawTypeSyntax.RawText.Text), null);
             }
 
             if (reparsed is not RawTypeSyntax)
@@ -594,7 +592,7 @@ public sealed class Binder
                 // Without a registered dialect, float syntax produces an UnknownTypeReference
                 // carrying the canonical name. Canonical float spellings always bind to generated
                 // classes when the builtin dialect is registered.
-                return new UnknownTypeReference(floatSyntax, "builtin." + floatSyntax.Name, null, floatSyntax.Location);
+                return new UnknownTypeReference(floatSyntax, "builtin." + floatSyntax.Name, null);
             case BuiltinIndexTypeSyntax indexSyntax:
                 return new IndexType(indexSyntax);
             case BuiltinNoneTypeSyntax noneSyntax:
@@ -625,7 +623,7 @@ public sealed class Binder
                     memRefSyntax.TrailingParameters);
             default:
                 Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported type syntax '{syntax.GetType().Name}'."));
-                return new UnknownTypeReference(syntax, null, null, syntax.Location);
+                return new UnknownTypeReference(syntax, null, null);
         }
     }
 
@@ -642,7 +640,7 @@ public sealed class Binder
         // the type family.
         return definition.AssemblyFormat != null
             ? definition.AssemblyFormat.Bind(syntax, definition, this)
-            : new UnknownTypeReference(syntax, canonicalName, definition, syntax.Location);
+            : new UnknownTypeReference(syntax, canonicalName, definition);
     }
 
     /// <summary>
@@ -682,11 +680,11 @@ public sealed class Binder
             // the type family.
             type = definition.AssemblyFormat != null
                 ? definition.AssemblyFormat.Bind(syntaxNode, definition, this)
-                : new UnknownTypeReference(syntaxNode, canonicalName, definition, syntaxNode.Location);
+                : new UnknownTypeReference(syntaxNode, canonicalName, definition);
         }
         else
         {
-            type = new UnknownTypeReference(syntaxNode, canonicalName, definition, syntaxNode.Location);
+            type = new UnknownTypeReference(syntaxNode, canonicalName, definition);
         }
 
         return type;

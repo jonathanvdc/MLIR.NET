@@ -18,7 +18,7 @@ public class VectorTypeReference : TypeReference
     /// Initializes a new parsed builtin vector type reference.
     /// </summary>
     public VectorTypeReference(VectorTypeSyntax syntax, IReadOnlyList<long?> dimensions, TypeReference elementType)
-        : this(dimensions, elementType, syntax, syntax.Location)
+        : this(dimensions, elementType, syntax)
     {
     }
 
@@ -26,7 +26,7 @@ public class VectorTypeReference : TypeReference
     /// Initializes a new synthetic builtin vector type reference.
     /// </summary>
     public VectorTypeReference(IReadOnlyList<long?> dimensions, TypeReference elementType)
-        : this(dimensions, elementType, null, SourceLocation.Unknown)
+        : this(dimensions, elementType, null)
     {
     }
 
@@ -41,8 +41,8 @@ public class VectorTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private VectorTypeReference(IReadOnlyList<long?> dimensions, TypeReference elementType, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax, location)
+    private VectorTypeReference(IReadOnlyList<long?> dimensions, TypeReference elementType, TypeSyntax? syntax)
+        : base(syntax)
     {
         Dimensions = dimensions;
         ElementType = elementType;

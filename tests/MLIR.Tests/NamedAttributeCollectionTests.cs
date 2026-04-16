@@ -412,6 +412,6 @@ public sealed class NamedAttributeCollectionTests
 
     private static NamedAttribute CreateAttribute(string name)
     {
-        return new NamedAttribute(name, new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(name)), null, null, SourceLocation.Unknown));
+        return new NamedAttribute(name, new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(name)), null, null));
     }
 }

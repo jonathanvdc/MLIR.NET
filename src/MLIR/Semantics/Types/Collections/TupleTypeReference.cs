@@ -18,7 +18,7 @@ public class TupleTypeReference : TypeReference
     /// Initializes a new parsed builtin tuple type reference.
     /// </summary>
     public TupleTypeReference(TupleTypeSyntax syntax, IReadOnlyList<TypeReference> elements)
-        : this(elements, syntax, syntax.Location)
+        : this(elements, syntax)
     {
     }
 
@@ -26,7 +26,7 @@ public class TupleTypeReference : TypeReference
     /// Initializes a new synthetic builtin tuple type reference.
     /// </summary>
     public TupleTypeReference(IReadOnlyList<TypeReference> elements)
-        : this(elements, null, SourceLocation.Unknown)
+        : this(elements, null)
     {
     }
 
@@ -41,8 +41,8 @@ public class TupleTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private TupleTypeReference(IReadOnlyList<TypeReference> elements, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax, location)
+    private TupleTypeReference(IReadOnlyList<TypeReference> elements, TypeSyntax? syntax)
+        : base(syntax)
     {
         Elements = elements;
     }

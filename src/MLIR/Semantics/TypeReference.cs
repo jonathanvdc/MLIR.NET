@@ -26,10 +26,9 @@ public abstract class TypeReference : IEquatable<TypeReference>
     /// <summary>
     /// Initializes a new instance of the <see cref="TypeReference"/> class.
     /// </summary>
-    protected TypeReference(TypeSyntax? syntax, SourceLocation location)
+    protected TypeReference(TypeSyntax? syntax)
     {
         Syntax = syntax;
-        Location = location;
     }
 
     /// <summary>
@@ -55,7 +54,7 @@ public abstract class TypeReference : IEquatable<TypeReference>
     /// <summary>
     /// Gets the source location of the type text, if known.
     /// </summary>
-    public SourceLocation Location { get; }
+    public SourceLocation Location => Syntax?.Location ?? SourceLocation.Unknown;
 
     /// <summary>
     /// Compares this type value to another one using semantic type identity.

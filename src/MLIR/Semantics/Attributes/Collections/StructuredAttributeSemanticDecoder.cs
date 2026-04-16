@@ -107,14 +107,14 @@ public static class StructuredAttributeSemanticDecoder
             StringAttributeValueSyntax stringSyntax =>
                 new StringAttr(stringSyntax.Value, TypeFactory.None, stringSyntax),
             UnitAttributeValueSyntax unitSyntax => new UnitAttr(unitSyntax),
-            TypeAttributeValueSyntax typeSyntax => new TypeAttr(new UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location), typeSyntax),
+            TypeAttributeValueSyntax typeSyntax => new TypeAttr(new UnknownTypeReference(typeSyntax.TypeSyntax, null, null), typeSyntax),
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
             ArrayAttributeValueSyntax arraySyntax => new ArrayAttr(DecodeItems(arraySyntax.Items.Items), arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),
             ElementsAttributeValueSyntax elementsSyntax => DecodeDenseTypedElementsValue(elementsSyntax),
             TypedAttributeValueSyntax typedSyntax => DecodeTypedValue(typedSyntax),
             RawAttributeValueSyntax rawSyntax => DecodeRawValue(rawSyntax),
-            _ => new UnknownAttributeValue(syntax, null, null, syntax.Location),
+            _ => new UnknownAttributeValue(syntax, null, null),
         };
     }
 
@@ -215,7 +215,7 @@ public static class StructuredAttributeSemanticDecoder
             return new FloatAttr(TypeFactory.F64, fpValue, fpSyntax);
         }
 
-        return new UnknownAttributeValue(syntax, null, null, syntax.Location);
+        return new UnknownAttributeValue(syntax, null, null);
     }
 
     private static bool LooksLikeFloatingPointLiteral(string text)
@@ -257,7 +257,7 @@ public static class StructuredAttributeSemanticDecoder
     private static AttributeValue DecodeDenseTypedElementsValue(ElementsAttributeValueSyntax syntax)
     {
         return new DenseTypedElementsAttr(
-            new UnknownTypeReference(syntax.TypeSyntax, null, null, syntax.TypeSyntax.Location),
+            new UnknownTypeReference(syntax.TypeSyntax, null, null),
             DecodeValue(syntax.Payload),
             syntax);
     }
@@ -267,7 +267,7 @@ public static class StructuredAttributeSemanticDecoder
         var payload = DecodeValue(syntax.AttributeSyntax);
         if (payload is UnknownAttributeValue)
         {
-            return new UnknownAttributeValue(syntax, null, null, syntax.Location);
+            return new UnknownAttributeValue(syntax, null, null);
         }
 
         return payload switch

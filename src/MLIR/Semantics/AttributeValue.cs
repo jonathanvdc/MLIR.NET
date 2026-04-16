@@ -11,10 +11,9 @@ public abstract class AttributeValue
     /// <summary>
     /// Initializes a new instance of the <see cref="AttributeValue"/> class.
     /// </summary>
-    protected AttributeValue(AttributeValueSyntax? syntax, SourceLocation location)
+    protected AttributeValue(AttributeValueSyntax? syntax)
     {
         Syntax = syntax;
-        Location = location;
     }
 
     /// <summary>
@@ -40,5 +39,5 @@ public abstract class AttributeValue
     /// <summary>
     /// Gets the source location of the attribute value, if known.
     /// </summary>
-    public SourceLocation Location { get; }
+    public SourceLocation Location => Syntax?.Location ?? SourceLocation.Unknown;
 }

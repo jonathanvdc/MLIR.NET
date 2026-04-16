@@ -225,7 +225,7 @@ public sealed partial class SemanticTests
     private sealed class SyntheticAttributeValue : AttributeValue
     {
         public SyntheticAttributeValue(string name)
-            : base(null, SourceLocation.Unknown)
+            : base(null)
         {
             Name = name;
         }
@@ -238,7 +238,7 @@ public sealed partial class SemanticTests
     private sealed class DenseAttributeValue : AttributeValue
     {
         public DenseAttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax, context.Location)
+            : base(context.Syntax)
         {
             Name = context.Name;
             Definition = context.Definition;
@@ -322,7 +322,7 @@ public sealed partial class SemanticTests
     private sealed class I32AttributeValue : AttributeValue
     {
         public I32AttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax, context.Location)
+            : base(context.Syntax)
         {
             Name = context.Name;
             Definition = context.Definition;
@@ -345,7 +345,7 @@ public sealed partial class SemanticTests
         private readonly MLIR.Numerics.ApFloat floatValue;
 
         public TestF32AttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax, context.Location)
+            : base(context.Syntax)
         {
             floatValue = ((FloatingPointAttributeValueSyntax)context.Syntax).Value;
             Name = context.Name;
@@ -353,7 +353,7 @@ public sealed partial class SemanticTests
         }
 
         public TestF32AttributeValue(float value)
-            : base(null, MLIR.Semantics.SourceLocation.Unknown)
+            : base(null)
         {
             floatValue = MLIR.Numerics.ApFloat.FromSingle(MLIR.Numerics.FloatSemantics.IEEESingle, value);
         }
@@ -370,7 +370,7 @@ public sealed partial class SemanticTests
         private readonly MLIR.Numerics.ApFloat floatValue;
 
         public TestF64AttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax, context.Location)
+            : base(context.Syntax)
         {
             floatValue = ((FloatingPointAttributeValueSyntax)context.Syntax).Value;
             Name = context.Name;
@@ -378,7 +378,7 @@ public sealed partial class SemanticTests
         }
 
         public TestF64AttributeValue(double value)
-            : base(null, MLIR.Semantics.SourceLocation.Unknown)
+            : base(null)
         {
             floatValue = MLIR.Numerics.ApFloat.FromDouble(MLIR.Numerics.FloatSemantics.IEEEDouble, value);
         }
@@ -555,7 +555,7 @@ public sealed partial class SemanticTests
         {
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
-            var attrSyntax = context.BuildAttributeValueSyntax(valueAttr?.Value ?? new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)), null, null, SourceLocation.Unknown));
+            var attrSyntax = context.BuildAttributeValueSyntax(valueAttr?.Value ?? new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)), null, null));
             var body = new PrefixConstantBodySyntax(
                 attrSyntax,
                 genericBody.TypeSignatureColonToken ?? TokenFactory.Colon(),
@@ -785,7 +785,7 @@ public sealed partial class SemanticTests
         {
             var constructionContext = binder.CreateAttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location);
             onContextBound(constructionContext);
-            return new UnknownAttributeValue(constructionContext.Syntax, constructionContext.Name, constructionContext.Definition, constructionContext.Location);
+            return new UnknownAttributeValue(constructionContext.Syntax, constructionContext.Name, constructionContext.Definition);
         }
 
         public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)

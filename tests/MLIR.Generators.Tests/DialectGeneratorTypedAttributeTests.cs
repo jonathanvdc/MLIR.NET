@@ -535,7 +535,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "new AttributeDefinition(\"test.label\")",
             "public string Value { get; }",
             "public LabelAttr(string value, MLIR.Syntax.AttributeValueSyntax? syntax = null)",
-            ": base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)",
+            ": base(syntax)",
             "Value = value;");
 
         AssertDoesNotContainAny(

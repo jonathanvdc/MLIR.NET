@@ -13,8 +13,8 @@ public sealed class UnknownTypeReference : TypeReference
     /// <summary>
     /// Initializes a new instance of the <see cref="UnknownTypeReference"/> class.
     /// </summary>
-    public UnknownTypeReference(TypeSyntax? syntax, string? name, TypeDefinition? definition, SourceLocation location)
-        : base(syntax, location)
+    public UnknownTypeReference(TypeSyntax? syntax, string? name, TypeDefinition? definition)
+        : base(syntax)
     {
         Name = name;
         Definition = definition;

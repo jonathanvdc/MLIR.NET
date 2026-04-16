@@ -11,8 +11,8 @@ public sealed class UnknownAttributeValue : AttributeValue
     /// <summary>
     /// Initializes a new instance of the <see cref="UnknownAttributeValue"/> class.
     /// </summary>
-    public UnknownAttributeValue(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition? definition, SourceLocation location)
-        : base(syntax, location)
+    public UnknownAttributeValue(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition? definition)
+        : base(syntax)
     {
         Name = name;
         Definition = definition;

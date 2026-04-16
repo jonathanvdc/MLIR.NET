@@ -52,7 +52,7 @@ internal static class AttributeEmitter
             attribute.Name);
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(MLIR.Syntax.AttributeValueSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("        : base(syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -141,7 +141,7 @@ internal static class AttributeEmitter
         }
 
         builder.AppendLine("MLIR.Syntax.AttributeValueSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("        : base(syntax)");
         builder.AppendLine("    {");
         foreach (var param in parameters)
         {
@@ -181,7 +181,7 @@ internal static class AttributeEmitter
 
         // Typed constructor
         builder.AppendLine("    public " + className + "(" + enumTypeName + " value)");
-        builder.AppendLine("        : base(null, MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("        : base(null)");
         builder.AppendLine("    {");
         builder.AppendLine("        Value = value;");
         builder.AppendLine("    }");

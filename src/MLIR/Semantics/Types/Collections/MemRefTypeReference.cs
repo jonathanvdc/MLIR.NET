@@ -18,7 +18,7 @@ public class MemRefTypeReference : TypeReference
     /// Initializes a new parsed builtin memref type reference.
     /// </summary>
     public MemRefTypeReference(MemRefTypeSyntax syntax, IReadOnlyList<long?> dimensions, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
-        : this(dimensions, syntax.IsUnranked, elementType, trailingParameters, syntax, syntax.Location)
+        : this(dimensions, syntax.IsUnranked, elementType, trailingParameters, syntax)
     {
     }
 
@@ -26,7 +26,7 @@ public class MemRefTypeReference : TypeReference
     /// Initializes a new synthetic builtin memref type reference.
     /// </summary>
     public MemRefTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText>? trailingParameters = null)
-        : this(dimensions, isUnranked, elementType, trailingParameters ?? [], null, SourceLocation.Unknown)
+        : this(dimensions, isUnranked, elementType, trailingParameters ?? [], null)
     {
     }
 
@@ -45,8 +45,8 @@ public class MemRefTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private MemRefTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax, location)
+    private MemRefTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters, TypeSyntax? syntax)
+        : base(syntax)
     {
         Dimensions = dimensions;
         IsUnranked = isUnranked;

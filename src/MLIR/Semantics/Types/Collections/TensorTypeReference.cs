@@ -18,7 +18,7 @@ public class TensorTypeReference : TypeReference
     /// Initializes a new parsed builtin tensor type reference.
     /// </summary>
     public TensorTypeReference(TensorTypeSyntax syntax, IReadOnlyList<long?> dimensions, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
-        : this(dimensions, syntax.IsUnranked, elementType, trailingParameters, syntax, syntax.Location)
+        : this(dimensions, syntax.IsUnranked, elementType, trailingParameters, syntax)
     {
     }
 
@@ -26,7 +26,7 @@ public class TensorTypeReference : TypeReference
     /// Initializes a new synthetic builtin tensor type reference.
     /// </summary>
     public TensorTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText>? trailingParameters = null)
-        : this(dimensions, isUnranked, elementType, trailingParameters ?? [], null, SourceLocation.Unknown)
+        : this(dimensions, isUnranked, elementType, trailingParameters ?? [], null)
     {
     }
 
@@ -45,8 +45,8 @@ public class TensorTypeReference : TypeReference
     /// <inheritdoc/>
     public override TypeDefinition? Definition => TypeDefinition;
 
-    private TensorTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax, location)
+    private TensorTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters, TypeSyntax? syntax)
+        : base(syntax)
     {
         Dimensions = dimensions;
         IsUnranked = isUnranked;

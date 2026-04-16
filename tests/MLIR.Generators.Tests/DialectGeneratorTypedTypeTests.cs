@@ -27,7 +27,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             registrationSource,
             "new TypeDefinition(\"myp.opaque\",",
             "TypeSyntax? syntax = null)",
-            ": base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)",
+            ": base(syntax)",
             "TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
             "WritePrefix(writer);",
             "new DialectTypePrefix(bangToken, nameToken)");
@@ -73,7 +73,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             registrationSource,
             "new TypeDefinition(\"myp.opaque\");",
             "TypeSyntax? syntax = null",
-            ": base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)",
+            ": base(syntax)",
             "public string Value { get; }");
 
         AssertDoesNotContainAny(
