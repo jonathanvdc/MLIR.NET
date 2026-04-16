@@ -1,6 +1,6 @@
 namespace DialectTests;
 
-using MLIR.Typedtype;
+using MLIR.Dialects.Typedtype;
 using Xunit;
 
 public sealed class GeneratedDialectTypeTests : DialectIntegrationTestBase

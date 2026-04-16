@@ -3,6 +3,7 @@ namespace MLIR.Tests;
 using System.Collections.Generic;
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;
 using MLIR.Syntax;

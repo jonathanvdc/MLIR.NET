@@ -293,7 +293,7 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
     public override bool IsGenericTypedArrayElement => true;
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "global::MLIR.DenseTypedElementsAttr";
+    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
 
     public override string? GetAssemblyFormatType(string constraintRecordName) => "ElementsAttributeAssemblyFormat";
 }
@@ -476,7 +476,7 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
     private static bool IsTypedArrayFallbackElementType(string elementTypeName) =>
         elementTypeName == "UnitAttr"
         || elementTypeName == "OpaqueAttr"
-        || elementTypeName == "global::MLIR.DenseTypedElementsAttr";
+        || elementTypeName == "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
 }
 
 // =============================================================================
@@ -539,70 +539,70 @@ internal static class AttributeConstraintCodeStrategyFactory
         assemblyFormatType: "BooleanLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
         typedArrayElementDecodeExpression:
-            "((global::MLIR.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value.ToUInt64() != 0",
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value.ToUInt64() != 0",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I1, global::MLIR.Numerics.ApInt.FromInt64(1, {element} ? 1 : 0), null))");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I1, global::MLIR.Numerics.ApInt.FromInt64(1, {element} ? 1 : 0), null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy IntegerLiteralStrategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApInt",
         assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
         typedArrayElementDecodeExpression:
-            "((global::MLIR.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I({element}.BitWidth), {element}, null))");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I({element}.BitWidth), {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
         typedArrayElementDecodeExpression:
-            "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
+            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F16Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)",
         typedArrayElementDecodeExpression:
-            "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
+            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F16, {element}, null))");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F16, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)",
         typedArrayElementDecodeExpression:
-            "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
+            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, {element}, null))");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy BF16Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)",
         typedArrayElementDecodeExpression:
-            "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
+            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.BF16, {element}, null))");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.BF16, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy F64Strategy = new(
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
         typedArrayElementDecodeExpression:
-            "((global::MLIR.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
+            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
+            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
 
     private static readonly PrimitiveAttributeConstraintCodeStrategy StringLiteralStrategy = new(
         attributeValueTypeName: "string",
         assemblyFormatType: "StringLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
         typedArrayElementDecodeExpression:
-            "((global::MLIR.StringAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
+            "((global::MLIR.Dialects.Builtin.StringAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(global::MLIR.Semantics.ConstantAttributeFactory.String({element}))");
 

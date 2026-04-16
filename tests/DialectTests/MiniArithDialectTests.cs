@@ -2,7 +2,8 @@ namespace DialectTests;
 
 using System.Numerics;
 using MLIR;
-using MLIR.Miniarith;
+using MLIR.Dialects.Builtin;
+using MLIR.Dialects.Miniarith;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes;

@@ -3,6 +3,7 @@ namespace MLIR.Semantics;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using MLIR;
+using MLIR.Dialects.Builtin;
 
 /// <summary>
 /// Base class for operations that carry the MLIR <c>SymbolTable</c> ODS trait.

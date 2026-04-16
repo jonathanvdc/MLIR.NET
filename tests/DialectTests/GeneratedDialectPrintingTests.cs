@@ -1,8 +1,8 @@
 namespace DialectTests;
 
 using System.Numerics;
-using MLIR.Miniarith;
-using MLIR.Minitest;
+using MLIR.Dialects.Miniarith;
+using MLIR.Dialects.Minitest;
 using MLIR.Numerics;
 using Xunit;
 

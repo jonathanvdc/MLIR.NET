@@ -3,6 +3,7 @@ namespace MLIR.Dialects.Attributes.Collections;
 using System.Collections.Generic;
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Collections;

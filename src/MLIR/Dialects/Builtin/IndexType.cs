@@ -2,7 +2,7 @@ using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Types.Primitives;
 
-namespace MLIR;
+namespace MLIR.Dialects.Builtin;
 
 /// <summary>
 /// Represents the builtin <c>index</c> type.

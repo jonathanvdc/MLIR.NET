@@ -2,9 +2,10 @@ namespace MLIR.Dialects.Attributes.Primitives;
 
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
+using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
-using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;

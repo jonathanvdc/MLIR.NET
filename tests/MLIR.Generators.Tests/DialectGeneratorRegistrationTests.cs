@@ -37,7 +37,7 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             registrationSource,
-            "namespace MLIR.Miniarith;",
+            "namespace MLIR.Dialects.Miniarith;",
             "public static class MiniarithDialectRegistration",
             "public sealed class MiniArith_ConstantOp : Operation",
             "public sealed class MiniArith_AddIOp : Operation",
@@ -152,7 +152,7 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
 
         AssertContainsAll(
             preludeSource,
-            "namespace MLIR.Prelude;",
+            "namespace MLIR.Dialects.Prelude;",
             "public static class PreludeDialectRegistration",
             "public static partial class I32ConstraintTypeReference",
             "public static partial class F32ConstraintTypeReference",
@@ -172,7 +172,7 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             "dialect.AddTypeConstraint(AnyTensorConstraintTypeReference.TypeConstraintDefinition);",
             "dialect.AddTypeConstraint(AnyVectorOfAnyRankConstraintTypeReference.TypeConstraintDefinition);",
             "dialect.AddTypeConstraint(AnyMemRefConstraintTypeReference.TypeConstraintDefinition);");
-        Assert.DoesNotContain("global::MLIR.Prelude.PreludeDialectRegistration.Create", preludeSource);
+        Assert.DoesNotContain("global::MLIR.Dialects.Prelude.PreludeDialectRegistration.Create", preludeSource);
         // Type constraints must not expose TypeDefinition and must not register as dialect types.
         Assert.DoesNotContain("I32ConstraintTypeReference.TypeDefinition", preludeSource);
         Assert.DoesNotContain("dialect.AddType(I32ConstraintTypeReference", preludeSource);
@@ -181,7 +181,7 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             registrationSource,
             "public static class MiniarithDialectRegistration",
             "Dialect.Create(\"miniarith\", dialect =>",
-            "global::MLIR.Prelude.PreludeDialectRegistration.Create");
+            "global::MLIR.Dialects.Prelude.PreludeDialectRegistration.Create");
         Assert.DoesNotContain("I32ConstraintTypeReference", registrationSource);
     }
 

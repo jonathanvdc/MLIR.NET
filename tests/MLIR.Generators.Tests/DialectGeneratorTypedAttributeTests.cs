@@ -19,15 +19,15 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "public uint IntVal",
-            "((global::MLIR.IntegerAttr)Attributes[\"intVal\"].Value).Value.ToUInt64()",
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"intVal\"].Value).Value.ToUInt64()",
             "public bool BoolVal",
-            "((global::MLIR.IntegerAttr)Attributes[\"boolVal\"].Value).Value.ToUInt64() != 0",
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"boolVal\"].Value).Value.ToUInt64() != 0",
             "public string StrVal",
-            "((global::MLIR.StringAttr)Attributes[\"strVal\"].Value).Value",
+            "((global::MLIR.Dialects.Builtin.StringAttr)Attributes[\"strVal\"].Value).Value",
             "public global::MLIR.Numerics.ApFloat FloatVal",
-            "((global::MLIR.FloatAttr)Attributes[\"floatVal\"].Value).Value",
+            "((global::MLIR.Dialects.Builtin.FloatAttr)Attributes[\"floatVal\"].Value).Value",
             "public global::MLIR.Numerics.ApFloat DoubleVal",
-            "((global::MLIR.FloatAttr)Attributes[\"doubleVal\"].Value).Value",
+            "((global::MLIR.Dialects.Builtin.FloatAttr)Attributes[\"doubleVal\"].Value).Value",
             " Fallback",
             "Attributes[\"fallback\"].Value;",
             "SetAttribute(\"fallback\", value);",
@@ -241,9 +241,9 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "[global::System.Flags]",
             "internal static class ModeInfo",
             "internal static class FlagsInfo",
-            "public MLIR.Minienum.Mode Mode",
-            "public MLIR.Minienum.Flags Flags",
-            "new MLIR.Minienum.FlagsAttr(value)",
+            "public MLIR.Dialects.Minienum.Mode Mode",
+            "public MLIR.Dialects.Minienum.Flags Flags",
+            "new MLIR.Dialects.Minienum.FlagsAttr(value)",
             "return string.Join(\",\", parts);");
         Assert.True(
             registrationSource.Contains("Attributes[\"mode\"].Value).TypedValue;", System.StringComparison.Ordinal)
@@ -287,15 +287,15 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             registrationSource,
             "public enum CmpPredicate : uint",
             "public enum CmpMask : uint",
-            "public MLIR.Myarith.CmpPredicate Predicate",
-            "public MLIR.Myarith.CmpMask Mask",
+            "public MLIR.Dialects.Myarith.CmpPredicate Predicate",
+            "public MLIR.Dialects.Myarith.CmpMask Mask",
             "MyArithCmpPredicateConstraintAttributeValue",
             "MyArithCmpMaskConstraintAttributeValue",
-            "((global::MLIR.IntegerAttr)Attributes[\"predicate\"].Value).Value",
-            "((global::MLIR.IntegerAttr)Attributes[\"mask\"].Value).Value",
-            "SetAttribute(\"predicate\", new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)value), null))",
-            "SetAttribute(\"mask\", new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)value), null))",
-            "return new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)ParseEnumValue(syntax)), syntax)");
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"predicate\"].Value).Value",
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"mask\"].Value).Value",
+            "SetAttribute(\"predicate\", new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)value), null))",
+            "SetAttribute(\"mask\", new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)value), null))",
+            "return new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)ParseEnumValue(syntax)), syntax)");
 
         AssertDoesNotContainAny(
             registrationSource,
@@ -303,12 +303,12 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "public sealed class MyArithCmpMaskConstraintAttributeValue :",
             "public sealed class CmpPredicateAttr : AttributeValue",
             "public sealed class CmpMaskAttr : AttributeValue",
-            "new MLIR.Myarith.CmpPredicateAttr(value)",
-            "new MLIR.Myarith.CmpMaskAttr(value)",
-            "new MLIR.Myarith.MyArithCmpPredicateConstraintAttributeValue(value)",
-            "new MLIR.Myarith.MyArithCmpMaskConstraintAttributeValue(value)",
-            "((MLIR.Myarith.CmpPredicateAttr)Attributes[\"predicate\"].Value).",
-            "((MLIR.Myarith.CmpMaskAttr)Attributes[\"mask\"].Value).");
+            "new MLIR.Dialects.Myarith.CmpPredicateAttr(value)",
+            "new MLIR.Dialects.Myarith.CmpMaskAttr(value)",
+            "new MLIR.Dialects.Myarith.MyArithCmpPredicateConstraintAttributeValue(value)",
+            "new MLIR.Dialects.Myarith.MyArithCmpMaskConstraintAttributeValue(value)",
+            "((MLIR.Dialects.Myarith.CmpPredicateAttr)Attributes[\"predicate\"].Value).",
+            "((MLIR.Dialects.Myarith.CmpMaskAttr)Attributes[\"mask\"].Value).");
     }
 
     [Fact]
@@ -344,15 +344,15 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "public sealed class CmpPredicateAttr : AttributeValue",
-            "public MLIR.Myarith.CmpPredicate Predicate",
-            "new MLIR.Myarith.CmpPredicateAttr(value)");
+            "public MLIR.Dialects.Myarith.CmpPredicate Predicate",
+            "new MLIR.Dialects.Myarith.CmpPredicateAttr(value)");
         Assert.True(
             registrationSource.Contains("Attributes[\"predicate\"].Value).TypedValue;", System.StringComparison.Ordinal)
             || registrationSource.Contains("Attributes[\"predicate\"].Value).Value;", System.StringComparison.Ordinal));
 
         AssertDoesNotContainAny(
             registrationSource,
-            "((global::MLIR.IntegerAttr)Attributes[\"predicate\"].Value).Value.ToUInt64()");
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"predicate\"].Value).Value.ToUInt64()");
     }
 
     [Fact]
@@ -403,12 +403,12 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "internal static class CmpPredicateInfo",
             "public static class MyArithCmpPredicateAttrConstraintAttributeValue",
             "internal sealed class MyArithCmpPredicateAttrConstraintAttributeValueAssemblyFormat",
-            "return new global::MLIR.IntegerAttr(global::MLIR.Semantics.TypeFactory.I64, global::MLIR.Numerics.ApInt.FromUInt64(64, (ulong)ParseEnumValue(syntax)), syntax);");
+            "return new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I64, global::MLIR.Numerics.ApInt.FromUInt64(64, (ulong)ParseEnumValue(syntax)), syntax);");
 
         // The operation property must use the fully-qualified dialect type.
         AssertContainsAll(
             dialectSource,
-            "public MLIR.Myarith.CmpPredicate Predicate");
+            "public MLIR.Dialects.Myarith.CmpPredicate Predicate");
 
         // The prelude must not contain the enum or its constraint.
         AssertDoesNotContainAny(
