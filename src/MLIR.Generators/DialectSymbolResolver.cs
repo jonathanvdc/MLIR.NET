@@ -170,15 +170,42 @@ internal sealed class DialectSymbolResolver
         return enumModelsByRecordName.TryGetValue(recordName, out var enumModel) ? enumModel : null;
     }
 
+    /// <summary>
+    /// Returns the C# expression that evaluates to the <c>TypeDefinition</c> for a concrete
+    /// ODS <c>TypeDef</c> record, or <see langword="null"/> when no TypeDef record with
+    /// <paramref name="recordName"/> is known.
+    /// </summary>
+    /// <remarks>
+    /// Only resolves concrete <c>TypeDef</c> records.  ODS <c>Type</c> constraint records are
+    /// intentionally excluded; use <see cref="TryResolveTypeConstraintDefinitionExpression"/>
+    /// for those.
+    /// </remarks>
     public string? TryResolveTypeDefinitionExpression(string recordName)
     {
-        if (typeConstraintTypesByRecordName.TryGetValue(recordName, out var typeConstraintName))
-        {
-            return typeConstraintName + ".TypeDefinition";
-        }
-
         return typeTypesByRecordName.TryGetValue(recordName, out var typeName)
             ? typeName + ".TypeDefinition"
+            : null;
+    }
+
+    /// <summary>
+    /// Returns the C# expression that evaluates to a <c>TypeConstraintDefinition</c> for
+    /// any type record (either an ODS <c>TypeDef</c> or an ODS <c>Type</c> constraint), or
+    /// <see langword="null"/> when the record name is not known.
+    /// </summary>
+    /// <remarks>
+    /// For concrete <c>TypeDef</c> records this returns <c>Foo.TypeDefinition</c> because
+    /// <c>TypeDefinition</c> derives from <c>TypeConstraintDefinition</c>.
+    /// For ODS <c>Type</c> constraint records this returns <c>Foo.TypeConstraintDefinition</c>.
+    /// </remarks>
+    public string? TryResolveTypeConstraintDefinitionExpression(string recordName)
+    {
+        if (typeTypesByRecordName.TryGetValue(recordName, out var typeName))
+        {
+            return typeName + ".TypeDefinition";
+        }
+
+        return typeConstraintTypesByRecordName.TryGetValue(recordName, out var typeConstraintName)
+            ? typeConstraintName + ".TypeConstraintDefinition"
             : null;
     }
 }

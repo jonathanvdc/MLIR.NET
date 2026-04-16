@@ -40,10 +40,7 @@ internal static class DialectRegistrationEmitter
 
         foreach (var typeConstraint in dialect.TypeConstraints)
         {
-            if (typeConstraint.CanonicalTypeName != null)
-            {
-                builder.AppendLine("            dialect.AddType(" + DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint) + ".TypeDefinition);");
-            }
+            builder.AppendLine("            dialect.AddTypeConstraint(" + DialectGeneratorNaming.GetTypeConstraintClassName(typeConstraint) + ".TypeConstraintDefinition);");
         }
 
         builder.Append("        }");
