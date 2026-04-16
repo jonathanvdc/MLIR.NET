@@ -24,7 +24,7 @@ internal static class AttributeEmitter
                 // syntax class, the typed attribute-value class, and the assembly format class.
                 AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
                 builder.AppendLine();
-                EmitTypedAttributeClass(builder, attribute, className, syntaxClassName: className + "Syntax");
+                EmitTypedAttributeClass(builder, attribute, className);
                 builder.AppendLine();
                 AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
             }
@@ -32,7 +32,7 @@ internal static class AttributeEmitter
             {
                 // Parametrised attribute without declarative syntax: emit the typed
                 // attribute-value class, but do not invent a binding factory.
-                EmitTypedAttributeClass(builder, attribute, className, syntaxClassName: null);
+                EmitTypedAttributeClass(builder, attribute, className);
             }
         }
         else
@@ -70,8 +70,7 @@ internal static class AttributeEmitter
     private static void EmitTypedAttributeClass(
         StringBuilder builder,
         AttributeModel attribute,
-        string className,
-        string? syntaxClassName)
+        string className)
     {
         var parameters = attribute.Parameters;
         var hasAssemblyFormat = attribute.AssemblyFormat != null;
