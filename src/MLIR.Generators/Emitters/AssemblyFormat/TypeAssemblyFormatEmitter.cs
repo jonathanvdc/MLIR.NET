@@ -243,7 +243,7 @@ internal static class TypeAssemblyFormatEmitter
         var parserTemplate = slot.ParamModel?.CsharpParserTemplate;
         if (parserTemplate is not null)
         {
-            parseExpr = parserTemplate.Render(new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal) { ["parser"] = "context" });
+            parseExpr = parserTemplate.Render("parser", "context");
         }
         else
         {
@@ -329,7 +329,7 @@ internal static class TypeAssemblyFormatEmitter
         var printerTemplate = param?.CsharpPrinterTemplate;
         if (printerTemplate is not null)
         {
-            return printerTemplate.Render(new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal) { ["self"] = propertyExpr });
+            return printerTemplate.Render("self", propertyExpr);
         }
 
         return propertyExpr;
@@ -344,7 +344,7 @@ internal static class TypeAssemblyFormatEmitter
         var extractorTemplate = param?.CsharpExtractorTemplate;
         if (extractorTemplate is not null)
         {
-            return extractorTemplate.Render(new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal) { ["syntax"] = syntaxExpr });
+            return extractorTemplate.Render("syntax", syntaxExpr);
         }
 
         if (!string.IsNullOrEmpty(param?.CsharpDefault))

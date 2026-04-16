@@ -125,6 +125,62 @@ public sealed class CodeTemplate
     }
 
     /// <summary>
+    /// Renders this template by providing a single placeholder token and value.
+    /// </summary>
+    /// <param name="name">
+    /// The placeholder token to replace.
+    /// </param>
+    /// <param name="value">
+    /// The replacement string for the placeholder.
+    /// </param>
+    /// <returns>
+    /// The rendered template text.
+    /// </returns>
+    /// <remarks>
+    /// This is a convenience overload equivalent to calling <see cref="Render(IReadOnlyDictionary{string, string})"/>
+    /// with a dictionary containing a single entry.
+    /// </remarks>
+    public string Render(string name, string value)
+    {
+        return Render(new Dictionary<string, string>(1, StringComparer.Ordinal)
+        {
+            [name] = value
+        });
+    }
+
+    /// <summary>
+    /// Renders this template by providing multiple placeholder token/value pairs.
+    /// </summary>
+    /// <param name="first">
+    /// The first placeholder token/value pair.
+    /// </param>
+    /// <param name="rest">
+    /// Additional placeholder token/value pairs.
+    /// </param>
+    /// <returns>
+    /// The rendered template text.
+    /// </returns>
+    /// <remarks>
+    /// This is a convenience overload equivalent to calling <see cref="Render(IReadOnlyDictionary{string, string})"/>
+    /// with a dictionary constructed from the provided pairs. If duplicate tokens are provided,
+    /// the last value wins.
+    /// </remarks>
+    public string Render((string Name, string Value) first, params (string Name, string Value)[] rest)
+    {
+        var values = new Dictionary<string, string>(1 + rest.Length, StringComparer.Ordinal)
+        {
+            [first.Name] = first.Value
+        };
+
+        foreach (var (name, value) in rest)
+        {
+            values[name] = value;
+        }
+
+        return Render(values);
+    }
+
+    /// <summary>
     /// Validates that every placeholder in this template belongs to
     /// <paramref name="allowedPlaceholders"/>.
     /// </summary>

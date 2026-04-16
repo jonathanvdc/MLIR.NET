@@ -218,13 +218,11 @@ internal static class OperationAttributeValueHelpers
         }
 
         var castPrefix = "((" + storageTypeName + ")";
-        var selfValues = new Dictionary<string, string>(StringComparer.Ordinal) { ["self"] = castPrefix + "Attributes[" + sourceNameLiteral + "].Value)" };
-        var convertedRequired = convertTemplate.Render(selfValues);
+        var convertedRequired = convertTemplate.Render("self", castPrefix + "Attributes[" + sourceNameLiteral + "].Value)");
         var defaultValue = member.AttrDefaultValueExpression;
         if (!string.IsNullOrEmpty(defaultValue))
         {
-            var selfOptionalValues = new Dictionary<string, string>(StringComparer.Ordinal) { ["self"] = castPrefix + localName + ".Value)" };
-            var convertedOptionalWithDefault = convertTemplate.Render(selfOptionalValues);
+            var convertedOptionalWithDefault = convertTemplate.Render("self", castPrefix + localName + ".Value)");
             return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + convertedOptionalWithDefault + " : " + defaultValue;
         }
 
@@ -233,8 +231,7 @@ internal static class OperationAttributeValueHelpers
             return convertedRequired;
         }
 
-        var selfOptional = new Dictionary<string, string>(StringComparer.Ordinal) { ["self"] = castPrefix + localName + ".Value)" };
-        var convertedOptional = convertTemplate.Render(selfOptional);
+        var convertedOptional = convertTemplate.Render("self", castPrefix + localName + ".Value)");
         return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + convertedOptional + " : null";
     }
 
@@ -243,7 +240,7 @@ internal static class OperationAttributeValueHelpers
         var constBuilderTemplate = member.AttrConstBuilderCallTemplate;
         if (constBuilderTemplate is not null)
         {
-            return constBuilderTemplate.Render(new Dictionary<string, string>(StringComparer.Ordinal) { ["value"] = valueExpression });
+            return constBuilderTemplate.Render("value", valueExpression);
         }
 
         var storageTypeName = member.AttrStorageTypeName;

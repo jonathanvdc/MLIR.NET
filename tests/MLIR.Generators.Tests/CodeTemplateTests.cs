@@ -72,7 +72,7 @@ public sealed class CodeTemplateTests
     public void RenderSubstitutesSinglePlaceholder()
     {
         var template = new CodeTemplate("${parser}.TryParseAttributeValueSyntax()", CodeTemplateKind.Expression);
-        var result = template.Render(new Dictionary<string, string> { ["parser"] = "ctx" });
+        var result = template.Render("parser", "ctx");
         Assert.Equal("ctx.TryParseAttributeValueSyntax()", result);
     }
 
@@ -80,7 +80,7 @@ public sealed class CodeTemplateTests
     public void RenderSubstitutesMultiplePlaceholders()
     {
         var template = new CodeTemplate("${self}.Convert(${context})", CodeTemplateKind.Expression);
-        var result = template.Render(new Dictionary<string, string> { ["self"] = "storage", ["context"] = "builder" });
+        var result = template.Render(("self", "storage"), ("context", "builder"));
         Assert.Equal("storage.Convert(builder)", result);
     }
 
@@ -88,7 +88,7 @@ public sealed class CodeTemplateTests
     public void RenderSubstitutesRepeatedPlaceholder()
     {
         var template = new CodeTemplate("${value} == null ? null : new Wrapper(${value})", CodeTemplateKind.Expression);
-        var result = template.Render(new Dictionary<string, string> { ["value"] = "x" });
+        var result = template.Render("value", "x");
         Assert.Equal("x == null ? null : new Wrapper(x)", result);
     }
 
@@ -96,7 +96,7 @@ public sealed class CodeTemplateTests
     public void RenderIgnoresExtraValuesNotInTemplate()
     {
         var template = new CodeTemplate("${parser}.TryParse()", CodeTemplateKind.Expression);
-        var result = template.Render(new Dictionary<string, string> { ["parser"] = "ctx", ["unused"] = "should_not_appear" });
+        var result = template.Render(("parser", "ctx"), ("unused", "should_not_appear"));
         Assert.Equal("ctx.TryParse()", result);
     }
 
@@ -105,7 +105,7 @@ public sealed class CodeTemplateTests
     {
         var template = new CodeTemplate("${parser}.TryParse(${self})", CodeTemplateKind.Expression);
         var ex = Assert.Throws<System.InvalidOperationException>(() =>
-            template.Render(new Dictionary<string, string> { ["parser"] = "ctx" }));
+            template.Render("parser", "ctx"));
         Assert.Contains("${self}", ex.Message);
     }
 

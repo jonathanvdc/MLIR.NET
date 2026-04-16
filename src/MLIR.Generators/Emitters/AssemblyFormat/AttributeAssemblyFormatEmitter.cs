@@ -395,7 +395,7 @@ internal static class AttributeAssemblyFormatEmitter
         {
             // Custom parser from MLIRNet_AttrOrTypeParameterExtension.csharpParser:
             // substitute ${parser} → context.
-            parseExpr = parserTemplate.Render(new Dictionary<string, string>(System.StringComparer.Ordinal) { ["parser"] = "context" });
+            parseExpr = parserTemplate.Render("parser", "context");
         }
         else
         {
@@ -509,7 +509,7 @@ internal static class AttributeAssemblyFormatEmitter
         var extractorTemplate = param?.CsharpExtractorTemplate;
         if (extractorTemplate is not null)
         {
-            return extractorTemplate.Render(new Dictionary<string, string>(System.StringComparer.Ordinal) { ["syntax"] = syntaxExpr });
+            return extractorTemplate.Render("syntax", syntaxExpr);
         }
 
         if (!string.IsNullOrEmpty(param?.CsharpDefault))
@@ -533,7 +533,7 @@ internal static class AttributeAssemblyFormatEmitter
         {
             // Custom printer from MLIRNet_AttrOrTypeParameterExtension.csharpPrinter:
             // substitute ${self} → the property expression.
-            return printerTemplate.Render(new Dictionary<string, string>(System.StringComparer.Ordinal) { ["self"] = propertyExpr });
+            return printerTemplate.Render("self", propertyExpr);
         }
 
         // No printer defined: use the syntax node stored in the structured syntax class directly.
