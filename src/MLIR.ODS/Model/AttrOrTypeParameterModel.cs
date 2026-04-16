@@ -144,11 +144,11 @@ public sealed class AttrOrTypeParameterModel(
     /// </summary>
     /// <remarks>
     /// Legacy <c>$_parser</c> spellings in the raw <see cref="CsharpParser"/> string are
-    /// automatically normalized to <c>${parser}</c> by <see cref="CodeTemplate.FromLegacy"/>.
+    /// automatically normalized to <c>${parser}</c> by <see cref="CodeTemplate.From"/>.
     /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "parser", contextVar }})</c>
     /// to substitute the parsing-context variable.
     /// </remarks>
-    public CodeTemplate? CsharpParserTemplate => CodeTemplate.FromLegacy(CsharpParser, CodeTemplateKind.Expression);
+    public CodeTemplate? CsharpParserTemplate => CodeTemplate.From(CsharpParser, CodeTemplateKind.Expression);
 
     /// <summary>
     /// Gets the <see cref="CsharpExtractor"/> value as a normalized <see cref="CodeTemplate"/>
@@ -160,7 +160,7 @@ public sealed class AttrOrTypeParameterModel(
     /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "syntax", syntaxVar }})</c>
     /// to substitute the syntax variable.
     /// </remarks>
-    public CodeTemplate? CsharpExtractorTemplate => CodeTemplate.FromLegacy(CsharpExtractor, CodeTemplateKind.Expression);
+    public CodeTemplate? CsharpExtractorTemplate => CodeTemplate.From(CsharpExtractor, CodeTemplateKind.Expression);
 
     /// <summary>
     /// Gets the <see cref="CsharpPrinter"/> value as a normalized <see cref="CodeTemplate"/>
@@ -172,7 +172,7 @@ public sealed class AttrOrTypeParameterModel(
     /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "self", propertyVar }})</c>
     /// to substitute the property value expression.
     /// </remarks>
-    public CodeTemplate? CsharpPrinterTemplate => CodeTemplate.FromLegacy(CsharpPrinter, CodeTemplateKind.Expression);
+    public CodeTemplate? CsharpPrinterTemplate => CodeTemplate.From(CsharpPrinter, CodeTemplateKind.Expression);
 
     /// <summary>
     /// Gets a value indicating whether this parameter is the special self-type parameter used

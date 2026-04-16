@@ -94,7 +94,7 @@ public sealed class AttrModel(
     /// to substitute the storage value expression.
     /// </remarks>
     public CodeTemplate? CsharpConvertFromStorageTemplate =>
-        CodeTemplate.FromLegacy(CsharpConvertFromStorage, CodeTemplateKind.Expression);
+        CodeTemplate.From(CsharpConvertFromStorage, CodeTemplateKind.Expression);
 
     /// <summary>
     /// Gets the <see cref="CsharpConstBuilderCall"/> value as a normalized
@@ -107,7 +107,7 @@ public sealed class AttrModel(
     /// to substitute the typed value expression.
     /// </remarks>
     public CodeTemplate? CsharpConstBuilderCallTemplate =>
-        CodeTemplate.FromLegacy(CsharpConstBuilderCall, CodeTemplateKind.Expression);
+        CodeTemplate.From(CsharpConstBuilderCall, CodeTemplateKind.Expression, new Dictionary<string, string>(StringComparer.Ordinal) { ["0"] = "value" });
 
     /// <summary>
     /// Gets the C# default value expression for this attr, if one is known.

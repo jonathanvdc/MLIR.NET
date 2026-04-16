@@ -156,81 +156,81 @@ public sealed class CodeTemplateTests
     }
 
     // -----------------------------------------------------------------------
-    // FromLegacy – normalization
+    // From – normalization
     // -----------------------------------------------------------------------
 
     [Fact]
-    public void FromLegacyReturnsNullForNullInput()
+    public void FromReturnsNullForNullInput()
     {
-        var result = CodeTemplate.FromLegacy(null, CodeTemplateKind.Expression);
+        var result = CodeTemplate.From(null, CodeTemplateKind.Expression);
         Assert.Null(result);
     }
 
     [Fact]
-    public void FromLegacyReturnsNullForEmptyInput()
+    public void FromReturnsNullForEmptyInput()
     {
-        var result = CodeTemplate.FromLegacy(string.Empty, CodeTemplateKind.Expression);
+        var result = CodeTemplate.From(string.Empty, CodeTemplateKind.Expression);
         Assert.Null(result);
     }
 
     [Fact]
-    public void FromLegacyNormalizesParserPlaceholder()
+    public void FromNormalizesParserPlaceholder()
     {
-        var result = CodeTemplate.FromLegacy("$_parser.TryParse()", CodeTemplateKind.Expression);
+        var result = CodeTemplate.From("$_parser.TryParse()", CodeTemplateKind.Expression);
         Assert.NotNull(result);
         Assert.Equal("${parser}.TryParse()", result!.Text);
         Assert.Equal(["parser"], result.PlaceholderNames);
     }
 
     [Fact]
-    public void FromLegacyNormalizesSelfPlaceholder()
+    public void FromNormalizesSelfPlaceholder()
     {
-        var result = CodeTemplate.FromLegacy("$_self.Value", CodeTemplateKind.Expression);
+        var result = CodeTemplate.From("$_self.Value", CodeTemplateKind.Expression);
         Assert.NotNull(result);
         Assert.Equal("${self}.Value", result!.Text);
         Assert.Equal(["self"], result.PlaceholderNames);
     }
 
     [Fact]
-    public void FromLegacyNormalizesSyntaxPlaceholder()
+    public void FromNormalizesSyntaxPlaceholder()
     {
-        var result = CodeTemplate.FromLegacy("((StringAttr)$_syntax).Value", CodeTemplateKind.Expression);
+        var result = CodeTemplate.From("((StringAttr)$_syntax).Value", CodeTemplateKind.Expression);
         Assert.NotNull(result);
         Assert.Equal("((StringAttr)${syntax}).Value", result!.Text);
         Assert.Equal(["syntax"], result.PlaceholderNames);
     }
 
     [Fact]
-    public void FromLegacyNormalizesZeroPlaceholder()
+    public void FromNormalizesZeroPlaceholder()
     {
-        var result = CodeTemplate.FromLegacy("new IntegerAttr($0)", CodeTemplateKind.Expression);
+        var result = CodeTemplate.From("new IntegerAttr($0)", CodeTemplateKind.Expression, new Dictionary<string, string>(StringComparer.Ordinal) { ["0"] = "value" });
         Assert.NotNull(result);
         Assert.Equal("new IntegerAttr(${value})", result!.Text);
         Assert.Equal(["value"], result.PlaceholderNames);
     }
 
     [Fact]
-    public void FromLegacyNormalizesCanonicalSyntaxUnchanged()
+    public void FromNormalizesCanonicalSyntaxUnchanged()
     {
         const string canonical = "${parser}.TryParse(${self})";
-        var result = CodeTemplate.FromLegacy(canonical, CodeTemplateKind.Expression);
+        var result = CodeTemplate.From(canonical, CodeTemplateKind.Expression);
         Assert.NotNull(result);
         Assert.Equal(canonical, result!.Text);
     }
 
     [Fact]
-    public void FromLegacyPreservesKind()
+    public void FromPreservesKind()
     {
-        var result = CodeTemplate.FromLegacy("${value}", CodeTemplateKind.TypeName);
+        var result = CodeTemplate.From("${value}", CodeTemplateKind.TypeName);
         Assert.NotNull(result);
         Assert.Equal(CodeTemplateKind.TypeName, result!.Kind);
     }
 
     [Fact]
-    public void FromLegacyNormalizesAllLegacyPlaceholdersTogether()
+    public void FromNormalizesAllLegacyPlaceholdersTogether()
     {
         const string legacy = "$_parser.Foo($_self, $_syntax, $0)";
-        var result = CodeTemplate.FromLegacy(legacy, CodeTemplateKind.Expression);
+        var result = CodeTemplate.From(legacy, CodeTemplateKind.Expression, new Dictionary<string, string>(StringComparer.Ordinal) { ["0"] = "value" });
         Assert.NotNull(result);
         Assert.Equal("${parser}.Foo(${self}, ${syntax}, ${value})", result!.Text);
     }

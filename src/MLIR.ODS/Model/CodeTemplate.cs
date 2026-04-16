@@ -6,13 +6,13 @@ using System.Text.RegularExpressions;
 
 /// <summary>
 /// A structured code snippet that wraps a C# code fragment and provides
-/// canonical <c>${name}</c>-style placeholder handling.
+/// canonical placeholder handling.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Placeholders use the syntax <c>${name}</c> where <c>name</c> is an identifier
-/// composed of letters, digits, and underscores. The canonical placeholder names
-/// used by the generator are:
+/// Placeholders use the syntax <c>${token}</c> where <c>token</c> is either an
+/// identifier composed of letters, digits, and underscores, or a decimal index.
+/// The canonical named placeholders used by the generator are:
 /// </para>
 /// <list type="bullet">
 ///   <item><c>${parser}</c> – the <c>AttributeParsingContext</c> or equivalent parsing object.</item>
@@ -22,9 +22,11 @@ using System.Text.RegularExpressions;
 ///   <item><c>${context}</c> – an optional builder or printing context.</item>
 /// </list>
 /// <para>
-/// Legacy placeholder spellings (<c>$_parser</c>, <c>$_self</c>, <c>$_syntax</c>, <c>$0</c>)
-/// are normalized to the canonical form by <see cref="FromLegacy(string, CodeTemplateKind)"/>
-/// so that emitters never need to handle both spellings.
+/// Legacy <c>$_name</c>-style placeholders are normalized to canonical
+/// <c>${name}</c> form by <see cref="From(string, CodeTemplateKind, IReadOnlyDictionary{string, string}?)"/>,
+/// and legacy positional placeholders of the form <c>$N</c> are normalized to
+/// canonical <c>${N}</c> form. Callers may also rename normalized placeholder
+/// tokens during import when a different canonical vocabulary is desired.
 /// </para>
 /// <para>
 /// This type intentionally does not parse or validate C# syntax beyond placeholder
@@ -33,24 +35,27 @@ using System.Text.RegularExpressions;
 /// </remarks>
 public sealed class CodeTemplate
 {
-    // Matches ${name} placeholders. The name must start with a letter or underscore.
+    // Matches canonical placeholders of the form ${name} or ${N}.
     private static readonly Regex PlaceholderRegex =
-        new Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        new Regex(@"\$\{([a-zA-Z_][a-zA-Z0-9_]*|[0-9]+)\}", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    // Legacy-to-canonical placeholder mapping.
-    private static readonly (string Legacy, string Canonical)[] LegacyMappings =
-    {
-        ("$_parser", "${parser}"),
-        ("$_self",   "${self}"),
-        ("$_syntax", "${syntax}"),
-        ("$0",       "${value}"),
-    };
+    // Matches legacy $_name placeholders and captures the bare placeholder name.
+    private static readonly Regex LegacyPlaceholderRegex =
+        new Regex(@"\$_([a-zA-Z_][a-zA-Z0-9_]*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    // Matches legacy positional placeholders like $0, $1, and $23.
+    private static readonly Regex LegacyPositionalPlaceholderRegex =
+        new Regex(@"\$([0-9]+)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+    private static readonly IReadOnlyDictionary<string, string> EmptyRenameMap =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     /// <summary>
     /// Initializes a new <see cref="CodeTemplate"/> with the given text and kind.
     /// </summary>
     /// <param name="text">
-    /// The template text, which may contain <c>${name}</c> placeholders.
+    /// The template text, which may contain canonical placeholders such as
+    /// <c>${name}</c> or <c>${0}</c>.
     /// </param>
     /// <param name="kind">
     /// The structural kind of the snippet (for documentation purposes only).
@@ -66,7 +71,7 @@ public sealed class CodeTemplate
     }
 
     /// <summary>
-    /// Gets the raw template text, including any <c>${name}</c> placeholders.
+    /// Gets the raw template text, including any canonical placeholders.
     /// </summary>
     public string Text { get; }
 
@@ -76,18 +81,19 @@ public sealed class CodeTemplate
     public CodeTemplateKind Kind { get; }
 
     /// <summary>
-    /// Gets the ordered, deduplicated list of placeholder names found in <see cref="Text"/>.
-    /// Each entry is the bare name without the surrounding <c>${…}</c> delimiters.
+    /// Gets the ordered, deduplicated list of placeholder tokens found in <see cref="Text"/>.
+    /// Each entry is the bare identifier or decimal index without the surrounding
+    /// <c>${…}</c> delimiters.
     /// </summary>
     public IReadOnlyList<string> PlaceholderNames { get; }
 
     /// <summary>
-    /// Returns a copy of <see cref="Text"/> with all <c>${name}</c> placeholders replaced by
+    /// Returns a copy of <see cref="Text"/> with all canonical placeholders replaced by
     /// the corresponding values from <paramref name="values"/>.
     /// </summary>
     /// <param name="values">
-    /// A dictionary mapping placeholder names to their replacement strings.
-    /// Every placeholder name present in <see cref="PlaceholderNames"/> must have an entry;
+    /// A dictionary mapping placeholder tokens to their replacement strings.
+    /// Every placeholder token present in <see cref="PlaceholderNames"/> must have an entry;
     /// additional entries are silently ignored.
     /// </param>
     /// <exception cref="ArgumentNullException">
@@ -123,7 +129,7 @@ public sealed class CodeTemplate
     /// <paramref name="allowedPlaceholders"/>.
     /// </summary>
     /// <param name="allowedPlaceholders">
-    /// The set of placeholder names that are valid at this use site.
+    /// The set of placeholder tokens that are valid at this use site.
     /// </param>
     /// <exception cref="InvalidOperationException">
     /// Thrown when the template contains a placeholder whose name is not in
@@ -152,8 +158,8 @@ public sealed class CodeTemplate
 
     /// <summary>
     /// Creates a <see cref="CodeTemplate"/> from a raw string that may use either legacy
-    /// placeholder spellings (<c>$_parser</c>, <c>$_self</c>, <c>$_syntax</c>, <c>$0</c>)
-    /// or the canonical <c>${name}</c> syntax.
+    /// <c>$_name</c>-style placeholders and legacy positional placeholders of the form
+    /// <c>$N</c>, or canonical placeholders of the form <c>${name}</c> and <c>${N}</c>.
     /// </summary>
     /// <param name="text">
     /// The raw template text, or <see langword="null"/>. When <see langword="null"/>,
@@ -162,47 +168,64 @@ public sealed class CodeTemplate
     /// <param name="kind">
     /// The structural kind to assign to the resulting template.
     /// </param>
+    /// <param name="renames">
+    /// An optional mapping from normalized placeholder tokens to replacement canonical
+    /// tokens. For example, a mapping of <c>"0"</c> to <c>"value"</c> rewrites
+    /// <c>$0</c> or <c>${0}</c> to <c>${value}</c> during import.
+    /// </param>
     /// <returns>
     /// A <see cref="CodeTemplate"/> with all legacy placeholder spellings normalized to
-    /// <c>${name}</c> form, or <see langword="null"/> when <paramref name="text"/> is
-    /// <see langword="null"/> or empty.
+    /// canonical placeholder form and then renamed according to <paramref name="renames"/>,
+    /// or <see langword="null"/> when <paramref name="text"/> is <see langword="null"/>
+    /// or empty.
     /// </returns>
-    public static CodeTemplate? FromLegacy(string? text, CodeTemplateKind kind)
+    public static CodeTemplate? From(
+        string? text,
+        CodeTemplateKind kind,
+        IReadOnlyDictionary<string, string>? renames = null)
     {
         if (string.IsNullOrEmpty(text))
         {
             return null;
         }
 
-        var normalized = NormalizeLegacyPlaceholders(text!);
+        var normalized = NormalizeLegacyPlaceholders(text!, renames ?? EmptyRenameMap);
         return new CodeTemplate(normalized, kind);
     }
 
     /// <summary>
-    /// Replaces all known legacy placeholder spellings in <paramref name="text"/> with their
-    /// canonical <c>${name}</c> equivalents.
+    /// Replaces legacy placeholders in <paramref name="text"/> with their canonical
+    /// placeholder equivalents, then applies any requested token renames.
     /// </summary>
     /// <remarks>
-    /// Applies replacements in declaration order to avoid double-substitution. The mappings are:
-    /// <list type="bullet">
-    ///   <item><c>$_parser</c> → <c>${parser}</c></item>
-    ///   <item><c>$_self</c>   → <c>${self}</c></item>
-    ///   <item><c>$_syntax</c> → <c>${syntax}</c></item>
-    ///   <item><c>$0</c>       → <c>${value}</c></item>
-    /// </list>
+    /// Any legacy placeholder of the form <c>$_name</c> is rewritten to <c>${name}</c>.
+    /// Any legacy positional placeholder of the form <c>$N</c> is rewritten to <c>${N}</c>.
+    /// After normalization, canonical placeholders are rewritten according to
+    /// <paramref name="renames"/>.
     /// </remarks>
-    private static string NormalizeLegacyPlaceholders(string text)
+    private static string NormalizeLegacyPlaceholders(
+        string text,
+        IReadOnlyDictionary<string, string> renames)
     {
-        foreach (var (legacy, canonical) in LegacyMappings)
+        text = LegacyPlaceholderRegex.Replace(text, match => "${" + match.Groups[1].Value + "}");
+        text = LegacyPositionalPlaceholderRegex.Replace(text, match => "${" + match.Groups[1].Value + "}");
+
+        if (renames.Count == 0)
         {
-            text = text.Replace(legacy, canonical);
+            return text;
         }
 
-        return text;
+        return PlaceholderRegex.Replace(text, match =>
+        {
+            var token = match.Groups[1].Value;
+            return renames.TryGetValue(token, out var renamedToken)
+                ? "${" + renamedToken + "}"
+                : match.Value;
+        });
     }
 
     /// <summary>
-    /// Extracts an ordered, deduplicated list of placeholder names from <paramref name="text"/>.
+    /// Extracts an ordered, deduplicated list of placeholder tokens from <paramref name="text"/>.
     /// </summary>
     private static IReadOnlyList<string> ExtractPlaceholderNames(string text)
     {
