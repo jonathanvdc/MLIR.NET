@@ -1,24 +1,26 @@
 namespace MLIR.Dialects;
 
-using MLIR.Semantics;
-
 /// <summary>
 /// Describes a concrete dialect-defined type (<c>TypeDef</c> in ODS).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Concrete type definitions are also valid type constraints, so this class derives from
 /// <see cref="TypeConstraintDefinition"/>.
-/// </remarks>
-/// <remarks>
-/// Initializes a new instance of the <see cref="TypeDefinition"/> class.
+/// </para>
+/// <para>
+/// A <see cref="TypeDefinition"/> carries registered metadata (canonical name and optional assembly
+/// format) for a dialect type. Binding is driven by
+/// <see cref="ITypeAssemblyFormat.Bind(MLIR.Syntax.TypeSyntax, TypeDefinition, MLIR.Semantics.Binder)"/>
+/// when an assembly format is present. When no assembly format is registered, the binder falls back to
+/// producing an <c>UnknownTypeReference</c> with the definition attached.
+/// </para>
 /// </remarks>
 /// <param name="name">The canonical type name.</param>
 /// <param name="assemblyFormat">The optional custom assembly interpretation hook.</param>
-/// <param name="factory">The typed type-reference factory.</param>
 public sealed class TypeDefinition(
     string name,
-    ITypeAssemblyFormat? assemblyFormat = null,
-    System.Func<TypeReferenceConstructionContext, TypeReference>? factory = null)
+    ITypeAssemblyFormat? assemblyFormat = null)
     : TypeConstraintDefinition(name, assemblyFormat)
 {
     /// <summary>
@@ -29,10 +31,4 @@ public sealed class TypeDefinition(
     /// concrete <c>TypeDef</c> registrations.
     /// </remarks>
     public new string Name { get; } = name;
-
-    /// <summary>
-    /// Gets the typed type-reference factory.
-    /// </summary>
-    public System.Func<TypeReferenceConstructionContext, TypeReference> Factory { get; } =
-        factory ?? (static context => new UnknownTypeReference(context.Syntax, context.Name, context.Definition, context.Location));
 }

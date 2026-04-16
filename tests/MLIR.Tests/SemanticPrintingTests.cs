@@ -291,7 +291,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
 
         var module = Binder.BindModule(
             Parser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32"),

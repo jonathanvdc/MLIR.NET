@@ -633,9 +633,12 @@ public sealed class Binder
             return null;
         }
 
+        // If an assembly format is registered, let it drive binding. Otherwise fall back to an
+        // UnknownTypeReference that carries the definition metadata so callers can still identify
+        // the type family.
         return definition.AssemblyFormat != null
             ? definition.AssemblyFormat.Bind(syntax, definition, this)
-            : definition.Factory(new TypeReferenceConstructionContext(syntax, canonicalName, definition, syntax.Location));
+            : new UnknownTypeReference(syntax, canonicalName, definition, syntax.Location);
     }
 
     /// <summary>
@@ -670,9 +673,12 @@ public sealed class Binder
         TypeReference type;
         if (definition != null)
         {
+            // If an assembly format is registered, let it drive binding. Otherwise fall back to an
+            // UnknownTypeReference that carries the definition metadata so callers can still identify
+            // the type family.
             type = definition.AssemblyFormat != null
                 ? definition.AssemblyFormat.Bind(syntaxNode, definition, this)
-                : definition.Factory(new TypeReferenceConstructionContext(syntaxNode, canonicalName, definition, syntaxNode.Location));
+                : new UnknownTypeReference(syntaxNode, canonicalName, definition, syntaxNode.Location);
         }
         else
         {
