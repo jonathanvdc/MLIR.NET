@@ -65,20 +65,37 @@ internal static class TypeEmitter
         EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
         builder.AppendLine("public sealed partial class " + className + " : FloatTypeReference");
         builder.AppendLine("{");
-        builder.AppendLine("    public new static TypeDefinition TypeDefinition { get; } =");
+        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
+
+        var assemblyFormatExpression = type.CsharpAssemblyFormat;
+        var factoryExpression = assemblyFormatExpression == null
+            ? "static context => " + className + ".BindValue(context)"
+            : null;
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
             type.Name,
-            factoryExpression: "static context => " + className + ".BindValue(context)");
-        builder.AppendLine();
-        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new " + className + "(context.Syntax as BuiltinFloatTypeSyntax);");
-        builder.AppendLine("    }");
+            assemblyFormatExpression,
+            factoryExpression);
+
+        if (factoryExpression != null)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        return new " + className + "(context.Syntax as BuiltinFloatTypeSyntax);");
+            builder.AppendLine("    }");
+        }
+
+        // Derive the scalar mnemonic from the canonical type name (e.g., "builtin.f32" -> "f32").
+        // This ensures FloatTypeReference.Name carries the MLIR spelling, not the qualified registry key.
+        var mnemonic = type.Name.StartsWith("builtin.", StringComparison.Ordinal)
+            ? type.Name.Substring("builtin.".Length)
+            : type.Name;
+
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(BuiltinFloatTypeSyntax? syntax = null)");
-        builder.AppendLine("        : base(TypeDefinition.Name, syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
+        builder.AppendLine("        : base(" + EmitterHelpers.ToCSharpStringLiteral(mnemonic) + ", syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -98,16 +115,27 @@ internal static class TypeEmitter
         builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
+
+        var assemblyFormatExpression = type.CsharpAssemblyFormat;
+        var factoryExpression = assemblyFormatExpression == null
+            ? "static context => " + className + ".BindValue(context)"
+            : null;
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
             type.Name,
-            factoryExpression: "static context => " + className + ".BindValue(context)");
-        builder.AppendLine();
-        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new " + className + "(context.Syntax);");
-        builder.AppendLine("    }");
+            assemblyFormatExpression,
+            factoryExpression);
+
+        if (factoryExpression != null)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        return new " + className + "(context.Syntax);");
+            builder.AppendLine("    }");
+        }
+
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
         builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
@@ -123,16 +151,27 @@ internal static class TypeEmitter
         builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
+
+        var assemblyFormatExpression = type.CsharpAssemblyFormat;
+        var factoryExpression = assemblyFormatExpression == null
+            ? "static context => " + className + ".BindValue(context)"
+            : null;
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
             type.Name,
-            factoryExpression: "static context => " + className + ".BindValue(context)");
-        builder.AppendLine();
-        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new " + className + "(context.Syntax);");
-        builder.AppendLine("    }");
+            assemblyFormatExpression,
+            factoryExpression);
+
+        if (factoryExpression != null)
+        {
+            builder.AppendLine();
+            builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
+            builder.AppendLine("    {");
+            builder.AppendLine("        return new " + className + "(context.Syntax);");
+            builder.AppendLine("    }");
+        }
+
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
         builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");

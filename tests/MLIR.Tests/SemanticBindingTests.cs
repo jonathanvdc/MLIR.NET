@@ -3,6 +3,7 @@ namespace MLIR.Tests;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Primitives;
+using MLIR.Dialects.Builtin;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
@@ -73,13 +74,15 @@ public sealed partial class SemanticTests
     [Fact]
     public void BuiltinRegisteredTypeWrappersCompareEqualToBuiltinSemanticTypes()
     {
+        // Register the builtin dialect using the correct "builtin.integer" canonical name
+        // so that the binder's GetStructuredTypeDefinitionName lookup succeeds.
         var registry = new DialectRegistry();
         registry.RegisterDialect(
             new Dialect(
                 "builtin",
                 [],
                 [],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
+                [new TypeDefinition("builtin.integer", new BuiltinIntegerTypeAssemblyFormat())]));
 
         var builtin = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32")).Operations[0].TypeSignatureReference!;
         var registered = Binder.BindModule(Parser.ParseModule("\"test.op\"() : i32", registry), registry).Operations[0].TypeSignatureReference!;
@@ -89,6 +92,112 @@ public sealed partial class SemanticTests
         Assert.Equal(builtin, registered);
         Assert.Equal(registered, builtin);
     }
+
+    [Fact]
+    public void BindsScalarFloatTypesToGeneratedTypeDefsWhenRegistered()
+    {
+        // Verify that when the builtin dialect is registered, scalar float syntax resolves
+        // to the generated float TypeDef subclasses (not FloatTypeReference base) with
+        // their canonical TypeDefinitions.
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(BuiltinDialectRegistration.Create());
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (f32, bf16, f16, f64) -> ()"),
+            registry);
+        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+
+        var f32 = Assert.IsType<Float32Type>(function.Inputs[0]);
+        var bf16 = Assert.IsType<BFloat16Type>(function.Inputs[1]);
+        var f16 = Assert.IsType<Float16Type>(function.Inputs[2]);
+        var f64 = Assert.IsType<Float64Type>(function.Inputs[3]);
+
+        Assert.Equal("f32", f32.Name);
+        Assert.Equal("bf16", bf16.Name);
+        Assert.Equal("f16", f16.Name);
+        Assert.Equal("f64", f64.Name);
+
+        Assert.Same(Float32Type.TypeDefinition, f32.Definition);
+        Assert.Same(BFloat16Type.TypeDefinition, bf16.Definition);
+        Assert.Same(Float16Type.TypeDefinition, f16.Definition);
+        Assert.Same(Float64Type.TypeDefinition, f64.Definition);
+    }
+
+    [Fact]
+    public void BindsIndexAndNoneToGeneratedTypeDefsWhenRegistered()
+    {
+        // Verify that when the builtin dialect is registered, index and none syntax resolves
+        // to generated TypeDef instances with their canonical TypeDefinitions.
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(BuiltinDialectRegistration.Create());
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (index, none) -> ()"),
+            registry);
+        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+
+        var index = Assert.IsType<IndexType>(function.Inputs[0]);
+        var none = Assert.IsType<NoneType>(function.Inputs[1]);
+
+        Assert.Same(IndexType.TypeDefinition, index.Definition);
+        Assert.Same(NoneType.TypeDefinition, none.Definition);
+    }
+
+    [Fact]
+    public void FloatTypeReferenceHasNullDefinitionInFallbackPath()
+    {
+        // When no registry is present, float syntax falls back to FloatTypeReference with
+        // Definition == null, since the base class no longer owns a catch-all TypeDefinition.
+        var module = Binder.BindModule(Parser.ParseModule("\"test.op\"() : f32"));
+        var type = module.Operations[0].TypeSignatureReference;
+
+        var floatRef = Assert.IsType<FloatTypeReference>(type);
+        Assert.Equal("f32", floatRef.Name);
+        Assert.Null(floatRef.Definition);
+    }
+
+    [Fact]
+    public void GeneratedScalarTypeDefinitionsUseAssemblyFormatNotFactory()
+    {
+        // Generated scalar TypeDefinitions must use assembly format (not factory delegate)
+        // so that scalar binding goes through ITypeAssemblyFormat.Bind.
+        Assert.NotNull(IntegerType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(Float32Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(BFloat16Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(Float16Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(Float64Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(Float80Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(Float128Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(FloatTF32Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(IndexType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(NoneType.TypeDefinition.AssemblyFormat);
+    }
+
+    [Fact]
+    public void RegisteredScalarTypesCompareEqualToFallbackScalarTypes()
+    {
+        // Scalar types bound through the registered path (assembly format) must compare
+        // equal to the same types bound through the fallback path (no registry).
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(BuiltinDialectRegistration.Create());
+
+        var withRegistry = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (f32, index) -> ()"),
+            registry);
+        var withoutRegistry = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (f32, index) -> ()"));
+
+        var regFunction = Assert.IsType<FunctionTypeReference>(withRegistry.Operations[0].TypeSignatureReference);
+        var fallbackFunction = Assert.IsType<FunctionTypeReference>(withoutRegistry.Operations[0].TypeSignatureReference);
+
+        // Registered f32 (Float32Type) must equal fallback f32 (FloatTypeReference)
+        Assert.Equal(regFunction.Inputs[0], fallbackFunction.Inputs[0]);
+        Assert.Equal(fallbackFunction.Inputs[0], regFunction.Inputs[0]);
+
+        // Registered index (IndexType) must equal fallback index (IndexType)
+        Assert.Equal(regFunction.Inputs[1], fallbackFunction.Inputs[1]);
+    }
+
 
     [Fact]
     public void UnknownTypeReferencesDoNotCompareEqualToKnownTypesWithTheSameName()
