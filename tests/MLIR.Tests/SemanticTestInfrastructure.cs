@@ -447,12 +447,12 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.NoMatch();
             }
 
-            var valueResult = context.TryParseRawUntilDelimiter(TokenKind.Colon);
+            var valueResult = context.TryParseAttributeValueSyntax(TokenKind.Colon);
             if (!valueResult.IsSuccess)
             {
                 return ParseResult<OperationBodySyntax>.Failure(valueResult.Diagnostic!);
             }
-            var valueAttrSyntax = new RawAttributeValueSyntax(valueResult.Value);
+            var valueAttrSyntax = valueResult.Value;
 
             var colonTokenResult = context.Expect(TokenKind.Colon, "Expected ':' after the custom constant value.");
             if (!colonTokenResult.IsSuccess)
