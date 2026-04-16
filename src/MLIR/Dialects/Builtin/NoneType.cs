@@ -15,23 +15,6 @@ namespace MLIR.Dialects.Builtin;
 /// </remarks>
 public partial class NoneType : TypeReference
 {
-    /// <summary>
-    /// Initializes a new synthetic builtin none type.
-    /// </summary>
-    public NoneType()
-        : this(null, SourceLocation.Unknown)
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="NoneType"/> class
-    /// with an optional preserved syntax node.
-    /// </summary>
-    protected NoneType(TypeSyntax? syntax, SourceLocation location)
-        : base(syntax, location)
-    {
-    }
-
     /// <inheritdoc/>
     protected override Type SemanticFamily => typeof(NoneType);
 }

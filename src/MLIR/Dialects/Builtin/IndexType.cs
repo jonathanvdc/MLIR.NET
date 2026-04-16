@@ -15,23 +15,6 @@ namespace MLIR.Dialects.Builtin;
 /// </remarks>
 public partial class IndexType : TypeReference
 {
-    /// <summary>
-    /// Initializes a new synthetic builtin index type.
-    /// </summary>
-    public IndexType()
-        : this(null, SourceLocation.Unknown)
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="IndexType"/> class
-    /// with an optional preserved syntax node.
-    /// </summary>
-    protected IndexType(TypeSyntax? syntax, SourceLocation location)
-        : base(syntax, location)
-    {
-    }
-
     /// <inheritdoc/>
     public override string? Name => "index";
 
