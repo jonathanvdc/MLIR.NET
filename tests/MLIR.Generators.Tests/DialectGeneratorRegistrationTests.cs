@@ -196,17 +196,17 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
         AssertContainsAll(
             builtinSource,
             "public sealed partial class ComplexType : TypeReference",
-            "public sealed partial class Float16Type : FloatTypeReference",
+            "public sealed partial class Float16Type : TypeReference",
             "public sealed partial class FunctionType : TypeReference",
             "public sealed partial class GraphType : TypeReference",
-            "public partial class IndexType : TypeReference",
+            "public sealed partial class IndexType : TypeReference",
             "public partial class IntegerType : TypeReference",
             "global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat",
             "global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat",
             "global::MLIR.Dialects.Builtin.BuiltinIndexTypeAssemblyFormat",
             "global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat",
             "public sealed partial class MemRefType : TypeReference",
-            "public partial class NoneType : TypeReference",
+            "public sealed partial class NoneType : TypeReference",
             "public sealed partial class OpaqueType : TypeReference",
             "public sealed partial class RankedTensorType : TypeReference",
             "public sealed partial class TupleType : TypeReference",
@@ -235,10 +235,10 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
         Assert.DoesNotContain("factory: static context => IndexType.BindValue", builtinSource);
         Assert.DoesNotContain("factory: static context => NoneType.BindValue", builtinSource);
 
-        // Float type constructors must use the MLIR mnemonic, not TypeDefinition.Name.
-        Assert.Contains(": base(\"f32\",", builtinSource);
-        Assert.Contains(": base(\"f16\",", builtinSource);
-        Assert.Contains(": base(\"bf16\",", builtinSource);
+        // Float Name properties must use the MLIR mnemonic, not TypeDefinition.Name.
+        Assert.Contains("Name => \"f32\"", builtinSource);
+        Assert.Contains("Name => \"f16\"", builtinSource);
+        Assert.Contains("Name => \"bf16\"", builtinSource);
     }
 
     [Fact]

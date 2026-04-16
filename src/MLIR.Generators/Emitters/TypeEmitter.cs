@@ -37,112 +37,8 @@ internal static class TypeEmitter
             return;
         }
 
-        if (TryEmitBuiltinWrapper(builder, type, className))
-        {
-            return;
-        }
-
         EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
         EmitPlainTypeClass(builder, type, className);
-    }
-
-    private static bool TryEmitBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
-    {
-        return type.RecordName switch
-        {
-            "Builtin_Index" => EmitIndexBuiltinWrapper(builder, type, className),
-            "Builtin_None" => EmitNoneBuiltinWrapper(builder, type, className),
-            "Builtin_BFloat16" or "Builtin_Float16" or "Builtin_FloatTF32" or "Builtin_Float32" or "Builtin_Float64" or "Builtin_Float80" or "Builtin_Float128" or
-            "Builtin_Float8E5M2" or "Builtin_Float8E4M3" or "Builtin_Float8E4M3FN" or "Builtin_Float8E5M2FNUZ" or "Builtin_Float8E4M3FNUZ" or
-            "Builtin_Float8E4M3B11FNUZ" or "Builtin_Float8E3M4" or "Builtin_Float4E2M1FN" or "Builtin_Float6E2M3FN" or "Builtin_Float6E3M2FN" or
-            "Builtin_Float8E8M0FNU" => EmitFloatBuiltinWrapper(builder, type, className),
-            _ => false,
-        };
-    }
-
-    private static bool EmitFloatBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
-    {
-        EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public sealed partial class " + className + " : FloatTypeReference");
-        builder.AppendLine("{");
-        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-
-        var assemblyFormatExpression = type.CsharpAssemblyFormat;
-        EmitterHelpers.AppendDefinitionConstructor(
-            builder,
-            "TypeDefinition",
-            type.Name,
-            assemblyFormatExpression);
-
-        // Derive the scalar mnemonic from the canonical type name (e.g., "builtin.f32" -> "f32").
-        // This ensures FloatTypeReference.Name carries the MLIR spelling, not the qualified registry key.
-        var mnemonic = type.Name.StartsWith("builtin.", StringComparison.Ordinal)
-            ? type.Name.Substring("builtin.".Length)
-            : type.Name;
-
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(BuiltinFloatTypeSyntax? syntax = null)");
-        builder.AppendLine("        : base(" + EmitterHelpers.ToCSharpStringLiteral(mnemonic) + ", syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(string name)");
-        builder.AppendLine("        : base(name)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
-        builder.AppendLine("}");
-        return true;
-    }
-
-    private static bool EmitIndexBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
-    {
-        EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public partial class " + className + " : TypeReference");
-        builder.AppendLine("{");
-        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-
-        var assemblyFormatExpression = type.CsharpAssemblyFormat;
-        EmitterHelpers.AppendDefinitionConstructor(
-            builder,
-            "TypeDefinition",
-            type.Name,
-            assemblyFormatExpression);
-
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
-        return true;
-    }
-
-    private static bool EmitNoneBuiltinWrapper(StringBuilder builder, TypeModel type, string className)
-    {
-        EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        builder.AppendLine("public partial class " + className + " : TypeReference");
-        builder.AppendLine("{");
-        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-
-        var assemblyFormatExpression = type.CsharpAssemblyFormat;
-        EmitterHelpers.AppendDefinitionConstructor(
-            builder,
-            "TypeDefinition",
-            type.Name,
-            assemblyFormatExpression);
-
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public override string? Name => TypeDefinition.Name;");
-        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
-        builder.AppendLine("}");
-        return true;
     }
 
     private static void EmitPlainTypeClass(StringBuilder builder, TypeModel type, string className)
@@ -153,14 +49,15 @@ internal static class TypeEmitter
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
-            type.Name);
+            type.Name,
+            !string.IsNullOrEmpty(type.CsharpAssemblyFormat) ? type.CsharpAssemblyFormat : null);
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
         builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
         builder.AppendLine("    {");
         builder.AppendLine("    }");
         builder.AppendLine();
-        builder.AppendLine("    public override string? Name => TypeDefinition.Name;");
+        builder.AppendLine("    public override string? Name => " + (!string.IsNullOrEmpty(type.CsharpName) ? type.CsharpName : "TypeDefinition.Name") + ";");
         builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
         builder.AppendLine("}");
     }

@@ -112,4 +112,112 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             "factory:",
             "BindValue(TypeReferenceConstructionContext");
     }
+
+    [Fact]
+    public void PlainTypeDefWithCsharpAssemblyFormatPassesItToTypeDefinition()
+    {
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_SentinelType : MyDialect_Type<\"sentinel\"> {",
+                "  let summary = \"a sentinel type with a custom assembly format\";",
+                "  let csharpAssemblyFormat = \"new global::MyNs.MySentinelAssemblyFormat()\";",
+                "};",
+            ]);
+
+        // The csharpAssemblyFormat should be forwarded to the TypeDefinition constructor even
+        // for zero-parameter plain types.
+        AssertContainsAll(
+            registrationSource,
+            "new TypeDefinition(\"myp.sentinel\", new global::MyNs.MySentinelAssemblyFormat())",
+            "TypeSyntax? syntax = null)");
+    }
+
+    [Fact]
+    public void PlainTypeDefWithCsharpNameOverridesNameProperty()
+    {
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_MnemonicType : MyDialect_Type<\"mnemonic\"> {",
+                "  let summary = \"a type with an overridden short name\";",
+                "  let csharpName = \"\\\"short\\\"\";",
+                "};",
+            ]);
+
+        // csharpName should be used for the Name property override in the generated class.
+        AssertContainsAll(
+            registrationSource,
+            "Name => \"short\"");
+    }
+
+    [Fact]
+    public void GeneratedBuiltinFloatTypesDoNotInheritFromFloatTypeReference()
+    {
+        var builtinSource = GenerateRegistrationSource(
+            "builtin.td",
+            "BuiltinDialectRegistration.g.cs",
+            "include \"mlir/IR/BuiltinTypes.td\"");
+
+        // Float types must be plain TypeReference subclasses, not FloatTypeReference subclasses.
+        AssertContainsAll(
+            builtinSource,
+            "public sealed partial class Float32Type : TypeReference",
+            "public sealed partial class Float16Type : TypeReference",
+            "public sealed partial class BFloat16Type : TypeReference",
+            "public sealed partial class Float64Type : TypeReference",
+            "public sealed partial class FloatTF32Type : TypeReference");
+
+        AssertDoesNotContainAny(
+            builtinSource,
+            ": FloatTypeReference");
+    }
+
+    [Fact]
+    public void GeneratedBuiltinFloatTypesCarryMnemonicInNameProperty()
+    {
+        var builtinSource = GenerateRegistrationSource(
+            "builtin.td",
+            "BuiltinDialectRegistration.g.cs",
+            "include \"mlir/IR/BuiltinTypes.td\"");
+
+        // Name property must return the MLIR mnemonic, not the qualified registry key.
+        AssertContainsAll(
+            builtinSource,
+            "Name => \"f32\"",
+            "Name => \"f16\"",
+            "Name => \"bf16\"",
+            "Name => \"f64\"",
+            "Name => \"tf32\"");
+    }
+
+    [Fact]
+    public void GeneratedBuiltinIndexAndNoneUseNormalTypeEmissionPath()
+    {
+        var builtinSource = GenerateRegistrationSource(
+            "builtin.td",
+            "BuiltinDialectRegistration.g.cs",
+            "include \"mlir/IR/BuiltinTypes.td\"");
+
+        // IndexType and NoneType are fully generated via the standard path with
+        // csharpAssemblyFormat and csharpName.
+        AssertContainsAll(
+            builtinSource,
+            "new TypeDefinition(\"builtin.index\", new global::MLIR.Dialects.Builtin.BuiltinIndexTypeAssemblyFormat())",
+            "new TypeDefinition(\"builtin.none\", new global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat())",
+            "Name => \"index\"",
+            "Name => \"none\"",
+            "public sealed partial class IndexType : TypeReference",
+            "public sealed partial class NoneType : TypeReference");
+    }
 }

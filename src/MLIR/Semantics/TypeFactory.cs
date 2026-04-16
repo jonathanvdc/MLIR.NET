@@ -36,15 +36,15 @@ public static class TypeFactory
     public static IntegerType I128 { get; } = I(128);
 
     /// <summary>Gets the builtin <c>f16</c> type.</summary>
-    public static FloatTypeReference F16 { get; } = F("f16");
+    public static Float16Type F16 { get; } = new();
     /// <summary>Gets the builtin <c>f32</c> type.</summary>
-    public static FloatTypeReference F32 { get; } = F("f32");
+    public static Float32Type F32 { get; } = new();
     /// <summary>Gets the builtin <c>f64</c> type.</summary>
-    public static FloatTypeReference F64 { get; } = F("f64");
+    public static Float64Type F64 { get; } = new();
     /// <summary>Gets the builtin <c>bf16</c> type.</summary>
-    public static FloatTypeReference BF16 { get; } = F("bf16");
+    public static BFloat16Type BF16 { get; } = new();
     /// <summary>Gets the builtin <c>tf32</c> type.</summary>
-    public static FloatTypeReference TF32 { get; } = F("tf32");
+    public static FloatTF32Type TF32 { get; } = new();
 
     /// <summary>
     /// Creates a builtin signless integer type of the requested bit width.
@@ -68,28 +68,6 @@ public static class TypeFactory
     public static IntegerType UI(int width)
     {
         return new IntegerType(width, IntegerTypeSignedness.Unsigned, null);
-    }
-
-    /// <summary>
-    /// Creates a builtin floating-point type by canonical MLIR spelling.
-    /// </summary>
-    public static FloatTypeReference F(string name)
-    {
-        switch (name)
-        {
-            case "f16":
-                return new Float16Type();
-            case "f32":
-                return new Float32Type();
-            case "f64":
-                return new Float64Type();
-            case "bf16":
-                return new BFloat16Type();
-            case "tf32":
-                return new FloatTF32Type();
-            default:
-                return new FloatTypeReference(name);
-        }
     }
 
     /// <summary>

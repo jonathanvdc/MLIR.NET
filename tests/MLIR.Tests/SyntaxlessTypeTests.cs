@@ -207,6 +207,80 @@ public sealed class SyntaxlessTypeTests
         Assert.Equal("tensor<2xvector<4xf32>>", Printer.PrintType(tensorType, ReplaceOptions));
     }
 
+    // --- NoneType ---
+
+    [Fact]
+    public void NoneType_SyntaxIsNullWhenConstructedProgrammatically()
+    {
+        var type = new NoneType();
+        Assert.Null(type.Syntax);
+    }
+
+    [Fact]
+    public void NoneType_PrintsCorrectlyWithoutSyntax()
+    {
+        var type = new NoneType();
+        Assert.Equal("none", Printer.PrintType(type, ReplaceOptions));
+    }
+
+    // --- Float types (syntaxless) ---
+
+    [Fact]
+    public void Float32Type_SyntaxIsNullWhenConstructedProgrammatically()
+    {
+        var type = TypeFactory.F32;
+        Assert.Null(type.Syntax);
+    }
+
+    [Theory]
+    [InlineData("f16")]
+    [InlineData("f32")]
+    [InlineData("f64")]
+    [InlineData("bf16")]
+    [InlineData("tf32")]
+    public void ScalarFloatTypeFactory_PrintsCorrectMnemonicWithoutSyntax(string mnemonic)
+    {
+        var type = mnemonic switch
+        {
+            "f16" => (TypeReference)TypeFactory.F16,
+            "f32" => TypeFactory.F32,
+            "f64" => TypeFactory.F64,
+            "bf16" => TypeFactory.BF16,
+            "tf32" => TypeFactory.TF32,
+            _ => throw new System.Exception("unexpected mnemonic"),
+        };
+        Assert.Equal(mnemonic, Printer.PrintType(type, ReplaceOptions));
+    }
+
+    [Fact]
+    public void TensorType_WithSyntaxlessFloat32ElementType_PrintsCorrectly()
+    {
+        var tensorType = TypeFactory.Tensor([4L, 8L], TypeFactory.F32);
+
+        Assert.Null(tensorType.Syntax);
+        Assert.Equal("tensor<4x8xf32>", Printer.PrintType(tensorType, ReplaceOptions));
+    }
+
+    [Fact]
+    public void FunctionType_WithSyntaxlessFloatAndIndexTypes_PrintsCorrectly()
+    {
+        var funcType = TypeFactory.Function(
+            [TypeFactory.F32, TypeFactory.Index],
+            [TypeFactory.F64]);
+
+        Assert.Null(funcType.Syntax);
+        Assert.Equal("(f32, index) -> f64", Printer.PrintType(funcType, ReplaceOptions));
+    }
+
+    [Fact]
+    public void TupleType_WithSyntaxlessBFloat16AndNone_PrintsCorrectly()
+    {
+        var tuple = TypeFactory.Tuple(TypeFactory.BF16, TypeFactory.None);
+
+        Assert.Null(tuple.Syntax);
+        Assert.Equal("tuple<bf16, none>", Printer.PrintType(tuple, ReplaceOptions));
+    }
+
     // --- TypeDefinition assembly formats are wired up ---
 
     [Fact]
@@ -217,5 +291,19 @@ public sealed class SyntaxlessTypeTests
         Assert.NotNull(TensorTypeReference.TypeDefinition.AssemblyFormat);
         Assert.NotNull(VectorTypeReference.TypeDefinition.AssemblyFormat);
         Assert.NotNull(MemRefTypeReference.TypeDefinition.AssemblyFormat);
+    }
+
+    [Fact]
+    public void AllScalarPrimitiveTypeDefinitionsHaveAssemblyFormats()
+    {
+        // Generated builtin scalar types must carry an assembly format so ConcreteSyntaxBuilder
+        // can synthesize CST for syntaxless instances.
+        Assert.NotNull(Float16Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(Float32Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(Float64Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(BFloat16Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(FloatTF32Type.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(IndexType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(NoneType.TypeDefinition.AssemblyFormat);
     }
 }
