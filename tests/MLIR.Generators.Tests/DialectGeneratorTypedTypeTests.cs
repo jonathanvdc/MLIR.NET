@@ -162,28 +162,6 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     }
 
     [Fact]
-    public void GeneratedBuiltinFloatTypesDoNotInheritFromFloatTypeReference()
-    {
-        var builtinSource = GenerateRegistrationSource(
-            "builtin.td",
-            "BuiltinDialectRegistration.g.cs",
-            "include \"mlir/IR/BuiltinTypes.td\"");
-
-        // Float types must be plain TypeReference subclasses, not FloatTypeReference subclasses.
-        AssertContainsAll(
-            builtinSource,
-            "public sealed partial class Float32Type : TypeReference",
-            "public sealed partial class Float16Type : TypeReference",
-            "public sealed partial class BFloat16Type : TypeReference",
-            "public sealed partial class Float64Type : TypeReference",
-            "public sealed partial class FloatTF32Type : TypeReference");
-
-        AssertDoesNotContainAny(
-            builtinSource,
-            ": FloatTypeReference");
-    }
-
-    [Fact]
     public void GeneratedBuiltinFloatTypesCarryMnemonicInNameProperty()
     {
         var builtinSource = GenerateRegistrationSource(

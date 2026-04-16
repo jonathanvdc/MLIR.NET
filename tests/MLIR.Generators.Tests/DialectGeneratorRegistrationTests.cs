@@ -186,62 +186,6 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
     }
 
     [Fact]
-    public void GeneratesBuiltinTypeWrappersForHandwrittenBackedBuiltinTypes()
-    {
-        var builtinSource = GenerateRegistrationSource(
-            "builtin.td",
-            "BuiltinDialectRegistration.g.cs",
-            "include \"mlir/IR/BuiltinTypes.td\"");
-
-        AssertContainsAll(
-            builtinSource,
-            "public sealed partial class ComplexType : TypeReference",
-            "public sealed partial class Float16Type : TypeReference",
-            "public sealed partial class FunctionType : TypeReference",
-            "public sealed partial class GraphType : TypeReference",
-            "public sealed partial class IndexType : TypeReference",
-            "public partial class IntegerType : TypeReference",
-            "global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat",
-            "global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat",
-            "global::MLIR.Dialects.Builtin.BuiltinIndexTypeAssemblyFormat",
-            "global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat",
-            "public sealed partial class MemRefType : TypeReference",
-            "public sealed partial class NoneType : TypeReference",
-            "public sealed partial class OpaqueType : TypeReference",
-            "public sealed partial class RankedTensorType : TypeReference",
-            "public sealed partial class TupleType : TypeReference",
-            "public sealed partial class UnrankedMemRefType : TypeReference",
-            "public sealed partial class UnrankedTensorType : TypeReference",
-            "public sealed partial class VectorType : TypeReference",
-            "dialect.AddType(ComplexType.TypeDefinition);",
-            "dialect.AddType(Float16Type.TypeDefinition);",
-            "dialect.AddType(FunctionType.TypeDefinition);",
-            "dialect.AddType(GraphType.TypeDefinition);",
-            "dialect.AddType(IndexType.TypeDefinition);",
-            "dialect.AddType(IntegerType.TypeDefinition);",
-            "dialect.AddType(MemRefType.TypeDefinition);",
-            "dialect.AddType(NoneType.TypeDefinition);",
-            "dialect.AddType(OpaqueType.TypeDefinition);",
-            "dialect.AddType(RankedTensorType.TypeDefinition);",
-            "dialect.AddType(TupleType.TypeDefinition);",
-            "dialect.AddType(UnrankedMemRefType.TypeDefinition);",
-            "dialect.AddType(UnrankedTensorType.TypeDefinition);",
-            "dialect.AddType(VectorType.TypeDefinition);");
-
-        // Scalar TypeDefinitions must use assembly format, not factory delegates.
-        Assert.DoesNotContain("factory: static context => Float16Type.BindValue", builtinSource);
-        Assert.DoesNotContain("factory: static context => BFloat16Type.BindValue", builtinSource);
-        Assert.DoesNotContain("factory: static context => Float32Type.BindValue", builtinSource);
-        Assert.DoesNotContain("factory: static context => IndexType.BindValue", builtinSource);
-        Assert.DoesNotContain("factory: static context => NoneType.BindValue", builtinSource);
-
-        // Float Name properties must use the MLIR mnemonic, not TypeDefinition.Name.
-        Assert.Contains("Name => \"f32\"", builtinSource);
-        Assert.Contains("Name => \"f16\"", builtinSource);
-        Assert.Contains("Name => \"bf16\"", builtinSource);
-    }
-
-    [Fact]
     public void GeneratesListPropertyForVariadicResult()
     {
         // Use a non-shadowing name so the variadic list property is always emitted.

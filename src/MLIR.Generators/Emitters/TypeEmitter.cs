@@ -11,29 +11,22 @@ internal static class TypeEmitter
     {
         var className = DialectGeneratorNaming.GetTypeClassName(type);
 
-        if (type.Parameters.Count > 0)
+        if (type.AssemblyFormat != null)
         {
-            if (type.AssemblyFormat != null)
-            {
-                EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-                TypeAssemblyFormatEmitter.EmitSyntaxClass(builder, type, className);
-                builder.AppendLine();
-                builder.AppendLine();
-                EmitParametrisedTypeClass(builder, type, className);
-                builder.AppendLine();
-                TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
-                return;
-            }
-
-            if (!string.IsNullOrEmpty(type.CsharpName))
-            {
-                EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-                EmitParametrisedTypeClass(builder, type, className);
-                return;
-            }
-
             EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-            EmitPlainTypeClass(builder, type, className);
+            TypeAssemblyFormatEmitter.EmitSyntaxClass(builder, type, className);
+            builder.AppendLine();
+            builder.AppendLine();
+            EmitParametrisedTypeClass(builder, type, className);
+            builder.AppendLine();
+            TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
+            return;
+        }
+
+        if (!string.IsNullOrEmpty(type.CsharpName))
+        {
+            EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
+            EmitParametrisedTypeClass(builder, type, className);
             return;
         }
 
@@ -73,7 +66,7 @@ internal static class TypeEmitter
                 ? "new " + formatClassName + "()"
                 : null;
 
-        builder.AppendLine("public partial class " + className + " : TypeReference");
+        builder.AppendLine("public sealed partial class " + className + " : TypeReference");
         builder.AppendLine("{");
         EmitTypeDefinition(builder, type, assemblyFormatExpression);
         builder.AppendLine();
