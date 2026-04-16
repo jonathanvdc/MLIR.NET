@@ -24,6 +24,21 @@ public static class ConcreteSyntaxBuilder
     }
 
     /// <summary>
+    /// Builds a concrete type syntax node for the supplied semantic type reference.
+    /// </summary>
+    /// <remarks>
+    /// When <paramref name="typeReference"/> has <c>Syntax == null</c> and its
+    /// <c>TypeDefinition.AssemblyFormat</c> is non-null, the assembly format is used to
+    /// synthesize fresh syntax from the semantic payload.  This is the primary entry point
+    /// for printing syntaxless programmatically constructed types.
+    /// </remarks>
+    public static TypeSyntax BuildTypeSyntax(TypeReference typeReference, ConcreteSyntaxBuilderOptions? options = null)
+    {
+        var builder = new Builder(options ?? new ConcreteSyntaxBuilderOptions());
+        return builder.BuildTypeReference(typeReference);
+    }
+
+    /// <summary>
     /// Configures how <see cref="ConcreteSyntaxBuilder"/> prefers custom assembly formats and handles existing syntax.
     /// </summary>
     /// <remarks>

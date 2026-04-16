@@ -12,7 +12,7 @@ public class TensorTypeReference : TypeReference
     /// <summary>
     /// Gets the shared builtin type definition.
     /// </summary>
-    public static TypeDefinition TypeDefinition { get; } = new("tensor");
+    public static TypeDefinition TypeDefinition { get; } = new("tensor", new MLIR.Dialects.Builtin.BuiltinTensorTypeAssemblyFormat());
 
     /// <summary>
     /// Initializes a new parsed builtin tensor type reference.
@@ -46,7 +46,7 @@ public class TensorTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     private TensorTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? BuildSyntax(dimensions, isUnranked, elementType, trailingParameters), location)
+        : base(syntax, location)
     {
         Dimensions = dimensions;
         IsUnranked = isUnranked;
@@ -81,33 +81,6 @@ public class TensorTypeReference : TypeReference
 
             return hash;
         }
-    }
-
-    private static TensorTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
-    {
-        var dimensionSyntax = dimensions.Select(CreateDimensionSyntax).ToArray();
-        var xTokens = new List<Token>(isUnranked ? 1 : dimensionSyntax.Length);
-        for (var i = 0; i < xTokens.Capacity; i++)
-        {
-            xTokens.Add(TokenFactory.Identifier("x"));
-        }
-
-        var commas = new List<Token>(trailingParameters.Count);
-        for (var i = 0; i < trailingParameters.Count; i++)
-        {
-            commas.Add(TokenFactory.Comma());
-        }
-
-        return new TensorTypeSyntax(
-            TokenFactory.Identifier("tensor"),
-            TokenFactory.LessThan(),
-            dimensionSyntax,
-            xTokens,
-            isUnranked ? TokenFactory.Star() : null,
-            elementType.Syntax ?? throw new InvalidOperationException("Tensor element types must carry syntax."),
-            commas,
-            trailingParameters,
-            TokenFactory.GreaterThan());
     }
 
     internal static ShapedTypeDimensionSyntax CreateDimensionSyntax(long? dimension)

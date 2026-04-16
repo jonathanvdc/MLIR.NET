@@ -511,7 +511,9 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     {
         if (field.CsType == "IReadOnlyList<TypeSyntax>")
         {
-            return "op.TypeSignatureReference?.Syntax is global::MLIR.Syntax.Types.Collections.FunctionTypeSyntax functionType ? " +
+            // Use context.BuildTypeSyntax to synthesize the function type syntax so that
+            // TypeSignatureReferences with null Syntax (programmatically constructed) still work.
+            return "op.TypeSignatureReference != null && context.BuildTypeSyntax(op.TypeSignatureReference) is global::MLIR.Syntax.Types.Collections.FunctionTypeSyntax functionType ? " +
                 "(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>)functionType.InputTypes.Items.ToList() : global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
         }
 

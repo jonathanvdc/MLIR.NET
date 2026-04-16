@@ -1,4 +1,3 @@
-using System.Linq;
 using MLIR.Dialects;
 using MLIR.Syntax;
 using MLIR.Syntax.Types.Collections;
@@ -13,7 +12,7 @@ public class TupleTypeReference : TypeReference
     /// <summary>
     /// Gets the shared builtin type definition.
     /// </summary>
-    public static TypeDefinition TypeDefinition { get; } = new("tuple");
+    public static TypeDefinition TypeDefinition { get; } = new("tuple", new MLIR.Dialects.Builtin.BuiltinTupleTypeAssemblyFormat());
 
     /// <summary>
     /// Initializes a new parsed builtin tuple type reference.
@@ -43,7 +42,7 @@ public class TupleTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     private TupleTypeReference(IReadOnlyList<TypeReference> elements, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? BuildSyntax(elements), location)
+        : base(syntax, location)
     {
         Elements = elements;
     }
@@ -75,21 +74,5 @@ public class TupleTypeReference : TypeReference
     protected override int GetSemanticHashCodeValue()
     {
         return GetSequenceHashCode(Elements);
-    }
-
-    private static TupleTypeSyntax BuildSyntax(IReadOnlyList<TypeReference> elements)
-    {
-        var commas = new List<Token>(Math.Max(0, elements.Count - 1));
-        for (var i = 1; i < elements.Count; i++)
-        {
-            commas.Add(TokenFactory.Comma());
-        }
-
-        return new TupleTypeSyntax(
-            TokenFactory.Identifier("tuple"),
-            TokenFactory.LessThan(),
-            elements.Select(static element => element.Syntax ?? throw new InvalidOperationException("Tuple elements must carry syntax.")).ToArray(),
-            commas,
-            TokenFactory.GreaterThan());
     }
 }

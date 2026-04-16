@@ -12,7 +12,7 @@ public class MemRefTypeReference : TypeReference
     /// <summary>
     /// Gets the shared builtin type definition.
     /// </summary>
-    public static TypeDefinition TypeDefinition { get; } = new("memref");
+    public static TypeDefinition TypeDefinition { get; } = new("memref", new MLIR.Dialects.Builtin.BuiltinMemRefTypeAssemblyFormat());
 
     /// <summary>
     /// Initializes a new parsed builtin memref type reference.
@@ -46,7 +46,7 @@ public class MemRefTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     private MemRefTypeReference(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? BuildSyntax(dimensions, isUnranked, elementType, trailingParameters), location)
+        : base(syntax, location)
     {
         Dimensions = dimensions;
         IsUnranked = isUnranked;
@@ -81,33 +81,6 @@ public class MemRefTypeReference : TypeReference
 
             return hash;
         }
-    }
-
-    private static MemRefTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, bool isUnranked, TypeReference elementType, IReadOnlyList<RawSyntaxText> trailingParameters)
-    {
-        var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
-        var xTokens = new List<Token>(isUnranked ? 1 : dimensionSyntax.Length);
-        for (var i = 0; i < xTokens.Capacity; i++)
-        {
-            xTokens.Add(TokenFactory.Identifier("x"));
-        }
-
-        var commas = new List<Token>(trailingParameters.Count);
-        for (var i = 0; i < trailingParameters.Count; i++)
-        {
-            commas.Add(TokenFactory.Comma());
-        }
-
-        return new MemRefTypeSyntax(
-            TokenFactory.Identifier("memref"),
-            TokenFactory.LessThan(),
-            dimensionSyntax,
-            xTokens,
-            isUnranked ? TokenFactory.Star() : null,
-            elementType.Syntax ?? throw new InvalidOperationException("MemRef element types must carry syntax."),
-            commas,
-            trailingParameters,
-            TokenFactory.GreaterThan());
     }
 
     private static bool HaveSameDimensions(IReadOnlyList<long?> left, IReadOnlyList<long?> right)
