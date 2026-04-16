@@ -16,14 +16,6 @@ namespace MLIR;
 public partial class IndexType : TypeReference
 {
     /// <summary>
-    /// Initializes a new parsed builtin index type.
-    /// </summary>
-    public IndexType(BuiltinIndexTypeSyntax syntax)
-        : this(syntax, syntax.Location)
-    {
-    }
-
-    /// <summary>
     /// Initializes a new synthetic builtin index type.
     /// </summary>
     public IndexType()
