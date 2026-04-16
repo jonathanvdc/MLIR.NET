@@ -66,7 +66,10 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
         var normalizedSyntax = NormalizeSyntax(syntax);
-        return BindDenseTypedElements(binder.CreateAttributeValueConstructionContext(normalizedSyntax, definition.Name, definition, normalizedSyntax.Location));
+        var payload = StructuredAttributeSemanticDecoder.DecodeValue(normalizedSyntax.Payload);
+        var type = binder.BindTypeReference(normalizedSyntax.TypeSyntax);
+
+        return new DenseTypedElementsAttr(type, payload, syntax);
     }
 
     /// <inheritdoc/>
@@ -84,22 +87,6 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
             TokenFactory.GreaterThan(),
             TokenFactory.Colon(),
             context.BuildTypeSyntax(elementsAttribute.Type));
-    }
-
-    /// <summary>
-    /// Binds a parsed dense elements literal to the generated builtin dense-elements
-    /// attribute class. ODS constraints such as <c>AnyI32ElementsAttr</c> delegate here
-    /// so they do not need handwritten semantic wrapper classes.
-    /// </summary>
-    private static AttributeValue BindDenseTypedElements(AttributeValueConstructionContext context)
-    {
-        var elementsSyntax = NormalizeSyntax(context.Syntax);
-        var payload = StructuredAttributeSemanticDecoder.DecodeValue(elementsSyntax.Payload);
-        var type = context.Binder != null
-            ? context.Binder.BindTypeReference(elementsSyntax.TypeSyntax)
-            : new UnknownTypeReference(elementsSyntax.TypeSyntax, null, null);
-
-        return new DenseTypedElementsAttr(type, payload, elementsSyntax);
     }
 
     private static ElementsAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax)
