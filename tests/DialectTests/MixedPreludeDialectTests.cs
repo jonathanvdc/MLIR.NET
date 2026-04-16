@@ -2,10 +2,11 @@ namespace DialectTests;
 
 using System.Linq;
 using MLIR;
-using MLIR.Arith;
+using MLIR.Dialects.Arith;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
 using MLIR.Dialects.Extensions;
-using MLIR.Func;
+using MLIR.Dialects.Func;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using Xunit;

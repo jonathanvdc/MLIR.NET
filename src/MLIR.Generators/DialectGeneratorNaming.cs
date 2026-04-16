@@ -13,18 +13,46 @@ internal static class DialectGeneratorNaming
         return ToPascalCase(dialect.Name) + "DialectRegistration.g.cs";
     }
 
+    /// <summary>
+    /// Projects a dialect model into the public C# namespace for generated output.
+    /// </summary>
+    /// <remarks>
+    /// Upstream <c>cppNamespace</c> is treated as provenance metadata, not as the final C#
+    /// namespace.  The projection rules are:
+    /// <list type="bullet">
+    ///   <item>Prelude (shared constraints) → <c>MLIR.Dialects.Prelude</c></item>
+    ///   <item>Any <c>::mlir::*</c> dialect → <c>MLIR.Dialects.&lt;PascalCase(dialect.Name)&gt;</c></item>
+    ///   <item>Non-MLIR or unknown fallback → <c>MLIR.Generated.&lt;PascalCase(dialect.Name)&gt;</c></item>
+    /// </list>
+    /// This keeps generated dialect APIs predictably under <c>MLIR.Dialects.*</c> regardless of
+    /// how the upstream C++ namespace is spelled, and avoids polluting the root <c>MLIR</c> namespace.
+    /// </remarks>
     public static string GetGeneratedNamespace(DialectModel dialect)
     {
+        // Prelude always lives in MLIR.Dialects.Prelude regardless of cppNamespace.
+        if (dialect.IsPrelude)
+        {
+            return "MLIR.Dialects.Prelude";
+        }
+
+        // Determine whether this is an upstream MLIR dialect by inspecting cppNamespace.
+        // Any namespace whose first segment is "mlir" (case-insensitive) is treated as an
+        // MLIR dialect and projected into MLIR.Dialects.<PascalCase(dialect.Name)>.
         var cppNamespace = dialect.CppNamespace;
         if (!string.IsNullOrWhiteSpace(cppNamespace))
         {
-            var segments = ParseCppNamespace(cppNamespace!);
-            if (segments.Count != 0)
+            var firstSegment = cppNamespace!
+                .Split(new[] { "::" }, StringSplitOptions.None)
+                .FirstOrDefault(static s => !string.IsNullOrWhiteSpace(s))
+                ?.Trim();
+
+            if (string.Equals(firstSegment, "mlir", StringComparison.OrdinalIgnoreCase))
             {
-                return string.Join(".", segments);
+                return "MLIR.Dialects." + ToPascalCase(dialect.Name);
             }
         }
 
+        // Non-MLIR dialects fall back to MLIR.Generated.<PascalCase(dialect.Name)>.
         return "MLIR.Generated." + ToPascalCase(dialect.Name);
     }
 

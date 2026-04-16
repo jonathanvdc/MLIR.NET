@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Numerics;
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;

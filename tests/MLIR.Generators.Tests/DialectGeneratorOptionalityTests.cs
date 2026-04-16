@@ -26,7 +26,7 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
             registrationSource,
             "public uint? Value",
             "get => Attributes.TryGet(\"value\",",
-            "((global::MLIR.IntegerAttr)",
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)",
             "set => SetAttribute(\"value\", value.HasValue ? global::MLIR.Semantics.ConstantAttributeFactory.I32(value.Value) : null)",
             "NamedAttributeCollection attributes,",
             "uint? value,",
@@ -80,7 +80,7 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
         AssertContainsAll(
             registrationSource,
             "public uint Value",
-            "((global::MLIR.IntegerAttr)",
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)",
             "new NamedAttribute(\"value\", global::MLIR.Semantics.ConstantAttributeFactory.I32(value))",
             "uint value,",
             "operation.RequiredAttribute(\"value\",");

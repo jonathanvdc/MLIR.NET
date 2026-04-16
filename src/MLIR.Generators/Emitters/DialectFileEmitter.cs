@@ -20,6 +20,7 @@ internal static class DialectFileEmitter
         builder.AppendLine("using MLIR.Dialects.Attributes;");
         builder.AppendLine("using MLIR.Dialects.Attributes.Collections;");
         builder.AppendLine("using MLIR.Dialects.Attributes.Primitives;");
+        builder.AppendLine("using MLIR.Dialects.Builtin;");
         builder.AppendLine("using MLIR.Semantics;");
         builder.AppendLine("using MLIR.Semantics.Attributes;");
         builder.AppendLine("using MLIR.Semantics.Attributes.Collections;");

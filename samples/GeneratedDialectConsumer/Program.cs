@@ -1,5 +1,5 @@
 using MLIR.Dialects;
-using MLIR.Miniarith;
+using MLIR.Dialects.Miniarith;
 
 Dialect dialect = MiniarithDialectRegistration.Create();
 System.Type addType = typeof(MiniArith_AddIOp);

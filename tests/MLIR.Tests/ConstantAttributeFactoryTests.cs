@@ -1,6 +1,7 @@
 namespace MLIR.Tests;
 
 using MLIR;
+using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using Xunit;
 

@@ -46,7 +46,7 @@ internal static class DialectRegistrationEmitter
         builder.Append("        }");
         if (!dialect.IsPrelude)
         {
-            builder.Append(", global::MLIR.Prelude.PreludeDialectRegistration.Create");
+            builder.Append(", global::MLIR.Dialects.Prelude.PreludeDialectRegistration.Create");
         }
 
         builder.AppendLine(");");

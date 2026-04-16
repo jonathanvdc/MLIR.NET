@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 

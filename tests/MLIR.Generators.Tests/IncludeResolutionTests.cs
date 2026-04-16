@@ -44,7 +44,7 @@ public sealed class IncludeResolutionTests
             generatedSources.Where(static r => r.HintName == "TestpreludeDialectRegistration.g.cs"));
         var text = registration.SourceText.ToString();
 
-        Assert.Contains("namespace MLIR.Testprelude;", text);
+        Assert.Contains("namespace MLIR.Dialects.Testprelude;", text);
         Assert.Contains("public sealed class TestPrelude_AddIOp : Operation", text);
         Assert.Contains("dialect.AddOperation(TestPrelude_AddIOp.OperationDefinition);", text);
     }
@@ -76,7 +76,7 @@ public sealed class IncludeResolutionTests
             generatedSources.Where(static r => r.HintName == "TesttypesDialectRegistration.g.cs"));
         var text = registration.SourceText.ToString();
 
-        Assert.Contains("namespace MLIR.Testtypes;", text);
+        Assert.Contains("namespace MLIR.Dialects.Testtypes;", text);
         Assert.Contains("public sealed class TestTypes_CastOp : Operation", text);
     }
 
@@ -108,7 +108,7 @@ public sealed class IncludeResolutionTests
             generatedSources.Where(static r => r.HintName == "TestattrsDialectRegistration.g.cs"));
         var text = registration.SourceText.ToString();
 
-        Assert.Contains("namespace MLIR.Testattrs;", text);
+        Assert.Contains("namespace MLIR.Dialects.Testattrs;", text);
         Assert.Contains("public sealed class TestAttrs_ConstantOp : Operation", text);
     }
 
@@ -323,7 +323,7 @@ public sealed class IncludeResolutionTests
 
         var registration = Assert.Single(
             generatedSources.Where(static r => r.HintName == "DbDialectRegistration.g.cs"));
-        Assert.Contains("namespace MLIR.Db;", registration.SourceText.ToString());
+        Assert.Contains("namespace MLIR.Dialects.Db;", registration.SourceText.ToString());
     }
 
     [Fact]
@@ -351,7 +351,7 @@ public sealed class IncludeResolutionTests
 
         var registration = Assert.Single(
             generatedSources.Where(static r => r.HintName == "TctestDialectRegistration.g.cs"));
-        Assert.Contains("namespace MLIR.Tctest;", registration.SourceText.ToString());
+        Assert.Contains("namespace MLIR.Dialects.Tctest;", registration.SourceText.ToString());
     }
 
     [Fact]
@@ -379,7 +379,7 @@ public sealed class IncludeResolutionTests
 
         var registration = Assert.Single(
             generatedSources.Where(static r => r.HintName == "ActestDialectRegistration.g.cs"));
-        Assert.Contains("namespace MLIR.Actest;", registration.SourceText.ToString());
+        Assert.Contains("namespace MLIR.Dialects.Actest;", registration.SourceText.ToString());
     }
 
     [Fact]
@@ -407,7 +407,7 @@ public sealed class IncludeResolutionTests
 
         var registration = Assert.Single(
             generatedSources.Where(static r => r.HintName == "UtilsDialectRegistration.g.cs"));
-        Assert.Contains("namespace MLIR.Utils;", registration.SourceText.ToString());
+        Assert.Contains("namespace MLIR.Dialects.Utils;", registration.SourceText.ToString());
     }
 
     [Fact]

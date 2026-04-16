@@ -6,6 +6,7 @@ using System.Linq;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Primitives;
+using MLIR.Dialects.Builtin;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Types.Primitives;

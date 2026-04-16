@@ -115,7 +115,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine();
         builder.AppendLine("    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
         builder.AppendLine("    {");
-        builder.AppendLine("        if (attribute is global::MLIR.IntegerAttr integerAttr");
+        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr integerAttr");
         builder.AppendLine("            && " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".TryFromInteger(integerAttr.Value, out var enumValue))");
         builder.AppendLine("        {");
         builder.AppendLine("            var text = " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".Format(enumValue);");
@@ -127,7 +127,7 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine("            return attribute.Syntax;");
         builder.AppendLine("        }");
         builder.AppendLine();
-        builder.AppendLine("        if (attribute is global::MLIR.IntegerAttr fallbackIntegerAttr)");
+        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr fallbackIntegerAttr)");
         builder.AppendLine("        {");
         builder.AppendLine("            return context.BuildAttributeValueSyntax(fallbackIntegerAttr);");
         builder.AppendLine("        }");

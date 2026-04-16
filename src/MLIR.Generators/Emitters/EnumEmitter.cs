@@ -25,7 +25,7 @@ internal static class EnumEmitter
 
     public static string GetEnumToIntegerAttrExpression(EnumModel enumModel, string enumValueExpression, string syntaxExpression)
     {
-        return "new global::MLIR.IntegerAttr("
+        return "new global::MLIR.Dialects.Builtin.IntegerAttr("
             + GetIntegerTypeFactoryExpression(enumModel.Bitwidth)
             + ", global::MLIR.Numerics.ApInt.FromUInt64("
             + enumModel.Bitwidth

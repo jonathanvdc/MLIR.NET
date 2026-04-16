@@ -1,7 +1,7 @@
 namespace DialectTests;
 
 using MLIR;
-using MLIR.Minitest;
+using MLIR.Dialects.Minitest;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using Xunit;

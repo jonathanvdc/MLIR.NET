@@ -1,12 +1,12 @@
 namespace DialectTests;
 
 using MLIR;
-using MLIR.Arith;
+using MLIR.Dialects.Arith;
 using MLIR.Dialects;
-using MLIR.Miniarith;
-using MLIR.Minienum;
-using MLIR.Minitest;
-using MLIR.Typedtype;
+using MLIR.Dialects.Miniarith;
+using MLIR.Dialects.Minienum;
+using MLIR.Dialects.Minitest;
+using MLIR.Dialects.Typedtype;
 using MLIR.Semantics;
 using MLIR.Text;
 using MLIR.Transforms;

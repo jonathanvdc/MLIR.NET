@@ -1,7 +1,7 @@
 namespace DialectTests;
 
 using MLIR;
-using MLIR.Minienum;
+using MLIR.Dialects.Minienum;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Text;

@@ -385,7 +385,7 @@ internal static class OperationMemberPlanner
             return false;
         }
 
-        if (string.Equals(storageType, "global::MLIR.SymbolRefAttr", StringComparison.Ordinal))
+        if (string.Equals(storageType, "global::MLIR.Dialects.Builtin.SymbolRefAttr", StringComparison.Ordinal))
         {
             return false;
         }
@@ -400,7 +400,7 @@ internal static class OperationMemberPlanner
             return storageType;
         }
 
-        return enumModel != null ? "global::MLIR.IntegerAttr" : null;
+        return enumModel != null ? "global::MLIR.Dialects.Builtin.IntegerAttr" : null;
     }
 
     private static string? GetAttrConvertFromStorageExpression(AttrModel? attrModel, EnumModel? enumModel)

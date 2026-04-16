@@ -89,7 +89,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             "if (op.Value)");
         AssertDoesNotContainAny(
             registrationSource,
-            "context.TryParseAttributeValueSyntax(MLIR.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)",
+            "context.TryParseAttributeValueSyntax(MLIR.Dialects.Minitest.UnitAttrConstraintAttributeValue.AttributeConstraintDefinition)",
             "NamedAttributeCollection.Create(value ?",
             "if (op.Value != null)");
     }

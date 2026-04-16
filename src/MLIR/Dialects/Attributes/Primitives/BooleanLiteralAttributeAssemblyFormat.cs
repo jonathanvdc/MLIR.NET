@@ -2,6 +2,7 @@ namespace MLIR.Dialects.Attributes.Primitives;
 
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
