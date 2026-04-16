@@ -220,25 +220,19 @@ internal static class EmitterHelpers
     /// <c>AttributeDefinition</c>.
     /// </summary>
     /// <remarks>
-    /// The helper keeps the common shape in one place: a definition name, an optional assembly
-    /// format object, and an optional factory expression.
+    /// The helper keeps the common shape in one place: a definition name and an optional assembly
+    /// format object.
     /// </remarks>
     public static void AppendDefinitionConstructor(
         StringBuilder builder,
         string definitionTypeName,
         string name,
-        string? assemblyFormatExpression = null,
-        string? factoryExpression = null)
+        string? assemblyFormatExpression = null)
     {
         builder.Append("        new " + definitionTypeName + "(" + ToCSharpStringLiteral(name));
         if (assemblyFormatExpression != null)
         {
             builder.Append(", " + assemblyFormatExpression);
-        }
-
-        if (factoryExpression != null)
-        {
-            builder.Append(", factory: " + factoryExpression);
         }
 
         builder.AppendLine(");");

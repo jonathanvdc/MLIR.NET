@@ -68,24 +68,11 @@ internal static class TypeEmitter
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
 
         var assemblyFormatExpression = type.CsharpAssemblyFormat;
-        var factoryExpression = assemblyFormatExpression == null
-            ? "static context => " + className + ".BindValue(context)"
-            : null;
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
             type.Name,
-            assemblyFormatExpression,
-            factoryExpression);
-
-        if (factoryExpression != null)
-        {
-            builder.AppendLine();
-            builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
-            builder.AppendLine("    {");
-            builder.AppendLine("        return new " + className + "(context.Syntax as BuiltinFloatTypeSyntax);");
-            builder.AppendLine("    }");
-        }
+            assemblyFormatExpression);
 
         // Derive the scalar mnemonic from the canonical type name (e.g., "builtin.f32" -> "f32").
         // This ensures FloatTypeReference.Name carries the MLIR spelling, not the qualified registry key.
@@ -117,24 +104,11 @@ internal static class TypeEmitter
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
 
         var assemblyFormatExpression = type.CsharpAssemblyFormat;
-        var factoryExpression = assemblyFormatExpression == null
-            ? "static context => " + className + ".BindValue(context)"
-            : null;
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
             type.Name,
-            assemblyFormatExpression,
-            factoryExpression);
-
-        if (factoryExpression != null)
-        {
-            builder.AppendLine();
-            builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
-            builder.AppendLine("    {");
-            builder.AppendLine("        return new " + className + "(context.Syntax);");
-            builder.AppendLine("    }");
-        }
+            assemblyFormatExpression);
 
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
@@ -153,24 +127,11 @@ internal static class TypeEmitter
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
 
         var assemblyFormatExpression = type.CsharpAssemblyFormat;
-        var factoryExpression = assemblyFormatExpression == null
-            ? "static context => " + className + ".BindValue(context)"
-            : null;
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
             type.Name,
-            assemblyFormatExpression,
-            factoryExpression);
-
-        if (factoryExpression != null)
-        {
-            builder.AppendLine();
-            builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
-            builder.AppendLine("    {");
-            builder.AppendLine("        return new " + className + "(context.Syntax);");
-            builder.AppendLine("    }");
-        }
+            assemblyFormatExpression);
 
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
@@ -192,13 +153,7 @@ internal static class TypeEmitter
         EmitterHelpers.AppendDefinitionConstructor(
             builder,
             "TypeDefinition",
-            type.Name,
-            factoryExpression: "static context => " + className + ".BindValue(context)");
-        builder.AppendLine();
-        builder.AppendLine("    public static " + className + " BindValue(TypeReferenceConstructionContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new " + className + "(context.Syntax);");
-        builder.AppendLine("    }");
+            type.Name);
         builder.AppendLine();
         builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
         builder.AppendLine("        : base(syntax, syntax?.Location ?? MLIR.Semantics.SourceLocation.Unknown)");
@@ -214,20 +169,16 @@ internal static class TypeEmitter
     {
         var parameters = type.Parameters;
         var hasAssemblyFormat = type.AssemblyFormat != null;
-        var syntaxClassName = hasAssemblyFormat ? className + "Syntax" : null;
         var formatClassName = hasAssemblyFormat ? className + "AssemblyFormat" : null;
         var assemblyFormatExpression = !string.IsNullOrEmpty(type.CsharpAssemblyFormat)
             ? type.CsharpAssemblyFormat
             : formatClassName != null
                 ? "new " + formatClassName + "()"
                 : null;
-        var factoryExpression = formatClassName != null
-            ? "static context => " + formatClassName + ".BindValue(context.Syntax!)"
-            : null;
 
         builder.AppendLine("public partial class " + className + " : TypeReference");
         builder.AppendLine("{");
-        EmitTypeDefinition(builder, type, assemblyFormatExpression, factoryExpression);
+        EmitTypeDefinition(builder, type, assemblyFormatExpression);
         builder.AppendLine();
 
         EmitTypeConstructor(builder, className, parameters);
@@ -250,11 +201,10 @@ internal static class TypeEmitter
     private static void EmitTypeDefinition(
         StringBuilder builder,
         TypeModel type,
-        string? assemblyFormatExpression,
-        string? factoryExpression)
+        string? assemblyFormatExpression)
     {
         builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-        EmitterHelpers.AppendDefinitionConstructor(builder, "TypeDefinition", type.Name, assemblyFormatExpression, factoryExpression);
+        EmitterHelpers.AppendDefinitionConstructor(builder, "TypeDefinition", type.Name, assemblyFormatExpression);
     }
 
     private static void EmitTypeConstructor(StringBuilder builder, string className, IReadOnlyList<AttrOrTypeParameterModel> parameters)

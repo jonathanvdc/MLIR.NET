@@ -174,6 +174,26 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
+    public void RegisteredTypeDefinitionWithoutAssemblyFormatBindsToUnknownTypeReferenceWithDefinitionSet()
+    {
+        // A TypeDefinition registered without an assembly format should produce an
+        // UnknownTypeReference whose Definition is non-null. The binder has no factory-delegate
+        // fallback; the definition metadata is preserved so callers can still identify the family.
+        var definition = new TypeDefinition("test.plain");
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(new Dialect("test", [], [], [definition]));
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("%0 = \"test.op\"() : !test.plain", registry),
+            registry);
+
+        var type = module.Operations[0].TypeSignatureReference;
+        var unknown = Assert.IsType<UnknownTypeReference>(type);
+        Assert.Equal("test.plain", unknown.Name);
+        Assert.Same(definition, unknown.Definition);
+    }
+
+    [Fact]
     public void RegisteredScalarTypesCompareEqualToFallbackScalarTypes()
     {
         // Scalar types bound through the registered path (assembly format) must compare
@@ -297,7 +317,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
 
         var module = Binder.BindModule(
             Parser.ParseModule("%0 = \"test.op\"() {value = #dense<[1, 2]> : tensor<2xi32>} : i32", registry),
@@ -326,7 +346,7 @@ public sealed partial class SemanticTests
                 "builtin",
                 [],
                 [i32AttributeDefinition],
-                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat(), static context => new IntegerType(32, IntegerTypeSignedness.Signless, context.Syntax))]));
+                [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
         registry.RegisterDialect(
             Dialect.Create(
                 "arith",
