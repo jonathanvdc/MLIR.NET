@@ -103,6 +103,7 @@ public sealed class AttrOrTypeParameterModel(
     /// The expression must return <c>ParseResult&lt;AttributeValueSyntax&gt;</c>.
     /// When null the generator uses the default <c>TryParseAttributeValueSyntax</c> call.
     /// </summary>
+    /// <seealso cref="CsharpParserTemplate"/>
     public string? CsharpParser { get; } = csharpParser;
 
     /// <summary>
@@ -113,6 +114,7 @@ public sealed class AttrOrTypeParameterModel(
     /// When null and <see cref="CsharpType"/> is <c>AttributeValueSyntax</c>, the syntax node
     /// is used directly; any other type without an extractor will produce a compile error.
     /// </summary>
+    /// <seealso cref="CsharpExtractorTemplate"/>
     public string? CsharpExtractor { get; } = csharpExtractor;
 
     /// <summary>
@@ -132,7 +134,45 @@ public sealed class AttrOrTypeParameterModel(
     /// When null the syntax node stored in the structured syntax class is used as-is
     /// (only valid for <c>AttributeValueSyntax</c> parameters).
     /// </summary>
+    /// <seealso cref="CsharpPrinterTemplate"/>
     public string? CsharpPrinter { get; } = csharpPrinter;
+
+    /// <summary>
+    /// Gets the <see cref="CsharpParser"/> value as a normalized <see cref="CodeTemplate"/>
+    /// with canonical <c>${parser}</c> placeholder syntax, or <see langword="null"/> when
+    /// <see cref="CsharpParser"/> is not set.
+    /// </summary>
+    /// <remarks>
+    /// Legacy <c>$_parser</c> spellings in the raw <see cref="CsharpParser"/> string are
+    /// automatically normalized to <c>${parser}</c> by <see cref="CodeTemplate.From"/>.
+    /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "parser", contextVar }})</c>
+    /// to substitute the parsing-context variable.
+    /// </remarks>
+    public CodeTemplate? CsharpParserTemplate => CodeTemplate.From(CsharpParser, CodeTemplateKind.Expression);
+
+    /// <summary>
+    /// Gets the <see cref="CsharpExtractor"/> value as a normalized <see cref="CodeTemplate"/>
+    /// with canonical <c>${syntax}</c> placeholder syntax, or <see langword="null"/> when
+    /// <see cref="CsharpExtractor"/> is not set.
+    /// </summary>
+    /// <remarks>
+    /// Legacy <c>$_syntax</c> spellings are automatically normalized to <c>${syntax}</c>.
+    /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "syntax", syntaxVar }})</c>
+    /// to substitute the syntax variable.
+    /// </remarks>
+    public CodeTemplate? CsharpExtractorTemplate => CodeTemplate.From(CsharpExtractor, CodeTemplateKind.Expression);
+
+    /// <summary>
+    /// Gets the <see cref="CsharpPrinter"/> value as a normalized <see cref="CodeTemplate"/>
+    /// with canonical <c>${self}</c> placeholder syntax, or <see langword="null"/> when
+    /// <see cref="CsharpPrinter"/> is not set.
+    /// </summary>
+    /// <remarks>
+    /// Legacy <c>$_self</c> spellings are automatically normalized to <c>${self}</c>.
+    /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "self", propertyVar }})</c>
+    /// to substitute the property value expression.
+    /// </remarks>
+    public CodeTemplate? CsharpPrinterTemplate => CodeTemplate.From(CsharpPrinter, CodeTemplateKind.Expression);
 
     /// <summary>
     /// Gets a value indicating whether this parameter is the special self-type parameter used

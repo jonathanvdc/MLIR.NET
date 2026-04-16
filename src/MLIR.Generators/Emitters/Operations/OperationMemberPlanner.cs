@@ -22,8 +22,8 @@ internal sealed class GeneratedMember
         AttributeConstraintCodeStrategy? constraintStrategy,
         string? constraintClassName,
         string? attrStorageTypeName = null,
-        string? attrConvertFromStorageExpression = null,
-        string? attrConstBuilderCallExpression = null,
+        CodeTemplate? attrConvertFromStorageTemplate = null,
+        CodeTemplate? attrConstBuilderCallTemplate = null,
         string? attrDefaultValueExpression = null,
         bool isVariadic = false)
     {
@@ -35,8 +35,8 @@ internal sealed class GeneratedMember
         ConstraintStrategy = constraintStrategy;
         ConstraintClassName = constraintClassName;
         AttrStorageTypeName = attrStorageTypeName;
-        AttrConvertFromStorageExpression = attrConvertFromStorageExpression;
-        AttrConstBuilderCallExpression = attrConstBuilderCallExpression;
+        AttrConvertFromStorageTemplate = attrConvertFromStorageTemplate;
+        AttrConstBuilderCallTemplate = attrConstBuilderCallTemplate;
         AttrDefaultValueExpression = attrDefaultValueExpression;
         IsVariadic = isVariadic;
     }
@@ -62,9 +62,19 @@ internal sealed class GeneratedMember
 
     public string? AttrStorageTypeName { get; }
 
-    public string? AttrConvertFromStorageExpression { get; }
+    /// <summary>
+    /// Gets the normalized <see cref="CodeTemplate"/> for the convert-from-storage expression,
+    /// using the canonical <c>${self}</c> placeholder, or <see langword="null"/> when no
+    /// conversion is needed.
+    /// </summary>
+    public CodeTemplate? AttrConvertFromStorageTemplate { get; }
 
-    public string? AttrConstBuilderCallExpression { get; }
+    /// <summary>
+    /// Gets the normalized <see cref="CodeTemplate"/> for the const-builder-call expression,
+    /// using the canonical <c>${value}</c> placeholder, or <see langword="null"/> when no
+    /// custom builder is defined.
+    /// </summary>
+    public CodeTemplate? AttrConstBuilderCallTemplate { get; }
 
     public string? AttrDefaultValueExpression { get; }
 
@@ -320,8 +330,8 @@ internal static class OperationMemberPlanner
                 constraintStrategy,
                 constraintClassName,
                 attrStorageTypeName: GetAttrStorageTypeName(useAttrModelTyping ? attrModel : null, enumModel),
-                attrConvertFromStorageExpression: GetAttrConvertFromStorageExpression(useAttrModelTyping ? attrModel : null, enumModel),
-                attrConstBuilderCallExpression: GetAttrConstBuilderCallExpression(useAttrModelTyping ? attrModel : null, enumModel),
+                attrConvertFromStorageTemplate: GetAttrConvertFromStorageTemplate(useAttrModelTyping ? attrModel : null, enumModel),
+                attrConstBuilderCallTemplate: GetAttrConstBuilderCallTemplate(useAttrModelTyping ? attrModel : null, enumModel),
                 attrDefaultValueExpression: useAttrModelTyping ? attrModel?.CsharpDefaultValue : null));
         }
 
@@ -403,11 +413,12 @@ internal static class OperationMemberPlanner
         return enumModel != null ? "global::MLIR.Dialects.Builtin.IntegerAttr" : null;
     }
 
-    private static string? GetAttrConvertFromStorageExpression(AttrModel? attrModel, EnumModel? enumModel)
+    private static CodeTemplate? GetAttrConvertFromStorageTemplate(AttrModel? attrModel, EnumModel? enumModel)
     {
-        if (attrModel?.CsharpConvertFromStorage is string convertExpression)
+        // If the AttrModel provides a raw expression, normalize its legacy placeholders.
+        if (attrModel?.CsharpConvertFromStorageTemplate is CodeTemplate template)
         {
-            return convertExpression;
+            return template;
         }
 
         if (enumModel == null)
@@ -415,14 +426,19 @@ internal static class OperationMemberPlanner
             return null;
         }
 
-        return EnumEmitter.GetIntegerToEnumExpression(enumModel, "$_self.Value", "default");
+        // For enums, build the expression using the canonical ${self} placeholder so
+        // that the emitter can substitute the actual storage variable via Render().
+        return new CodeTemplate(
+            EnumEmitter.GetIntegerToEnumExpression(enumModel, "${self}.Value", "default"),
+            CodeTemplateKind.Expression);
     }
 
-    private static string? GetAttrConstBuilderCallExpression(AttrModel? attrModel, EnumModel? enumModel)
+    private static CodeTemplate? GetAttrConstBuilderCallTemplate(AttrModel? attrModel, EnumModel? enumModel)
     {
-        if (attrModel?.CsharpConstBuilderCall is string constBuilderCall)
+        // If the AttrModel provides a raw expression, normalize its legacy placeholders.
+        if (attrModel?.CsharpConstBuilderCallTemplate is CodeTemplate template)
         {
-            return constBuilderCall;
+            return template;
         }
 
         if (enumModel == null)
@@ -430,7 +446,11 @@ internal static class OperationMemberPlanner
             return null;
         }
 
-        return EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "$0", "null");
+        // For enums, build the expression using the canonical ${value} placeholder so
+        // that the emitter can substitute the actual value variable via Render().
+        return new CodeTemplate(
+            EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "${value}", "null"),
+            CodeTemplateKind.Expression);
     }
 
     private static IReadOnlyList<GeneratedMember> GetRegionMembers(OperationModel operation, HashSet<string> requiredVariables)

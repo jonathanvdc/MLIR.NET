@@ -238,9 +238,17 @@ internal static class TypeAssemblyFormatEmitter
     {
         var varLocalName = EmitterHelpers.LowerFirst(slot.Name) + "Syntax";
         var stopExpr = string.Empty;
-        var parseExpr = !string.IsNullOrEmpty(slot.ParamModel?.CsharpParser)
-            ? slot.ParamModel!.CsharpParser!.Replace("$_parser", "context")
-            : "context.TryParseAttributeValueSyntax(" + stopExpr + ")";
+        string parseExpr;
+
+        var parserTemplate = slot.ParamModel?.CsharpParserTemplate;
+        if (parserTemplate is not null)
+        {
+            parseExpr = parserTemplate.Render(new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal) { ["parser"] = "context" });
+        }
+        else
+        {
+            parseExpr = "context.TryParseAttributeValueSyntax(" + stopExpr + ")";
+        }
 
         builder.AppendLine("        var " + varLocalName + "Result = " + parseExpr + ";");
         builder.AppendLine("        if (!" + varLocalName + "Result.IsSuccess)");
@@ -318,9 +326,10 @@ internal static class TypeAssemblyFormatEmitter
 
     private static string BuildSyntaxFromPropertyExpression(string propertyExpr, AttrOrTypeParameterModel? param)
     {
-        if (!string.IsNullOrEmpty(param?.CsharpPrinter))
+        var printerTemplate = param?.CsharpPrinterTemplate;
+        if (printerTemplate is not null)
         {
-            return param!.CsharpPrinter!.Replace("$_self", propertyExpr);
+            return printerTemplate.Render(new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal) { ["self"] = propertyExpr });
         }
 
         return propertyExpr;
@@ -332,9 +341,10 @@ internal static class TypeAssemblyFormatEmitter
         string ownerName,
         string parameterName)
     {
-        if (!string.IsNullOrEmpty(param?.CsharpExtractor))
+        var extractorTemplate = param?.CsharpExtractorTemplate;
+        if (extractorTemplate is not null)
         {
-            return param!.CsharpExtractor!.Replace("$_syntax", syntaxExpr);
+            return extractorTemplate.Render(new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.Ordinal) { ["syntax"] = syntaxExpr });
         }
 
         if (!string.IsNullOrEmpty(param?.CsharpDefault))
