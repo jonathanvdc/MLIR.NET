@@ -1,7 +1,9 @@
 namespace MLIR.Generators.Emitters.Operation;
 
 using System;
+using System.Collections.Generic;
 using MLIR.Generators.Emitters.Common;
+using MLIR.ODS.Model;
 
 internal static class OperationAttributeValueHelpers
 {
@@ -209,18 +211,20 @@ internal static class OperationAttributeValueHelpers
     private static string? TryGetAttrModelGetterExpression(GeneratedMember member, string sourceNameLiteral, string localName, bool isOptional)
     {
         var storageTypeName = member.AttrStorageTypeName;
-        var convertExpression = member.AttrConvertFromStorageExpression;
-        if (string.IsNullOrEmpty(storageTypeName) || string.IsNullOrEmpty(convertExpression))
+        var convertTemplate = member.AttrConvertFromStorageTemplate;
+        if (string.IsNullOrEmpty(storageTypeName) || convertTemplate is null)
         {
             return null;
         }
 
         var castPrefix = "((" + storageTypeName + ")";
-        var convertedRequired = ApplyAttrModelStorageConversion(convertExpression!, castPrefix + "Attributes[" + sourceNameLiteral + "].Value)");
+        var selfValues = new Dictionary<string, string>(StringComparer.Ordinal) { ["self"] = castPrefix + "Attributes[" + sourceNameLiteral + "].Value)" };
+        var convertedRequired = convertTemplate.Render(selfValues);
         var defaultValue = member.AttrDefaultValueExpression;
         if (!string.IsNullOrEmpty(defaultValue))
         {
-            var convertedOptionalWithDefault = ApplyAttrModelStorageConversion(convertExpression!, castPrefix + localName + ".Value)");
+            var selfOptionalValues = new Dictionary<string, string>(StringComparer.Ordinal) { ["self"] = castPrefix + localName + ".Value)" };
+            var convertedOptionalWithDefault = convertTemplate.Render(selfOptionalValues);
             return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + convertedOptionalWithDefault + " : " + defaultValue;
         }
 
@@ -229,15 +233,17 @@ internal static class OperationAttributeValueHelpers
             return convertedRequired;
         }
 
-        var convertedOptional = ApplyAttrModelStorageConversion(convertExpression!, castPrefix + localName + ".Value)");
+        var selfOptional = new Dictionary<string, string>(StringComparer.Ordinal) { ["self"] = castPrefix + localName + ".Value)" };
+        var convertedOptional = convertTemplate.Render(selfOptional);
         return "Attributes.TryGet(" + sourceNameLiteral + ", out var " + localName + ") ? " + convertedOptional + " : null";
     }
 
     private static string? TryGetAttrModelStorageValueExpression(GeneratedMember member, string valueExpression)
     {
-        if (!string.IsNullOrEmpty(member.AttrConstBuilderCallExpression))
+        var constBuilderTemplate = member.AttrConstBuilderCallTemplate;
+        if (constBuilderTemplate is not null)
         {
-            return member.AttrConstBuilderCallExpression!.Replace("$0", valueExpression);
+            return constBuilderTemplate.Render(new Dictionary<string, string>(StringComparer.Ordinal) { ["value"] = valueExpression });
         }
 
         var storageTypeName = member.AttrStorageTypeName;
@@ -247,11 +253,6 @@ internal static class OperationAttributeValueHelpers
         }
 
         return "new " + storageTypeName + "(" + valueExpression + ")";
-    }
-
-    private static string ApplyAttrModelStorageConversion(string conversionExpression, string storageExpression)
-    {
-        return conversionExpression.Replace("$_self", storageExpression);
     }
 
     private static string GetPrimitiveValueAccessExpression(GeneratedMember member, string localName, string sourceNameLiteral, bool isOptional)

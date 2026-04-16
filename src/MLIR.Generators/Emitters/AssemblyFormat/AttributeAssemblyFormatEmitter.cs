@@ -390,11 +390,12 @@ internal static class AttributeAssemblyFormatEmitter
     {
         string parseExpr;
 
-        if (!string.IsNullOrEmpty(paramModel?.CsharpParser))
+        var parserTemplate = paramModel?.CsharpParserTemplate;
+        if (parserTemplate is not null)
         {
             // Custom parser from MLIRNet_AttrOrTypeParameterExtension.csharpParser:
-            // substitute $_parser → context.
-            parseExpr = paramModel!.CsharpParser!.Replace("$_parser", "context");
+            // substitute ${parser} → context.
+            parseExpr = parserTemplate.Render(new Dictionary<string, string>(System.StringComparer.Ordinal) { ["parser"] = "context" });
         }
         else
         {
@@ -505,9 +506,10 @@ internal static class AttributeAssemblyFormatEmitter
             return "binder.BindTypeReference(" + syntaxExpr + ".TypeSyntax)";
         }
 
-        if (!string.IsNullOrEmpty(param?.CsharpExtractor))
+        var extractorTemplate = param?.CsharpExtractorTemplate;
+        if (extractorTemplate is not null)
         {
-            return param!.CsharpExtractor!.Replace("$_syntax", syntaxExpr);
+            return extractorTemplate.Render(new Dictionary<string, string>(System.StringComparer.Ordinal) { ["syntax"] = syntaxExpr });
         }
 
         if (!string.IsNullOrEmpty(param?.CsharpDefault))
@@ -526,11 +528,12 @@ internal static class AttributeAssemblyFormatEmitter
     /// </summary>
     private static string BuildSyntaxFromPropertyExpression(string propertyExpr, AttrOrTypeParameterModel? param)
     {
-        if (!string.IsNullOrEmpty(param?.CsharpPrinter))
+        var printerTemplate = param?.CsharpPrinterTemplate;
+        if (printerTemplate is not null)
         {
             // Custom printer from MLIRNet_AttrOrTypeParameterExtension.csharpPrinter:
-            // substitute $_self → the property expression.
-            return param!.CsharpPrinter!.Replace("$_self", propertyExpr);
+            // substitute ${self} → the property expression.
+            return printerTemplate.Render(new Dictionary<string, string>(System.StringComparer.Ordinal) { ["self"] = propertyExpr });
         }
 
         // No printer defined: use the syntax node stored in the structured syntax class directly.

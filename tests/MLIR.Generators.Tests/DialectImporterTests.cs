@@ -1144,4 +1144,90 @@ public sealed class DialectImporterTests
         Assert.Equal("third", third.Name);
         Assert.Equal("global::MLIR.Numerics.ApInt", third.CsharpType);
     }
+
+    [Fact]
+    public void AttrModelLegacyPlaceholdersNormalizeToCanonicalTemplates()
+    {
+        // Verify that AttrModel fields using legacy placeholder spellings ($_self, $0)
+        // are exposed as CodeTemplate objects with canonical ${self} and ${value} spellings.
+        // The raw string properties retain their original spellings for round-trip fidelity;
+        // the *Template properties perform the normalization.
+        const string source =
+            "include \"mlir/IR/BuiltinAttributes.td\"\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var prelude = dialects[0];
+
+        // DenseI32ArrayAttr uses $0 in csharpConstBuilderCall and $_self in csharpConvertFromStorage.
+        var denseI32 = Assert.Single(prelude.Attrs, static a => a.RecordName == "DenseI32ArrayAttr");
+
+        // Raw string retains legacy spelling.
+        Assert.Contains("$_self", denseI32.CsharpConvertFromStorage);
+        Assert.Contains("$0", denseI32.CsharpConstBuilderCall);
+
+        // CodeTemplate properties normalize to canonical spelling.
+        var convertTemplate = denseI32.CsharpConvertFromStorageTemplate;
+        Assert.NotNull(convertTemplate);
+        Assert.DoesNotContain("$_self", convertTemplate!.Text);
+        Assert.Contains("${self}", convertTemplate.Text);
+        Assert.Equal(["self"], convertTemplate.PlaceholderNames);
+
+        var constBuilderTemplate = denseI32.CsharpConstBuilderCallTemplate;
+        Assert.NotNull(constBuilderTemplate);
+        Assert.DoesNotContain("$0", constBuilderTemplate!.Text);
+        Assert.Contains("${value}", constBuilderTemplate.Text);
+        Assert.Equal(["value"], constBuilderTemplate.PlaceholderNames);
+    }
+
+    [Fact]
+    public void AttrOrTypeParameterModelLegacyPlaceholdersNormalizeToCanonicalTemplates()
+    {
+        // Verify that AttrOrTypeParameterModel fields using legacy placeholder spellings
+        // ($_parser, $_syntax, $_self) are exposed as CodeTemplate objects with canonical
+        // ${parser}, ${syntax}, ${self} spellings via the *Template properties.
+        const string source =
+            "include \"mlir/IR/BuiltinAttributes.td\"\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
+
+        // StringRefParameter uses $_parser, $_syntax, $_self in the prelude extension overlay.
+        // Find an attribute that uses StringRefParameter to verify normalization.
+        var stridedLayoutAttr = Assert.Single(builtin.Attributes, static a => a.RecordName == "StridedLayoutAttr");
+
+        // The first parameter (offset) uses APIntParameter which has csharpParser/$_parser.
+        // The parameters are imported with legacy spellings in the raw string fields.
+        // The Template properties must expose canonical spellings.
+        foreach (var param in stridedLayoutAttr.Parameters)
+        {
+            if (!string.IsNullOrEmpty(param.CsharpParser))
+            {
+                // Raw string retains legacy spelling OR already canonical — either way,
+                // the template must use canonical ${parser}.
+                var parserTemplate = param.CsharpParserTemplate;
+                Assert.NotNull(parserTemplate);
+                Assert.DoesNotContain("$_parser", parserTemplate!.Text);
+                if (parserTemplate.PlaceholderNames.Count > 0)
+                {
+                    Assert.Contains("parser", parserTemplate.PlaceholderNames);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(param.CsharpExtractor))
+            {
+                var extractorTemplate = param.CsharpExtractorTemplate;
+                Assert.NotNull(extractorTemplate);
+                Assert.DoesNotContain("$_syntax", extractorTemplate!.Text);
+            }
+
+            if (!string.IsNullOrEmpty(param.CsharpPrinter))
+            {
+                var printerTemplate = param.CsharpPrinterTemplate;
+                Assert.NotNull(printerTemplate);
+                Assert.DoesNotContain("$_self", printerTemplate!.Text);
+            }
+        }
+    }
 }

@@ -71,13 +71,43 @@ public sealed class AttrModel(
 
     /// <summary>
     /// Gets the C# expression that converts from storage to the exposed result type, if known.
+    /// <c>$_self</c> is substituted with the storage value expression.
     /// </summary>
+    /// <seealso cref="CsharpConvertFromStorageTemplate"/>
     public string? CsharpConvertFromStorage { get; } = csharpConvertFromStorage;
 
     /// <summary>
     /// Gets the C# expression that constructs a constant builder call for this attr, if known.
+    /// <c>$0</c> is substituted with the typed value expression.
     /// </summary>
+    /// <seealso cref="CsharpConstBuilderCallTemplate"/>
     public string? CsharpConstBuilderCall { get; } = csharpConstBuilderCall;
+
+    /// <summary>
+    /// Gets the <see cref="CsharpConvertFromStorage"/> value as a normalized
+    /// <see cref="CodeTemplate"/> with canonical <c>${self}</c> placeholder syntax, or
+    /// <see langword="null"/> when <see cref="CsharpConvertFromStorage"/> is not set.
+    /// </summary>
+    /// <remarks>
+    /// Legacy <c>$_self</c> spellings are automatically normalized to <c>${self}</c>.
+    /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "self", storageExpr }})</c>
+    /// to substitute the storage value expression.
+    /// </remarks>
+    public CodeTemplate? CsharpConvertFromStorageTemplate =>
+        CodeTemplate.FromLegacy(CsharpConvertFromStorage, CodeTemplateKind.Expression);
+
+    /// <summary>
+    /// Gets the <see cref="CsharpConstBuilderCall"/> value as a normalized
+    /// <see cref="CodeTemplate"/> with canonical <c>${value}</c> placeholder syntax, or
+    /// <see langword="null"/> when <see cref="CsharpConstBuilderCall"/> is not set.
+    /// </summary>
+    /// <remarks>
+    /// Legacy <c>$0</c> spellings are automatically normalized to <c>${value}</c>.
+    /// Use <c>Render(new Dictionary&lt;string, string&gt; {{ "value", valueExpr }})</c>
+    /// to substitute the typed value expression.
+    /// </remarks>
+    public CodeTemplate? CsharpConstBuilderCallTemplate =>
+        CodeTemplate.FromLegacy(CsharpConstBuilderCall, CodeTemplateKind.Expression);
 
     /// <summary>
     /// Gets the C# default value expression for this attr, if one is known.
