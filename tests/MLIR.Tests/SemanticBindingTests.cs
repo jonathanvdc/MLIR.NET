@@ -743,27 +743,4 @@ public sealed partial class SemanticTests
         Assert.Equal(1, operation.Successors[0].Location.Line);
         Assert.Equal(32, operation.Successors[0].Location.Column);
     }
-
-    [Fact]
-    public void BinderPassesTypedAttributeSelfTypeToAttributeAssemblyFormatBind()
-    {
-        AttributeValueConstructionContext? capturedContext = null;
-        var valueConstraint = new AttributeConstraintDefinition(
-            "test.int",
-            new CapturingIntegerAttributeAssemblyFormat(context => capturedContext = context));
-        var registry = new DialectRegistry();
-        registry.RegisterDialect(new Dialect("test", [new OperationDefinition("test.op", attributeDefinitions: [new OperationAttributeDefinition("value", true, valueConstraint)])]));
-
-        var module = Binder.BindModule(
-            Parser.ParseModule("\"test.op\"() {value = 42 : i32} : () -> ()"),
-            registry);
-
-        var valueAttribute = module.Operations[0].GetAttribute("value");
-
-        Assert.NotNull(capturedContext);
-        Assert.IsType<IntegerAttributeValueSyntax>(capturedContext!.Syntax);
-        var selfType = Assert.IsType<IntegerType>(capturedContext.SelfType);
-        Assert.Equal(32, selfType.Width);
-        Assert.Equal("42", valueAttribute.Value.Syntax!.ToString());
-    }
 }

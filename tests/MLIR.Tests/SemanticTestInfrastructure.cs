@@ -237,11 +237,11 @@ public sealed partial class SemanticTests
 
     private sealed class DenseAttributeValue : AttributeValue
     {
-        public DenseAttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax)
+        public DenseAttributeValue(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition? definition)
+            : base(syntax)
         {
-            Name = context.Name;
-            Definition = context.Definition;
+            Name = name;
+            Definition = definition;
         }
 
         public override string? Name { get; }
@@ -321,11 +321,11 @@ public sealed partial class SemanticTests
 
     private sealed class I32AttributeValue : AttributeValue
     {
-        public I32AttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax)
+        public I32AttributeValue(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition? definition)
+            : base(syntax)
         {
-            Name = context.Name;
-            Definition = context.Definition;
+            Name = name;
+            Definition = definition;
         }
 
         public override string? Name { get; }
@@ -344,12 +344,12 @@ public sealed partial class SemanticTests
     {
         private readonly MLIR.Numerics.ApFloat floatValue;
 
-        public TestF32AttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax)
+        public TestF32AttributeValue(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition? definition)
+            : base(syntax)
         {
-            floatValue = ((FloatingPointAttributeValueSyntax)context.Syntax).Value;
-            Name = context.Name;
-            Definition = context.Definition;
+            floatValue = ((FloatingPointAttributeValueSyntax)syntax).Value;
+            Name = name;
+            Definition = definition;
         }
 
         public TestF32AttributeValue(float value)
@@ -369,12 +369,12 @@ public sealed partial class SemanticTests
     {
         private readonly MLIR.Numerics.ApFloat floatValue;
 
-        public TestF64AttributeValue(AttributeValueConstructionContext context)
-            : base(context.Syntax)
+        public TestF64AttributeValue(AttributeValueSyntax syntax, string? name, AttributeConstraintDefinition? definition)
+            : base(syntax)
         {
-            floatValue = ((FloatingPointAttributeValueSyntax)context.Syntax).Value;
-            Name = context.Name;
-            Definition = context.Definition;
+            floatValue = ((FloatingPointAttributeValueSyntax)syntax).Value;
+            Name = name;
+            Definition = definition;
         }
 
         public TestF64AttributeValue(double value)
@@ -631,7 +631,7 @@ public sealed partial class SemanticTests
 
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
         {
-            var denseAttribute = new DenseAttributeValue(new AttributeValueConstructionContext(syntax, "dense", definition, syntax.Location));
+            var denseAttribute = new DenseAttributeValue(syntax, "dense", definition);
             denseAttribute.BindDense();
             if (!syntax.ToString().Contains("tensor<"))
             {
@@ -708,7 +708,7 @@ public sealed partial class SemanticTests
 
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
         {
-            var attribute = new I32AttributeValue(new AttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));
+            var attribute = new I32AttributeValue(syntax, definition.Name, definition);
             attribute.BindValue(int.Parse(syntax.ToString()));
             return attribute;
         }
@@ -736,7 +736,7 @@ public sealed partial class SemanticTests
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
         {
             return new TestF32AttributeValue(
-                binder.CreateAttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));
+                syntax, definition.Name, definition);
         }
 
         public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
@@ -757,40 +757,12 @@ public sealed partial class SemanticTests
         public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
         {
             return new TestF64AttributeValue(
-                binder.CreateAttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location));
+                syntax, definition.Name, definition);
         }
 
         public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
         {
             return doublePrecisionFormat.BuildCustomAssemblySyntax(attribute, context);
-        }
-    }
-
-    private sealed class CapturingIntegerAttributeAssemblyFormat : IAttributeAssemblyFormat
-    {
-        private readonly Action<AttributeValueConstructionContext> onContextBound;
-        private readonly IntegerLiteralAttributeAssemblyFormat integerLiteralFormat = new();
-
-        public CapturingIntegerAttributeAssemblyFormat(Action<AttributeValueConstructionContext> onContextBound)
-        {
-            this.onContextBound = onContextBound;
-        }
-
-        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
-        {
-            return integerLiteralFormat.TryParse(context);
-        }
-
-        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
-        {
-            var constructionContext = binder.CreateAttributeValueConstructionContext(syntax, definition.Name, definition, syntax.Location);
-            onContextBound(constructionContext);
-            return new UnknownAttributeValue(constructionContext.Syntax, constructionContext.Name, constructionContext.Definition);
-        }
-
-        public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
-        {
-            return integerLiteralFormat.BuildCustomAssemblySyntax(attribute, context);
         }
     }
 }

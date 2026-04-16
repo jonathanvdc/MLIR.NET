@@ -456,26 +456,6 @@ public sealed class Binder
         return attribute;
     }
 
-    /// <summary>
-    /// Creates an attribute construction context, automatically flowing the currently-bound typed-attribute self type
-    /// when no explicit <paramref name="selfTypeReference"/> is supplied.
-    /// </summary>
-    public AttributeValueConstructionContext CreateAttributeValueConstructionContext(
-        AttributeValueSyntax syntax,
-        string? name,
-        AttributeConstraintDefinition definition,
-        SourceLocation location,
-        TypeReference? selfTypeReference = null)
-    {
-        return new AttributeValueConstructionContext(
-            syntax,
-            name,
-            definition,
-            location,
-            selfTypeReference ?? CurrentAttributeSelfTypeReference,
-            this);
-    }
-
     private AttributeValue BindAttributeValueWithAssemblyFormat(
         AttributeValueSyntax syntax,
         AttributeConstraintDefinition definition,
