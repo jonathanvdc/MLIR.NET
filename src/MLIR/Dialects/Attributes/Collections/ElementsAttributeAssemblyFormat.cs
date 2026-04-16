@@ -91,7 +91,7 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// attribute class. ODS constraints such as <c>AnyI32ElementsAttr</c> delegate here
     /// so they do not need handwritten semantic wrapper classes.
     /// </summary>
-    public static AttributeValue BindDenseTypedElements(AttributeValueConstructionContext context)
+    private static AttributeValue BindDenseTypedElements(AttributeValueConstructionContext context)
     {
         var elementsSyntax = NormalizeSyntax(context.Syntax);
         var payload = StructuredAttributeSemanticDecoder.DecodeValue(elementsSyntax.Payload);
