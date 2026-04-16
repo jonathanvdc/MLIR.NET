@@ -591,7 +591,10 @@ public sealed class Binder
             case BuiltinIntegerTypeSyntax integerSyntax:
                 return new IntegerType(integerSyntax.Width, integerSyntax.Signedness, integerSyntax);
             case BuiltinFloatTypeSyntax floatSyntax:
-                return new FloatTypeReference(floatSyntax);
+                // Without a registered dialect, float syntax produces an UnknownTypeReference
+                // carrying the canonical name. Canonical float spellings always bind to generated
+                // classes when the builtin dialect is registered.
+                return new UnknownTypeReference(floatSyntax, "builtin." + floatSyntax.Name, null, floatSyntax.Location);
             case BuiltinIndexTypeSyntax indexSyntax:
                 return new IndexType(indexSyntax);
             case BuiltinNoneTypeSyntax noneSyntax:

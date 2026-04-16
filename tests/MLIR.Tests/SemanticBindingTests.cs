@@ -51,7 +51,7 @@ public sealed partial class SemanticTests
         var memref = Assert.IsType<MemRefTypeReference>(tuple.Elements[1]);
 
         Assert.Equal(new long?[] { 2, null }, tensor.Dimensions);
-        Assert.IsType<FloatTypeReference>(tensor.ElementType);
+        Assert.IsType<UnknownTypeReference>(tensor.ElementType);
         Assert.Equal("index", index.Name);
         Assert.Equal(new long?[] { 4 }, vector.Dimensions);
         Assert.True(memref.IsUnranked);
@@ -144,19 +144,6 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
-    public void FloatTypeReferenceHasNullDefinitionInFallbackPath()
-    {
-        // When no registry is present, float syntax falls back to FloatTypeReference with
-        // Definition == null, since the base class no longer owns a catch-all TypeDefinition.
-        var module = Binder.BindModule(Parser.ParseModule("\"test.op\"() : f32"));
-        var type = module.Operations[0].TypeSignatureReference;
-
-        var floatRef = Assert.IsType<FloatTypeReference>(type);
-        Assert.Equal("f32", floatRef.Name);
-        Assert.Null(floatRef.Definition);
-    }
-
-    [Fact]
     public void GeneratedScalarTypeDefinitionsUseAssemblyFormatNotFactory()
     {
         // Generated scalar TypeDefinitions must use assembly format (not factory delegate)
@@ -194,32 +181,6 @@ public sealed partial class SemanticTests
     }
 
     [Fact]
-    public void RegisteredScalarTypesCompareEqualToFallbackScalarTypes()
-    {
-        // Scalar types bound through the registered path (assembly format) must compare
-        // equal to the same types bound through the fallback path (no registry).
-        var registry = new DialectRegistry();
-        registry.RegisterDialect(BuiltinDialectRegistration.Create());
-
-        var withRegistry = Binder.BindModule(
-            Parser.ParseModule("\"test.op\"() : (f32, index) -> ()"),
-            registry);
-        var withoutRegistry = Binder.BindModule(
-            Parser.ParseModule("\"test.op\"() : (f32, index) -> ()"));
-
-        var regFunction = Assert.IsType<FunctionTypeReference>(withRegistry.Operations[0].TypeSignatureReference);
-        var fallbackFunction = Assert.IsType<FunctionTypeReference>(withoutRegistry.Operations[0].TypeSignatureReference);
-
-        // Registered f32 (Float32Type) must equal fallback f32 (FloatTypeReference)
-        Assert.Equal(regFunction.Inputs[0], fallbackFunction.Inputs[0]);
-        Assert.Equal(fallbackFunction.Inputs[0], regFunction.Inputs[0]);
-
-        // Registered index (IndexType) must equal fallback index (IndexType)
-        Assert.Equal(regFunction.Inputs[1], fallbackFunction.Inputs[1]);
-    }
-
-
-    [Fact]
     public void UnknownTypeReferencesDoNotCompareEqualToKnownTypesWithTheSameName()
     {
         var unknown = new UnknownTypeReference(new RawTypeSyntax(new RawSyntaxText("i32")), "i32", null, SourceLocation.Unknown);
@@ -232,16 +193,81 @@ public sealed partial class SemanticTests
     [Fact]
     public void TypesFactoryCreatesBuiltinSemanticTypesErgonomically()
     {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(BuiltinDialectRegistration.Create());
+
         var function = TypeFactory.Function(
             [TypeFactory.Tensor([2, null], TypeFactory.F32), TypeFactory.Index],
             [TypeFactory.Tuple(TypeFactory.Vector([4], TypeFactory.F32), TypeFactory.UnrankedMemRef(TypeFactory.F32, "#map"))]);
 
         var rebound = Binder.BindModule(
-            Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32, #map>>"))
+            Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32, #map>>", registry),
+            registry)
             .Operations[0]
             .TypeSignatureReference!;
 
         Assert.Equal(rebound, function);
+    }
+
+    [Fact]
+    public void TypeFactoryFloatPropertiesReturnGeneratedBuiltinFloatClasses()
+    {
+        // TypeFactory.F16/F32/F64/BF16/TF32 must now return generated concrete classes.
+        Assert.IsType<Float16Type>(TypeFactory.F16);
+        Assert.IsType<Float32Type>(TypeFactory.F32);
+        Assert.IsType<Float64Type>(TypeFactory.F64);
+        Assert.IsType<BFloat16Type>(TypeFactory.BF16);
+        Assert.IsType<FloatTF32Type>(TypeFactory.TF32);
+    }
+
+    [Fact]
+    public void TypeFactoryFloatPropertiesCarryCorrectNames()
+    {
+        Assert.Equal("f16", TypeFactory.F16.Name);
+        Assert.Equal("f32", TypeFactory.F32.Name);
+        Assert.Equal("f64", TypeFactory.F64.Name);
+        Assert.Equal("bf16", TypeFactory.BF16.Name);
+        Assert.Equal("tf32", TypeFactory.TF32.Name);
+    }
+
+    [Fact]
+    public void FloatSyntaxWithoutRegistryProducesUnknownTypeReferenceWithCanonicalName()
+    {
+        // Without a dialect registry, canonical float spellings produce UnknownTypeReference
+        // rather than a typed concrete class. Callers that need typed float references must
+        // register the builtin dialect.
+        var module = Binder.BindModule(Parser.ParseModule("\"test.op\"() : (f32, bf16, tf32) -> ()"));
+        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+
+        var f32 = Assert.IsType<UnknownTypeReference>(function.Inputs[0]);
+        var bf16 = Assert.IsType<UnknownTypeReference>(function.Inputs[1]);
+        var tf32 = Assert.IsType<UnknownTypeReference>(function.Inputs[2]);
+
+        Assert.Equal("builtin.f32", f32.Name);
+        Assert.Equal("builtin.bf16", bf16.Name);
+        Assert.Equal("builtin.tf32", tf32.Name);
+
+        Assert.Null(f32.Definition);
+        Assert.Null(bf16.Definition);
+        Assert.Null(tf32.Definition);
+    }
+
+    [Fact]
+    public void BindsAllCanonicalFloatMnemonicsWhenRegistered()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(BuiltinDialectRegistration.Create());
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (f16, f32, f64, bf16, tf32) -> ()"),
+            registry);
+        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+
+        Assert.IsType<Float16Type>(function.Inputs[0]);
+        Assert.IsType<Float32Type>(function.Inputs[1]);
+        Assert.IsType<Float64Type>(function.Inputs[2]);
+        Assert.IsType<BFloat16Type>(function.Inputs[3]);
+        Assert.IsType<FloatTF32Type>(function.Inputs[4]);
     }
 
     [Fact]
