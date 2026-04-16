@@ -40,7 +40,7 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
             ? functionSyntax.ResultTypes.Items
             : functionSyntax.ResultType != null ? [functionSyntax.ResultType] : [];
         var results = resultSyntaxList.Select(binder.BindTypeReference).ToArray();
-        return new FunctionTypeReference(functionSyntax, inputs, results);
+        return new FunctionType(inputs, results, functionSyntax);
     }
 
     /// <inheritdoc/>
@@ -51,14 +51,12 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
             return existing;
         }
 
-        if (type is not FunctionTypeReference functionType)
+        var (inputs, results) = type switch
         {
-            throw new InvalidOperationException(
-                $"Cannot rebuild assembly syntax for an unrecognized function type reference of type {type.GetType().FullName}.");
-        }
-
-        var inputs = functionType.Inputs;
-        var results = functionType.Results;
+            FunctionType generated => (generated.Inputs, generated.Results),
+            _ => throw new InvalidOperationException(
+                $"Cannot rebuild assembly syntax for an unrecognized function type reference of type {type.GetType().FullName}.")
+        };
 
         var inputSyntax = inputs.Select(context.BuildTypeSyntax).ToArray();
         var inputCommas = new List<Token>(Math.Max(0, inputs.Count - 1));

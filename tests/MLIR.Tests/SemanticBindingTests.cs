@@ -43,12 +43,12 @@ public sealed partial class SemanticTests
         var module = Binder.BindModule(
             Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32, #map>>"));
 
-        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+        var function = Assert.IsType<FunctionType>(module.Operations[0].TypeSignatureReference);
         var tensor = Assert.IsType<TensorTypeReference>(function.Inputs[0]);
         var index = Assert.IsType<IndexType>(function.Inputs[1]);
-        var tuple = Assert.IsType<TupleTypeReference>(function.Results[0]);
-        var vector = Assert.IsType<VectorTypeReference>(tuple.Elements[0]);
-        var memref = Assert.IsType<MemRefTypeReference>(tuple.Elements[1]);
+        var tuple = Assert.IsType<TupleType>(function.Results[0]);
+        var vector = Assert.IsType<VectorTypeReference>(tuple.Types[0]);
+        var memref = Assert.IsType<MemRefTypeReference>(tuple.Types[1]);
 
         Assert.Equal(new long?[] { 2, null }, tensor.Dimensions);
         Assert.IsType<UnknownTypeReference>(tensor.ElementType);
@@ -105,7 +105,7 @@ public sealed partial class SemanticTests
         var module = Binder.BindModule(
             Parser.ParseModule("\"test.op\"() : (f32, bf16, f16, f64) -> ()"),
             registry);
-        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+        var function = Assert.IsType<FunctionType>(module.Operations[0].TypeSignatureReference);
 
         var f32 = Assert.IsType<Float32Type>(function.Inputs[0]);
         var bf16 = Assert.IsType<BFloat16Type>(function.Inputs[1]);
@@ -134,7 +134,7 @@ public sealed partial class SemanticTests
         var module = Binder.BindModule(
             Parser.ParseModule("\"test.op\"() : (index, none) -> ()"),
             registry);
-        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+        var function = Assert.IsType<FunctionType>(module.Operations[0].TypeSignatureReference);
 
         var index = Assert.IsType<IndexType>(function.Inputs[0]);
         var none = Assert.IsType<NoneType>(function.Inputs[1]);
@@ -237,7 +237,7 @@ public sealed partial class SemanticTests
         // rather than a typed concrete class. Callers that need typed float references must
         // register the builtin dialect.
         var module = Binder.BindModule(Parser.ParseModule("\"test.op\"() : (f32, bf16, tf32) -> ()"));
-        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+        var function = Assert.IsType<FunctionType>(module.Operations[0].TypeSignatureReference);
 
         var f32 = Assert.IsType<UnknownTypeReference>(function.Inputs[0]);
         var bf16 = Assert.IsType<UnknownTypeReference>(function.Inputs[1]);
@@ -261,7 +261,7 @@ public sealed partial class SemanticTests
         var module = Binder.BindModule(
             Parser.ParseModule("\"test.op\"() : (f16, f32, f64, bf16, tf32) -> ()"),
             registry);
-        var function = Assert.IsType<FunctionTypeReference>(module.Operations[0].TypeSignatureReference);
+        var function = Assert.IsType<FunctionType>(module.Operations[0].TypeSignatureReference);
 
         Assert.IsType<Float16Type>(function.Inputs[0]);
         Assert.IsType<Float32Type>(function.Inputs[1]);

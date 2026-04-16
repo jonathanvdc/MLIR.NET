@@ -578,12 +578,12 @@ public sealed class Binder
             case BuiltinNoneTypeSyntax noneSyntax:
                 return new NoneType(noneSyntax);
             case TupleTypeSyntax tupleSyntax:
-                return new TupleTypeReference(tupleSyntax, tupleSyntax.Elements.Select(BindTypeReference).ToArray());
+                return new TupleType(tupleSyntax.Elements.Select(BindTypeReference).ToArray(), tupleSyntax);
             case FunctionTypeSyntax functionSyntax:
-                return new FunctionTypeReference(
-                    functionSyntax,
+                return new FunctionType(
                     functionSyntax.InputTypes.Items.Select(BindTypeReference).ToArray(),
-                    GetFunctionResults(functionSyntax).Select(BindTypeReference).ToArray());
+                    GetFunctionResults(functionSyntax).Select(BindTypeReference).ToArray(),
+                    functionSyntax);
             case TensorTypeSyntax tensorSyntax:
                 return new TensorTypeReference(
                     tensorSyntax,
@@ -690,9 +690,9 @@ public sealed class Binder
             case BuiltinNoneTypeSyntax:
                 return "builtin.none";
             case TupleTypeSyntax:
-                return "tuple";
+                return "builtin.tuple";
             case FunctionTypeSyntax:
-                return "function";
+                return "builtin.function";
             case TensorTypeSyntax:
                 return "tensor";
             case VectorTypeSyntax:

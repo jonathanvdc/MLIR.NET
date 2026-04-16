@@ -52,4 +52,20 @@ public sealed partial class SemanticTests
 
         Assert.False(registry.TryGetType("AnyType", out _));
     }
+
+    [Fact]
+    public void ConcreteTypeDefinitionSupersedesEarlierConstraintWithSameName()
+    {
+        var registry = new DialectRegistry();
+        var aggregateConstraint = new TypeConstraintDefinition("builtin.function");
+        var aggregateType = new TypeDefinition("builtin.function");
+
+        registry.RegisterDialect(new Dialect("prelude", [], [], [], [], [], [aggregateConstraint]));
+        registry.RegisterDialect(new Dialect("builtin", [], [], [aggregateType]));
+
+        Assert.True(registry.TryResolveTypeConstraint("builtin.function", out var resolvedConstraint));
+        Assert.Same(aggregateType, resolvedConstraint);
+        Assert.True(registry.TryGetType("builtin.function", out var resolvedType));
+        Assert.Same(aggregateType, resolvedType);
+    }
 }

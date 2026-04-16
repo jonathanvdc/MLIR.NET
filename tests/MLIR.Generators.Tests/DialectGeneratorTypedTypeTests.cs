@@ -198,4 +198,27 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             "public sealed partial class IndexType : TypeReference",
             "public sealed partial class NoneType : TypeReference");
     }
+
+    [Fact]
+    public void GeneratedBuiltinAggregateTypesOwnTypeDefinitionsAndSemanticPayload()
+    {
+        var builtinSource = GenerateRegistrationSource(
+            "builtin.td",
+            "BuiltinDialectRegistration.g.cs",
+            "include \"mlir/IR/BuiltinTypes.td\"");
+
+        AssertContainsAll(
+            builtinSource,
+            "public sealed partial class FunctionType : TypeReference",
+            "new TypeDefinition(\"builtin.function\", new global::MLIR.Dialects.Builtin.BuiltinFunctionTypeAssemblyFormat())",
+            "public FunctionType(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference> inputs, global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference> results, TypeSyntax? syntax = null)",
+            "public global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference> Inputs { get; }",
+            "public global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference> Results { get; }",
+            "public sealed partial class TupleType : TypeReference",
+            "new TypeDefinition(\"builtin.tuple\", new global::MLIR.Dialects.Builtin.BuiltinTupleTypeAssemblyFormat())",
+            "public TupleType(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference> types, TypeSyntax? syntax = null)",
+            "public global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference> Types { get; }",
+            "dialect.AddType(FunctionType.TypeDefinition);",
+            "dialect.AddType(TupleType.TypeDefinition);");
+    }
 }

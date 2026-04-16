@@ -443,14 +443,14 @@ internal sealed class OdsRecordIndex
         if (record.Name == "AnyTuple")
         {
             kind = TypeConstraintKind.TupleType;
-            canonicalTypeName = "tuple";
+            canonicalTypeName = "builtin.tuple";
             return true;
         }
 
         if (record.Name == "FunctionType")
         {
             kind = TypeConstraintKind.FunctionType;
-            canonicalTypeName = "function";
+            canonicalTypeName = "builtin.function";
             return true;
         }
 

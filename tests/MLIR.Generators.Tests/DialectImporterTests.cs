@@ -395,9 +395,9 @@ public sealed class DialectImporterTests
         Assert.Equal(TypeConstraintKind.NoneType, noneType.Kind);
         Assert.Equal("none", noneType.CanonicalTypeName);
         Assert.Equal(TypeConstraintKind.TupleType, tuple.Kind);
-        Assert.Equal("tuple", tuple.CanonicalTypeName);
+        Assert.Equal("builtin.tuple", tuple.CanonicalTypeName);
         Assert.Equal(TypeConstraintKind.FunctionType, function.Kind);
-        Assert.Equal("function", function.CanonicalTypeName);
+        Assert.Equal("builtin.function", function.CanonicalTypeName);
         Assert.Equal(TypeConstraintKind.TensorType, tensor.Kind);
         Assert.Equal("tensor", tensor.CanonicalTypeName);
         Assert.Equal(TypeConstraintKind.VectorType, vector.Kind);

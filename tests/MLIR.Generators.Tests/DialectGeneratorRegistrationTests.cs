@@ -175,7 +175,11 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
         Assert.DoesNotContain("global::MLIR.Dialects.Prelude.PreludeDialectRegistration.Create", preludeSource);
         // Type constraints must not expose TypeDefinition and must not register as dialect types.
         Assert.DoesNotContain("I32ConstraintTypeReference.TypeDefinition", preludeSource);
+        Assert.DoesNotContain("AnyTupleConstraintTypeReference.TypeDefinition", preludeSource);
+        Assert.DoesNotContain("FunctionTypeConstraintTypeReference.TypeDefinition", preludeSource);
         Assert.DoesNotContain("dialect.AddType(I32ConstraintTypeReference", preludeSource);
+        Assert.DoesNotContain("dialect.AddType(AnyTupleConstraintTypeReference", preludeSource);
+        Assert.DoesNotContain("dialect.AddType(FunctionTypeConstraintTypeReference", preludeSource);
 
         AssertContainsAll(
             registrationSource,

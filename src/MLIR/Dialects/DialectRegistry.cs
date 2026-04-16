@@ -91,11 +91,6 @@ public sealed class DialectRegistry
             {
                 throw new ArgumentException($"The type '{type.Name}' is already registered.", nameof(dialect));
             }
-
-            if (typeConstraintsByName.ContainsKey(type.Name))
-            {
-                throw new ArgumentException($"The type constraint '{type.Name}' is already registered.", nameof(dialect));
-            }
         }
 
         foreach (var typeConstraint in dialect.TypeConstraints)
@@ -140,7 +135,10 @@ public sealed class DialectRegistry
         foreach (var type in dialect.Types)
         {
             typesByName.Add(type.Name, type);
-            typeConstraintsByName.Add(type.Name, type);
+            // TypeDefinition derives from TypeConstraintDefinition. When a prelude constraint
+            // names the same concrete type family, the registered concrete definition is the
+            // strongest constraint and should become the canonical resolver result.
+            typeConstraintsByName[type.Name] = type;
         }
 
         foreach (var typeConstraint in dialect.TypeConstraints)

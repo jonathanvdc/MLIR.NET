@@ -136,4 +136,26 @@ extends Builtin_None : MLIRNet_AttrOrTypeDefExtension {
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat()";
 }
 
+// Aggregate builtin types are described upstream as TypeDef records. MLIR.NET keeps their
+// parser/printer logic in hand-written assembly-format helpers because their textual forms are
+// core MLIR syntax rather than dialect-prefixed declarative formats, but the generated TypeDef
+// classes own the canonical TypeDefinition and semantic payload.
+
+extends Builtin_Function : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>":$inputs,
+    "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>":$results
+  );
+  let csharpName = "\"function\"";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinFunctionTypeAssemblyFormat()";
+}
+
+extends Builtin_Tuple : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>":$types
+  );
+  let csharpName = "\"tuple\"";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinTupleTypeAssemblyFormat()";
+}
+
 #endif // BUILTIN_TYPES_EXTENSIONS_TD

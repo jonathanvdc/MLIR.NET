@@ -36,7 +36,7 @@ public sealed class BuiltinTupleTypeAssemblyFormat : ITypeAssemblyFormat
         }
 
         var elements = tupleSyntax.Elements.Select(binder.BindTypeReference).ToArray();
-        return new TupleTypeReference(tupleSyntax, elements);
+        return new TupleType(elements, tupleSyntax);
     }
 
     /// <inheritdoc/>
@@ -47,13 +47,13 @@ public sealed class BuiltinTupleTypeAssemblyFormat : ITypeAssemblyFormat
             return existing;
         }
 
-        if (type is not TupleTypeReference tupleType)
+        var elements = type switch
         {
-            throw new InvalidOperationException(
-                $"Cannot rebuild assembly syntax for an unrecognized tuple type reference of type {type.GetType().FullName}.");
-        }
+            TupleType generated => generated.Types,
+            _ => throw new InvalidOperationException(
+                $"Cannot rebuild assembly syntax for an unrecognized tuple type reference of type {type.GetType().FullName}.")
+        };
 
-        var elements = tupleType.Elements;
         var elementSyntax = elements.Select(context.BuildTypeSyntax).ToArray();
         var commas = new List<Token>(Math.Max(0, elements.Count - 1));
         for (var i = 1; i < elements.Count; i++)

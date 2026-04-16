@@ -73,17 +73,17 @@ public static class TypeFactory
     /// <summary>
     /// Creates a builtin tuple type.
     /// </summary>
-    public static TupleTypeReference Tuple(params TypeReference[] elements)
+    public static TupleType Tuple(params TypeReference[] elements)
     {
-        return new TupleTypeReference(elements);
+        return new TupleType(elements);
     }
 
     /// <summary>
     /// Creates a builtin function type.
     /// </summary>
-    public static FunctionTypeReference Function(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results)
+    public static FunctionType Function(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results)
     {
-        return new FunctionTypeReference(inputs, results);
+        return new FunctionType(inputs, results);
     }
 
     /// <summary>

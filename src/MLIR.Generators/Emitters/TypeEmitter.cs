@@ -129,7 +129,7 @@ internal static class TypeEmitter
 
             var propertyName = DialectGeneratorNaming.ToPascalCase(parameters[i].Name);
             var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
-            builder.Append("global::System.Collections.Generic.EqualityComparer<" + csharpType + ">.Default.Equals(" + propertyName + ", typedOther." + propertyName + ")");
+            builder.Append(GetSemanticEqualsExpression(csharpType, propertyName, "typedOther." + propertyName));
         }
 
         if (parameters.Count == 0)
@@ -148,12 +148,42 @@ internal static class TypeEmitter
         foreach (var param in parameters)
         {
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
-            builder.AppendLine("            hash = (hash * 31) + global::System.Collections.Generic.EqualityComparer<" + TypeAssemblyFormatEmitter.GetResolvedCSharpType(param) + ">.Default.GetHashCode(" + propertyName + ");");
+            var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+            EmitHashContribution(builder, csharpType, propertyName);
         }
 
         builder.AppendLine("            return hash;");
         builder.AppendLine("        }");
         builder.AppendLine("    }");
+    }
+
+    private static string GetSemanticEqualsExpression(string csharpType, string leftExpression, string rightExpression)
+    {
+        return IsTypeReferenceList(csharpType)
+            ? "global::System.Linq.Enumerable.SequenceEqual(" + leftExpression + ", " + rightExpression + ")"
+            : "global::System.Collections.Generic.EqualityComparer<" + csharpType + ">.Default.Equals(" + leftExpression + ", " + rightExpression + ")";
+    }
+
+    private static void EmitHashContribution(StringBuilder builder, string csharpType, string propertyName)
+    {
+        if (!IsTypeReferenceList(csharpType))
+        {
+            builder.AppendLine("            hash = (hash * 31) + global::System.Collections.Generic.EqualityComparer<" + csharpType + ">.Default.GetHashCode(" + propertyName + ");");
+            return;
+        }
+
+        builder.AppendLine("            foreach (var item in " + propertyName + ")");
+        builder.AppendLine("            {");
+        builder.AppendLine("                hash = (hash * 31) + global::System.Collections.Generic.EqualityComparer<global::MLIR.Semantics.TypeReference>.Default.GetHashCode(item);");
+        builder.AppendLine("            }");
+    }
+
+    private static bool IsTypeReferenceList(string csharpType)
+    {
+        return string.Equals(
+            csharpType,
+            "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>",
+            System.StringComparison.Ordinal);
     }
 
 }

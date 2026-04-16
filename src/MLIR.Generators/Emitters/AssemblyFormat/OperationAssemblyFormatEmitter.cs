@@ -184,7 +184,7 @@ internal static class OperationAssemblyFormatEmitter
             if (operation.Results.Count == 0)
             {
                 var access = "body." + plan.TypeField;
-                return access + ".Count > 0 ? new global::MLIR.Semantics.Types.Collections.FunctionTypeReference(" +
+                return access + ".Count > 0 ? new global::MLIR.Dialects.Builtin.FunctionType(" +
                     access + ".Select(binder.BindTypeReference).ToArray(), global::System.Array.Empty<global::MLIR.Semantics.TypeReference>()) : null";
             }
 

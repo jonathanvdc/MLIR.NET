@@ -18,10 +18,10 @@ public sealed class SyntaxlessTypeTests
     private static ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions ReplaceOptions =>
         new(existingSyntaxHandling: ConcreteSyntaxBuilder.ExistingSyntaxHandling.ReplaceExistingSyntax);
 
-    // --- FunctionTypeReference ---
+    // --- Generated FunctionType ---
 
     [Fact]
-    public void FunctionTypeReference_SyntaxIsNullWhenConstructedProgrammatically()
+    public void FunctionType_SyntaxIsNullWhenConstructedProgrammatically()
     {
         var type = TypeFactory.Function([TypeFactory.I32], [TypeFactory.I64]);
         Assert.Null(type.Syntax);
@@ -29,14 +29,14 @@ public sealed class SyntaxlessTypeTests
 
     [Theory]
     [InlineData("(i32) -> i64")]
-    public void FunctionTypeReference_PrintsCorrectlyWithoutSyntax(string expected)
+    public void FunctionType_PrintsCorrectlyWithoutSyntax(string expected)
     {
         var type = TypeFactory.Function([TypeFactory.I32], [TypeFactory.I64]);
         Assert.Equal(expected, Printer.PrintType(type, ReplaceOptions));
     }
 
     [Fact]
-    public void FunctionTypeReference_WithMultipleInputsAndResults_PrintsCorrectly()
+    public void FunctionType_WithMultipleInputsAndResults_PrintsCorrectly()
     {
         var type = TypeFactory.Function(
             [TypeFactory.I32, TypeFactory.I64],
@@ -45,30 +45,30 @@ public sealed class SyntaxlessTypeTests
     }
 
     [Fact]
-    public void FunctionTypeReference_ZeroResults_PrintsWithEmptyResultList()
+    public void FunctionType_ZeroResults_PrintsWithEmptyResultList()
     {
         var type = TypeFactory.Function([TypeFactory.I32], []);
         Assert.Equal("(i32) -> ()", Printer.PrintType(type, ReplaceOptions));
     }
 
-    // --- TupleTypeReference ---
+    // --- Generated TupleType ---
 
     [Fact]
-    public void TupleTypeReference_SyntaxIsNullWhenConstructedProgrammatically()
+    public void TupleType_SyntaxIsNullWhenConstructedProgrammatically()
     {
         var type = TypeFactory.Tuple(TypeFactory.I32, TypeFactory.I64);
         Assert.Null(type.Syntax);
     }
 
     [Fact]
-    public void TupleTypeReference_PrintsCorrectlyWithoutSyntax()
+    public void TupleType_PrintsCorrectlyWithoutSyntax()
     {
         var type = TypeFactory.Tuple(TypeFactory.I32, TypeFactory.I64);
         Assert.Equal("tuple<i32, i64>", Printer.PrintType(type, ReplaceOptions));
     }
 
     [Fact]
-    public void TupleTypeReference_EmptyTuple_PrintsCorrectly()
+    public void TupleType_EmptyTuple_PrintsCorrectly()
     {
         var type = TypeFactory.Tuple();
         Assert.Equal("tuple<>", Printer.PrintType(type, ReplaceOptions));
@@ -286,8 +286,8 @@ public sealed class SyntaxlessTypeTests
     [Fact]
     public void AllCollectionTypeDefinitionsHaveAssemblyFormats()
     {
-        Assert.NotNull(FunctionTypeReference.TypeDefinition.AssemblyFormat);
-        Assert.NotNull(TupleTypeReference.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(FunctionType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(TupleType.TypeDefinition.AssemblyFormat);
         Assert.NotNull(TensorTypeReference.TypeDefinition.AssemblyFormat);
         Assert.NotNull(VectorTypeReference.TypeDefinition.AssemblyFormat);
         Assert.NotNull(MemRefTypeReference.TypeDefinition.AssemblyFormat);
