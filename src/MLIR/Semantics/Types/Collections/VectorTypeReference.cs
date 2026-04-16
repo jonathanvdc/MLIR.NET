@@ -12,7 +12,7 @@ public class VectorTypeReference : TypeReference
     /// <summary>
     /// Gets the shared builtin type definition.
     /// </summary>
-    public static TypeDefinition TypeDefinition { get; } = new("vector");
+    public static TypeDefinition TypeDefinition { get; } = new("vector", new MLIR.Dialects.Builtin.BuiltinVectorTypeAssemblyFormat());
 
     /// <summary>
     /// Initializes a new parsed builtin vector type reference.
@@ -42,7 +42,7 @@ public class VectorTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     private VectorTypeReference(IReadOnlyList<long?> dimensions, TypeReference elementType, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? BuildSyntax(dimensions, elementType), location)
+        : base(syntax, location)
     {
         Dimensions = dimensions;
         ElementType = elementType;
@@ -78,23 +78,5 @@ public class VectorTypeReference : TypeReference
         {
             return (GetSequenceHashCode(Dimensions) * 397) ^ ElementType.GetHashCode();
         }
-    }
-
-    private static VectorTypeSyntax BuildSyntax(IReadOnlyList<long?> dimensions, TypeReference elementType)
-    {
-        var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
-        var xTokens = new List<Token>(dimensionSyntax.Length);
-        for (var i = 0; i < dimensionSyntax.Length; i++)
-        {
-            xTokens.Add(TokenFactory.Identifier("x"));
-        }
-
-        return new VectorTypeSyntax(
-            TokenFactory.Identifier("vector"),
-            TokenFactory.LessThan(),
-            dimensionSyntax,
-            xTokens,
-            elementType.Syntax ?? throw new InvalidOperationException("Vector element types must carry syntax."),
-            TokenFactory.GreaterThan());
     }
 }

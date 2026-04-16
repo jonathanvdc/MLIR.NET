@@ -31,4 +31,18 @@ public sealed class Printer
     {
         return Print(ConcreteSyntaxBuilder.BuildModule(module, options));
     }
+
+    /// <summary>
+    /// Converts a semantic type reference to its MLIR text representation.
+    /// </summary>
+    /// <param name="type">The type reference to print.</param>
+    /// <param name="options">Optional configuration for <see cref="ConcreteSyntaxBuilder"/>.</param>
+    /// <returns>The printed type text.</returns>
+    public static string PrintType(TypeReference type, ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions? options = null)
+    {
+        var typeSyntax = ConcreteSyntaxBuilder.BuildTypeSyntax(type, options);
+        var writer = new SyntaxWriter();
+        typeSyntax.WriteTo(writer);
+        return writer.ToString();
+    }
 }

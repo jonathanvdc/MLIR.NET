@@ -1,4 +1,3 @@
-using System.Linq;
 using MLIR.Dialects;
 using MLIR.Syntax;
 using MLIR.Syntax.Types.Collections;
@@ -13,7 +12,7 @@ public class FunctionTypeReference : TypeReference
     /// <summary>
     /// Gets the shared builtin type definition.
     /// </summary>
-    public static TypeDefinition TypeDefinition { get; } = new("function");
+    public static TypeDefinition TypeDefinition { get; } = new("function", new MLIR.Dialects.Builtin.BuiltinFunctionTypeAssemblyFormat());
 
     /// <summary>
     /// Initializes a new parsed builtin function type reference.
@@ -48,7 +47,7 @@ public class FunctionTypeReference : TypeReference
     public override TypeDefinition? Definition => TypeDefinition;
 
     private FunctionTypeReference(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results, TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? BuildSyntax(inputs, results), location)
+        : base(syntax, location)
     {
         Inputs = inputs;
         Results = results;
@@ -72,41 +71,6 @@ public class FunctionTypeReference : TypeReference
         {
             return (GetSequenceHashCode(Inputs) * 397) ^ GetSequenceHashCode(Results);
         }
-    }
-
-    private static FunctionTypeSyntax BuildSyntax(IReadOnlyList<TypeReference> inputs, IReadOnlyList<TypeReference> results)
-    {
-        var inputCommas = new List<Token>(Math.Max(0, inputs.Count - 1));
-        for (var i = 1; i < inputs.Count; i++)
-        {
-            inputCommas.Add(TokenFactory.Comma());
-        }
-
-        if (results.Count == 1)
-        {
-            return new FunctionTypeSyntax(
-                new DelimitedSyntaxList<TypeSyntax>(TokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, TokenFactory.RParen()),
-                TokenFactory.Arrow(),
-                GetSyntax(results[0]),
-                new DelimitedSyntaxList<TypeSyntax>(null, [], [], null));
-        }
-
-        var resultCommas = new List<Token>(Math.Max(0, results.Count - 1));
-        for (var i = 1; i < results.Count; i++)
-        {
-            resultCommas.Add(TokenFactory.Comma());
-        }
-
-        return new FunctionTypeSyntax(
-            new DelimitedSyntaxList<TypeSyntax>(TokenFactory.LParen(), inputs.Select(GetSyntax).ToArray(), inputCommas, TokenFactory.RParen()),
-            TokenFactory.Arrow(),
-            null,
-            new DelimitedSyntaxList<TypeSyntax>(TokenFactory.LParen(), results.Select(GetSyntax).ToArray(), resultCommas, TokenFactory.RParen()));
-    }
-
-    private static TypeSyntax GetSyntax(TypeReference type)
-    {
-        return type.Syntax ?? throw new InvalidOperationException("Function operand types must carry syntax.");
     }
 
     private static bool HaveSameTypes(IReadOnlyList<TypeReference> left, IReadOnlyList<TypeReference> right)

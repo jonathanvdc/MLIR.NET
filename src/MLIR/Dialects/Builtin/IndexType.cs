@@ -28,7 +28,7 @@ public partial class IndexType : TypeReference
     /// with an optional preserved syntax node.
     /// </summary>
     protected IndexType(TypeSyntax? syntax, SourceLocation location)
-        : base(syntax ?? new BuiltinIndexTypeSyntax(TokenFactory.Identifier("index")), location)
+        : base(syntax, location)
     {
     }
 
