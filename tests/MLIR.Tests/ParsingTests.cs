@@ -18,13 +18,13 @@ public sealed class ParsingTests
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
     {
         private readonly GenericOperationBodySyntax genericBody;
-        private readonly RawSyntaxText value;
-        private readonly RawSyntaxText typeSignature;
+        private readonly AttributeValueSyntax value;
+        private readonly TypeSyntax typeSignature;
 
         public PrefixConstantBodySyntax(
-            RawSyntaxText value,
+            AttributeValueSyntax value,
             Token colonToken,
-            RawSyntaxText typeSignature,
+            TypeSyntax typeSignature,
             DelimitedSyntaxList<NamedAttributeSyntax> attributes)
         {
             this.value = value;
@@ -35,22 +35,24 @@ public sealed class ParsingTests
                 [],
                 attributes,
                 colonToken,
-                new RawTypeSyntax(typeSignature));
+                typeSignature);
         }
 
         public override void WriteTo(SyntaxWriter writer)
         {
-            writer.WriteRaw(value, " ");
+            writer.SuggestTrivia(" ");
+            value.WriteTo(writer);
             writer.WriteToken(this.genericBody.TypeSignatureColonToken ?? TokenFactory.Colon(), " ");
-            writer.WriteRaw(typeSignature, " ");
+            writer.SuggestTrivia(" ");
+            typeSignature.WriteTo(writer);
         }
 
         public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
         {
             return new PrefixConstantBodySyntax(
-                rewriter.VisitRawText(value),
+                rewriter.Visit(value),
                 rewriter.VisitToken(genericBody.TypeSignatureColonToken!.Value),
-                rewriter.VisitRawText(typeSignature),
+                rewriter.Visit(typeSignature),
                 rewriter.VisitDelimitedList(genericBody.Attributes));
         }
     }
@@ -68,7 +70,7 @@ public sealed class ParsingTests
                 return ParseResult<OperationBodySyntax>.NoMatch();
             }
 
-            var valueResult = context.TryParseRawUntilDelimiter(TokenKind.Colon);
+            var valueResult = context.TryParseAttributeValueSyntax(TokenKind.Colon);
             if (!valueResult.IsSuccess)
             {
                 return ParseResult<OperationBodySyntax>.Failure(valueResult.Diagnostic!);
@@ -80,13 +82,13 @@ public sealed class ParsingTests
                 return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
             }
 
-            var typeResult = context.TryParseRawUntilOperationBoundary();
+            var typeResult = context.TryParseTypeSyntaxUntilOperationBoundary();
             if (!typeResult.IsSuccess)
             {
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), new RawAttributeValueSyntax(valueResult.Value))]);
+            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueResult.Value)]);
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 

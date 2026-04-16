@@ -124,7 +124,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
     public void GeneratedAssemblyFormatBindReportsDiagnosticForWrongBodyType()
     {
         var body = new MiniArith_ConstantOpBodySyntax(
-            new RawAttributeValueSyntax(new RawSyntaxText("42")),
+            new IntegerAttributeValueSyntax(TokenFactory.Integer("42"), ApInt.Parse(64, "42")),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
         var syntax = new OperationSyntax(
