@@ -216,15 +216,43 @@ public static class ConcreteSyntaxBuilder
                 return genericBody;
             }
 
-            return (GenericOperationBodySyntax)Factory.Op(
-                operation.Name,
-                operation.Results.Select(static result => result.Name).ToList(),
-                operation.NonNullOperandValues.Select(static operand => operand.Name).ToList(),
-                operation.Successors.Select(static successor => successor.Label).ToList(),
+            var operandTokens = operation.NonNullOperandValues.Select(static operand => TokenFactory.SsaName(operand.Name)).ToList();
+            var operandSeparators = new List<Token>(Math.Max(0, operandTokens.Count - 1));
+            for (var i = 1; i < operandTokens.Count; i++)
+            {
+                operandSeparators.Add(TokenFactory.Comma());
+            }
+            var operandList = new DelimitedSyntaxList<Token>(
+                TokenFactory.LParen(),
+                operandTokens,
+                operandSeparators,
+                TokenFactory.RParen());
+
+            var successorTokens = operation.Successors.Select(static successor => TokenFactory.Identifier(successor.Label)).ToList();
+            var successorSeparators = new List<Token>(Math.Max(0, successorTokens.Count - 1));
+            for (var i = 1; i < successorTokens.Count; i++) {
+                successorSeparators.Add(TokenFactory.Comma());
+            }
+            var successorList = new DelimitedSyntaxList<Token>(
+                successorTokens.Count > 0 ? TokenFactory.LBracket() : null,
+                successorTokens,
+                successorSeparators,
+                successorTokens.Count > 0 ? TokenFactory.RBracket() : null);
+
+            var attributeSyntaxList = operation.Attributes.Select(BuildNamedAttribute).ToList();
+            var attributes = new DelimitedSyntaxList<NamedAttributeSyntax>(
+                attributeSyntaxList.Count > 0 ? TokenFactory.LBrace() : null,
+                attributeSyntaxList,
+                attributeSyntaxList.Count > 1 ? attributeSyntaxList.Skip(1).Select(_ => TokenFactory.Comma()).ToList() : [],
+                attributeSyntaxList.Count > 0 ? TokenFactory.LBrace() : null);
+
+            return new GenericOperationBodySyntax(
+                operandList,
+                successorList,
                 operation.Regions.Select(BuildRegion).ToList(),
-                operation.Attributes.Select(BuildNamedAttribute).ToList(),
-                operation.TypeSignatureReference != null ? BuildTypeReference(operation.TypeSignatureReference) : null)
-                .Body;
+                attributes,
+                operation.TypeSignatureReference != null ? TokenFactory.Colon() : null,
+                operation.TypeSignatureReference != null ? BuildTypeReference(operation.TypeSignatureReference) : null);
         }
 
         public NamedAttributeSyntax BuildNamedAttribute(NamedAttribute attribute)
