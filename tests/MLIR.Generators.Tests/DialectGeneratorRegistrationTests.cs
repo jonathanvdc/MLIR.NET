@@ -202,6 +202,9 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             "public partial class IndexType : TypeReference",
             "public partial class IntegerType : TypeReference",
             "global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat",
+            "global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat",
+            "global::MLIR.Dialects.Builtin.BuiltinIndexTypeAssemblyFormat",
+            "global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat",
             "public sealed partial class MemRefType : TypeReference",
             "public partial class NoneType : TypeReference",
             "public sealed partial class OpaqueType : TypeReference",
@@ -224,6 +227,18 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             "dialect.AddType(UnrankedMemRefType.TypeDefinition);",
             "dialect.AddType(UnrankedTensorType.TypeDefinition);",
             "dialect.AddType(VectorType.TypeDefinition);");
+
+        // Scalar TypeDefinitions must use assembly format, not factory delegates.
+        Assert.DoesNotContain("factory: static context => Float16Type.BindValue", builtinSource);
+        Assert.DoesNotContain("factory: static context => BFloat16Type.BindValue", builtinSource);
+        Assert.DoesNotContain("factory: static context => Float32Type.BindValue", builtinSource);
+        Assert.DoesNotContain("factory: static context => IndexType.BindValue", builtinSource);
+        Assert.DoesNotContain("factory: static context => NoneType.BindValue", builtinSource);
+
+        // Float type constructors must use the MLIR mnemonic, not TypeDefinition.Name.
+        Assert.Contains(": base(\"f32\",", builtinSource);
+        Assert.Contains(": base(\"f16\",", builtinSource);
+        Assert.Contains(": base(\"bf16\",", builtinSource);
     }
 
     [Fact]

@@ -28,4 +28,90 @@ extends Builtin_Integer : MLIRNet_AttrOrTypeDefExtension {
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat()";
 }
 
+// Assembly formats for scalar float types.
+// Each type supplies a constructor lambda so the shared BuiltinScalarFloatTypeAssemblyFormat
+// can produce the correct concrete FloatTypeReference subclass.
+
+extends Builtin_Float8E5M2 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E5M2Type(syntax))";
+}
+
+extends Builtin_Float8E4M3 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E4M3Type(syntax))";
+}
+
+extends Builtin_Float8E4M3FN : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E4M3FNType(syntax))";
+}
+
+extends Builtin_Float8E5M2FNUZ : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E5M2FNUZType(syntax))";
+}
+
+extends Builtin_Float8E4M3FNUZ : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E4M3FNUZType(syntax))";
+}
+
+extends Builtin_Float8E4M3B11FNUZ : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E4M3B11FNUZType(syntax))";
+}
+
+extends Builtin_Float8E3M4 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E3M4Type(syntax))";
+}
+
+extends Builtin_Float4E2M1FN : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float4E2M1FNType(syntax))";
+}
+
+extends Builtin_Float6E2M3FN : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float6E2M3FNType(syntax))";
+}
+
+extends Builtin_Float6E3M2FN : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float6E3M2FNType(syntax))";
+}
+
+extends Builtin_Float8E8M0FNU : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float8E8M0FNUType(syntax))";
+}
+
+extends Builtin_BFloat16 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.BFloat16Type(syntax))";
+}
+
+extends Builtin_Float16 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float16Type(syntax))";
+}
+
+extends Builtin_FloatTF32 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.FloatTF32Type(syntax))";
+}
+
+extends Builtin_Float32 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float32Type(syntax))";
+}
+
+extends Builtin_Float64 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float64Type(syntax))";
+}
+
+extends Builtin_Float80 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float80Type(syntax))";
+}
+
+extends Builtin_Float128 : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Float128Type(syntax))";
+}
+
+// Assembly formats for scalar non-float types (index, none).
+
+extends Builtin_Index : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinIndexTypeAssemblyFormat()";
+}
+
+extends Builtin_None : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat()";
+}
+
 #endif // BUILTIN_TYPES_EXTENSIONS_TD

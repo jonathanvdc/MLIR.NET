@@ -7,13 +7,15 @@ namespace MLIR.Semantics.Types.Primitives;
 /// <summary>
 /// Represents a builtin floating-point type such as <c>f32</c>.
 /// </summary>
+/// <remarks>
+/// This base class is used as the fallback when no registered builtin dialect is present.
+/// When the builtin dialect is registered, binding produces a concrete generated subclass
+/// (e.g., <c>Float32Type</c>) that overrides <see cref="TypeReference.Definition"/> with
+/// its own generated <c>TypeDefinition</c>.  The base class itself does not own a canonical
+/// definition so that unregistered float values clearly have <c>Definition == null</c>.
+/// </remarks>
 public class FloatTypeReference : TypeReference
 {
-    /// <summary>
-    /// Gets the shared builtin type definition.
-    /// </summary>
-    public static TypeDefinition TypeDefinition { get; } = new("float");
-
     /// <summary>
     /// Initializes a new parsed builtin floating-point type reference.
     /// </summary>
@@ -34,7 +36,11 @@ public class FloatTypeReference : TypeReference
     public override string? Name { get; }
 
     /// <inheritdoc/>
-    public override TypeDefinition? Definition => TypeDefinition;
+    /// <remarks>
+    /// Returns <see langword="null"/> for unregistered float values.  Generated float
+    /// <c>TypeDef</c> subclasses override this property with their own canonical definition.
+    /// </remarks>
+    public override TypeDefinition? Definition => null;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="FloatTypeReference"/> class

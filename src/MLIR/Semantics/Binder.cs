@@ -693,14 +693,14 @@ public sealed class Binder
     {
         switch (syntax)
         {
-            case BuiltinIntegerTypeSyntax integerSyntax:
-                return integerSyntax.NameToken.Text;
+            case BuiltinIntegerTypeSyntax:
+                return "builtin.integer";
             case BuiltinFloatTypeSyntax floatSyntax:
-                return floatSyntax.Name;
+                return "builtin." + floatSyntax.Name;
             case BuiltinIndexTypeSyntax:
-                return "index";
+                return "builtin.index";
             case BuiltinNoneTypeSyntax:
-                return "none";
+                return "builtin.none";
             case TupleTypeSyntax:
                 return "tuple";
             case FunctionTypeSyntax:
