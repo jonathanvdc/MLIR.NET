@@ -74,7 +74,21 @@ public static class TypeFactory
     /// </summary>
     public static FloatTypeReference F(string name)
     {
-        return new FloatTypeReference(name);
+        switch (name)
+        {
+            case "f16":
+                return new Float16Type();
+            case "f32":
+                return new Float32Type();
+            case "f64":
+                return new Float64Type();
+            case "bf16":
+                return new BFloat16Type();
+            case "tf32":
+                return new FloatTF32Type();
+            default:
+                return new FloatTypeReference(name);
+        }
     }
 
     /// <summary>
