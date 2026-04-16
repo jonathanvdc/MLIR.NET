@@ -13,46 +13,19 @@ internal static class TypeEmitter
 
         if (type.AssemblyFormat != null)
         {
-            EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
             TypeAssemblyFormatEmitter.EmitSyntaxClass(builder, type, className);
             builder.AppendLine();
             builder.AppendLine();
+            EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
             EmitParametrisedTypeClass(builder, type, className);
             builder.AppendLine();
             TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
-            return;
         }
-
-        if (!string.IsNullOrEmpty(type.CsharpName))
+        else
         {
             EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
             EmitParametrisedTypeClass(builder, type, className);
-            return;
         }
-
-        EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-        EmitPlainTypeClass(builder, type, className);
-    }
-
-    private static void EmitPlainTypeClass(StringBuilder builder, TypeModel type, string className)
-    {
-        builder.AppendLine("public sealed partial class " + className + " : TypeReference");
-        builder.AppendLine("{");
-        builder.AppendLine("    public static TypeDefinition TypeDefinition { get; } =");
-        EmitterHelpers.AppendDefinitionConstructor(
-            builder,
-            "TypeDefinition",
-            type.Name,
-            !string.IsNullOrEmpty(type.CsharpAssemblyFormat) ? type.CsharpAssemblyFormat : null);
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(TypeSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public override string? Name => " + (!string.IsNullOrEmpty(type.CsharpName) ? type.CsharpName : "TypeDefinition.Name") + ";");
-        builder.AppendLine("    public override TypeDefinition? Definition => TypeDefinition;");
-        builder.AppendLine("}");
     }
 
     private static void EmitParametrisedTypeClass(StringBuilder builder, TypeModel type, string className)
