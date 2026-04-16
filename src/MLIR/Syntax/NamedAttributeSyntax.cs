@@ -15,16 +15,6 @@ using MLIR.Text;
 public sealed class NamedAttributeSyntax(Token nameToken, Token equalsToken, AttributeValueSyntax valueSyntax) : SyntaxNode
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="NamedAttributeSyntax"/> class.
-    /// </summary>
-    /// <param name="name">The attribute name.</param>
-    /// <param name="value">The raw attribute value text.</param>
-    public NamedAttributeSyntax(string name, RawSyntaxText value)
-        : this(TokenFactory.Identifier(name), TokenFactory.Equal(), new RawAttributeValueSyntax(value))
-    {
-    }
-
-    /// <summary>
     /// Gets the attribute name token.
     /// </summary>
     public Token NameToken { get; } = nameToken;
