@@ -38,8 +38,7 @@ public sealed class DenseFloatingPointArrayAttributeAssemblyFormat : DenseArrayA
         return syntax switch
         {
             FloatingPointAttributeValueSyntax floatingPointSyntax => floatingPointSyntax.Value.ConvertTo(semantics),
-            RawAttributeValueSyntax rawSyntax => FloatingPointLiteralParser.Parse(semantics, rawSyntax.RawText.Text),
-            _ => ApFloat.Zero(semantics),
+            _ => throw new System.InvalidOperationException($"Expected a floating-point attribute value syntax, but got {syntax.GetType().Name}."),
         };
     }
 

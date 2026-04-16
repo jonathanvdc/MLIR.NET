@@ -24,8 +24,7 @@ public sealed class DenseBooleanArrayAttributeAssemblyFormat : DenseArrayAttribu
         return syntax switch
         {
             BooleanAttributeValueSyntax booleanSyntax => booleanSyntax.Value,
-            RawAttributeValueSyntax rawSyntax => rawSyntax.RawText.Text == "true",
-            _ => false,
+            _ => throw new System.InvalidOperationException($"Expected a boolean attribute value syntax, but got {syntax.GetType().Name}."),
         };
     }
 

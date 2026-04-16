@@ -25,8 +25,7 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
         return syntax switch
         {
             IntegerAttributeValueSyntax integerSyntax => integerSyntax.Value,
-            RawAttributeValueSyntax rawSyntax => ApInt.Parse(64, rawSyntax.RawText.Text, isSigned: true),
-            _ => ApInt.Zero(64),
+            _ => throw new System.InvalidOperationException($"Expected an integer attribute value syntax, but got {syntax.GetType().Name}."),
         };
     }
 
