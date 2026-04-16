@@ -8,11 +8,6 @@ using MLIR.ODS.Model;
 
 internal sealed class GeneratedMember
 {
-    public GeneratedMember(string propertyName, string parameterName, string typeName, string sourceName)
-        : this(propertyName, parameterName, typeName, sourceName, null, null, null, null, null, null, null, false)
-    {
-    }
-
     public GeneratedMember(
         string propertyName,
         string parameterName,
