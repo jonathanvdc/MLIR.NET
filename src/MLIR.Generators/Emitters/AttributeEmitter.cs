@@ -16,49 +16,22 @@ internal static class AttributeEmitter
         {
             EmitEnumAttributeClass(builder, attribute, className);
         }
-        else if (attribute.Parameters.Count > 0)
+        else if (attribute.AssemblyFormat != null)
         {
-            if (attribute.AssemblyFormat != null)
-            {
-                // Parametrised attribute with a declarative assembly format: emit the structured
-                // syntax class, the typed attribute-value class, and the assembly format class.
-                AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
-                builder.AppendLine();
-                EmitTypedAttributeClass(builder, attribute, className);
-                builder.AppendLine();
-                AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
-            }
-            else
-            {
-                // Parametrised attribute without declarative syntax: emit the typed
-                // attribute-value class, but do not invent a binding factory.
-                EmitTypedAttributeClass(builder, attribute, className);
-            }
+            // Parametrised attribute with a declarative assembly format: emit the structured
+            // syntax class, the typed attribute-value class, and the assembly format class.
+            AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
+            builder.AppendLine();
+            EmitTypedAttributeClass(builder, attribute, className);
+            builder.AppendLine();
+            AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
         }
         else
         {
-            EmitPlainAttributeClass(builder, attribute, className);
+            // Parametrised attribute without declarative syntax: emit the typed
+            // attribute-value class, but do not invent a binding factory.
+            EmitTypedAttributeClass(builder, attribute, className);
         }
-    }
-
-    private static void EmitPlainAttributeClass(StringBuilder builder, AttributeModel attribute, string className)
-    {
-        builder.AppendLine("public sealed class " + className + " : AttributeValue");
-        builder.AppendLine("{");
-        builder.AppendLine("    public static AttributeDefinition AttributeDefinition { get; } =");
-        EmitterHelpers.AppendDefinitionConstructor(
-            builder,
-            "AttributeDefinition",
-            attribute.Name);
-        builder.AppendLine();
-        builder.AppendLine("    public " + className + "(MLIR.Syntax.AttributeValueSyntax? syntax = null)");
-        builder.AppendLine("        : base(syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public override string? Name => AttributeDefinition.Name;");
-        builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeDefinition;");
-        builder.AppendLine("}");
     }
 
     /// <summary>
