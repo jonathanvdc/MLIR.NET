@@ -352,105 +352,25 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
     }
 }
 
-internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+internal sealed class GenericModelBackedAttributeConstraintCodeStrategy : ModelBackedAttributeConstraintCodeStrategy
 {
-    private readonly ModelBackedPrimitiveAttributeConstraintCodeStrategy implementation;
-
-    public PrimitiveAttributeConstraintCodeStrategy(
+    public GenericModelBackedAttributeConstraintCodeStrategy(
         AttrModel? attrModel,
-        string attributeValueTypeName,
+        string fallbackPublicTypeName,
         string? assemblyFormatType,
         string? assemblyFormatConstructionExpression,
         string typedArrayElementPayloadPropertyName = "Value",
         string? typedArrayElementDecodeExpression = null,
         string? typedArrayElementToSyntaxExpression = null)
-    {
-        implementation = new ModelBackedPrimitiveAttributeConstraintCodeStrategy(
+        : base(
             attrModel,
-            attributeValueTypeName,
-            assemblyFormatType,
-            assemblyFormatConstructionExpression,
-            typedArrayElementPayloadPropertyName,
-            typedArrayElementDecodeExpression,
-            typedArrayElementToSyntaxExpression);
-    }
-
-    public override string PublicTypeName => implementation.PublicTypeName;
-    public override bool UsesTypedArrayElementPayload => implementation.UsesTypedArrayElementPayload;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
-    public override AttributeStoragePlan CreateStoragePlan() => implementation.CreateStoragePlan();
-    public override string GetTypedArrayElementPayloadPropertyName() => implementation.GetTypedArrayElementPayloadPropertyName();
-    public override string? GetAssemblyFormatType() => implementation.GetAssemblyFormatType();
-    public override string? GetAssemblyFormatConstructionExpression() => implementation.GetAssemblyFormatConstructionExpression();
-    public override string? GetTypedArrayElementDecodeExpression() => implementation.GetTypedArrayElementDecodeExpression();
-    public override string? GetTypedArrayElementToSyntaxExpression() => implementation.GetTypedArrayElementToSyntaxExpression();
-
-    private sealed class ModelBackedPrimitiveAttributeConstraintCodeStrategy : ModelBackedAttributeConstraintCodeStrategy
+            fallbackPublicTypeName,
+            assemblyFormatType: assemblyFormatType,
+            assemblyFormatConstructionExpression: assemblyFormatConstructionExpression,
+            typedArrayElementPayloadPropertyName: typedArrayElementPayloadPropertyName,
+            typedArrayElementDecodeExpression: typedArrayElementDecodeExpression,
+            typedArrayElementToSyntaxExpression: typedArrayElementToSyntaxExpression)
     {
-        public ModelBackedPrimitiveAttributeConstraintCodeStrategy(
-            AttrModel? attrModel,
-            string fallbackPublicTypeName,
-            string? assemblyFormatType,
-            string? assemblyFormatConstructionExpression,
-            string typedArrayElementPayloadPropertyName,
-            string? typedArrayElementDecodeExpression,
-            string? typedArrayElementToSyntaxExpression)
-            : base(
-                attrModel,
-                fallbackPublicTypeName,
-                assemblyFormatType: assemblyFormatType,
-                assemblyFormatConstructionExpression: assemblyFormatConstructionExpression,
-                typedArrayElementPayloadPropertyName: typedArrayElementPayloadPropertyName,
-                typedArrayElementDecodeExpression: typedArrayElementDecodeExpression,
-                typedArrayElementToSyntaxExpression: typedArrayElementToSyntaxExpression)
-        {
-        }
-    }
-}
-
-internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    private readonly ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy implementation;
-
-    public DensePrimitiveArrayAttributeConstraintCodeStrategy(
-        AttrModel? attrModel,
-        string attributeValueTypeName,
-        string? assemblyFormatType,
-        string? assemblyFormatConstructionExpression,
-        string typedArrayElementPayloadPropertyName = "Items")
-    {
-        implementation = new ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy(
-            attrModel,
-            attributeValueTypeName,
-            assemblyFormatType,
-            assemblyFormatConstructionExpression,
-            typedArrayElementPayloadPropertyName);
-    }
-
-    public override string PublicTypeName => implementation.PublicTypeName;
-    public override bool UsesTypedArrayElementPayload => true;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
-    public override AttributeStoragePlan CreateStoragePlan() => implementation.CreateStoragePlan();
-    public override string GetTypedArrayElementPayloadPropertyName() => implementation.GetTypedArrayElementPayloadPropertyName();
-    public override string? GetAssemblyFormatType() => implementation.GetAssemblyFormatType();
-    public override string? GetAssemblyFormatConstructionExpression() => implementation.GetAssemblyFormatConstructionExpression();
-
-    private sealed class ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy : ModelBackedAttributeConstraintCodeStrategy
-    {
-        public ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy(
-            AttrModel? attrModel,
-            string fallbackPublicTypeName,
-            string? assemblyFormatType,
-            string? assemblyFormatConstructionExpression,
-            string typedArrayElementPayloadPropertyName)
-            : base(
-                attrModel,
-                fallbackPublicTypeName,
-                assemblyFormatType: assemblyFormatType,
-                assemblyFormatConstructionExpression: assemblyFormatConstructionExpression,
-                typedArrayElementPayloadPropertyName: typedArrayElementPayloadPropertyName)
-        {
-        }
     }
 }
 
@@ -828,109 +748,41 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
 /// </remarks>
 internal static class AttributeConstraintCodeStrategyFactory
 {
-    private static PrimitiveAttributeConstraintCodeStrategy CreateBooleanLiteralStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "bool",
-        assemblyFormatType: "BooleanLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null,
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value.ToUInt64() != 0",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I1, global::MLIR.Numerics.ApInt.FromInt64(1, {element} ? 1 : 0), null))");
+    private static readonly AttributeStrategyAssemblyFormat BooleanLiteralAssemblyFormat =
+        new("bool", "BooleanLiteralAttributeAssemblyFormat");
 
-    private static PrimitiveAttributeConstraintCodeStrategy CreateIntegerLiteralStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "global::MLIR.Numerics.ApInt",
-        assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null,
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.IntegerAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I({element}.BitWidth), {element}, null))");
+    private static readonly AttributeStrategyAssemblyFormat IntegerLiteralAssemblyFormat =
+        new("global::MLIR.Numerics.ApInt", "IntegerLiteralAttributeAssemblyFormat");
 
-    private static PrimitiveAttributeConstraintCodeStrategy CreateGenericFloatingPointLiteralStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null,
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
+    private static readonly AttributeStrategyAssemblyFormat StringLiteralAssemblyFormat =
+        new("string", "StringLiteralAttributeAssemblyFormat");
 
-    private static PrimitiveAttributeConstraintCodeStrategy CreateF16Strategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)",
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F16, {element}, null))");
+    private static readonly AttributeStrategyAssemblyFormat GenericFloatingPointAssemblyFormat =
+        new("global::MLIR.Numerics.ApFloat", "FloatingPointLiteralAttributeAssemblyFormat");
 
-    private static PrimitiveAttributeConstraintCodeStrategy CreateF32Strategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)",
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, {element}, null))");
+    private static readonly AttributeStrategyAssemblyFormat F16AssemblyFormat =
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)");
 
-    private static PrimitiveAttributeConstraintCodeStrategy CreateBF16Strategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)",
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.BF16, {element}, null))");
+    private static readonly AttributeStrategyAssemblyFormat F32AssemblyFormat =
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)");
 
-    private static PrimitiveAttributeConstraintCodeStrategy CreateF64Strategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
-        assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.FloatAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
+    private static readonly AttributeStrategyAssemblyFormat BF16AssemblyFormat =
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)");
 
-    private static PrimitiveAttributeConstraintCodeStrategy CreateStringLiteralStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "string",
-        assemblyFormatType: "StringLiteralAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null,
-        typedArrayElementDecodeExpression:
-            "((global::MLIR.Dialects.Builtin.StringAttr)global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeValue({itemSyntax})).Value",
-        typedArrayElementToSyntaxExpression:
-            "{context}.BuildAttributeValueSyntax(global::MLIR.Semantics.ConstantAttributeFactory.String({element}))");
+    private static readonly AttributeStrategyAssemblyFormat F64AssemblyFormat =
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)");
 
-    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseBooleanArrayStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "IReadOnlyList<bool>",
-        assemblyFormatType: "DenseBooleanArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null);
+    private static readonly AttributeStrategyAssemblyFormat DenseBooleanArrayAssemblyFormat =
+        new("IReadOnlyList<bool>", "DenseBooleanArrayAttributeAssemblyFormat", typedArrayElementPayloadPropertyName: "Items");
 
-    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseIntegerArrayStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApInt>",
-        assemblyFormatType: "DenseIntegerArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: null);
+    private static readonly AttributeStrategyAssemblyFormat DenseIntegerArrayAssemblyFormat =
+        new("IReadOnlyList<global::MLIR.Numerics.ApInt>", "DenseIntegerArrayAttributeAssemblyFormat", typedArrayElementPayloadPropertyName: "Items");
 
-    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseF32ArrayStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
-        assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")");
+    private static readonly AttributeStrategyAssemblyFormat DenseF32ArrayAssemblyFormat =
+        new("IReadOnlyList<global::MLIR.Numerics.ApFloat>", constructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")", typedArrayElementPayloadPropertyName: "Items");
 
-    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseF64ArrayStrategy(AttrModel? attrModel) => new(
-        attrModel,
-        attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
-        assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
-        assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")");
+    private static readonly AttributeStrategyAssemblyFormat DenseF64ArrayAssemblyFormat =
+        new("IReadOnlyList<global::MLIR.Numerics.ApFloat>", constructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")", typedArrayElementPayloadPropertyName: "Items");
 
     /// <summary>
     /// Returns the model-bound strategy for the given attribute constraint. Returns
@@ -945,19 +797,19 @@ internal static class AttributeConstraintCodeStrategyFactory
     {
         return constraint.Kind switch
         {
-            AttributeConstraintKind.BooleanLiteral => CreateBooleanLiteralStrategy(attrModel),
-            AttributeConstraintKind.IntegerLiteral => CreateIntegerLiteralStrategy(attrModel),
-            AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointStrategy(constraint.RecordName, attrModel),
-            AttributeConstraintKind.StringLiteral => CreateStringLiteralStrategy(attrModel),
+            AttributeConstraintKind.BooleanLiteral => CreateModelBackedStrategy(attrModel, BooleanLiteralAssemblyFormat),
+            AttributeConstraintKind.IntegerLiteral => CreateModelBackedStrategy(attrModel, IntegerLiteralAssemblyFormat),
+            AttributeConstraintKind.FloatingPointLiteral => CreateModelBackedStrategy(attrModel, GetFloatingPointAssemblyFormat(constraint.RecordName)),
+            AttributeConstraintKind.StringLiteral => CreateModelBackedStrategy(attrModel, StringLiteralAssemblyFormat),
             AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.ElementsAttribute => ElementsAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.TypeAttribute => TypeAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.UnitAttribute => UnitAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DenseBooleanArrayAttribute => CreateDenseBooleanArrayStrategy(attrModel),
-            AttributeConstraintKind.DenseIntegerArrayAttribute => CreateDenseIntegerArrayStrategy(attrModel),
-            AttributeConstraintKind.DenseF32ArrayAttribute => CreateDenseF32ArrayStrategy(attrModel),
-            AttributeConstraintKind.DenseF64ArrayAttribute => CreateDenseF64ArrayStrategy(attrModel),
+            AttributeConstraintKind.DenseBooleanArrayAttribute => CreateModelBackedStrategy(attrModel, DenseBooleanArrayAssemblyFormat),
+            AttributeConstraintKind.DenseIntegerArrayAttribute => CreateModelBackedStrategy(attrModel, DenseIntegerArrayAssemblyFormat),
+            AttributeConstraintKind.DenseF32ArrayAttribute => CreateModelBackedStrategy(attrModel, DenseF32ArrayAssemblyFormat),
+            AttributeConstraintKind.DenseF64ArrayAttribute => CreateModelBackedStrategy(attrModel, DenseF64ArrayAssemblyFormat),
             AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel, constraint.ElementConstraintRecordName),
@@ -996,16 +848,51 @@ internal static class AttributeConstraintCodeStrategyFactory
             emitConstraintAssemblyFormat: true);
     }
 
-    private static AttributeConstraintCodeStrategy GetFloatingPointStrategy(string recordName, AttrModel? attrModel)
+    private static AttributeConstraintCodeStrategy CreateModelBackedStrategy(
+        AttrModel? attrModel,
+        AttributeStrategyAssemblyFormat format)
+    {
+        return new GenericModelBackedAttributeConstraintCodeStrategy(
+            attrModel,
+            format.FallbackPublicTypeName,
+            format.TypeName,
+            format.ConstructionExpression,
+            typedArrayElementPayloadPropertyName: format.TypedArrayElementPayloadPropertyName);
+    }
+
+    private static AttributeStrategyAssemblyFormat GetFloatingPointAssemblyFormat(string recordName)
     {
         return recordName switch
         {
-            "Builtin_FloatAttr" => CreateGenericFloatingPointLiteralStrategy(attrModel),
-            "F16Attr" => CreateF16Strategy(attrModel),
-            "F32Attr" => CreateF32Strategy(attrModel),
-            "BF16Attr" => CreateBF16Strategy(attrModel),
-            "F64Attr" => CreateF64Strategy(attrModel),
+            "Builtin_FloatAttr" => GenericFloatingPointAssemblyFormat,
+            "F16Attr" => F16AssemblyFormat,
+            "F32Attr" => F32AssemblyFormat,
+            "BF16Attr" => BF16AssemblyFormat,
+            "F64Attr" => F64AssemblyFormat,
             _ => throw new System.NotSupportedException($"Unsupported floating-point attribute constraint '{recordName}'."),
         };
+    }
+
+    private sealed class AttributeStrategyAssemblyFormat
+    {
+        public AttributeStrategyAssemblyFormat(
+            string fallbackPublicTypeName,
+            string? typeName = null,
+            string? constructionExpression = null,
+            string typedArrayElementPayloadPropertyName = "Value")
+        {
+            FallbackPublicTypeName = fallbackPublicTypeName;
+            TypeName = typeName;
+            ConstructionExpression = constructionExpression;
+            TypedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
+        }
+
+        public string FallbackPublicTypeName { get; }
+
+        public string? TypeName { get; }
+
+        public string? ConstructionExpression { get; }
+
+        public string TypedArrayElementPayloadPropertyName { get; }
     }
 }
