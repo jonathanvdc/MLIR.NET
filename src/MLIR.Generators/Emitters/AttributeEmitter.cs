@@ -150,9 +150,10 @@ internal static class AttributeEmitter
             "new " + className + "AssemblyFormat()");
         builder.AppendLine();
 
-        // Typed constructor
-        builder.AppendLine("    public " + className + "(" + enumTypeName + " value)");
-        builder.AppendLine("        : base(null)");
+        // Typed constructor – optional syntax parameter preserves source provenance when the
+        // attribute is produced by the parser; callers can omit it for synthetic values.
+        builder.AppendLine("    public " + className + "(" + enumTypeName + " value, MLIR.Syntax.AttributeValueSyntax? syntax = null)");
+        builder.AppendLine("        : base(syntax)");
         builder.AppendLine("    {");
         builder.AppendLine("        Value = value;");
         builder.AppendLine("    }");
@@ -168,62 +169,57 @@ internal static class AttributeEmitter
         builder.AppendLine("    public override AttributeConstraintDefinition? Definition => AttributeDefinition;");
         builder.AppendLine();
 
-        // ParseEnumValue helper
-        EnumEmitter.EmitParseEnumValueHelperMethod(
-            builder,
-            enumModel,
-            enumTypeName,
-            "    ",
-            "public static",
-            includeIntegerLiteralSyntaxFallback: false,
-            allowBitEnumAngleBrackets: enumModel.IsBitEnum);
-
-        // PrintEnumValue helper
-        EnumEmitter.EmitPrintEnumValueHelperMethod(
-            builder,
-            enumModel,
-            enumTypeName,
-            "    ",
-            "internal");
-
         builder.AppendLine("}");
         builder.AppendLine();
 
-        // Assembly format class
+        // Assembly format class – thin subclass of the shared runtime base.
         EmitEnumAssemblyFormatClass(builder, className, enumTypeName, enumModel);
     }
 
     private static void EmitEnumAssemblyFormatClass(StringBuilder builder, string attributeClassName, string enumTypeName, EnumModel enumModel)
     {
         var formatClassName = attributeClassName + "AssemblyFormat";
-        builder.AppendLine("internal sealed class " + formatClassName + " : IAttributeAssemblyFormat");
+        var infoClassName = EnumEmitter.GetEnumInfoClassName(enumModel);
+
+        // Choose the runtime base class depending on whether this is a flags enum.
+        var baseTypeName = enumModel.IsBitEnum
+            ? "global::MLIR.Dialects.Attributes.FlagsEnumAttributeAssemblyFormat<" + attributeClassName + ">"
+            : "global::MLIR.Dialects.Attributes.SimpleEnumAttributeAssemblyFormat<" + attributeClassName + ">";
+
+        // Bit enums use Optional angle brackets: the old bespoke parser accepted both
+        // `<x,y>` and `x,y`, while printing always emitted `<xy>`. Optional matches that
+        // behavior. Non-bit enums use Prohibited (no brackets in inline operation format).
+        var angleBracketRequirement = enumModel.IsBitEnum
+            ? "global::MLIR.Dialects.Attributes.EnumAngleBracketRequirement.Optional"
+            : "global::MLIR.Dialects.Attributes.EnumAngleBracketRequirement.Prohibited";
+
+        builder.AppendLine("internal sealed class " + formatClassName);
+        builder.AppendLine("    : " + baseTypeName);
         builder.AppendLine("{");
-        EnumEmitter.EmitAssemblyFormatTryParseMethod(
-            builder,
-            enumModel,
-            "    ",
-            allowBitEnumAngleBrackets: enumModel.IsBitEnum);
-        builder.AppendLine("    public static AttributeValue BindValue(AttributeValueSyntax syntax)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return new " + attributeClassName + "(" + attributeClassName + ".ParseEnumValue(syntax));");
-        builder.AppendLine("    }");
+        builder.AppendLine("    public " + formatClassName + "()");
+        builder.AppendLine("        : base(" + infoClassName + ".NamesByInteger) { }");
         builder.AppendLine();
-        builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return BindValue(syntax);");
-        builder.AppendLine("    }");
+        builder.AppendLine("    public override int BitWidth => " + enumModel.Bitwidth + ";");
+        builder.AppendLine("    public override global::MLIR.Dialects.Attributes.EnumAngleBracketRequirement AngleBracketRequirement");
+        builder.AppendLine("        => " + angleBracketRequirement + ";");
         builder.AppendLine();
-        builder.AppendLine("    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        var enumAttr = (" + attributeClassName + ")attribute;");
-        builder.AppendLine("        var text = enumAttr.PrintEnumValue(enumAttr.Value);");
+
         if (enumModel.IsBitEnum)
         {
-            builder.AppendLine("        text = \"<\" + text + \">\";");
+            var sepKind = EnumEmitter.GetSeparatorTokenKind(enumModel);
+            builder.AppendLine("    public override global::MLIR.Text.TokenKind SeparatorTokenKind");
+            builder.AppendLine("        => global::MLIR.Text." + sepKind + ";");
+            builder.AppendLine();
         }
 
-        builder.AppendLine("        return new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(text));");
-        builder.AppendLine("    }");
+        // EnumFromInt – creates the typed attribute from a parsed integer and preserves syntax.
+        builder.AppendLine("    public override " + attributeClassName + " EnumFromInt(global::MLIR.Numerics.ApInt value, global::MLIR.Syntax.AttributeValueSyntax syntax)");
+        builder.AppendLine("        => new " + attributeClassName + "(" + infoClassName + ".TryFromInteger(value, out var enumValue) ? enumValue : default, syntax);");
+        builder.AppendLine();
+
+        // EnumToInt – returns the underlying integer for printing.
+        builder.AppendLine("    public override global::MLIR.Numerics.ApInt EnumToInt(" + attributeClassName + " value)");
+        builder.AppendLine("        => global::MLIR.Numerics.ApInt.FromUInt64(" + enumModel.Bitwidth + ", (ulong)value.Value);");
         builder.AppendLine("}");
     }
 }

@@ -295,6 +295,25 @@ internal static class EnumEmitter
         builder.AppendLine("        };");
         builder.AppendLine();
 
+        // NamesByInteger: ApInt-keyed integer-to-name dictionary consumed by the runtime base
+        // classes (SimpleEnumAttributeAssemblyFormat<T> / FlagsEnumAttributeAssemblyFormat<T>)
+        // so they can print enum values and build the reverse parsing map without depending on
+        // the generated enum type at the call site.
+        builder.AppendLine("    internal static readonly global::System.Collections.Generic.IReadOnlyDictionary<global::MLIR.Numerics.ApInt, string> NamesByInteger =");
+        builder.AppendLine("        new global::System.Collections.Generic.Dictionary<global::MLIR.Numerics.ApInt, string>()");
+        builder.AppendLine("        {");
+        var seenValuesForNames = new HashSet<long>();
+        foreach (var enumCase in enumModel.Cases)
+        {
+            if (seenValuesForNames.Add(enumCase.Value))
+            {
+                builder.AppendLine("            { global::MLIR.Numerics.ApInt.FromUInt64(" + enumModel.Bitwidth + ", " + unchecked((ulong)enumCase.Value).ToString() + "UL), " + EmitterHelpers.ToCSharpStringLiteral(enumCase.Str) + " },");
+            }
+        }
+
+        builder.AppendLine("        };");
+        builder.AppendLine();
+
         if (enumModel.IsBitEnum)
         {
             EmitBitEnumCases(builder, enumModel, enumTypeName);
