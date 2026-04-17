@@ -1,0 +1,135 @@
+using System.Net.Http.Headers;
+using MLIR.Numerics;
+using MLIR.Semantics;
+using MLIR.Syntax;
+using MLIR.Syntax.Attributes.Primitives;
+using MLIR.Text;
+using MLIR.Transforms;
+
+namespace MLIR.Dialects.Attributes;
+
+/// <summary>
+/// Provides an assembly format for attributes whose values are enums represented as bitfields.
+/// </summary>
+/// <typeparam name="T">The specific enum attribute type for which this assembly format is defined.</typeparam>
+/// <remarks>
+/// Initializes a new instance of the <see cref="FlagsEnumAttributeAssemblyFormat{T}"/> class with the specified bit width and mapping of enum values to their string representations.
+/// </remarks>
+/// <param name="bitWidth">The bit width of the integer representation used to encode the enum values.</param>
+/// <param name="names">The mapping of enum values to their corresponding string representations.</param>
+public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnlyDictionary<ApInt, string> names) : EnumAttributeAssemblyFormat<T>(bitWidth, names) where T : AttributeValue
+{
+    /// <inheritdoc/>
+    public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    {
+        if (syntax is EnumAttributeValueSyntax enumSyntax)
+        {
+            var tokens = enumSyntax.Elements;
+            if (tokens.Count == 0) throw new InvalidOperationException("Enum attribute value cannot be empty.");
+
+            var accumulator = zero;
+            foreach (var token in tokens)
+            {
+                if (!reverseNames.TryGetValue(token.Text, out var flag))
+                {
+                    throw new InvalidOperationException($"Unknown enum name '{token.Text}' in enum attribute value.");
+                }
+
+                accumulator |= flag;
+            }
+
+            return EnumFromInt(accumulator, enumSyntax);
+        }
+        else if (syntax is IntegerAttributeValueSyntax intSyntax)
+        {
+            return EnumFromInt(intSyntax.Value, intSyntax);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unexpected syntax kind '{syntax.GetType().Name}' for enum attribute value.");
+        }
+    }
+
+    /// <inheritdoc/>
+    public override AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
+    {
+        if (attribute is T enumAttribute)
+        {
+            var flags = EnumToInt(enumAttribute);
+            var parts = new List<Token>();
+            foreach (var pair in Names)
+            {
+                var flagValue = reverseNames[pair.Value];
+                if (!flagValue.IsZero && (flags & flagValue) == flagValue)
+                {
+                    parts.Add(TokenFactory.Identifier(pair.Value));
+                    flags &= ~flagValue;
+                }
+            }
+
+            if (!flags.IsZero)
+            {
+                // If there are remaining flags that don't have names, we print the integer value.
+                return new IntegerAttributeValueSyntax(TokenFactory.Integer(flags.ToString()), flags);
+            }
+
+            if (parts.Count == 0)
+            {
+                // If there are no flags set, we still print something. Check if there's a name for the zero value.
+                if (Names.TryGetValue(zero, out var zeroEnum))
+                {
+                    parts.Add(TokenFactory.Identifier(zeroEnum));
+                }
+                else
+                {
+                    // No name for zero value, just return "0".
+                    return new IntegerAttributeValueSyntax(TokenFactory.Integer("0"), zero);
+                }
+            }
+
+            // If there are no remaining flags without names, we print the named flags.
+            return new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(parts, Enumerable.Repeat(TokenFactory.Comma(), parts.Count - 1).ToList()));
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unexpected attribute value type '{attribute.GetType().Name}' for enum attribute.");
+        }
+    }
+
+    /// <inheritdoc/>
+    public override ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    {
+        if (context.TryMatch(TokenKind.Integer, out var intToken))
+        {
+            return ParseResult<AttributeValueSyntax>.Success(new IntegerAttributeValueSyntax(intToken, ApInt.Parse(BitWidth, intToken.Text)));
+        }
+        else
+        {
+            var identifiers = new List<Token>();
+            var separators = new List<Token>();
+
+            while (true)
+            {
+                var name = context.Expect(TokenKind.Identifier, "Expected identifier in enum attribute value");
+                if (name.IsError) return ParseResult<AttributeValueSyntax>.Failure(name.Diagnostic!);
+
+                if (!reverseNames.ContainsKey(name.Value.Text))
+                {
+                    var location = name.Value.Location;
+                    return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic($"Unknown enum name '{name.Value.Text}' in enum attribute value.", location));
+                }
+
+                identifiers.Add(name.Value);
+                if (context.TryMatch(TokenKind.Comma, out var comma))
+                {
+                    separators.Add(comma);
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return ParseResult<AttributeValueSyntax>.Success(new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(identifiers, separators)));
+        }
+    }
+}

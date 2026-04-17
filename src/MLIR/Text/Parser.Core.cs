@@ -474,8 +474,7 @@ public sealed partial class Parser
     /// </summary>
     private Diagnostic CreateDiagnostic(string message)
     {
-        var location = Current.Location;
-        return new Diagnostic(message, location.Line, location.Column);
+        return new Diagnostic(message, Current.Location);
     }
 
     /// <summary>Bridges <see cref="Is"/> for use by <see cref="DialectParsingContext"/>.</summary>

@@ -1,3 +1,5 @@
+using MLIR.Semantics;
+
 namespace MLIR.Text;
 
 /// <summary>
@@ -7,9 +9,8 @@ namespace MLIR.Text;
 /// Initializes a new instance of the <see cref="Diagnostic"/> class.
 /// </remarks>
 /// <param name="message">The diagnostic message.</param>
-/// <param name="line">The 1-based source line.</param>
-/// <param name="column">The 1-based source column.</param>
-public sealed class Diagnostic(string message, int line, int column)
+/// <param name="location">The source location associated with the diagnostic.</param>
+public sealed class Diagnostic(string message, SourceLocation location)
 {
     /// <summary>
     /// Gets the diagnostic message.
@@ -17,14 +18,19 @@ public sealed class Diagnostic(string message, int line, int column)
     public string Message { get; } = message;
 
     /// <summary>
+    /// Gets the source location associated with the diagnostic.
+    /// </summary>
+    public SourceLocation Location { get; } = location;
+
+    /// <summary>
     /// Gets the 1-based source line.
     /// </summary>
-    public int Line { get; } = line;
+    public int Line => Location.Line;
 
     /// <summary>
     /// Gets the 1-based source column.
     /// </summary>
-    public int Column { get; } = column;
+    public int Column => Location.Column;
 
     /// <summary>
     /// Formats the diagnostic as a human-readable string.

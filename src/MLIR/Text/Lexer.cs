@@ -1,6 +1,7 @@
 namespace MLIR.Text;
 
 using System.Collections.Generic;
+using MLIR.Semantics;
 using MLIR.Syntax;
 
 /// <summary>
@@ -62,8 +63,8 @@ internal static class Lexer
                 index++;
                 if (index >= source.Length || (!IsIdentifierStart(source[index]) && !char.IsDigit(source[index])))
                 {
-                    var (line, column) = document.GetLineColumn(tokenStart);
-                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Expected a name after '{chAtToken}'.", line, column));
+                    var location = new SourceLocation(document, tokenStart, 1);
+                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Expected a name after '{chAtToken}'.", location));
                 }
 
                 while (index < source.Length && IsIdentifierPart(source[index]))
@@ -127,8 +128,8 @@ internal static class Lexer
 
                 if (index == tokenStart + 1 || source[index - 1] != '"')
                 {
-                    var (line, column) = document.GetLineColumn(tokenStart);
-                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic("Unterminated string literal.", line, column));
+                    var location = new SourceLocation(document, tokenStart, 1);
+                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic("Unterminated string literal.", location));
                 }
 
                 tokens.Add(new Token(TokenKind.StringLiteral, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
@@ -162,8 +163,8 @@ internal static class Lexer
 
             if (kind == TokenKind.EndOfFile)
             {
-                var (line, column) = document.GetLineColumn(tokenStart);
-                return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Unexpected character '{chAtToken}'.", line, column));
+                var location = new SourceLocation(document, tokenStart, 1);
+                return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic($"Unexpected character '{chAtToken}'.", location));
             }
 
             index++;

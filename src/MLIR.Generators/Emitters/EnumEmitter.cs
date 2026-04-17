@@ -171,7 +171,7 @@ internal static class EnumEmitter
                 builder.AppendLine(indent + "        if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out var nextToken)");
                 builder.AppendLine(indent + "            && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
                 builder.AppendLine(indent + "        {");
-                builder.AppendLine(indent + "            return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location.Line, firstToken.Location.Column));");
+                builder.AppendLine(indent + "            return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location));");
                 builder.AppendLine(indent + "        }");
                 builder.AppendLine();
                 builder.AppendLine(indent + "        rawText += nextToken.Text;");
@@ -181,7 +181,7 @@ internal static class EnumEmitter
                 builder.AppendLine(indent + "            if (!context.TryMatch(MLIR.Text.TokenKind.Identifier, out nextToken)");
                 builder.AppendLine(indent + "                && !context.TryMatch(MLIR.Text.TokenKind.StringLiteral, out nextToken))");
                 builder.AppendLine(indent + "            {");
-                builder.AppendLine(indent + "                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location.Line, firstToken.Location.Column));");
+                builder.AppendLine(indent + "                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic(\"Expected an enum element.\", firstToken.Location));");
                 builder.AppendLine(indent + "            }");
                 builder.AppendLine();
                 builder.AppendLine(indent + "            rawText += nextToken.Text;");
