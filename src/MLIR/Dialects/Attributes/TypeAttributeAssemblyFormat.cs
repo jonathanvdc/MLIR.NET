@@ -44,6 +44,6 @@ public sealed class TypeAttributeAssemblyFormat : IAttributeAssemblyFormat
             return new TypeAttributeValueSyntax(typeSyntax);
         }
 
-        return attribute.Syntax ?? throw new System.InvalidOperationException("Type attributes require syntax to rebuild their assembly form.");
+        return attribute.Syntax ?? throw new InvalidOperationException("Type attributes require syntax to rebuild their assembly form.");
     }
 }
