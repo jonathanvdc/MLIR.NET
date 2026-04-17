@@ -11,9 +11,8 @@ namespace MLIR.Dialects.Attributes;
 /// Provides an assembly format for attributes whose values are simple enums.
 /// </summary>
 /// <typeparam name="T">The specific enum attribute type for which this assembly format is defined.</typeparam>
-/// <param name="bitWidth">The bit width of the integer representation used to encode the enum values.</param>
 /// <param name="names">The mapping of enum values to their corresponding string representations.</param>
-public abstract class SimpleEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnlyDictionary<ApInt, string> names) : EnumAttributeAssemblyFormat<T>(bitWidth, names) where T : AttributeValue
+public abstract class SimpleEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<ApInt, string> names) : EnumAttributeAssemblyFormat<T>(names) where T : AttributeValue
 {
     /// <inheritdoc/>
     public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
