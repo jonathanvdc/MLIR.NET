@@ -24,7 +24,7 @@ namespace MLIR.Syntax;
 /// resolve back to line/column on demand.
 /// </para>
 /// </remarks>
-public readonly struct Token
+public readonly struct Token : IHasSourceLocation
 {
     /// <summary>
     /// Initializes a synthetic <see cref="Token"/> without source location information.
