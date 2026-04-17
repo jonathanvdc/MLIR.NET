@@ -6,11 +6,6 @@ using MLIR.Generators.Emitters;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
-internal enum AttributeConstraintEmissionKind
-{
-    StaticDefinition,
-}
-
 internal enum AttributeValueConversionKind
 {
     Identity,
@@ -128,11 +123,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// <c>StructuredAttributeSemanticDecoder.DecodeValue</c>.
     /// </summary>
     public virtual bool UsesTypedArrayElementPayload => false;
-
-    /// <summary>
-    /// Gets the shape of generated code this constraint requires.
-    /// </summary>
-    public virtual AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     // -------------------------------------------------------------------------
     // Type name resolution
@@ -401,7 +391,6 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
 
     public override string PublicTypeName => "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
     public override bool IsGenericTypedArrayElement => true;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     public override string? GetAssemblyFormatType() => "ElementsAttributeAssemblyFormat";
 }
@@ -419,7 +408,6 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     public override string PublicTypeName => "DictionaryAttr";
     public override string TypedArrayElementTypeName => "NamedAttributeCollection";
     public override bool UsesTypedArrayElementPayload => false;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     /// <summary>
     /// Returns <c>"NamedAttributeCollection"</c> – the unwrapped value type used for
@@ -449,7 +437,6 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string PublicTypeName => "TypeAttr";
     public override string TypedArrayElementTypeName => "TypeReference";
     public override bool UsesTypedArrayElementPayload => false;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     /// <summary>
     /// Returns <c>"TypeReference"</c> – the unwrapped value type used for typed-array
@@ -477,7 +464,6 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string PublicTypeName => "UnitAttr";
     public override bool IsUnit => true;
     public override bool IsGenericTypedArrayElement => true;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     /// <summary>
     /// Required unit attributes are typed <c>UnitAttr</c>; optional ones are
@@ -523,7 +509,6 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
     }
 
     public override string PublicTypeName => enumTypeName;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
     public override string? GetAssemblyFormatConstructionExpression() =>
         emitConstraintAssemblyFormat
             ? "new " + EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(recordName) + "()"

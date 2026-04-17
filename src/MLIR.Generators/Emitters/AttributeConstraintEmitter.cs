@@ -9,16 +9,6 @@ internal static class AttributeConstraintEmitter
     public static void Emit(StringBuilder builder, AttributeConstraintModel attributeConstraint, DialectSymbolResolver resolver)
     {
         var strategy = resolver.TryResolveAttributeConstraintStrategy(attributeConstraint.RecordName);
-        if (strategy.EmissionKind != AttributeConstraintEmissionKind.StaticDefinition)
-        {
-            throw new System.InvalidOperationException(
-                "Unsupported attribute constraint emission kind '"
-                + strategy.EmissionKind
-                + "' for constraint '"
-                + attributeConstraint.RecordName
-                + "'.");
-        }
-
         EmitStaticConstraintDefinition(builder, attributeConstraint, strategy);
         strategy.EmitAdditionalDefinitions(builder);
     }
