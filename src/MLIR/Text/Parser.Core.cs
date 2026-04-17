@@ -238,6 +238,7 @@ public sealed partial class Parser
         TokenKind closeKind,
         Func<ParseResult<T>> parseElement,
         string closeMessage)
+        where T : IHasSourceLocation
     {
         if (!TryMatch(openKind, out var openToken))
         {
@@ -257,6 +258,7 @@ public sealed partial class Parser
         Func<ParseResult<T>> parseElement,
         string openMessage,
         string closeMessage)
+        where T : IHasSourceLocation
     {
         return ExpectTokenResult(openKind, openMessage)
             .Bind(openToken => TryParseCommaSeparatedDelimitedListCore(openToken, closeKind, parseElement, closeMessage));
@@ -272,6 +274,7 @@ public sealed partial class Parser
         TokenKind closeKind,
         Func<ParseResult<T>> parseElement,
         string closeMessage)
+        where T : IHasSourceLocation
     {
         var items = new List<T>();
         var separators = new List<Token>();
@@ -406,6 +409,7 @@ public sealed partial class Parser
     /// successor list or attribute dictionary.
     /// </summary>
     private static DelimitedSyntaxList<T> EmptyDelimitedSyntaxList<T>()
+        where T : IHasSourceLocation
     {
         return new DelimitedSyntaxList<T>(null, new List<T>(), new List<Token>(), null);
     }

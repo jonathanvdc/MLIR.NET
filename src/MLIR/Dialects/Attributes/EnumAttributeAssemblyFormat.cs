@@ -1,12 +1,37 @@
-using System.Net.Http.Headers;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
-using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Text;
 using MLIR.Transforms;
 
 namespace MLIR.Dialects.Attributes;
+
+/// <summary>
+/// Defines the requirement for angle brackets in the assembly syntax of enum attribute values.
+/// This enum is used to specify whether angle brackets are required, optional, or prohibited in the assembly syntax for enum attribute values when using the <see cref="EnumAttributeAssemblyFormat{T}"/> class.
+/// The requirement for angle brackets can affect how the assembly syntax for enum attribute values is parsed and printed, allowing for flexibility in the assembly format based on the specific needs of the enum attribute type
+/// </summary>
+public enum EnumAngleBracketRequirement
+{
+    /// <summary>
+    /// Indicates that angle brackets are required in the assembly syntax for enum attribute values. If this requirement is specified, then the assembly syntax for enum attribute values must include angle brackets around the enum elements, such as <c>&lt;EnumValue&gt;</c>.
+    /// If angle brackets are not present in the assembly syntax for enum attribute values when this requirement is specified, it will be considered a syntax error during parsing.
+    /// </summary>
+    Required,
+
+    /// <summary>
+    /// Indicates that angle brackets are optional in the assembly syntax for enum attribute values. If this requirement is specified, then the assembly syntax for enum attribute values may include angle brackets around the enum elements
+    /// such as <c>&lt;EnumValue&gt;</c>, but it is not mandatory. The assembly syntax for enum attribute values can be valid with or without angle brackets when this requirement is specified.
+    /// During parsing, both forms of assembly syntax for enum attribute values (with or without angle brackets) will be accepted as valid when this requirement is specified.
+    /// </summary>
+    Optional,
+
+    /// <summary>
+    /// Indicates that angle brackets are prohibited in the assembly syntax for enum attribute values. If this requirement is specified, then the assembly syntax for enum attribute values must not include angle brackets around the enum
+    /// elements, and the enum elements must be directly present without delimiters, such as <c>EnumValue</c>. If angle brackets are present in the assembly syntax for enum attribute values when this requirement is specified, it will be considered a syntax error during parsing.
+    /// </summary>
+    Prohibited
+}
 
 /// <summary>
 /// Provides an assembly format for attributes whose values are enums represented as bitfields, allowing them to be printed and parsed
@@ -66,6 +91,12 @@ public abstract class EnumAttributeAssemblyFormat<T> : IAttributeAssemblyFormat 
     /// This is used for parsing enum attribute values from their string representations in assembly form.
     /// </summary>
     protected readonly Dictionary<string, ApInt> reverseNames;
+
+    /// <summary>
+    /// Gets the requirement for angle brackets in the assembly syntax of enum attribute values for this assembly format. This property specifies whether angle brackets are required, optional, or prohibited in the assembly syntax for enum attribute values when using this assembly format.
+    /// The requirement for angle brackets can affect how the assembly syntax for enum attribute values is parsed
+    /// </summary>
+    public abstract EnumAngleBracketRequirement AngleBracketRequirement { get; }
 
     /// <summary>
     /// Converts an integer value to the corresponding enum value of type <typeparamref name="T"/>.

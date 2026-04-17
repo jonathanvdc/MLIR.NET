@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
@@ -21,7 +20,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
 {
     /// <summary>
     /// Gets the token kind used to separate multiple enum elements in the assembly syntax. For example, if this is set to <see cref="TokenKind.Comma"/>, then multiple enum elements will be separated by commas in the assembly form of the attribute value, such as <c>EnumValue1, EnumValue2</c>.
-    /// The separator token kind is used when parsing and printing enum attribute values that contain multiple flags set, allowing them to be represented in a human-readable form using their string names defined in the <see cref="Names"/> mapping.
+    /// The separator token kind is used when parsing and printing enum attribute values that contain multiple flags set, allowing them to be represented in a human-readable form using their string names defined in the names mapping.
     /// </summary>
     public abstract TokenKind SeparatorTokenKind { get; }
 
@@ -42,6 +41,11 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
         {
             var tokens = enumSyntax.Elements;
             if (tokens.Count == 0) throw new InvalidOperationException("Enum attribute value cannot be empty.");
+
+            if (tokens.Count == 1 && tokens[0].TokenKind == TokenKind.Integer)
+            {
+                return EnumFromInt(ApInt.Parse(BitWidth, tokens[0].Text), enumSyntax);
+            }
 
             var accumulator = zero;
             foreach (var token in tokens)
@@ -72,6 +76,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
         if (attribute is T enumAttribute)
         {
             var flags = EnumToInt(enumAttribute);
+            var useAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;
             var parts = new List<Token>();
             foreach (var pair in Names)
             {
@@ -85,8 +90,20 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
 
             if (!flags.IsZero)
             {
-                // If there are remaining flags that don't have names, we print the integer value.
-                return new IntegerAttributeValueSyntax(TokenFactory.Integer(flags.ToString()), flags);
+                if (useAngleBrackets)
+                {
+                    return new DelimitedEnumAttributeValueSyntax(
+                        new DelimitedSyntaxList<Token>(
+                            TokenFactory.LessThan(),
+                            [TokenFactory.Integer(flags.ToString())],
+                            Array.Empty<Token>(),
+                            TokenFactory.GreaterThan()));
+                }
+
+                return new UndelimitedEnumAttributeValueSyntax(
+                    new SeparatedSyntaxList<Token>(
+                        [TokenFactory.Integer(flags.ToString())],
+                        Array.Empty<Token>()));
             }
 
             if (parts.Count == 0)
@@ -99,12 +116,37 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
                 else
                 {
                     // No name for zero value, just return "0".
-                    return new IntegerAttributeValueSyntax(TokenFactory.Integer("0"), zero);
+                    if (useAngleBrackets)
+                    {
+                        return new DelimitedEnumAttributeValueSyntax(
+                            new DelimitedSyntaxList<Token>(
+                                TokenFactory.LessThan(),
+                                [TokenFactory.Integer("0")],
+                                Array.Empty<Token>(),
+                                TokenFactory.GreaterThan()));
+                    }
+
+                    return new UndelimitedEnumAttributeValueSyntax(
+                        new SeparatedSyntaxList<Token>(
+                            [TokenFactory.Integer("0")],
+                            Array.Empty<Token>()));
                 }
             }
 
-            // If there are no remaining flags without names, we print the named flags.
-            return new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(parts, Enumerable.Repeat(CreateSeparatorToken(), parts.Count - 1).ToList()));
+            if (useAngleBrackets)
+            {
+                return new DelimitedEnumAttributeValueSyntax(
+                    new DelimitedSyntaxList<Token>(
+                        TokenFactory.LessThan(),
+                        parts,
+                        Enumerable.Repeat(CreateSeparatorToken(), parts.Count - 1).ToList(),
+                        TokenFactory.GreaterThan()));
+            }
+
+            return new UndelimitedEnumAttributeValueSyntax(
+                new SeparatedSyntaxList<Token>(
+                    parts,
+                    Enumerable.Repeat(CreateSeparatorToken(), parts.Count - 1).ToList()));
         }
         else
         {
@@ -115,37 +157,93 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
     /// <inheritdoc/>
     public override ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
+        Token? open = null;
+        var allowsAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;
+        var requiresAngleBrackets = AngleBracketRequirement == EnumAngleBracketRequirement.Required;
+
+        if (context.TryMatch(TokenKind.LessThan, out var openToken))
+        {
+            if (!allowsAngleBrackets)
+            {
+                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic("Unexpected '<' in enum attribute value.", openToken.Location));
+            }
+
+            open = openToken;
+        }
+        else if (requiresAngleBrackets)
+        {
+            var error = context.Expect(TokenKind.LessThan, "Expected '<' to start enum attribute value");
+            return ParseResult<AttributeValueSyntax>.Failure(error.Diagnostic!);
+        }
+
         if (context.TryMatch(TokenKind.Integer, out var intToken))
         {
-            return ParseResult<AttributeValueSyntax>.Success(new IntegerAttributeValueSyntax(intToken, ApInt.Parse(BitWidth, intToken.Text)));
-        }
-        else
-        {
-            var identifiers = new List<Token>();
-            var separators = new List<Token>();
-
-            while (true)
+            if (open.HasValue)
             {
-                var name = context.Expect(TokenKind.Identifier, "Expected identifier in enum attribute value");
-                if (name.IsError) return ParseResult<AttributeValueSyntax>.Failure(name.Diagnostic!);
+                var closeAfterInteger = context.Expect(TokenKind.GreaterThan, "Expected '>' to end enum attribute value");
+                if (closeAfterInteger.IsError) return ParseResult<AttributeValueSyntax>.Failure(closeAfterInteger.Diagnostic!);
+                var close = closeAfterInteger.Value;
 
-                if (!reverseNames.ContainsKey(name.Value.Text))
-                {
-                    var location = name.Value.Location;
-                    return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic($"Unknown enum name '{name.Value.Text}' in enum attribute value.", location));
-                }
-
-                identifiers.Add(name.Value);
-                if (context.TryMatch(SeparatorTokenKind, out var comma))
-                {
-                    separators.Add(comma);
-                }
-                else
-                {
-                    break;
-                }
+                return ParseResult<AttributeValueSyntax>.Success(
+                    new DelimitedEnumAttributeValueSyntax(
+                        new DelimitedSyntaxList<Token>(
+                            open.Value,
+                            [intToken],
+                            Array.Empty<Token>(),
+                            close)));
             }
-            return ParseResult<AttributeValueSyntax>.Success(new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(identifiers, separators)));
+
+            return ParseResult<AttributeValueSyntax>.Success(
+                new UndelimitedEnumAttributeValueSyntax(
+                    new SeparatedSyntaxList<Token>(
+                        [intToken],
+                        Array.Empty<Token>())));
         }
+
+        var identifiers = new List<Token>();
+        var separators = new List<Token>();
+
+        while (true)
+        {
+            var name = context.Expect(TokenKind.Identifier, "Expected identifier in enum attribute value");
+            if (name.IsError) return ParseResult<AttributeValueSyntax>.Failure(name.Diagnostic!);
+
+            if (!reverseNames.ContainsKey(name.Value.Text))
+            {
+                var location = name.Value.Location;
+                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic($"Unknown enum name '{name.Value.Text}' in enum attribute value.", location));
+            }
+
+            identifiers.Add(name.Value);
+            if (context.TryMatch(SeparatorTokenKind, out var comma))
+            {
+                separators.Add(comma);
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if (open.HasValue)
+        {
+            var closeResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to end enum attribute value");
+            if (closeResult.IsError) return ParseResult<AttributeValueSyntax>.Failure(closeResult.Diagnostic!);
+            var close = closeResult.Value;
+
+            return ParseResult<AttributeValueSyntax>.Success(
+                new DelimitedEnumAttributeValueSyntax(
+                    new DelimitedSyntaxList<Token>(
+                        open.Value,
+                        identifiers,
+                        separators,
+                        close)));
+        }
+
+        return ParseResult<AttributeValueSyntax>.Success(
+            new UndelimitedEnumAttributeValueSyntax(
+                new SeparatedSyntaxList<Token>(
+                    identifiers,
+                    separators)));
     }
 }
