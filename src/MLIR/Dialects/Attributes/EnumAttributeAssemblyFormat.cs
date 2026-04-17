@@ -49,13 +49,11 @@ public abstract class EnumAttributeAssemblyFormat<T> : IAttributeAssemblyFormat 
     /// <summary>
     /// Initializes a new instance of the <see cref="EnumAttributeAssemblyFormat{T}"/> class with the specified bit width and mapping of enum values to their string representations.
     /// </summary>
-    /// <param name="bitWidth">The bit width of the integer representation used to encode the enum values.</param>
     /// <param name="names">The mapping of enum values to their corresponding string representations.</param>
-    public EnumAttributeAssemblyFormat(int bitWidth, IReadOnlyDictionary<ApInt, string> names)
+    public EnumAttributeAssemblyFormat(IReadOnlyDictionary<ApInt, string> names)
     {
         Names = names;
-        BitWidth = bitWidth;
-        zero = ApInt.Zero(bitWidth);
+        zero = ApInt.Zero(BitWidth);
 
         reverseNames = new Dictionary<string, ApInt>(StringComparer.Ordinal);
         foreach (var pair in names)
@@ -78,7 +76,7 @@ public abstract class EnumAttributeAssemblyFormat<T> : IAttributeAssemblyFormat 
     /// This bit width determines how many bits are used to represent the enum values as integers when they are stored or transmitted as part of the enum attribute value.
     /// For example, if the enum values can be represented within 8 bits, the <see cref="BitWidth"/> might be set to 8.
     /// </summary>
-    public int BitWidth { get; }
+    public abstract int BitWidth { get; }
 
     /// <summary>
     /// Gets the zero value of the integer representation for the enum values of type <typeparamref name="T"/>.

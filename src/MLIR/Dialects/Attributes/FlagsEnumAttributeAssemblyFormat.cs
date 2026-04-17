@@ -14,9 +14,8 @@ namespace MLIR.Dialects.Attributes;
 /// <remarks>
 /// Initializes a new instance of the <see cref="FlagsEnumAttributeAssemblyFormat{T}"/> class with the specified bit width and mapping of enum values to their string representations.
 /// </remarks>
-/// <param name="bitWidth">The bit width of the integer representation used to encode the enum values.</param>
 /// <param name="names">The mapping of enum values to their corresponding string representations.</param>
-public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnlyDictionary<ApInt, string> names) : EnumAttributeAssemblyFormat<T>(bitWidth, names) where T : AttributeValue
+public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<ApInt, string> names) : EnumAttributeAssemblyFormat<T>(names) where T : AttributeValue
 {
     /// <summary>
     /// Gets the token kind used to separate multiple enum elements in the assembly syntax. For example, if this is set to <see cref="TokenKind.Comma"/>, then multiple enum elements will be separated by commas in the assembly form of the attribute value, such as <c>EnumValue1, EnumValue2</c>.
