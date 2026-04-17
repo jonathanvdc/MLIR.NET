@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using MLIR.Semantics;
 using MLIR.Syntax;
-using MLIR.Syntax.Attributes.Collections;
 using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Text;
