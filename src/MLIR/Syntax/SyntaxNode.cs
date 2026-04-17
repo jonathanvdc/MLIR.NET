@@ -8,7 +8,7 @@ namespace MLIR.Syntax;
 /// <see cref="ToString"/> so that every concrete node type produces a trimmed textual
 /// representation without requiring callers to manage formatting parameters.
 /// </summary>
-public abstract class SyntaxNode
+public abstract class SyntaxNode : IHasSourceLocation
 {
     /// <summary>
     /// Gets the source location of this syntax node, if known.
