@@ -20,11 +20,7 @@ internal static class AttributeConstraintEmitter
         }
 
         EmitStaticConstraintDefinition(builder, attributeConstraint, strategy);
-        if (attributeConstraint.EnumModel != null)
-        {
-            builder.AppendLine();
-            EmitEnumConstraintAssemblyFormat(builder, attributeConstraint, attributeConstraint.EnumModel);
-        }
+        strategy.EmitAdditionalDefinitions(builder);
     }
 
     /// <summary>
@@ -54,7 +50,7 @@ internal static class AttributeConstraintEmitter
         AppendAttributeConstraintDefinition(
             builder,
             attributeConstraint.Name,
-            GetAssemblyFormatExpression(attributeConstraint.RecordName, strategy),
+            GetAssemblyFormatExpression(strategy),
             indent);
     }
 
@@ -76,65 +72,15 @@ internal static class AttributeConstraintEmitter
         builder.AppendLine(");");
     }
 
-    private static string? GetAssemblyFormatExpression(string recordName, AttributeConstraintCodeStrategy strategy)
+    private static string? GetAssemblyFormatExpression(AttributeConstraintCodeStrategy strategy)
     {
-        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression(recordName);
+        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression();
         if (assemblyFormatExpression != null)
         {
             return assemblyFormatExpression;
         }
 
-        var assemblyFormatType = strategy.GetAssemblyFormatType(recordName);
+        var assemblyFormatType = strategy.GetAssemblyFormatType();
         return assemblyFormatType != null ? "new " + assemblyFormatType + "()" : null;
     }
-
-    private static void EmitEnumConstraintAssemblyFormat(StringBuilder builder, AttributeConstraintModel attributeConstraint, EnumModel enumModel)
-    {
-        var enumTypeName = EnumHelpers.GetCSharpEnumTypeName(enumModel);
-
-        // Assembly format class for enum constraint
-        builder.AppendLine("internal sealed class " + EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(attributeConstraint.RecordName) + " : IAttributeAssemblyFormat");
-        builder.AppendLine("{");
-        EnumEmitter.EmitParseEnumValueHelperMethod(
-            builder,
-            enumModel,
-            enumTypeName,
-            "    ",
-            "private static",
-            includeIntegerLiteralSyntaxFallback: true,
-            allowBitEnumAngleBrackets: false);
-        EnumEmitter.EmitAssemblyFormatTryParseMethod(
-            builder,
-            enumModel,
-            "    ",
-            allowBitEnumAngleBrackets: false);
-        builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return " + EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "ParseEnumValue(syntax)", "syntax") + ";");
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr integerAttr");
-        builder.AppendLine("            && " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".TryFromInteger(integerAttr.Value, out var enumValue))");
-        builder.AppendLine("        {");
-        builder.AppendLine("            var text = " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".Format(enumValue);");
-        builder.AppendLine("            return new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(text));");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        if (attribute.Syntax != null)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return attribute.Syntax;");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr fallbackIntegerAttr)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return context.BuildAttributeValueSyntax(fallbackIntegerAttr);");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        throw new global::System.InvalidOperationException(\"Enum constraints require IntegerAttr storage for custom assembly emission, but received \" + attribute.GetType().FullName + \".\");");
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
-    }
-
 }

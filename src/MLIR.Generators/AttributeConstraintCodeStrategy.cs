@@ -1,10 +1,82 @@
 namespace MLIR.Generators;
 
+using System;
+using System.Text;
+using MLIR.Generators.Emitters;
+using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
 internal enum AttributeConstraintEmissionKind
 {
     StaticDefinition,
+}
+
+internal enum AttributeValueConversionKind
+{
+    Identity,
+    Template,
+}
+
+internal enum OptionalValueKind
+{
+    Reference,
+    NullableValueType,
+}
+
+internal readonly struct AttributeValueConversion
+{
+    private AttributeValueConversion(AttributeValueConversionKind kind, CodeTemplate? template)
+    {
+        Kind = kind;
+        Template = template;
+    }
+
+    public AttributeValueConversionKind Kind { get; }
+
+    public CodeTemplate? Template { get; }
+
+    public static AttributeValueConversion Identity { get; } =
+        new(AttributeValueConversionKind.Identity, null);
+
+    public static AttributeValueConversion FromTemplate(CodeTemplate template) =>
+        new(AttributeValueConversionKind.Template, template);
+
+    public static AttributeValueConversion FromExpression(string expression) =>
+        FromTemplate(new CodeTemplate(expression, CodeTemplateKind.Expression));
+
+    public string Render(string valueExpression)
+    {
+        return Kind == AttributeValueConversionKind.Identity
+            ? valueExpression
+            : Template!.Render(("value", valueExpression), ("self", valueExpression));
+    }
+}
+
+internal sealed class AttributeStoragePlan
+{
+    public AttributeStoragePlan(
+        string storageTypeName,
+        AttributeValueConversion storageToPublic,
+        AttributeValueConversion publicToStorage,
+        OptionalValueKind optionalValueKind,
+        string? defaultValueExpression)
+    {
+        StorageTypeName = storageTypeName;
+        StorageToPublic = storageToPublic;
+        PublicToStorage = publicToStorage;
+        OptionalValueKind = optionalValueKind;
+        DefaultValueExpression = defaultValueExpression;
+    }
+
+    public string StorageTypeName { get; }
+
+    public AttributeValueConversion StorageToPublic { get; }
+
+    public AttributeValueConversion PublicToStorage { get; }
+
+    public OptionalValueKind OptionalValueKind { get; }
+
+    public string? DefaultValueExpression { get; }
 }
 
 /// <summary>
@@ -17,15 +89,9 @@ internal enum AttributeConstraintEmissionKind
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every supported <see cref="AttributeConstraintKind"/> is represented by exactly one
-/// concrete subclass.  Instances are stateless singletons – all record-specific information
-/// is passed as method parameters so that a single instance can serve any number of
-/// identically-kinded constraints.
-/// </para>
-/// <para>
-/// <see cref="AttributeConstraintCodeStrategyFactory"/> maps an
-/// <see cref="AttributeConstraintKind"/> (and, when needed, a record name) to the correct
-/// singleton.
+/// Strategies are immutable and bound to one ODS record. They may capture ODS model data
+/// privately, but callers only receive code-generation decisions such as public type, storage
+/// type, conversion templates, and assembly-format requirements.
 /// </para>
 /// </remarks>
 internal abstract class AttributeConstraintCodeStrategy
@@ -33,19 +99,6 @@ internal abstract class AttributeConstraintCodeStrategy
     // -------------------------------------------------------------------------
     // Classification properties
     // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Gets a value indicating whether this constraint is a primitive attribute (boolean,
-    /// integer, string, floating-point, or enum). Primitive attributes have a simple C#
-    /// value type and generated setters can construct their semantic storage directly.
-    /// </summary>
-    public virtual bool IsPrimitive => false;
-
-    /// <summary>
-    /// Gets a value indicating whether this constraint is a dense collection attribute
-    /// (e.g. <c>array&lt;i32: …&gt;</c>).
-    /// </summary>
-    public virtual bool IsDenseCollection => false;
 
     /// <summary>
     /// Gets a value indicating whether this constraint is a typed-array attribute
@@ -59,13 +112,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// exposed as <c>bool</c> (present/absent) rather than <c>UnitAttr?</c>.
     /// </summary>
     public virtual bool IsUnit => false;
-
-    /// <summary>
-    /// Gets a value indicating whether this constraint is an enum attribute.
-    /// Enum attributes use generated enum property types while storing semantic payloads
-    /// in <c>IntegerAttr</c>.
-    /// </summary>
-    public virtual bool IsEnum => false;
 
     /// <summary>
     /// Gets a value indicating whether this constraint, when used as an element type inside
@@ -89,52 +135,54 @@ internal abstract class AttributeConstraintCodeStrategy
     public virtual AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
     // -------------------------------------------------------------------------
-    // Primitive value access
-    // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns the C# member-access expression suffix used to extract the primitive value
-    /// from an already-cast constraint instance (e.g. <c>.Value</c> or <c>.TypedValue</c>).
-    /// Only called when <see cref="IsPrimitive"/> is <see langword="true"/>.
-    /// </summary>
-    /// <param name="typeName">The C# type name of the member, including any trailing <c>?</c>.</param>
-    public virtual string GetPrimitiveValueAccess(string typeName) => ".Value";
-
-    // -------------------------------------------------------------------------
     // Type name resolution
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Returns the C# type name that represents the unwrapped attribute value for this
-    /// constraint (e.g. <c>"bool"</c>, <c>"global::MLIR.Numerics.ApInt"</c>, <c>"TypeSyntax"</c>), or
-    /// <see langword="null"/> when no specialised type is available.
+    /// Gets the C# type name that represents the public operation property value for this
+    /// constraint. Unknown constraints still have an explicit public type:
+    /// <c>AttributeValue</c>.
     /// This type is used for typed-array element types and for primitive property types.
     /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    /// <param name="resolver">The resolver for cross-dialect symbol lookup.</param>
-    public abstract string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver);
+    public abstract string PublicTypeName { get; }
+
+    /// <summary>
+    /// Gets the unwrapped element type to use when this constraint appears as the element
+    /// constraint of a typed-array attribute.
+    /// </summary>
+    public virtual string TypedArrayElementTypeName => PublicTypeName;
+
+    /// <summary>
+    /// Creates the storage conversion plan used by operation property getters, setters, and
+    /// constructor named-attribute generation.
+    /// </summary>
+    public virtual AttributeStoragePlan CreateStoragePlan()
+    {
+        return new AttributeStoragePlan(
+            PublicTypeName,
+            AttributeValueConversion.Identity,
+            AttributeValueConversion.Identity,
+            GetOptionalValueKind(PublicTypeName),
+            null);
+    }
 
     /// <summary>
     /// Returns the C# type name used for an operation's generated property that holds an
-    /// attribute of this constraint kind.  The default implementation wraps
-    /// <see cref="GetAttributeValueTypeName"/> with a nullable suffix when
-    /// <paramref name="isRequired"/> is <see langword="false"/>, and falls back to
-    /// <c>NamedAttribute</c> when no specialised type is known.
+    /// attribute of this constraint kind. The default implementation wraps the public type
+    /// with a nullable suffix when the attribute is optional and has no default value.
     /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
     /// <param name="isRequired">
     /// Whether the attribute is mandatory (appears in the assembly format, so always present).
     /// </param>
-    /// <param name="resolver">The resolver for cross-dialect symbol lookup.</param>
-    public virtual string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver)
+    public virtual string GetOperationPropertyTypeName(bool isRequired)
     {
-        var typeName = GetAttributeValueTypeName(constraintRecordName, resolver);
-        if (typeName is null)
+        var defaultValue = CreateStoragePlan().DefaultValueExpression;
+        if (isRequired || !string.IsNullOrEmpty(defaultValue))
         {
-            return isRequired ? "NamedAttribute" : "NamedAttribute?";
+            return PublicTypeName;
         }
 
-        return isRequired ? typeName : typeName + "?";
+        return PublicTypeName.EndsWith("?", StringComparison.Ordinal) ? PublicTypeName : PublicTypeName + "?";
     }
 
     // -------------------------------------------------------------------------
@@ -154,8 +202,7 @@ internal abstract class AttributeConstraintCodeStrategy
     /// <c>AttributeConstraintDefinition</c>, or <see langword="null"/> when no custom
     /// assembly format is needed.
     /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetAssemblyFormatType(string constraintRecordName) => null;
+    public virtual string? GetAssemblyFormatType() => null;
 
     /// <summary>
     /// Returns the full C# expression used to instantiate the assembly-format object
@@ -163,8 +210,13 @@ internal abstract class AttributeConstraintCodeStrategy
     /// Returns <see langword="null"/> when the default <c>new {GetAssemblyFormatType}()</c>
     /// shape should be used.
     /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => null;
+    public virtual string? GetAssemblyFormatConstructionExpression() => null;
+
+    /// <summary>
+    /// Emits any helper definitions required by this strategy after the static constraint
+    /// definition. Most constraints do not need extra definitions.
+    /// </summary>
+    public virtual void EmitAdditionalDefinitions(StringBuilder builder) { }
 
     // -------------------------------------------------------------------------
     // Typed-array decode/encode
@@ -178,8 +230,7 @@ internal abstract class AttributeConstraintCodeStrategy
     /// Returns <see langword="null"/> when the old constraint-class instance path should be
     /// used instead.
     /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetTypedArrayElementDecodeExpression(string constraintRecordName) => null;
+    public virtual string? GetTypedArrayElementDecodeExpression() => null;
 
     /// <summary>
     /// Returns a C# expression that converts the typed element value back to an
@@ -189,79 +240,218 @@ internal abstract class AttributeConstraintCodeStrategy
     /// Returns <see langword="null"/> when the old constraint-class instance path should be
     /// used instead.
     /// </summary>
-    /// <param name="constraintRecordName">The ODS record name of the constraint.</param>
-    public virtual string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) => null;
+    public virtual string? GetTypedArrayElementToSyntaxExpression() => null;
+
+    protected static OptionalValueKind GetOptionalValueKind(string typeName)
+    {
+        var trimmedTypeName = typeName.TrimEnd('?');
+        return string.Equals(trimmedTypeName, "bool", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "byte", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "sbyte", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "short", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ushort", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "int", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "uint", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "long", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ulong", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "BigInteger", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "global::MLIR.Numerics.ApInt", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ApInt", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "global::MLIR.Numerics.ApFloat", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "ApFloat", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "float", StringComparison.Ordinal)
+            || string.Equals(trimmedTypeName, "double", StringComparison.Ordinal)
+            ? OptionalValueKind.NullableValueType
+            : OptionalValueKind.Reference;
+    }
 
 }
 
-internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    private readonly string attributeValueTypeName;
+    private readonly AttrModel? attrModel;
+    private readonly string fallbackPublicTypeName;
+    private readonly string fallbackStorageTypeName;
     private readonly string? assemblyFormatType;
     private readonly string? assemblyFormatConstructionExpression;
-    private readonly string primitiveValueAccess;
     private readonly string typedArrayElementPayloadPropertyName;
     private readonly string? typedArrayElementDecodeExpression;
     private readonly string? typedArrayElementToSyntaxExpression;
 
-    public PrimitiveAttributeConstraintCodeStrategy(
-        string attributeValueTypeName,
-        string? assemblyFormatType,
-        string? assemblyFormatConstructionExpression,
-        string primitiveValueAccess = ".Value",
+    protected ModelBackedAttributeConstraintCodeStrategy(
+        AttrModel? attrModel,
+        string fallbackPublicTypeName,
+        string? fallbackStorageTypeName = null,
+        string? assemblyFormatType = null,
+        string? assemblyFormatConstructionExpression = null,
         string typedArrayElementPayloadPropertyName = "Value",
         string? typedArrayElementDecodeExpression = null,
         string? typedArrayElementToSyntaxExpression = null)
     {
-        this.attributeValueTypeName = attributeValueTypeName;
+        this.attrModel = attrModel;
+        this.fallbackPublicTypeName = fallbackPublicTypeName;
+        this.fallbackStorageTypeName = fallbackStorageTypeName ?? fallbackPublicTypeName;
         this.assemblyFormatType = assemblyFormatType;
         this.assemblyFormatConstructionExpression = assemblyFormatConstructionExpression;
-        this.primitiveValueAccess = primitiveValueAccess;
         this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
         this.typedArrayElementDecodeExpression = typedArrayElementDecodeExpression;
         this.typedArrayElementToSyntaxExpression = typedArrayElementToSyntaxExpression;
     }
 
-    public override bool IsPrimitive => true;
-    public override bool UsesTypedArrayElementPayload => typedArrayElementDecodeExpression == null;
-    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
+    public override string PublicTypeName => HasSpecializedAttrReturnType(attrModel)
+        ? attrModel!.CsharpReturnType!
+        : fallbackPublicTypeName;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => attributeValueTypeName;
-    public override string GetPrimitiveValueAccess(string typeName) => primitiveValueAccess;
+    public override bool UsesTypedArrayElementPayload => typedArrayElementDecodeExpression == null;
+
     public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
-    public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
-    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => assemblyFormatConstructionExpression;
-    public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) => typedArrayElementDecodeExpression;
-    public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) => typedArrayElementToSyntaxExpression;
+
+    public override string? GetAssemblyFormatType() => assemblyFormatType;
+
+    public override string? GetAssemblyFormatConstructionExpression() => assemblyFormatConstructionExpression;
+
+    public override string? GetTypedArrayElementDecodeExpression() => typedArrayElementDecodeExpression;
+
+    public override string? GetTypedArrayElementToSyntaxExpression() => typedArrayElementToSyntaxExpression;
+
+    public override AttributeStoragePlan CreateStoragePlan()
+    {
+        var storageTypeName = !string.IsNullOrEmpty(attrModel?.CsharpStorageType)
+            ? attrModel!.CsharpStorageType!
+            : fallbackStorageTypeName;
+        var storageToPublic = attrModel?.CsharpConvertFromStorageTemplate is CodeTemplate convertTemplate
+            ? AttributeValueConversion.FromTemplate(convertTemplate)
+            : AttributeValueConversion.Identity;
+        var publicToStorage = GetPublicToStorageConversion(storageTypeName);
+        return new AttributeStoragePlan(
+            storageTypeName,
+            storageToPublic,
+            publicToStorage,
+            GetOptionalValueKind(PublicTypeName),
+            attrModel?.CsharpDefaultValue);
+    }
+
+    private AttributeValueConversion GetPublicToStorageConversion(string storageTypeName)
+    {
+        if (attrModel?.CsharpConstBuilderCallTemplate is CodeTemplate constBuilderTemplate)
+        {
+            return AttributeValueConversion.FromTemplate(constBuilderTemplate);
+        }
+
+        return string.Equals(storageTypeName, PublicTypeName, StringComparison.Ordinal)
+            ? AttributeValueConversion.Identity
+            : AttributeValueConversion.FromExpression("new " + storageTypeName + "(${value})");
+    }
+
+    protected static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
+    {
+        var returnType = attrModel?.CsharpReturnType;
+        return !string.IsNullOrEmpty(returnType)
+            && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
+            && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal);
+    }
+}
+
+internal sealed class PrimitiveAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+{
+    private readonly ModelBackedPrimitiveAttributeConstraintCodeStrategy implementation;
+
+    public PrimitiveAttributeConstraintCodeStrategy(
+        AttrModel? attrModel,
+        string attributeValueTypeName,
+        string? assemblyFormatType,
+        string? assemblyFormatConstructionExpression,
+        string typedArrayElementPayloadPropertyName = "Value",
+        string? typedArrayElementDecodeExpression = null,
+        string? typedArrayElementToSyntaxExpression = null)
+    {
+        implementation = new ModelBackedPrimitiveAttributeConstraintCodeStrategy(
+            attrModel,
+            attributeValueTypeName,
+            assemblyFormatType,
+            assemblyFormatConstructionExpression,
+            typedArrayElementPayloadPropertyName,
+            typedArrayElementDecodeExpression,
+            typedArrayElementToSyntaxExpression);
+    }
+
+    public override string PublicTypeName => implementation.PublicTypeName;
+    public override bool UsesTypedArrayElementPayload => implementation.UsesTypedArrayElementPayload;
+    public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
+    public override AttributeStoragePlan CreateStoragePlan() => implementation.CreateStoragePlan();
+    public override string GetTypedArrayElementPayloadPropertyName() => implementation.GetTypedArrayElementPayloadPropertyName();
+    public override string? GetAssemblyFormatType() => implementation.GetAssemblyFormatType();
+    public override string? GetAssemblyFormatConstructionExpression() => implementation.GetAssemblyFormatConstructionExpression();
+    public override string? GetTypedArrayElementDecodeExpression() => implementation.GetTypedArrayElementDecodeExpression();
+    public override string? GetTypedArrayElementToSyntaxExpression() => implementation.GetTypedArrayElementToSyntaxExpression();
+
+    private sealed class ModelBackedPrimitiveAttributeConstraintCodeStrategy : ModelBackedAttributeConstraintCodeStrategy
+    {
+        public ModelBackedPrimitiveAttributeConstraintCodeStrategy(
+            AttrModel? attrModel,
+            string fallbackPublicTypeName,
+            string? assemblyFormatType,
+            string? assemblyFormatConstructionExpression,
+            string typedArrayElementPayloadPropertyName,
+            string? typedArrayElementDecodeExpression,
+            string? typedArrayElementToSyntaxExpression)
+            : base(
+                attrModel,
+                fallbackPublicTypeName,
+                assemblyFormatType: assemblyFormatType,
+                assemblyFormatConstructionExpression: assemblyFormatConstructionExpression,
+                typedArrayElementPayloadPropertyName: typedArrayElementPayloadPropertyName,
+                typedArrayElementDecodeExpression: typedArrayElementDecodeExpression,
+                typedArrayElementToSyntaxExpression: typedArrayElementToSyntaxExpression)
+        {
+        }
+    }
 }
 
 internal sealed class DensePrimitiveArrayAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    private readonly string attributeValueTypeName;
-    private readonly string? assemblyFormatType;
-    private readonly string? assemblyFormatConstructionExpression;
-    private readonly string typedArrayElementPayloadPropertyName;
+    private readonly ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy implementation;
 
     public DensePrimitiveArrayAttributeConstraintCodeStrategy(
+        AttrModel? attrModel,
         string attributeValueTypeName,
         string? assemblyFormatType,
         string? assemblyFormatConstructionExpression,
         string typedArrayElementPayloadPropertyName = "Items")
     {
-        this.attributeValueTypeName = attributeValueTypeName;
-        this.assemblyFormatType = assemblyFormatType;
-        this.assemblyFormatConstructionExpression = assemblyFormatConstructionExpression;
-        this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
+        implementation = new ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy(
+            attrModel,
+            attributeValueTypeName,
+            assemblyFormatType,
+            assemblyFormatConstructionExpression,
+            typedArrayElementPayloadPropertyName);
     }
 
-    public override bool IsDenseCollection => true;
+    public override string PublicTypeName => implementation.PublicTypeName;
     public override bool UsesTypedArrayElementPayload => true;
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
+    public override AttributeStoragePlan CreateStoragePlan() => implementation.CreateStoragePlan();
+    public override string GetTypedArrayElementPayloadPropertyName() => implementation.GetTypedArrayElementPayloadPropertyName();
+    public override string? GetAssemblyFormatType() => implementation.GetAssemblyFormatType();
+    public override string? GetAssemblyFormatConstructionExpression() => implementation.GetAssemblyFormatConstructionExpression();
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => attributeValueTypeName;
-    public override string GetTypedArrayElementPayloadPropertyName() => typedArrayElementPayloadPropertyName;
-    public override string? GetAssemblyFormatType(string constraintRecordName) => assemblyFormatType;
-    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) => assemblyFormatConstructionExpression;
+    private sealed class ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy : ModelBackedAttributeConstraintCodeStrategy
+    {
+        public ModelBackedDensePrimitiveArrayAttributeConstraintCodeStrategy(
+            AttrModel? attrModel,
+            string fallbackPublicTypeName,
+            string? assemblyFormatType,
+            string? assemblyFormatConstructionExpression,
+            string typedArrayElementPayloadPropertyName)
+            : base(
+                attrModel,
+                fallbackPublicTypeName,
+                assemblyFormatType: assemblyFormatType,
+                assemblyFormatConstructionExpression: assemblyFormatConstructionExpression,
+                typedArrayElementPayloadPropertyName: typedArrayElementPayloadPropertyName)
+        {
+        }
+    }
 }
 
 
@@ -275,9 +465,8 @@ internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstrain
     public static readonly OpaqueAttributeConstraintCodeStrategy Instance = new();
     private OpaqueAttributeConstraintCodeStrategy() { }
 
+    public override string PublicTypeName => "AttributeValue";
     public override bool IsGenericTypedArrayElement => true;
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "AttributeValue";
 }
 
 /// <summary>
@@ -290,12 +479,11 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
     public static readonly ElementsAttributeConstraintCodeStrategy Instance = new();
     private ElementsAttributeConstraintCodeStrategy() { }
 
+    public override string PublicTypeName => "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
     public override bool IsGenericTypedArrayElement => true;
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
-
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "ElementsAttributeAssemblyFormat";
+    public override string? GetAssemblyFormatType() => "ElementsAttributeAssemblyFormat";
 }
 
 /// <summary>
@@ -308,6 +496,8 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     public static readonly DictionaryAttributeConstraintCodeStrategy Instance = new();
     private DictionaryAttributeConstraintCodeStrategy() { }
 
+    public override string PublicTypeName => "DictionaryAttr";
+    public override string TypedArrayElementTypeName => "NamedAttributeCollection";
     public override bool UsesTypedArrayElementPayload => false;
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
@@ -316,22 +506,12 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     /// typed-array element extraction. Note that this is the unwrapped type regardless of
     /// whether the constraint is classified as primitive (it is not).
     /// </summary>
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "NamedAttributeCollection";
-
-    /// <summary>
-    /// Returns <c>"DictionaryAttr"</c> (required) or
-    /// <c>"DictionaryAttr?"</c> (optional) – the type used for operation
-    /// member properties, which wraps the attribute in its constraint class.
-    /// </summary>
-    public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
-        isRequired ? "DictionaryAttr" : "DictionaryAttr?";
-
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "DictionaryAttributeAssemblyFormat";
-    public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) =>
+    public override string? GetAssemblyFormatType() => "DictionaryAttributeAssemblyFormat";
+    public override string? GetTypedArrayElementDecodeExpression() =>
         "{itemSyntax} is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
         "? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items) " +
         ": global::MLIR.Semantics.NamedAttributeCollection.Empty";
-    public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) =>
+    public override string? GetTypedArrayElementToSyntaxExpression() =>
         "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BuildSyntax({element}, {context})";
 
 }
@@ -346,6 +526,8 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
     public static readonly TypeAttributeConstraintCodeStrategy Instance = new();
     private TypeAttributeConstraintCodeStrategy() { }
 
+    public override string PublicTypeName => "TypeAttr";
+    public override string TypedArrayElementTypeName => "TypeReference";
     public override bool UsesTypedArrayElementPayload => false;
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
 
@@ -353,21 +535,12 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
     /// Returns <c>"TypeReference"</c> – the unwrapped value type used for typed-array
     /// element extraction.
     /// </summary>
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "TypeReference";
-
-    /// <summary>
-    /// Returns <c>"TypeAttr"</c> (required) or <c>"TypeAttr?"</c>
-    /// (optional) – the type used for operation member properties.
-    /// </summary>
-    public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
-        isRequired ? "TypeAttr" : "TypeAttr?";
-
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "TypeAttributeAssemblyFormat";
-    public override string? GetTypedArrayElementDecodeExpression(string constraintRecordName) =>
+    public override string? GetAssemblyFormatType() => "TypeAttributeAssemblyFormat";
+    public override string? GetTypedArrayElementDecodeExpression() =>
         "{itemSyntax} is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
         "? new global::MLIR.Semantics.UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location) " +
         ": throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\")";
-    public override string? GetTypedArrayElementToSyntaxExpression(string constraintRecordName) =>
+    public override string? GetTypedArrayElementToSyntaxExpression() =>
         "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax({context}.BuildTypeSyntax({element}))";
 }
 
@@ -381,20 +554,19 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
     public static readonly UnitAttributeConstraintCodeStrategy Instance = new();
     private UnitAttributeConstraintCodeStrategy() { }
 
+    public override string PublicTypeName => "UnitAttr";
     public override bool IsUnit => true;
     public override bool IsGenericTypedArrayElement => true;
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
-
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "UnitAttr";
 
     /// <summary>
     /// Required unit attributes are typed <c>UnitAttr</c>; optional ones are
     /// exposed as <c>bool</c> (present/absent) rather than <c>UnitAttr?</c>.
     /// </summary>
-    public override string GetOperationPropertyTypeName(string constraintRecordName, bool isRequired, DialectSymbolResolver resolver) =>
+    public override string GetOperationPropertyTypeName(bool isRequired) =>
         isRequired ? "UnitAttr" : "bool";
 
-    public override string? GetAssemblyFormatType(string constraintRecordName) => "UnitAttributeAssemblyFormat";
+    public override string? GetAssemblyFormatType() => "UnitAttributeAssemblyFormat";
 }
 
 
@@ -404,24 +576,107 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
 /// </summary>
 internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    public static readonly EnumAttributeConstraintCodeStrategy Instance = new();
-    private EnumAttributeConstraintCodeStrategy() { }
+    private readonly string recordName;
+    private readonly EnumModel enumModel;
+    private readonly string enumTypeName;
+    private readonly string storageTypeName;
+    private readonly AttributeValueConversion storageToPublic;
+    private readonly AttributeValueConversion publicToStorage;
+    private readonly bool emitConstraintAssemblyFormat;
 
-    public override bool IsPrimitive => true;
-    public override bool IsEnum => true;
+    public EnumAttributeConstraintCodeStrategy(
+        string recordName,
+        EnumModel enumModel,
+        string enumTypeName,
+        string storageTypeName,
+        AttributeValueConversion storageToPublic,
+        AttributeValueConversion publicToStorage,
+        bool emitConstraintAssemblyFormat)
+    {
+        this.recordName = recordName;
+        this.enumModel = enumModel;
+        this.enumTypeName = enumTypeName;
+        this.storageTypeName = storageTypeName;
+        this.storageToPublic = storageToPublic;
+        this.publicToStorage = publicToStorage;
+        this.emitConstraintAssemblyFormat = emitConstraintAssemblyFormat;
+    }
+
+    public override string PublicTypeName => enumTypeName;
     public override AttributeConstraintEmissionKind EmissionKind => AttributeConstraintEmissionKind.StaticDefinition;
-    public override string GetPrimitiveValueAccess(string typeName) => ".TypedValue";
-    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) =>
-        "new " + global::MLIR.Generators.Emitters.EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(constraintRecordName) + "()";
+    public override string? GetAssemblyFormatConstructionExpression() =>
+        emitConstraintAssemblyFormat
+            ? "new " + EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(recordName) + "()"
+            : null;
 
-    /// <summary>
-    /// Returns the fully-qualified generated enum type name for this constraint, looked
-    /// up from the resolver, or <see langword="null"/> when no enum model is registered.
-    /// </summary>
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) =>
-        resolver.TryResolveEnumTypeName(constraintRecordName);
+    public override AttributeStoragePlan CreateStoragePlan()
+    {
+        return new AttributeStoragePlan(
+            storageTypeName,
+            storageToPublic,
+            publicToStorage,
+            OptionalValueKind.NullableValueType,
+            null);
+    }
 
-    // Emission is handled through static constraint-definition generation.
+    public override void EmitAdditionalDefinitions(StringBuilder builder)
+    {
+        if (!emitConstraintAssemblyFormat)
+        {
+            return;
+        }
+
+        builder.AppendLine();
+        EmitEnumConstraintAssemblyFormat(builder);
+    }
+
+    private void EmitEnumConstraintAssemblyFormat(StringBuilder builder)
+    {
+        var localEnumTypeName = EnumHelpers.GetCSharpEnumTypeName(enumModel);
+
+        builder.AppendLine("internal sealed class " + EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(recordName) + " : IAttributeAssemblyFormat");
+        builder.AppendLine("{");
+        EnumEmitter.EmitParseEnumValueHelperMethod(
+            builder,
+            enumModel,
+            localEnumTypeName,
+            "    ",
+            "private static",
+            includeIntegerLiteralSyntaxFallback: true,
+            allowBitEnumAngleBrackets: false);
+        EnumEmitter.EmitAssemblyFormatTryParseMethod(
+            builder,
+            enumModel,
+            "    ",
+            allowBitEnumAngleBrackets: false);
+        builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        return " + EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "ParseEnumValue(syntax)", "syntax") + ";");
+        builder.AppendLine("    }");
+        builder.AppendLine();
+        builder.AppendLine("    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
+        builder.AppendLine("    {");
+        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr integerAttr");
+        builder.AppendLine("            && " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".TryFromInteger(integerAttr.Value, out var enumValue))");
+        builder.AppendLine("        {");
+        builder.AppendLine("            var text = " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".Format(enumValue);");
+        builder.AppendLine("            return new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(text));");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        if (attribute.Syntax != null)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return attribute.Syntax;");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr fallbackIntegerAttr)");
+        builder.AppendLine("        {");
+        builder.AppendLine("            return context.BuildAttributeValueSyntax(fallbackIntegerAttr);");
+        builder.AppendLine("        }");
+        builder.AppendLine();
+        builder.AppendLine("        throw new global::System.InvalidOperationException(\"Enum constraints require IntegerAttr storage for custom assembly emission, but received \" + attribute.GetType().FullName + \".\");");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+    }
 }
 
 /// <summary>
@@ -430,25 +685,59 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
 /// </summary>
 internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    public static readonly TypedArrayConstraintCodeStrategy Instance = new();
-    private TypedArrayConstraintCodeStrategy() { }
+    private readonly AttrModel? attrModel;
+    private readonly string? elementRecordName;
 
+    public TypedArrayConstraintCodeStrategy(AttrModel? attrModel, string? elementRecordName)
+    {
+        this.attrModel = attrModel;
+        this.elementRecordName = elementRecordName;
+    }
+
+    public override string PublicTypeName => HasSpecializedAttrReturnType(attrModel)
+        ? attrModel!.CsharpReturnType!
+        : "IReadOnlyList<AttributeValue>";
     public override bool IsTypedArray => true;
     public override bool UsesTypedArrayElementPayload => true;
     public override string GetTypedArrayElementPayloadPropertyName() => "Items";
-    public override string? GetAssemblyFormatConstructionExpression(string constraintRecordName) =>
+    public override string? GetAssemblyFormatConstructionExpression() =>
         "new global::MLIR.Dialects.Attributes.Collections.TypedArrayAttributeAssemblyFormat()";
+
+    public override AttributeStoragePlan CreateStoragePlan()
+    {
+        if (HasSpecializedAttrReturnType(attrModel))
+        {
+            var storageTypeName = !string.IsNullOrEmpty(attrModel!.CsharpStorageType)
+                ? attrModel.CsharpStorageType!
+                : PublicTypeName;
+            var storageToPublic = attrModel.CsharpConvertFromStorageTemplate is CodeTemplate convertTemplate
+                ? AttributeValueConversion.FromTemplate(convertTemplate)
+                : AttributeValueConversion.Identity;
+            var publicToStorage = attrModel.CsharpConstBuilderCallTemplate is CodeTemplate constBuilderTemplate
+                ? AttributeValueConversion.FromTemplate(constBuilderTemplate)
+                : string.Equals(storageTypeName, PublicTypeName, StringComparison.Ordinal)
+                    ? AttributeValueConversion.Identity
+                    : AttributeValueConversion.FromExpression("new " + storageTypeName + "(${value})");
+            return new AttributeStoragePlan(
+                storageTypeName,
+                storageToPublic,
+                publicToStorage,
+                GetOptionalValueKind(PublicTypeName),
+                attrModel.CsharpDefaultValue);
+        }
+
+        return base.CreateStoragePlan();
+    }
 
     /// <summary>
     /// Returns the C# typed-array value type (e.g. <c>"IReadOnlyList&lt;string&gt;"</c>),
-    /// resolved by looking up the element constraint record name and delegating to the
-    /// element constraint's own <see cref="AttributeConstraintCodeStrategy.GetAttributeValueTypeName"/>.
+    /// resolved by looking up the element constraint record name and using the element
+    /// constraint's own <see cref="AttributeConstraintCodeStrategy.PublicTypeName"/>.
     /// Returns <c>"IReadOnlyList&lt;AttributeValue&gt;"</c> when no element strategy is
     /// available or the element type falls back to a generic type.
     /// </summary>
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver)
+    public string GetRecursivePublicTypeName(DialectSymbolResolver resolver)
     {
-        var elementRecordName = resolver.TryResolveAttributeConstraintElementRecordName(constraintRecordName);
         if (string.IsNullOrEmpty(elementRecordName))
         {
             return "IReadOnlyList<AttributeValue>";
@@ -460,8 +749,8 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
             return "IReadOnlyList<AttributeValue>";
         }
 
-        var elementTypeName = elementStrategy.GetAttributeValueTypeName(elementRecordName!, resolver);
-        if (elementTypeName is null || IsTypedArrayFallbackElementType(elementTypeName))
+        var elementTypeName = elementStrategy.TypedArrayElementTypeName;
+        if (IsTypedArrayFallbackElementType(elementTypeName))
         {
             return "IReadOnlyList<AttributeValue>";
         }
@@ -477,6 +766,14 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         elementTypeName == "UnitAttr"
         || elementTypeName == "OpaqueAttr"
         || elementTypeName == "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
+
+    private static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
+    {
+        var returnType = attrModel?.CsharpReturnType;
+        return !string.IsNullOrEmpty(returnType)
+            && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
+            && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal);
+    }
 }
 
 // =============================================================================
@@ -501,6 +798,8 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
     public static readonly FallbackAttributeConstraintCodeStrategy Instance = new();
     private FallbackAttributeConstraintCodeStrategy() { }
 
+    public override string PublicTypeName => "AttributeValue";
+
     /// <summary>
     /// Marks this as a generic typed-array element so that
     /// <see cref="TypedArrayConstraintCodeStrategy"/> falls back to
@@ -509,11 +808,6 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
     /// </summary>
     public override bool IsGenericTypedArrayElement => true;
 
-    /// <summary>
-    /// Returns <c>"AttributeValue"</c> — the most general typed representation for an
-    /// attribute whose concrete constraint kind is not statically known.
-    /// </summary>
-    public override string? GetAttributeValueTypeName(string constraintRecordName, DialectSymbolResolver resolver) => "AttributeValue";
 }
 
 // =============================================================================
@@ -534,7 +828,8 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
 /// </remarks>
 internal static class AttributeConstraintCodeStrategyFactory
 {
-    private static readonly PrimitiveAttributeConstraintCodeStrategy BooleanLiteralStrategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateBooleanLiteralStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "bool",
         assemblyFormatType: "BooleanLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
@@ -543,7 +838,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I1, global::MLIR.Numerics.ApInt.FromInt64(1, {element} ? 1 : 0), null))");
 
-    private static readonly PrimitiveAttributeConstraintCodeStrategy IntegerLiteralStrategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateIntegerLiteralStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "global::MLIR.Numerics.ApInt",
         assemblyFormatType: "IntegerLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
@@ -552,7 +848,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I({element}.BitWidth), {element}, null))");
 
-    private static readonly PrimitiveAttributeConstraintCodeStrategy GenericFloatingPointLiteralStrategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateGenericFloatingPointLiteralStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
@@ -561,7 +858,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
 
-    private static readonly PrimitiveAttributeConstraintCodeStrategy F16Strategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateF16Strategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)",
@@ -570,7 +868,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F16, {element}, null))");
 
-    private static readonly PrimitiveAttributeConstraintCodeStrategy F32Strategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateF32Strategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)",
@@ -579,7 +878,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, {element}, null))");
 
-    private static readonly PrimitiveAttributeConstraintCodeStrategy BF16Strategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateBF16Strategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)",
@@ -588,7 +888,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.BF16, {element}, null))");
 
-    private static readonly PrimitiveAttributeConstraintCodeStrategy F64Strategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateF64Strategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "global::MLIR.Numerics.ApFloat",
         assemblyFormatType: "FloatingPointLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
@@ -597,7 +898,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, {element}, null))");
 
-    private static readonly PrimitiveAttributeConstraintCodeStrategy StringLiteralStrategy = new(
+    private static PrimitiveAttributeConstraintCodeStrategy CreateStringLiteralStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "string",
         assemblyFormatType: "StringLiteralAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null,
@@ -606,68 +908,103 @@ internal static class AttributeConstraintCodeStrategyFactory
         typedArrayElementToSyntaxExpression:
             "{context}.BuildAttributeValueSyntax(global::MLIR.Semantics.ConstantAttributeFactory.String({element}))");
 
-    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseBooleanArrayStrategy = new(
+    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseBooleanArrayStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "IReadOnlyList<bool>",
         assemblyFormatType: "DenseBooleanArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null);
 
-    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseIntegerArrayStrategy = new(
+    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseIntegerArrayStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApInt>",
         assemblyFormatType: "DenseIntegerArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: null);
 
-    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF32ArrayStrategy = new(
+    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseF32ArrayStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
         assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")");
 
-    private static readonly DensePrimitiveArrayAttributeConstraintCodeStrategy DenseF64ArrayStrategy = new(
+    private static DensePrimitiveArrayAttributeConstraintCodeStrategy CreateDenseF64ArrayStrategy(AttrModel? attrModel) => new(
+        attrModel,
         attributeValueTypeName: "IReadOnlyList<global::MLIR.Numerics.ApFloat>",
         assemblyFormatType: "DenseFloatingPointArrayAttributeAssemblyFormat",
         assemblyFormatConstructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")");
 
     /// <summary>
-    /// Returns the strategy singleton for the given <paramref name="kind"/> and
-    /// <paramref name="recordName"/>.  Returns <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/>
-    /// for unrecognised kinds (including <see cref="AttributeConstraintKind.None"/> and
+    /// Returns the model-bound strategy for the given attribute constraint. Returns
+    /// <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/> for unrecognised
+    /// kinds (including <see cref="AttributeConstraintKind.None"/> and
     /// <see cref="AttributeConstraintKind.DenseArrayAttribute"/>).
     /// </summary>
-    /// <param name="kind">The constraint kind from the ODS model.</param>
-    /// <param name="recordName">
-    /// The ODS record name; used to distinguish F32/F64 from generic floating-point.
-    /// </param>
-    public static AttributeConstraintCodeStrategy GetStrategy(AttributeConstraintKind kind, string recordName)
+    /// <param name="constraint">The imported ODS constraint model.</param>
+    /// <param name="attrModel">Optional Attr-model metadata for the same ODS record.</param>
+    /// <param name="enumTypeName">The fully qualified generated C# enum type name for enum constraints.</param>
+    public static AttributeConstraintCodeStrategy GetStrategy(AttributeConstraintModel constraint, AttrModel? attrModel, string? enumTypeName)
     {
-        return kind switch
+        return constraint.Kind switch
         {
-            AttributeConstraintKind.BooleanLiteral => BooleanLiteralStrategy,
-            AttributeConstraintKind.IntegerLiteral => IntegerLiteralStrategy,
-            AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointStrategy(recordName),
-            AttributeConstraintKind.StringLiteral => StringLiteralStrategy,
+            AttributeConstraintKind.BooleanLiteral => CreateBooleanLiteralStrategy(attrModel),
+            AttributeConstraintKind.IntegerLiteral => CreateIntegerLiteralStrategy(attrModel),
+            AttributeConstraintKind.FloatingPointLiteral => GetFloatingPointStrategy(constraint.RecordName, attrModel),
+            AttributeConstraintKind.StringLiteral => CreateStringLiteralStrategy(attrModel),
             AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.ElementsAttribute => ElementsAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.TypeAttribute => TypeAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.UnitAttribute => UnitAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DenseBooleanArrayAttribute => DenseBooleanArrayStrategy,
-            AttributeConstraintKind.DenseIntegerArrayAttribute => DenseIntegerArrayStrategy,
-            AttributeConstraintKind.DenseF32ArrayAttribute => DenseF32ArrayStrategy,
-            AttributeConstraintKind.DenseF64ArrayAttribute => DenseF64ArrayStrategy,
-            AttributeConstraintKind.EnumAttribute => EnumAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.TypedArrayAttribute => TypedArrayConstraintCodeStrategy.Instance,
+            AttributeConstraintKind.DenseBooleanArrayAttribute => CreateDenseBooleanArrayStrategy(attrModel),
+            AttributeConstraintKind.DenseIntegerArrayAttribute => CreateDenseIntegerArrayStrategy(attrModel),
+            AttributeConstraintKind.DenseF32ArrayAttribute => CreateDenseF32ArrayStrategy(attrModel),
+            AttributeConstraintKind.DenseF64ArrayAttribute => CreateDenseF64ArrayStrategy(attrModel),
+            AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
+                CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
+            AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel, constraint.ElementConstraintRecordName),
             _ => FallbackAttributeConstraintCodeStrategy.Instance,
         };
     }
 
-    private static AttributeConstraintCodeStrategy GetFloatingPointStrategy(string recordName)
+    public static AttributeConstraintCodeStrategy GetEnumAttributeStrategy(
+        string recordName,
+        EnumModel enumModel,
+        string enumTypeName,
+        string attributeClassName)
+    {
+        return new EnumAttributeConstraintCodeStrategy(
+            recordName,
+            enumModel,
+            enumTypeName,
+            attributeClassName,
+            AttributeValueConversion.FromExpression("${self}.TypedValue"),
+            AttributeValueConversion.FromExpression("new " + attributeClassName + "(${value})"),
+            emitConstraintAssemblyFormat: false);
+    }
+
+    private static AttributeConstraintCodeStrategy CreateEnumConstraintStrategy(
+        string recordName,
+        EnumModel enumModel,
+        string enumTypeName)
+    {
+        return new EnumAttributeConstraintCodeStrategy(
+            recordName,
+            enumModel,
+            enumTypeName,
+            "global::MLIR.Dialects.Builtin.IntegerAttr",
+            AttributeValueConversion.FromExpression(EnumEmitter.GetIntegerToEnumExpression(enumModel, "${self}.Value", "default")),
+            AttributeValueConversion.FromExpression(EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "${value}", "null")),
+            emitConstraintAssemblyFormat: true);
+    }
+
+    private static AttributeConstraintCodeStrategy GetFloatingPointStrategy(string recordName, AttrModel? attrModel)
     {
         return recordName switch
         {
-            "Builtin_FloatAttr" => GenericFloatingPointLiteralStrategy,
-            "F16Attr" => F16Strategy,
-            "F32Attr" => F32Strategy,
-            "BF16Attr" => BF16Strategy,
-            "F64Attr" => F64Strategy,
+            "Builtin_FloatAttr" => CreateGenericFloatingPointLiteralStrategy(attrModel),
+            "F16Attr" => CreateF16Strategy(attrModel),
+            "F32Attr" => CreateF32Strategy(attrModel),
+            "BF16Attr" => CreateBF16Strategy(attrModel),
+            "F64Attr" => CreateF64Strategy(attrModel),
             _ => throw new System.NotSupportedException($"Unsupported floating-point attribute constraint '{recordName}'."),
         };
     }

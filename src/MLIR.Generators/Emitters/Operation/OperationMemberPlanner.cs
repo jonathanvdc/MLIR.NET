@@ -16,10 +16,7 @@ internal sealed class GeneratedMember
         string? constraintRecordName,
         AttributeConstraintCodeStrategy? constraintStrategy,
         string? constraintClassName,
-        string? attrStorageTypeName = null,
-        CodeTemplate? attrConvertFromStorageTemplate = null,
-        CodeTemplate? attrConstBuilderCallTemplate = null,
-        string? attrDefaultValueExpression = null,
+        AttributeStoragePlan? attributeStoragePlan = null,
         bool isVariadic = false)
     {
         PropertyName = propertyName;
@@ -29,10 +26,7 @@ internal sealed class GeneratedMember
         ConstraintRecordName = constraintRecordName;
         ConstraintStrategy = constraintStrategy;
         ConstraintClassName = constraintClassName;
-        AttrStorageTypeName = attrStorageTypeName;
-        AttrConvertFromStorageTemplate = attrConvertFromStorageTemplate;
-        AttrConstBuilderCallTemplate = attrConstBuilderCallTemplate;
-        AttrDefaultValueExpression = attrDefaultValueExpression;
+        AttributeStoragePlan = attributeStoragePlan;
         IsVariadic = isVariadic;
     }
 
@@ -55,23 +49,11 @@ internal sealed class GeneratedMember
 
     public string? ConstraintClassName { get; }
 
-    public string? AttrStorageTypeName { get; }
-
     /// <summary>
-    /// Gets the normalized <see cref="CodeTemplate"/> for the convert-from-storage expression,
-    /// using the canonical <c>${self}</c> placeholder, or <see langword="null"/> when no
-    /// conversion is needed.
+    /// Gets the storage conversion plan for this attribute member, or <see langword="null"/>
+    /// for non-attribute members.
     /// </summary>
-    public CodeTemplate? AttrConvertFromStorageTemplate { get; }
-
-    /// <summary>
-    /// Gets the normalized <see cref="CodeTemplate"/> for the const-builder-call expression,
-    /// using the canonical <c>${value}</c> placeholder, or <see langword="null"/> when no
-    /// custom builder is defined.
-    /// </summary>
-    public CodeTemplate? AttrConstBuilderCallTemplate { get; }
-
-    public string? AttrDefaultValueExpression { get; }
+    public AttributeStoragePlan? AttributeStoragePlan { get; }
 
     /// <summary>
     /// Gets a value indicating whether this member is variadic (zero or more values).
@@ -296,9 +278,6 @@ internal static class OperationMemberPlanner
             var isRequired = requiredVariables.Contains(attributeName);
 
             var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
-            var attrModel = !string.IsNullOrEmpty(constraintRecordName)
-                ? resolver.TryResolveAttrModel(constraintRecordName!)
-                : null;
             // Start with the fallback strategy so that attributes without a recognised
             // constraint kind always produce AttributeValue-typed properties.
             AttributeConstraintCodeStrategy constraintStrategy = FallbackAttributeConstraintCodeStrategy.Instance;
@@ -311,11 +290,7 @@ internal static class OperationMemberPlanner
                 constraintClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
             }
 
-            var useAttrModelTyping = ShouldUseAttrModelTyping(attrModel, constraintStrategy);
-            var enumModel = constraintStrategy.IsEnum && constraintRecordName is string enumConstraintRecordName
-                ? resolver.TryResolveEnumModel(enumConstraintRecordName)
-                : null;
-            var typeName = GetAttributeTypeName(constraintRecordName, useAttrModelTyping ? attrModel : null, constraintStrategy, isRequired, resolver);
+            var typeName = constraintStrategy.GetOperationPropertyTypeName(isRequired);
             members.Add(new GeneratedMember(
                 propertyName,
                 GetParameterName(propertyName),
@@ -324,10 +299,7 @@ internal static class OperationMemberPlanner
                 constraintRecordName,
                 constraintStrategy,
                 constraintClassName,
-                attrStorageTypeName: GetAttrStorageTypeName(useAttrModelTyping ? attrModel : null, enumModel),
-                attrConvertFromStorageTemplate: GetAttrConvertFromStorageTemplate(useAttrModelTyping ? attrModel : null, enumModel),
-                attrConstBuilderCallTemplate: GetAttrConstBuilderCallTemplate(useAttrModelTyping ? attrModel : null, enumModel),
-                attrDefaultValueExpression: useAttrModelTyping ? attrModel?.CsharpDefaultValue : null));
+                attributeStoragePlan: constraintStrategy.CreateStoragePlan()));
         }
 
         return members;
@@ -350,102 +322,6 @@ internal static class OperationMemberPlanner
         }
 
         return false;
-    }
-
-    private static string GetAttributeTypeName(string? constraintRecordName, AttrModel? attrModel, AttributeConstraintCodeStrategy strategy, bool isRequired, DialectSymbolResolver resolver)
-    {
-        if (!strategy.IsUnit
-            && attrModel?.CsharpReturnType is string returnType
-            && returnType.Length > 0
-            && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
-            && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal))
-        {
-            if (isRequired || !string.IsNullOrEmpty(attrModel.CsharpDefaultValue))
-            {
-                return returnType;
-            }
-
-            return returnType.EndsWith("?", StringComparison.Ordinal) ? returnType : returnType + "?";
-        }
-
-        return strategy.GetOperationPropertyTypeName(constraintRecordName ?? string.Empty, isRequired, resolver);
-    }
-
-    private static bool ShouldUseAttrModelTyping(AttrModel? attrModel, AttributeConstraintCodeStrategy strategy)
-    {
-        if (attrModel is null
-            || strategy.IsUnit
-            || strategy.IsEnum
-            || (!strategy.IsPrimitive && !strategy.IsDenseCollection && !strategy.IsTypedArray))
-        {
-            return false;
-        }
-
-        var returnType = attrModel.CsharpReturnType;
-        var storageType = attrModel.CsharpStorageType;
-        if (string.IsNullOrEmpty(returnType)
-            || string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
-            || string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (string.Equals(storageType, "global::MLIR.Dialects.Builtin.SymbolRefAttr", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    private static string? GetAttrStorageTypeName(AttrModel? attrModel, EnumModel? enumModel)
-    {
-        if (attrModel?.CsharpStorageType is string storageType)
-        {
-            return storageType;
-        }
-
-        return enumModel != null ? "global::MLIR.Dialects.Builtin.IntegerAttr" : null;
-    }
-
-    private static CodeTemplate? GetAttrConvertFromStorageTemplate(AttrModel? attrModel, EnumModel? enumModel)
-    {
-        // If the AttrModel provides a raw expression, normalize its legacy placeholders.
-        if (attrModel?.CsharpConvertFromStorageTemplate is CodeTemplate template)
-        {
-            return template;
-        }
-
-        if (enumModel == null)
-        {
-            return null;
-        }
-
-        // For enums, build the expression using the canonical ${self} placeholder so
-        // that the emitter can substitute the actual storage variable via Render().
-        return new CodeTemplate(
-            EnumEmitter.GetIntegerToEnumExpression(enumModel, "${self}.Value", "default"),
-            CodeTemplateKind.Expression);
-    }
-
-    private static CodeTemplate? GetAttrConstBuilderCallTemplate(AttrModel? attrModel, EnumModel? enumModel)
-    {
-        // If the AttrModel provides a raw expression, normalize its legacy placeholders.
-        if (attrModel?.CsharpConstBuilderCallTemplate is CodeTemplate template)
-        {
-            return template;
-        }
-
-        if (enumModel == null)
-        {
-            return null;
-        }
-
-        // For enums, build the expression using the canonical ${value} placeholder so
-        // that the emitter can substitute the actual value variable via Render().
-        return new CodeTemplate(
-            EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "${value}", "null"),
-            CodeTemplateKind.Expression);
     }
 
     private static IReadOnlyList<GeneratedMember> GetRegionMembers(OperationModel operation, HashSet<string> requiredVariables)

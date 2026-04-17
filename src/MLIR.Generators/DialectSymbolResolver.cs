@@ -11,7 +11,6 @@ internal sealed class DialectSymbolResolver
     private readonly Dictionary<string, string> attributeConstraintTypesByRecordName;
     private readonly Dictionary<string, AttributeConstraintCodeStrategy> attributeConstraintStrategiesByRecordName;
     private readonly Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName;
-    private readonly Dictionary<string, EnumModel> enumModelsByRecordName;
     private readonly Dictionary<string, string> enumTypesByRecordName;
     private readonly Dictionary<string, string> typeConstraintTypesByRecordName;
     private readonly Dictionary<string, string> typeTypesByRecordName;
@@ -22,7 +21,6 @@ internal sealed class DialectSymbolResolver
         Dictionary<string, string> attributeConstraintTypesByRecordName,
         Dictionary<string, AttributeConstraintCodeStrategy> attributeConstraintStrategiesByRecordName,
         Dictionary<string, string?> attributeConstraintElementRecordNamesByRecordName,
-        Dictionary<string, EnumModel> enumModelsByRecordName,
         Dictionary<string, string> enumTypesByRecordName,
         Dictionary<string, string> typeConstraintTypesByRecordName,
         Dictionary<string, string> typeTypesByRecordName)
@@ -32,7 +30,6 @@ internal sealed class DialectSymbolResolver
         this.attributeConstraintTypesByRecordName = attributeConstraintTypesByRecordName;
         this.attributeConstraintStrategiesByRecordName = attributeConstraintStrategiesByRecordName;
         this.attributeConstraintElementRecordNamesByRecordName = attributeConstraintElementRecordNamesByRecordName;
-        this.enumModelsByRecordName = enumModelsByRecordName;
         this.enumTypesByRecordName = enumTypesByRecordName;
         this.typeConstraintTypesByRecordName = typeConstraintTypesByRecordName;
         this.typeTypesByRecordName = typeTypesByRecordName;
@@ -45,7 +42,6 @@ internal sealed class DialectSymbolResolver
         var attributeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var attributeConstraintStrategiesByRecordName = new Dictionary<string, AttributeConstraintCodeStrategy>(StringComparer.Ordinal);
         var attributeConstraintElementRecordNamesByRecordName = new Dictionary<string, string?>(StringComparer.Ordinal);
-        var enumModelsByRecordName = new Dictionary<string, EnumModel>(StringComparer.Ordinal);
         var enumTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -55,11 +51,18 @@ internal sealed class DialectSymbolResolver
             var generatedNamespace = DialectGeneratorNaming.GetGeneratedNamespace(dialect);
             foreach (var attribute in dialect.Attributes)
             {
-                attributeTypesByRecordName[attribute.RecordName] = generatedNamespace + "." + DialectGeneratorNaming.GetAttributeClassName(attribute);
+                var attributeClassName = generatedNamespace + "." + DialectGeneratorNaming.GetAttributeClassName(attribute);
+                attributeTypesByRecordName[attribute.RecordName] = attributeClassName;
                 if (attribute.EnumModel != null)
                 {
-                    enumTypesByRecordName[attribute.RecordName] = generatedNamespace + "." + EnumHelpers.GetCSharpEnumTypeName(attribute.EnumModel);
-                    attributeConstraintStrategiesByRecordName[attribute.RecordName] = EnumAttributeConstraintCodeStrategy.Instance;
+                    var enumTypeName = generatedNamespace + "." + EnumHelpers.GetCSharpEnumTypeName(attribute.EnumModel);
+                    enumTypesByRecordName[attribute.RecordName] = enumTypeName;
+                    attributeConstraintStrategiesByRecordName[attribute.RecordName] =
+                        AttributeConstraintCodeStrategyFactory.GetEnumAttributeStrategy(
+                            attribute.RecordName,
+                            attribute.EnumModel,
+                            enumTypeName,
+                            attributeClassName);
                 }
             }
 
@@ -75,11 +78,18 @@ internal sealed class DialectSymbolResolver
                 attributeConstraintElementRecordNamesByRecordName[attributeConstraint.RecordName] = attributeConstraint.ElementConstraintRecordName;
                 if (attributeConstraint.EnumModel != null)
                 {
-                    enumModelsByRecordName[attributeConstraint.RecordName] = attributeConstraint.EnumModel;
                     enumTypesByRecordName[attributeConstraint.RecordName] = generatedNamespace + "." + EnumHelpers.GetCSharpEnumTypeName(attributeConstraint.EnumModel);
                 }
 
-                var strategy = AttributeConstraintCodeStrategyFactory.GetStrategy(attributeConstraint.Kind, attributeConstraint.RecordName);
+                var strategy = AttributeConstraintCodeStrategyFactory.GetStrategy(
+                    attributeConstraint,
+                    attrsByRecordName.TryGetValue(attributeConstraint.RecordName, out var attrModel)
+                        && ShouldUseAttrModelTyping(attrModel)
+                        ? attrModel
+                        : null,
+                    enumTypesByRecordName.TryGetValue(attributeConstraint.RecordName, out var enumTypeName)
+                        ? enumTypeName
+                        : null);
                 attributeConstraintStrategiesByRecordName[attributeConstraint.RecordName] = strategy;
             }
 
@@ -100,7 +110,6 @@ internal sealed class DialectSymbolResolver
             attributeConstraintTypesByRecordName,
             attributeConstraintStrategiesByRecordName,
             attributeConstraintElementRecordNamesByRecordName,
-            enumModelsByRecordName,
             enumTypesByRecordName,
             typeConstraintTypesByRecordName,
             typeTypesByRecordName);
@@ -165,9 +174,20 @@ internal sealed class DialectSymbolResolver
         return enumTypesByRecordName.TryGetValue(recordName, out var enumTypeName) ? enumTypeName : null;
     }
 
-    public EnumModel? TryResolveEnumModel(string recordName)
+    private static bool ShouldUseAttrModelTyping(AttrModel attrModel)
     {
-        return enumModelsByRecordName.TryGetValue(recordName, out var enumModel) ? enumModel : null;
+        var returnType = attrModel.CsharpReturnType;
+        if (string.IsNullOrEmpty(returnType)
+            || string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
+            || string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // SymbolRefAttr storage is also a concrete semantic AttributeValue that carries
+        // symbol-specific behavior; keep those properties on the storage class unless the
+        // ODS record defines a more specific wrapper.
+        return !string.Equals(attrModel.CsharpStorageType, "global::MLIR.Dialects.Builtin.SymbolRefAttr", StringComparison.Ordinal);
     }
 
     /// <summary>

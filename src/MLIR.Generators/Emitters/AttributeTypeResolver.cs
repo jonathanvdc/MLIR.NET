@@ -4,7 +4,7 @@ internal static class AttributeTypeResolver
 {
     /// <summary>
     /// Returns the C# type name for the unwrapped attribute value associated with the given
-    /// constraint record, or <see langword="null"/> when no specialised type is known.
+    /// constraint record, or <see langword="null"/> when no constraint record is present.
     /// </summary>
     /// <remarks>
     /// This type is used for typed-array element types and for primitive-style property access
@@ -19,17 +19,6 @@ internal static class AttributeTypeResolver
             return null;
         }
 
-        var nonNullRecordName = constraintRecordName!;
-        var attrModel = resolver.TryResolveAttrModel(nonNullRecordName);
-        var attrReturnType = attrModel?.CsharpReturnType;
-        if (!string.IsNullOrEmpty(attrReturnType)
-            && !string.Equals(attrReturnType, "AttributeValue", System.StringComparison.Ordinal)
-            && !string.Equals(attrReturnType, "global::MLIR.Semantics.AttributeValue", System.StringComparison.Ordinal))
-        {
-            return attrReturnType;
-        }
-
-        var strategy = resolver.TryResolveAttributeConstraintStrategy(nonNullRecordName);
-        return strategy.GetAttributeValueTypeName(nonNullRecordName, resolver);
+        return resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!).TypedArrayElementTypeName;
     }
 }
