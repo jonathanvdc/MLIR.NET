@@ -731,7 +731,7 @@ public sealed class FuncOperationBodySyntax : OperationBodySyntax
 /// <summary>
 /// Concrete syntax node for a func.func argument.
 /// </summary>
-public sealed class FuncFunctionArgumentSyntax
+public sealed class FuncFunctionArgumentSyntax : SyntaxNode
 {
     /// <summary>
     /// Initializes a new <see cref="FuncFunctionArgumentSyntax"/> instance.
@@ -772,12 +772,25 @@ public sealed class FuncFunctionArgumentSyntax
     /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }
 
+    /// <inheritdoc/>
+    public override SourceLocation Location => Name.Location;
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new FuncFunctionArgumentSyntax(
+            rewriter.VisitToken(Name),
+            rewriter.VisitToken(ColonToken),
+            rewriter.Visit(Type),
+            rewriter.VisitDelimitedList(AttrDict));
+    }
+
     /// <summary>
     /// Writes the argument syntax to the provided writer using the current pending suggested trivia
     /// for leading whitespace.
     /// </summary>
     /// <param name="writer">The writer to receive the rendered syntax.</param>
-    public void WriteTo(SyntaxWriter writer)
+    public override void WriteTo(SyntaxWriter writer)
     {
         writer.WriteToken(Name);
         writer.WriteToken(ColonToken, " ");
@@ -794,7 +807,7 @@ public sealed class FuncFunctionArgumentSyntax
 /// <summary>
 /// Concrete syntax node for a func.func result.
 /// </summary>
-public sealed class FuncFunctionResultSyntax
+public sealed class FuncFunctionResultSyntax : SyntaxNode
 {
     /// <summary>
     /// Initializes a new <see cref="FuncFunctionResultSyntax"/> instance.
@@ -819,12 +832,23 @@ public sealed class FuncFunctionResultSyntax
     /// </summary>
     public DelimitedSyntaxList<NamedAttributeSyntax> AttrDict { get; }
 
+    /// <inheritdoc/>
+    public override SourceLocation Location => Type.Location;
+
+    /// <inheritdoc/>
+    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
+    {
+        return new FuncFunctionResultSyntax(
+            rewriter.Visit(Type),
+            rewriter.VisitDelimitedList(AttrDict));
+    }
+
     /// <summary>
     /// Writes the result syntax to the provided writer using the current pending suggested trivia
     /// for leading whitespace.
     /// </summary>
     /// <param name="writer">The writer to receive the rendered syntax.</param>
-    public void WriteTo(SyntaxWriter writer)
+    public override void WriteTo(SyntaxWriter writer)
     {
         Type.WriteTo(writer);
         if (AttrDict.OpenToken.HasValue)

@@ -2,6 +2,8 @@ namespace MLIR.Syntax;
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using MLIR.Semantics;
 
 /// <summary>
 /// Represents a delimited separated list of syntax items.
@@ -18,7 +20,8 @@ public sealed class DelimitedSyntaxList<T>(
     Token? openToken,
     IReadOnlyList<T> items,
     IReadOnlyList<Token> separatorTokens,
-    Token? closeToken) : IReadOnlyList<T>
+    Token? closeToken) : IReadOnlyList<T>, IHasSourceLocation
+    where T : IHasSourceLocation
 {
     /// <summary>
     /// Gets an empty list instance with no opening or closing delimiters.
@@ -44,6 +47,21 @@ public sealed class DelimitedSyntaxList<T>(
     /// Gets the closing delimiter token.
     /// </summary>
     public Token? CloseToken { get; } = closeToken;
+
+    /// <summary>
+    /// Gets the source location of this list. If both opening and closing delimiter tokens are present
+    /// returns the merged location of both tokens. If only the opening delimiter token is present, returns its location.
+    /// Otherwise, returns <c>SourceLocation.Unknown</c>.
+    /// </summary>
+    public SourceLocation Location
+    {
+        get
+        {
+            if (OpenToken.HasValue && CloseToken.HasValue) return SourceLocation.Merge(OpenToken.Value.Location, CloseToken.Value.Location);
+            else if (OpenToken.HasValue) return OpenToken.Value.Location;
+            else return SourceLocation.Unknown;
+        }
+    }
 
     /// <summary>
     /// Gets a value indicating whether this list is present in the source, i.e., has an opening delimiter token.
@@ -116,6 +134,84 @@ public sealed class DelimitedSyntaxList<T>(
 
         writer.SuggestTrivia(openLeadingTrivia);
         WriteTo(writer, writeElement);
+    }
+
+    /// <summary>
+    /// Rewrites this list by applying the supplied delegate to each element and separator token, and optionally to the opening and closing delimiter tokens.
+    /// </summary>
+    /// <param name="rewriteElement">A delegate that rewrites a single element.</param>
+    /// <param name="rewriteOpenToken">A delegate that rewrites the opening delimiter token.</param>
+    /// <param name="rewriteSeparatorToken">A delegate that rewrites a separator token.</param>
+    /// <param name="rewriteCloseToken">A delegate that rewrites the closing delimiter token.</param>
+    /// <returns>The rewritten list.</returns>
+    public DelimitedSyntaxList<T> Rewrite(
+        Func<T, T> rewriteElement,
+        Func<Token, Token> rewriteOpenToken,
+        Func<Token, Token> rewriteSeparatorToken,
+        Func<Token, Token> rewriteCloseToken)
+    {
+        var rewrittenOpenToken = OpenToken.HasValue ? rewriteOpenToken(OpenToken.Value) : default;
+        var rewrittenCloseToken = CloseToken.HasValue ? rewriteCloseToken(CloseToken.Value) : default;
+
+        var changed = !Equals(rewrittenOpenToken, OpenToken) || !Equals(rewrittenCloseToken, CloseToken);
+
+        T[]? rewrittenItems = null;
+        for (var i = 0; i < Items.Count; i++)
+        {
+            var originalItem = Items[i];
+            var rewrittenItem = rewriteElement(originalItem);
+
+            if (!changed)
+            {
+                if (ReferenceEquals(rewrittenItem, originalItem))
+                {
+                    continue;
+                }
+
+                changed = true;
+                rewrittenItems = new T[Items.Count];
+                for (var j = 0; j < i; j++)
+                {
+                    rewrittenItems[j] = Items[j];
+                }
+            }
+
+            rewrittenItems![i] = rewrittenItem;
+        }
+
+        Token[]? rewrittenSeparatorTokens = null;
+        for (var i = 0; i < SeparatorTokens.Count; i++)
+        {
+            var originalSeparatorToken = SeparatorTokens[i];
+            var rewrittenSeparatorToken = rewriteSeparatorToken(originalSeparatorToken);
+
+            if (!changed)
+            {
+                if (Equals(rewrittenSeparatorToken, originalSeparatorToken))
+                {
+                    continue;
+                }
+
+                changed = true;
+                rewrittenSeparatorTokens = new Token[SeparatorTokens.Count];
+                for (var j = 0; j < i; j++)
+                {
+                    rewrittenSeparatorTokens[j] = SeparatorTokens[j];
+                }
+            }
+
+            rewrittenSeparatorTokens ??= new Token[SeparatorTokens.Count];
+            rewrittenSeparatorTokens[i] = rewrittenSeparatorToken;
+        }
+
+        if (!changed)
+        {
+            return this;
+        }
+
+        rewrittenItems ??= Items.Count == 0 ? Array.Empty<T>() : Items.ToArray();
+        rewrittenSeparatorTokens ??= SeparatorTokens.Count == 0 ? Array.Empty<Token>() : SeparatorTokens.ToArray();
+        return new DelimitedSyntaxList<T>(rewrittenOpenToken, rewrittenItems, rewrittenSeparatorTokens, rewrittenCloseToken);
     }
 
     /// <summary>

@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
@@ -26,6 +25,11 @@ public abstract class SimpleEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOn
             else if (tokens.Count > 1) throw new InvalidOperationException("Simple enum attribute value cannot contain multiple elements.");
 
             var token = tokens[0];
+            if (token.TokenKind == TokenKind.Integer)
+            {
+                return EnumFromInt(ApInt.Parse(BitWidth, token.Text), enumSyntax);
+            }
+
             if (!reverseNames.TryGetValue(token.Text, out var flag))
             {
                 throw new InvalidOperationException($"Unknown enum name '{token.Text}' in enum attribute value.");
@@ -52,38 +56,104 @@ public abstract class SimpleEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOn
         }
 
         var value = EnumToInt(enumAttribute);
+        var useAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;
 
         if (Names.TryGetValue(value, out var enumName))
         {
-            return new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
+            if (useAngleBrackets)
+            {
+                return new DelimitedEnumAttributeValueSyntax(new DelimitedSyntaxList<Token>(
+                    TokenFactory.LessThan(),
+                    [TokenFactory.Identifier(enumName)],
+                    [],
+                    TokenFactory.GreaterThan()));
+            }
+
+            return new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
                 [TokenFactory.Identifier(enumName)],
                 []));
         }
 
-        return new IntegerAttributeValueSyntax(TokenFactory.Integer(value.ToString()), value);
+        if (useAngleBrackets)
+        {
+            return new DelimitedEnumAttributeValueSyntax(new DelimitedSyntaxList<Token>(
+                TokenFactory.LessThan(),
+                [TokenFactory.Integer(value.ToString())],
+                [],
+                TokenFactory.GreaterThan()));
+        }
+
+        return new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
+            [TokenFactory.Integer(value.ToString())],
+            []));
     }
 
     /// <inheritdoc/>
     public override ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        if (context.TryMatch(TokenKind.Integer, out var intToken))
-        {
-            return ParseResult<AttributeValueSyntax>.Success(new IntegerAttributeValueSyntax(intToken, ApInt.Parse(BitWidth, intToken.Text)));
-        }
-        else
-        {
-            var name = context.Expect(TokenKind.Identifier, "Expected identifier in enum attribute value");
-            if (name.IsError) return ParseResult<AttributeValueSyntax>.Failure(name.Diagnostic!);
+        Token? open = null;
+        var allowsAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;
+        var requiresAngleBrackets = AngleBracketRequirement == EnumAngleBracketRequirement.Required;
 
-            if (!reverseNames.ContainsKey(name.Value.Text))
+        if (context.TryMatch(TokenKind.LessThan, out var openToken))
+        {
+            if (!allowsAngleBrackets)
             {
-                var location = name.Value.Location;
-                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic($"Unknown enum name '{name.Value.Text}' in enum attribute value.", location));
+                return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic("Unexpected '<' in enum attribute value.", openToken.Location));
             }
 
-            return ParseResult<AttributeValueSyntax>.Success(new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
-                [name.Value],
+            open = openToken;
+        }
+        else if (requiresAngleBrackets)
+        {
+            var error = context.Expect(TokenKind.LessThan, "Expected '<' to start enum attribute value");
+            return ParseResult<AttributeValueSyntax>.Failure(error.Diagnostic!);
+        }
+
+        if (context.TryMatch(TokenKind.Integer, out var intToken))
+        {
+            if (open.HasValue)
+            {
+                var closeAfterInteger = context.Expect(TokenKind.GreaterThan, "Expected '>' to end enum attribute value");
+                if (closeAfterInteger.IsError) return ParseResult<AttributeValueSyntax>.Failure(closeAfterInteger.Diagnostic!);
+                var close = closeAfterInteger.Value;
+
+                return ParseResult<AttributeValueSyntax>.Success(new DelimitedEnumAttributeValueSyntax(new DelimitedSyntaxList<Token>(
+                    open.Value,
+                    [intToken],
+                    [],
+                    close)));
+            }
+
+            return ParseResult<AttributeValueSyntax>.Success(new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
+                [intToken],
                 [])));
         }
+
+        var name = context.Expect(TokenKind.Identifier, "Expected identifier in enum attribute value");
+        if (name.IsError) return ParseResult<AttributeValueSyntax>.Failure(name.Diagnostic!);
+
+        if (!reverseNames.ContainsKey(name.Value.Text))
+        {
+            var location = name.Value.Location;
+            return ParseResult<AttributeValueSyntax>.Failure(new Diagnostic($"Unknown enum name '{name.Value.Text}' in enum attribute value.", location));
+        }
+
+        if (open.HasValue)
+        {
+            var closeResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to end enum attribute value");
+            if (closeResult.IsError) return ParseResult<AttributeValueSyntax>.Failure(closeResult.Diagnostic!);
+            var close = closeResult.Value;
+
+            return ParseResult<AttributeValueSyntax>.Success(new DelimitedEnumAttributeValueSyntax(new DelimitedSyntaxList<Token>(
+                open.Value,
+                [name.Value],
+                [],
+                close)));
+        }
+
+        return ParseResult<AttributeValueSyntax>.Success(new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
+            [name.Value],
+            [])));
     }
 }
