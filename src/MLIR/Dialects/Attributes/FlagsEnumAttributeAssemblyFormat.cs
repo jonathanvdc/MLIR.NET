@@ -19,6 +19,22 @@ namespace MLIR.Dialects.Attributes;
 /// <param name="names">The mapping of enum values to their corresponding string representations.</param>
 public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnlyDictionary<ApInt, string> names) : EnumAttributeAssemblyFormat<T>(bitWidth, names) where T : AttributeValue
 {
+    /// <summary>
+    /// Gets the token kind used to separate multiple enum elements in the assembly syntax. For example, if this is set to <see cref="TokenKind.Comma"/>, then multiple enum elements will be separated by commas in the assembly form of the attribute value, such as <c>EnumValue1, EnumValue2</c>.
+    /// The separator token kind is used when parsing and printing enum attribute values that contain multiple flags set, allowing them to be represented in a human-readable form using their string names defined in the <see cref="Names"/> mapping.
+    /// </summary>
+    public abstract TokenKind SeparatorTokenKind { get; }
+
+    private Token CreateSeparatorToken()
+    {
+        return SeparatorTokenKind switch
+        {
+            TokenKind.Comma => TokenFactory.Comma(),
+            TokenKind.Pipe => TokenFactory.Pipe(),
+            _ => throw new InvalidOperationException($"Unsupported separator token kind '{SeparatorTokenKind}' in flags enum attribute assembly format."),
+        };
+    }
+
     /// <inheritdoc/>
     public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
@@ -88,7 +104,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
             }
 
             // If there are no remaining flags without names, we print the named flags.
-            return new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(parts, Enumerable.Repeat(TokenFactory.Comma(), parts.Count - 1).ToList()));
+            return new EnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(parts, Enumerable.Repeat(CreateSeparatorToken(), parts.Count - 1).ToList()));
         }
         else
         {
@@ -120,7 +136,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(int bitWidth, IReadOnl
                 }
 
                 identifiers.Add(name.Value);
-                if (context.TryMatch(TokenKind.Comma, out var comma))
+                if (context.TryMatch(SeparatorTokenKind, out var comma))
                 {
                     separators.Add(comma);
                 }
