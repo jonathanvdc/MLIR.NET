@@ -312,7 +312,7 @@ public sealed partial class Parser
         }
 
         var parser = parserResult.Value;
-        var result = parser.TryParseStandaloneAttributeValueResult(expectedDefinition);
+        var result = parser.TryParseStandaloneAttributeValue(expectedDefinition);
         syntax = result.IsSuccess ? result.Value : null;
         diagnostic = result.Diagnostic;
         return result.IsSuccess;
@@ -517,7 +517,7 @@ public sealed partial class Parser
             regions.Add(regionResult.Value);
         }
 
-        var attributesResult = TryParseAttrDictResult();
+        var attributesResult = TryParseAttrDict();
         if (!attributesResult.IsSuccess)
         {
             return ParseResult<OperationSyntax>.Failure(attributesResult.Diagnostic!);
@@ -595,7 +595,7 @@ public sealed partial class Parser
             }
         }
 
-        var attributeDictResult = TryParseAttrDictResult();
+        var attributeDictResult = TryParseAttrDict();
         if (!attributeDictResult.IsSuccess)
         {
             return ParseResult<OperationBodySyntax>.Failure(attributeDictResult.Diagnostic!);

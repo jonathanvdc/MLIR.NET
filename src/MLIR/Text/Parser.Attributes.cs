@@ -48,35 +48,35 @@ public sealed partial class Parser
     /// <param name="stopBefore">
     /// Token kinds that terminate the raw fallback scan at depth zero.
     /// </param>
-    private ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxResult(bool stopAtOperationBoundary, AttributeConstraintDefinition? expectedDefinition, params TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(bool stopAtOperationBoundary, AttributeConstraintDefinition? expectedDefinition, params TokenKind[] stopBefore)
     {
         var allowTypedSuffix = !stopAtOperationBoundary && !ContainsTokenKind(stopBefore, TokenKind.Colon);
 
         if (expectedDefinition != null)
         {
-            var expectedResult = TryParseCustomAttributeSyntaxResult(expectedDefinition);
+            var expectedResult = TryParseCustomAttributeSyntax(expectedDefinition);
             if (!expectedResult.IsNoMatch)
             {
-                return WrapTypedAttributeValueSyntaxResult(expectedResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
+                return WrapTypedAttributeValueSyntax(expectedResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
             }
         }
 
-        var selfIdentifyingResult = TryParseSelfIdentifyingAttributeSyntaxResult();
+        var selfIdentifyingResult = TryParseSelfIdentifyingAttributeSyntax();
         if (!selfIdentifyingResult.IsNoMatch)
         {
-            return WrapTypedAttributeValueSyntaxResult(selfIdentifyingResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
+            return WrapTypedAttributeValueSyntax(selfIdentifyingResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
         }
 
-        var builtinStructuredResult = TryParseBuiltinStructuredAttributeSyntaxResult();
+        var builtinStructuredResult = TryParseBuiltinStructuredAttributeSyntax();
         if (!builtinStructuredResult.IsNoMatch)
         {
-            return WrapTypedAttributeValueSyntaxResult(builtinStructuredResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
+            return WrapTypedAttributeValueSyntax(builtinStructuredResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
         }
 
-        var numericLiteralResult = TryParseNumericAttributeSyntaxResult(stopAtOperationBoundary, allowTypedSuffix, stopBefore);
+        var numericLiteralResult = TryParseNumericAttributeSyntax(stopAtOperationBoundary, allowTypedSuffix, stopBefore);
         if (!numericLiteralResult.IsNoMatch)
         {
-            return WrapTypedAttributeValueSyntaxResult(numericLiteralResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
+            return WrapTypedAttributeValueSyntax(numericLiteralResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
         }
 
         var rawStopBefore = allowTypedSuffix ? [.. stopBefore, TokenKind.Colon] : stopBefore;
@@ -86,16 +86,16 @@ public sealed partial class Parser
         var parsedRaw = rawResult.IsSuccess
             ? ParseResult<AttributeValueSyntax>.Success(new RawAttributeValueSyntax(rawResult.Value))
             : ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
-        return WrapTypedAttributeValueSyntaxResult(parsedRaw, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
+        return WrapTypedAttributeValueSyntax(parsedRaw, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
     }
 
     /// <summary>
-    /// Overload of <see cref="TryParseAttributeValueSyntaxResult(bool, AttributeConstraintDefinition?, TokenKind[])"/>
+    /// Overload of <see cref="TryParseAttributeValueSyntax(bool, AttributeConstraintDefinition?, TokenKind[])"/>
     /// that resolves the expected definition by name from the dialect registry.
     /// When <paramref name="expectedDefinitionName"/> is <see langword="null"/> or empty, or when no matching
     /// definition is found in the registry, the method falls back to unguided dispatch.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxResult(bool stopAtOperationBoundary, string? expectedDefinitionName, params TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(bool stopAtOperationBoundary, string? expectedDefinitionName, params TokenKind[] stopBefore)
     {
         AttributeConstraintDefinition? expectedDefinition = null;
         if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
@@ -103,7 +103,7 @@ public sealed partial class Parser
             dialectRegistry.TryResolveAttributeConstraint(expectedDefinitionName!, out expectedDefinition);
         }
 
-        return TryParseAttributeValueSyntaxResult(stopAtOperationBoundary, expectedDefinition, stopBefore);
+        return TryParseAttributeValueSyntax(stopAtOperationBoundary, expectedDefinition, stopBefore);
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ public sealed partial class Parser
     /// an attribute dictionary (<c>{...}</c>), a dense array, or an elements attribute.
     /// Returns <see cref="ParseOutcome.NoMatch"/> when none of those forms is present.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseBuiltinStructuredAttributeSyntaxResult()
+    private ParseResult<AttributeValueSyntax> TryParseBuiltinStructuredAttributeSyntax()
     {
         if (Is(TokenKind.LBracket))
         {
@@ -120,23 +120,23 @@ public sealed partial class Parser
 
         if (Is(TokenKind.LBrace))
         {
-            return TryParseAttrDictResult().Map<AttributeValueSyntax>(static syntax => new DictionaryAttributeValueSyntax(syntax));
+            return TryParseAttrDict().Map<AttributeValueSyntax>(static syntax => new DictionaryAttributeValueSyntax(syntax));
         }
 
-        var denseArrayResult = TryParseAttributeAssemblyFormatResult(BuiltinAttributeConstraintDefinition("DenseArrayAttr"), DenseArrayAttributeAssemblyFormat);
+        var denseArrayResult = TryParseAttributeAssemblyFormat(BuiltinAttributeConstraintDefinition("DenseArrayAttr"), DenseArrayAttributeAssemblyFormat);
         if (!denseArrayResult.IsNoMatch)
         {
             return denseArrayResult;
         }
 
-        return TryParseAttributeAssemblyFormatResult(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat);
+        return TryParseAttributeAssemblyFormat(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat);
     }
 
     /// <summary>
     /// Tries to parse a primitive numeric attribute literal, preferring floating-point forms over integers.
     /// The method backtracks cleanly so partially-consumed non-numeric text can still fall through to raw syntax.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseNumericAttributeSyntaxResult(bool stopAtOperationBoundary, bool allowTypedSuffix, TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> TryParseNumericAttributeSyntax(bool stopAtOperationBoundary, bool allowTypedSuffix, TokenKind[] stopBefore)
     {
         var checkpoint = Mark();
 
@@ -206,7 +206,7 @@ public sealed partial class Parser
         return stopAtOperationBoundary && IsOperationBoundary(Current, false);
     }
 
-    private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntaxResult(
+    private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(
         ParseResult<AttributeValueSyntax> result,
         bool allowTypedSuffix,
         bool stopAtOperationBoundary,
@@ -249,7 +249,7 @@ public sealed partial class Parser
     /// Saves a checkpoint before calling and restores it when the handler returns <c>NoMatch</c>.
     /// Propagates <c>Success</c> and <c>Error</c> unchanged.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseAttributeAssemblyFormatResult(
+    private ParseResult<AttributeValueSyntax> TryParseAttributeAssemblyFormat(
         AttributeConstraintDefinition? definition,
         IAttributeAssemblyFormat assemblyFormat)
     {
@@ -270,7 +270,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxInternal(params TokenKind[] delimiters)
     {
-        return TryParseAttributeValueSyntaxResult(false, (AttributeDefinition?)null, delimiters);
+        return TryParseAttributeValueSyntax(false, (AttributeDefinition?)null, delimiters);
     }
 
     /// <summary>
@@ -278,7 +278,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValueSyntaxResult(false, expectedDefinitionName, delimiters);
+        return TryParseAttributeValueSyntax(false, expectedDefinitionName, delimiters);
     }
 
     /// <summary>
@@ -286,7 +286,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValueSyntaxResult(false, expectedDefinition, delimiters);
+        return TryParseAttributeValueSyntax(false, expectedDefinition, delimiters);
     }
 
     /// <summary>
@@ -296,7 +296,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxOrBoundaryInternal(params TokenKind[] delimiters)
     {
-        return TryParseAttributeValueSyntaxResult(true, (AttributeDefinition?)null, delimiters);
+        return TryParseAttributeValueSyntax(true, (AttributeDefinition?)null, delimiters);
     }
 
     /// <summary>
@@ -305,7 +305,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxOrBoundaryInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValueSyntaxResult(true, expectedDefinitionName, delimiters);
+        return TryParseAttributeValueSyntax(true, expectedDefinitionName, delimiters);
     }
 
     /// <summary>
@@ -314,14 +314,14 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntaxOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValueSyntaxResult(true, expectedDefinition, delimiters);
+        return TryParseAttributeValueSyntax(true, expectedDefinition, delimiters);
     }
 
     /// <summary>
     /// Parses a named attribute entry of the form <c>name = value</c> or <c>name : value</c>.
     /// The name may be a bare identifier or a quoted string literal.
     /// </summary>
-    private ParseResult<NamedAttributeSyntax> TryParseAttributeResult()
+    private ParseResult<NamedAttributeSyntax> TryParseAttribute()
     {
         Token nameToken;
         if (Is(TokenKind.Identifier) || Is(TokenKind.StringLiteral))
@@ -347,7 +347,7 @@ public sealed partial class Parser
             return ParseResult<NamedAttributeSyntax>.Failure(CreateDiagnostic("Expected '=' or ':' after attribute name."));
         }
 
-        return TryParseAttributeValueSyntaxResult(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace)
+        return TryParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace)
             .Map(valueSyntax => new NamedAttributeSyntax(nameToken, separatorToken, valueSyntax));
     }
 
@@ -356,9 +356,9 @@ public sealed partial class Parser
     /// Returns a failure when any tokens remain after the attribute value.
     /// Used by the public <see cref="ParseAttributeValue"/> and <c>TryParseAttributeValue</c> entry points.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseStandaloneAttributeValueResult(AttributeConstraintDefinition? expectedDefinition)
+    private ParseResult<AttributeValueSyntax> TryParseStandaloneAttributeValue(AttributeConstraintDefinition? expectedDefinition)
     {
-        var parsed = TryParseAttributeValueSyntaxResult(false, expectedDefinition);
+        var parsed = TryParseAttributeValueSyntax(false, expectedDefinition);
         if (!parsed.IsSuccess)
         {
             return parsed;
@@ -374,7 +374,7 @@ public sealed partial class Parser
     /// <paramref name="definition"/>. Returns <see cref="ParseOutcome.NoMatch"/> when the definition
     /// has no assembly format, and resets the position when the format handler returns <c>NoMatch</c>.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseCustomAttributeSyntaxResult(AttributeConstraintDefinition? definition)
+    private ParseResult<AttributeValueSyntax> TryParseCustomAttributeSyntax(AttributeConstraintDefinition? definition)
     {
         if (definition?.AssemblyFormat == null)
         {
@@ -405,7 +405,7 @@ public sealed partial class Parser
     /// full <c>#name body</c> form is re-emitted correctly on the print path.
     /// If the format does not match, the tokens are put back via checkpoint reset.
     /// </remarks>
-    private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeSyntaxResult()
+    private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeSyntax()
     {
         if (dialectRegistry == null)
         {
@@ -427,7 +427,7 @@ public sealed partial class Parser
         if (!(definition.AssemblyFormat is IBodyOnlyAttributeAssemblyFormat))
         {
             // Legacy format that consumes '#name' itself: delegate without stripping the prefix.
-            return TryParseCustomAttributeSyntaxResult(definition);
+            return TryParseCustomAttributeSyntax(definition);
         }
 
         // Body-only format (generated from AttrDef): consume '#' and name, then delegate.
@@ -456,7 +456,7 @@ public sealed partial class Parser
     /// Parses an optional attribute dictionary of the form <c>{ name = value, ... }</c>.
     /// Returns an empty list when no <c>{</c> is present.
     /// </summary>
-    private ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictResult()
+    private ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDict()
     {
         if (!Is(TokenKind.LBrace))
         {
@@ -466,7 +466,7 @@ public sealed partial class Parser
         return TryParseRequiredCommaSeparatedDelimitedList(
             TokenKind.LBrace,
             TokenKind.RBrace,
-            TryParseAttributeResult,
+            TryParseAttribute,
             "Expected '{' to start the attribute dictionary.",
             "Expected '}' to close the attribute dictionary.");
     }

@@ -564,10 +564,10 @@ public sealed partial class Parser
         return TryParseRegionResult();
     }
 
-    /// <summary>Bridges <see cref="TryParseAttributeResult"/> for use by dialect parsing contexts.</summary>
+    /// <summary>Bridges <see cref="TryParseAttribute"/> for use by dialect parsing contexts.</summary>
     internal ParseResult<NamedAttributeSyntax> TryParseAttributeInternal()
     {
-        return TryParseAttributeResult();
+        return TryParseAttribute();
     }
 
     /// <summary>Bridges <see cref="TryParseRawUntilDelimiterResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
@@ -594,10 +594,10 @@ public sealed partial class Parser
         return TryParseRawUntilDelimiterOrBoundaryResult(delimiters);
     }
 
-    /// <summary>Bridges <see cref="TryParseAttrDictResult"/> for use by dialect parsing contexts.</summary>
+    /// <summary>Bridges <see cref="TryParseAttrDict"/> for use by dialect parsing contexts.</summary>
     internal ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictInternal()
     {
-        return TryParseAttrDictResult();
+        return TryParseAttrDict();
     }
 
     /// <summary>
@@ -613,7 +613,7 @@ public sealed partial class Parser
         }
 
         ConsumeToken();
-        return TryParseAttrDictResult();
+        return TryParseAttrDict();
     }
 
     /// <summary>Bridges <see cref="ExpectKeywordResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
