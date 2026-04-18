@@ -1,9 +1,8 @@
-namespace MLIR.Dialects.Attributes;
+namespace MLIR.Dialects.Attributes.Primitives;
 
 using MLIR.Dialects;
 using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Text;
@@ -12,7 +11,7 @@ using MLIR.Transforms;
 /// <summary>
 /// Parses unit attribute literals.
 /// </summary>
-public sealed class UnitAttributeAssemblyFormat : IAttributeAssemblyFormat
+public sealed class UnitLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)

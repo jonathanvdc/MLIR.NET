@@ -472,7 +472,7 @@ internal sealed class UnitAttributeConstraintCodeStrategy : AttributeConstraintC
     public override string GetOperationPropertyTypeName(bool isRequired) =>
         isRequired ? "UnitAttr" : "bool";
 
-    public override string? GetAssemblyFormatType() => "UnitAttributeAssemblyFormat";
+    public override string? GetAssemblyFormatType() => "UnitLiteralAttributeAssemblyFormat";
 }
 
 
