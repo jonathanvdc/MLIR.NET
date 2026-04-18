@@ -480,7 +480,7 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.Failure(CreateDiagnostic("Expected an attribute name after '#'."));
         }
 
-        if (!string.Equals(canonicalName, definition.Name, global::System.StringComparison.Ordinal))
+        if (!string.Equals(canonicalName, definition.Name, StringComparison.Ordinal))
         {
             return ParseResult<AttributeValueSyntax>.Failure(
                 CreateDiagnostic($"Expected '#{definition.Name}' but found '#{canonicalName}'."));
