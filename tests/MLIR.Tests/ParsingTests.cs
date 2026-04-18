@@ -2,6 +2,7 @@ namespace MLIR.Tests;
 
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
@@ -341,6 +342,17 @@ public sealed class ParsingTests
         var payloadSyntax = Assert.IsType<IntegerAttributeValueSyntax>(typedSyntax.AttributeSyntax);
         Assert.Equal(42, (int)payloadSyntax.Value.ToBigIntegerSigned());
         Assert.Equal(source, typedSyntax.ToString());
+    }
+
+    [Fact]
+    public void ParsesExpectedUnitAttributeFromBodylessSelfIdentifyingSyntax()
+    {
+        var expectedDefinition = new AttributeConstraintDefinition("UnitAttr", new UnitLiteralAttributeAssemblyFormat());
+
+        var syntax = Parser.ParseAttributeValue("#builtin.unit", expectedDefinition: expectedDefinition);
+
+        Assert.IsType<PrefixedUnitAttributeValueSyntax>(syntax);
+        Assert.Equal("#builtin.unit", syntax.ToString());
     }
 
     [Theory]

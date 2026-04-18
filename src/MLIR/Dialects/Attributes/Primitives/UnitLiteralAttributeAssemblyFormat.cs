@@ -11,29 +11,34 @@ using MLIR.Transforms;
 /// <summary>
 /// Parses unit attribute literals.
 /// </summary>
-public sealed class UnitLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
+public sealed class UnitLiteralAttributeAssemblyFormat : IBodylessSelfIdentifyingAttributeAssemblyFormat
 {
+    private const string BuiltinUnitAttributeName = "builtin.unit";
+
+    /// <inheritdoc/>
+    public string SelfIdentifyingAttributeName => BuiltinUnitAttributeName;
+
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        if (context.TryMatch(TokenKind.Identifier, out var token))
+        if (context.TryMatch(TokenKind.Identifier, out var token) && token.Text == "unit")
         {
-            if (token.Text == "unit")
-            {
-                return ParseResult<AttributeValueSyntax>.Success(new UnitAttributeValueSyntax(token));
-            }
-            else if (token.Text == "#builtin")
-            {
-                // Special case for the 'builtin' dialect namespace, which is reserved for built-in attributes and types.
-                // This allows parsing of the '#builtin.unit' syntax.
-                if (context.TryMatch(TokenKind.Dot, out _) && context.TryMatch(TokenKind.Identifier, out var attrName) && attrName.Text == "unit")
-                {
-                    return ParseResult<AttributeValueSyntax>.Success(new UnitAttributeValueSyntax(attrName));
-                }
-            }
+            return ParseResult<AttributeValueSyntax>.Success(new UnitAttributeValueSyntax(token));
         }
 
         return ParseResult<AttributeValueSyntax>.NoMatch();
+    }
+
+    /// <inheritdoc/>
+    public bool CanParseSelfIdentifyingAttribute(string name)
+    {
+        return name == SelfIdentifyingAttributeName;
+    }
+
+    /// <inheritdoc/>
+    public AttributeValueSyntax CreateSelfIdentifyingSyntax(DialectAttributePrefix prefix)
+    {
+        return new PrefixedUnitAttributeValueSyntax(prefix);
     }
 
     /// <inheritdoc/>

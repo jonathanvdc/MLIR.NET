@@ -56,3 +56,32 @@ public interface IAttributeAssemblyFormat
 public interface IBodyOnlyAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
 }
+
+/// <summary>
+/// Attribute assembly format capability for self-identifying syntax with no body
+/// after the <c>#dialect.attr</c> prefix.
+/// </summary>
+/// <remarks>
+/// The parser owns prefix recognition and validation.  Formats implementing this
+/// interface provide the small amount of format-specific knowledge needed to decide
+/// whether a consumed prefix denotes the same logical attribute and to build the
+/// corresponding prefix-preserving syntax node.
+/// </remarks>
+public interface IBodylessSelfIdentifyingAttributeAssemblyFormat : IAttributeAssemblyFormat
+{
+    /// <summary>
+    /// Gets the self-identifying attribute name accepted by this bodyless form.
+    /// </summary>
+    string SelfIdentifyingAttributeName { get; }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when this format can parse the supplied
+    /// self-identifying attribute name as its bodyless form.
+    /// </summary>
+    bool CanParseSelfIdentifyingAttribute(string name);
+
+    /// <summary>
+    /// Builds syntax for the already-consumed self-identifying attribute prefix.
+    /// </summary>
+    AttributeValueSyntax CreateSelfIdentifyingSyntax(DialectAttributePrefix prefix);
+}

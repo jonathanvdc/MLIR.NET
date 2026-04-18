@@ -480,19 +480,34 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.Failure(CreateDiagnostic("Expected an attribute name after '#'."));
         }
 
+        var assemblyFormat = definition.AssemblyFormat;
+        if (assemblyFormat is IBodylessSelfIdentifyingAttributeAssemblyFormat bodylessFormat)
+        {
+            if (!bodylessFormat.CanParseSelfIdentifyingAttribute(canonicalName))
+            {
+                return ParseResult<AttributeValueSyntax>.Failure(
+                    CreateDiagnostic($"Expected '#{bodylessFormat.SelfIdentifyingAttributeName}' but found '#{canonicalName}'."));
+            }
+
+            var bodylessHashToken = ConsumeToken();
+            var bodylessNameToken = ConsumeToken();
+            return ParseResult<AttributeValueSyntax>.Success(
+                bodylessFormat.CreateSelfIdentifyingSyntax(new DialectAttributePrefix(bodylessHashToken, bodylessNameToken)));
+        }
+
         if (!string.Equals(canonicalName, definition.Name, StringComparison.Ordinal))
         {
             return ParseResult<AttributeValueSyntax>.Failure(
                 CreateDiagnostic($"Expected '#{definition.Name}' but found '#{canonicalName}'."));
         }
 
-        if (definition.AssemblyFormat == null)
+        if (assemblyFormat == null)
         {
             // No custom format: fall through to raw syntax (the attribute will be bound later).
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        if (definition.AssemblyFormat is not IBodyOnlyAttributeAssemblyFormat)
+        if (assemblyFormat is not IBodyOnlyAttributeAssemblyFormat)
         {
             // Legacy format that consumes '#name' itself: delegate without stripping the prefix.
             return TryParseCustomAttribute(definition);
@@ -507,7 +522,7 @@ public sealed partial class Parser
         var nameToken = ConsumeToken();   // 'dialect.attr' (lexed as a single identifier with the dot)
         var prefix = new DialectAttributePrefix(hashToken, nameToken);
 
-        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition, prefix));
+        var result = assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition, prefix));
         if (result.IsSuccess)
         {
             // The generated syntax class is itself a DialectPrefixedAttributeValueSyntax and
