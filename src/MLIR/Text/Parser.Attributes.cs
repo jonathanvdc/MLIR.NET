@@ -37,21 +37,17 @@ public sealed partial class Parser
         params TokenKind[] stopBefore)
     {
         var allowTypedSuffix = ShouldAllowTypedAttributeSuffix(stopBefore);
-
-        var parsers = GetAttributeValueParserSequence(expectedDefinition);
-        for (var i = 0; i < parsers.Length; i++)
+        if (expectedDefinition != null)
         {
-            var result = parsers[i](mode, expectedDefinition, allowTypedSuffix, stopBefore);
-            if (!result.IsNoMatch)
+            var expectedResult = TryParseExpectedAttributeValue(expectedDefinition);
+            if (!expectedResult.IsNoMatch)
             {
-                var parserAllowsTypedSuffix = allowTypedSuffix
-                    && !(expectedDefinition != null && i == 0);
-                return WrapTypedAttributeValueSyntax(result, parserAllowsTypedSuffix, mode, stopBefore);
+                return WrapTypedAttributeValueSyntax(expectedResult, false, mode, stopBefore);
             }
         }
 
-        var rawResult = TryParseRawAttributeValue(mode, allowTypedSuffix, stopBefore);
-        return WrapTypedAttributeValueSyntax(rawResult, allowTypedSuffix, mode, stopBefore);
+        var result = TryParseDefaultAttributeValue(mode, expectedDefinition, allowTypedSuffix, stopBefore);
+        return WrapTypedAttributeValueSyntax(result, allowTypedSuffix, mode, stopBefore);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseAttributeValue(
@@ -79,12 +75,6 @@ public sealed partial class Parser
         return !ContainsTokenKind(stopBefore, TokenKind.Colon);
     }
 
-    private AttributeValueParser[] GetAttributeValueParserSequence(AttributeConstraintDefinition? expectedDefinition)
-    {
-        return expectedDefinition != null
-            ? [TryParseExpectedAttributeValue, .. DefaultAttributeValueParsers]
-            : DefaultAttributeValueParsers;
-    }
 
     private AttributeValueParser[] DefaultAttributeValueParsers => [
         TryParseSelfIdentifyingAttributeValue,
@@ -96,16 +86,44 @@ public sealed partial class Parser
         TryParseUnitAttributeValue
     ];
 
-    private ParseResult<AttributeValueSyntax> TryParseExpectedAttributeValue(
+    private ParseResult<AttributeValueSyntax> TryParseExpectedAttributeValue(AttributeConstraintDefinition expectedDefinition)
+    {
+        if (expectedDefinition.AssemblyFormat == null)
+        {
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        if (Is(TokenKind.Hash))
+        {
+            return TryParseSelfIdentifyingAttribute(expectedDefinition);
+        }
+
+        if (expectedDefinition.AssemblyFormat is IBodyOnlyAttributeAssemblyFormat)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(
+                CreateDiagnostic($"Expected '#{expectedDefinition.Name}'."));
+        }
+
+        return TryParseCustomAttribute(expectedDefinition);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseDefaultAttributeValue(
         AttributeValueParsingMode mode,
         AttributeConstraintDefinition? expectedDefinition,
         bool allowTypedSuffix,
         TokenKind[] stopBefore)
     {
-        _ = mode;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseCustomAttribute(expectedDefinition);
+        var parsers = DefaultAttributeValueParsers;
+        for (var i = 0; i < parsers.Length; i++)
+        {
+            var result = parsers[i](mode, expectedDefinition, allowTypedSuffix, stopBefore);
+            if (!result.IsNoMatch)
+            {
+                return result;
+            }
+        }
+
+        return TryParseRawAttributeValue(mode, allowTypedSuffix, stopBefore);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeValue(
@@ -441,9 +459,31 @@ public sealed partial class Parser
         }
 
         var canonicalName = TryPeekAttributeDefinitionName();
-        if (canonicalName == null || !dialectRegistry.TryGetAttribute(canonicalName, out var definition))
+        if (canonicalName == null)
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        if (!dialectRegistry.TryGetAttribute(canonicalName, out var definition))
+        {
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        return TryParseSelfIdentifyingAttribute(definition);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttribute(AttributeConstraintDefinition definition)
+    {
+        var canonicalName = TryPeekAttributeDefinitionName();
+        if (canonicalName == null)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(CreateDiagnostic("Expected an attribute name after '#'."));
+        }
+
+        if (!string.Equals(canonicalName, definition.Name, global::System.StringComparison.Ordinal))
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(
+                CreateDiagnostic($"Expected '#{definition.Name}' but found '#{canonicalName}'."));
         }
 
         if (definition.AssemblyFormat == null)

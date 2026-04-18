@@ -48,6 +48,17 @@ public sealed class MiniEmitCDialectTests : DialectIntegrationTestBase
     }
 
     [Fact]
+    public void ExpectedOpaqueAttributeRejectsDifferentSelfIdentifyingAttribute()
+    {
+        var exception = Assert.Throws<ParseException>(
+            () => Document.Parse(
+                "miniemitc.use_opaque #miniemitc.other<\"NULL\">",
+                CreateMiniEmitCRegistry()));
+
+        Assert.Contains("Expected '#miniemitc.opaque'", exception.Message);
+    }
+
+    [Fact]
     public void PrintsOpaqueAttributeWithCustomAssemblyFormat()
     {
         var op = new MiniEmitC_UseOpaqueOp(
