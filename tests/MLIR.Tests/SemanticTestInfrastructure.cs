@@ -487,7 +487,7 @@ public sealed partial class SemanticTests
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
             var body = new PrefixConstantBodySyntax(
-                valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value) : new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)),
+                valueAttr != null ? context.BuildAttributeValueSyntax(valueAttr.Value) : throw new InvalidOperationException("Expected a 'value' attribute on the operation for rebuilding."),
                 genericBody.TypeSignatureColonToken ?? TokenFactory.Colon(),
                 genericBody.TypeSignatureSyntax ?? throw new InvalidOperationException("Expected a type signature in the generic body for rewriting."),
                 genericBody.Attributes);
@@ -555,7 +555,7 @@ public sealed partial class SemanticTests
         {
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
-            var attrSyntax = context.BuildAttributeValueSyntax(valueAttr?.Value ?? new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(string.Empty)), null, null));
+            var attrSyntax = context.BuildAttributeValueSyntax(valueAttr?.Value ?? throw new InvalidOperationException("Expected a 'value' attribute on the operation for rebuilding."));
             var body = new PrefixConstantBodySyntax(
                 attrSyntax,
                 genericBody.TypeSignatureColonToken ?? TokenFactory.Colon(),

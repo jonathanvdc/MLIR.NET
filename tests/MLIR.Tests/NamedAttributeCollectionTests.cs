@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MLIR.Dialects.Builtin;
+using MLIR.Numerics;
 using MLIR.Syntax;
 using Xunit;
 
@@ -412,6 +414,6 @@ public sealed class NamedAttributeCollectionTests
 
     private static NamedAttribute CreateAttribute(string name)
     {
-        return new NamedAttribute(name, new UnknownAttributeValue(new RawAttributeValueSyntax(new RawSyntaxText(name)), null, null));
+        return new NamedAttribute(name, new IntegerAttr(TypeFactory.I32, ApInt.Zero(32)));
     }
 }
