@@ -505,7 +505,7 @@ public sealed partial class Parser
         var outerCheckpoint = Mark();
         var hashToken = ConsumeToken();   // '#'
         var nameToken = ConsumeToken();   // 'dialect.attr' (lexed as a single identifier with the dot)
-        var prefix = new Syntax.DialectAttributePrefix(hashToken, nameToken);
+        var prefix = new DialectAttributePrefix(hashToken, nameToken);
 
         var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition, prefix));
         if (result.IsSuccess)
