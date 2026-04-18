@@ -41,8 +41,13 @@ public sealed partial class Parser
         var parsers = GetAttributeValueParserSequence(expectedDefinition);
         for (var i = 0; i < parsers.Length; i++)
         {
+            var mark = Mark();
             var result = parsers[i](mode, expectedDefinition, allowTypedSuffix, stopBefore);
-            if (!result.IsNoMatch)
+            if (result.IsNoMatch)
+            {
+                Reset(mark);
+            }
+            else
             {
                 return WrapTypedAttributeValueSyntax(result, allowTypedSuffix, mode, stopBefore);
             }
@@ -90,6 +95,7 @@ public sealed partial class Parser
         TryParseBuiltinStructuredAttributeValue,
         TryParseStringAttributeValue,
         TryParseNumericAttributeValue,
+        TryParseBooleanAttributeValue
     ];
 
     private ParseResult<AttributeValueSyntax> TryParseExpectedAttributeValue(
@@ -141,6 +147,19 @@ public sealed partial class Parser
         _ = allowTypedSuffix;
         _ = stopBefore;
         return StringLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseBooleanAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return BooleanLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
     }
 
     private ParseResult<AttributeValueSyntax> TryParseNumericAttributeValue(
