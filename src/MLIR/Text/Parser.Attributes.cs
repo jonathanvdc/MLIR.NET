@@ -88,6 +88,7 @@ public sealed partial class Parser
     private AttributeValueParser[] DefaultAttributeValueParsers => [
         TryParseSelfIdentifyingAttributeValue,
         TryParseBuiltinStructuredAttributeValue,
+        TryParseStringAttributeValue,
         TryParseNumericAttributeValue,
     ];
 
@@ -127,6 +128,19 @@ public sealed partial class Parser
         _ = allowTypedSuffix;
         _ = stopBefore;
         return TryParseBuiltinStructuredAttribute();
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseStringAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return StringLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
     }
 
     private ParseResult<AttributeValueSyntax> TryParseNumericAttributeValue(
