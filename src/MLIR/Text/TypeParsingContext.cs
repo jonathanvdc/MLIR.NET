@@ -75,6 +75,6 @@ public sealed class TypeParsingContext : DialectParsingContext
     /// </summary>
     public new ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.TryParseAttributeValueSyntaxInternal(stopBefore);
+        return Parser.TryParseAttributeValueInternal(stopBefore);
     }
 }

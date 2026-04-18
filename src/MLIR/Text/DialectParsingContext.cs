@@ -109,7 +109,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.TryParseAttributeValueSyntaxInternal(stopBefore);
+        return Parser.TryParseAttributeValueInternal(stopBefore);
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
     {
-        return Parser.TryParseAttributeValueSyntaxInternal(expectedDefinitionName, stopBefore);
+        return Parser.TryParseAttributeValueInternal(expectedDefinitionName, stopBefore);
     }
 
     /// <summary>
@@ -127,7 +127,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
     {
-        return Parser.TryParseAttributeValueSyntaxInternal(expectedDefinition, stopBefore);
+        return Parser.TryParseAttributeValueInternal(expectedDefinition, stopBefore);
     }
 
     /// <summary>

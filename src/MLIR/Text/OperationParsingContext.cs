@@ -138,7 +138,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// </summary>
     public new ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.TryParseAttributeValueSyntaxOrBoundaryInternal(stopBefore);
+        return Parser.TryParseAttributeValueOrBoundaryInternal(stopBefore);
     }
 
     /// <summary>
@@ -149,7 +149,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     // stop at operation boundaries (for example a newline ending the op), not just explicit delimiters.
     public new ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
     {
-        return Parser.TryParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinitionName, stopBefore);
+        return Parser.TryParseAttributeValueOrBoundaryInternal(expectedDefinitionName, stopBefore);
     }
 
     /// <summary>
@@ -158,7 +158,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// </summary>
     public new ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(AttributeConstraintDefinition expectedDefinition, params TokenKind[] stopBefore)
     {
-        return Parser.TryParseAttributeValueSyntaxOrBoundaryInternal(expectedDefinition, stopBefore);
+        return Parser.TryParseAttributeValueOrBoundaryInternal(expectedDefinition, stopBefore);
     }
 
     /// <summary>
