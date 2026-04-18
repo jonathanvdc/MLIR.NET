@@ -10,15 +10,15 @@ using MLIR.Text;
 using MLIR.Transforms;
 
 /// <summary>
-/// Reusable assembly format for parsing and printing typed-array attributes that
-/// are stored as <see cref="ArrayAttr"/>.
+/// Reusable assembly format for parsing and printing array attributes stored as
+/// <see cref="ArrayAttr"/>.
 /// </summary>
 /// <remarks>
 /// Element literals are parsed uniformly as <see cref="AttributeValueSyntax"/> items.
 /// Constraint-specific typed projections are applied later by generated overlays
 /// and <c>ArrayAttrConstraintHelpers</c>.
 /// </remarks>
-public sealed class TypedArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
+public sealed class ArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
@@ -52,7 +52,7 @@ public sealed class TypedArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
             }
         }
 
-        var closeTokenResult = context.Expect(TokenKind.RBracket, "Expected ']' to close the typed array attribute.");
+        var closeTokenResult = context.Expect(TokenKind.RBracket, "Expected ']' to close the array attribute.");
         if (!closeTokenResult.IsSuccess)
         {
             return ParseResult<AttributeValueSyntax>.Failure(closeTokenResult.Diagnostic!);
@@ -65,7 +65,7 @@ public sealed class TypedArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
         var normalizedSyntax = syntax as ArrayAttributeValueSyntax
-            ?? throw new InvalidOperationException("Unexpected syntax for typed array attribute. Expected an array attribute literal such as '[1, 2]'.");
+            ?? throw new InvalidOperationException("Unexpected syntax for array attribute. Expected an array attribute literal such as '[1, 2]'.");
         return MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindFromSyntax(normalizedSyntax);
     }
 

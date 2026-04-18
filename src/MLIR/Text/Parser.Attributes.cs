@@ -25,7 +25,7 @@ public sealed partial class Parser
     /// <summary>Cached singleton format handler for dictionary attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly DictionaryAttributeAssemblyFormat DictionaryAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for array attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly TypedArrayAttributeAssemblyFormat ArrayAttributeAssemblyFormat = new();
+    private static readonly ArrayAttributeAssemblyFormat ArrayAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for bare unit literals in default parsing. Stateless and safe to share across parse operations.</summary>
     private static readonly UnitLiteralAttributeAssemblyFormat BareUnitLiteralAttributeAssemblyFormat = new(parseSelfIdentifyingSyntax: false);
 

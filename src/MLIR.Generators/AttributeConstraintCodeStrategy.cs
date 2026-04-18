@@ -600,7 +600,7 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
     public override bool UsesTypedArrayElementPayload => true;
     public override string GetTypedArrayElementPayloadPropertyName() => "Items";
     public override string? GetAssemblyFormatConstructionExpression() =>
-        "new global::MLIR.Dialects.Attributes.Collections.TypedArrayAttributeAssemblyFormat()";
+        "new global::MLIR.Dialects.Attributes.Collections.ArrayAttributeAssemblyFormat()";
 
     public override AttributeStoragePlan CreateStoragePlan()
     {

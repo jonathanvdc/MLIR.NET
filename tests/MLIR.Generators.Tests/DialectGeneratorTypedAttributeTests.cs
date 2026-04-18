@@ -176,13 +176,13 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         Assert.True(
             CountOccurrences(
                 preludeSource,
-                "new global::MLIR.Dialects.Attributes.Collections.TypedArrayAttributeAssemblyFormat()") >= expectedTypedArrayConstraints);
+                "new global::MLIR.Dialects.Attributes.Collections.ArrayAttributeAssemblyFormat()") >= expectedTypedArrayConstraints);
         AssertDoesNotContainAny(
             preludeSource,
             "internal sealed class I32ArrayAttrConstraintAttributeValueAssemblyFormat",
             "internal sealed class StrArrayAttrConstraintAttributeValueAssemblyFormat",
             "internal sealed class IndexListArrayAttrConstraintAttributeValueAssemblyFormat",
-            "TypedArrayAttributeAssemblyFormat<");
+            "ArrayAttributeAssemblyFormat<");
     }
 
     [Fact]
