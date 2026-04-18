@@ -170,7 +170,7 @@ public sealed partial class Parser
     private ParseResult<AttributeValueSyntax> TryParseAttributeAssemblyFormat(IAttributeAssemblyFormat assemblyFormat)
     {
         var checkpoint = Mark();
-        var result = assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry));
+        var result = assemblyFormat.TryParse(new AttributeParsingContext(this));
         if (result.IsSuccess)
         {
             return result;
@@ -298,7 +298,7 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry));
+        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this));
         if (result.IsSuccess)
         {
             return result;

@@ -1,7 +1,6 @@
 namespace MLIR.Text;
 
 using System.Globalization;
-using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Numerics;
 using MLIR.Syntax;
@@ -12,16 +11,10 @@ using MLIR.Syntax.Attributes.Primitives;
 /// </summary>
 public sealed class AttributeParsingContext : DialectParsingContext
 {
-    internal AttributeParsingContext(Parser parser, DialectRegistry? dialectRegistry)
+    internal AttributeParsingContext(Parser parser)
         : base(parser)
     {
-        DialectRegistry = dialectRegistry;
     }
-
-    /// <summary>
-    /// Gets the dialect registry used for parsing, if one is available.
-    /// </summary>
-    public DialectRegistry? DialectRegistry { get; }
 
     /// <summary>
     /// Creates a diagnostic at the current parser position.
