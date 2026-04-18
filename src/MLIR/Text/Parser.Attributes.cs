@@ -79,6 +79,8 @@ public sealed partial class Parser
     private AttributeValueParser[] DefaultAttributeValueParsers => [
         TryParseSelfIdentifyingAttributeValue,
         TryParseBuiltinStructuredAttributeValue,
+        TryParseDenseArrayAttributeValue,
+        TryParseElementsAttributeValue,
         TryParseStringAttributeValue,
         TryParseFloatingPointAttributeValue,
         TryParseIntegerAttributeValue,
@@ -160,6 +162,36 @@ public sealed partial class Parser
         return TryParseAttributeAssemblyFormat(expectedDefinition, StringLiteralAttributeAssemblyFormat);
     }
 
+    private ParseResult<AttributeValueSyntax> TryParseDenseArrayAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseAttributeAssemblyFormat(
+            BuiltinAttributeConstraintDefinition("DenseArrayAttr"),
+            DenseArrayAttributeAssemblyFormat);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseElementsAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseAttributeAssemblyFormat(
+            BuiltinAttributeConstraintDefinition("ElementsAttr"),
+            ElementsAttributeAssemblyFormat);
+    }
+
     private ParseResult<AttributeValueSyntax> TryParseBooleanAttributeValue(
         AttributeValueParsingMode mode,
         AttributeConstraintDefinition? expectedDefinition,
@@ -223,8 +255,8 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Tries to parse a built-in structured attribute value: an array literal (<c>[...]</c>),
-    /// an attribute dictionary (<c>{...}</c>), a dense array, or an elements attribute.
+    /// Tries to parse a built-in structured attribute value: an array literal (<c>[...]</c>)
+    /// or an attribute dictionary (<c>{...}</c>).
     /// Returns <see cref="ParseOutcome.NoMatch"/> when none of those forms is present.
     /// </summary>
     private ParseResult<AttributeValueSyntax> TryParseBuiltinStructuredAttribute()
@@ -239,13 +271,7 @@ public sealed partial class Parser
             return TryParseAttrDict().Map<AttributeValueSyntax>(static syntax => new DictionaryAttributeValueSyntax(syntax));
         }
 
-        var denseArrayResult = TryParseAttributeAssemblyFormat(BuiltinAttributeConstraintDefinition("DenseArrayAttr"), DenseArrayAttributeAssemblyFormat);
-        if (!denseArrayResult.IsNoMatch)
-        {
-            return denseArrayResult;
-        }
-
-        return TryParseAttributeAssemblyFormat(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat);
+        return ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(
