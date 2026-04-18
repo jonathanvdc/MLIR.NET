@@ -153,7 +153,7 @@ public sealed partial class Parser
         _ = allowTypedSuffix;
         _ = stopBefore;
         return TryParseAttributeAssemblyFormat(
-            BuiltinAttributeConstraintDefinition("ArrayAttr"),
+            expectedDefinition,
             ArrayAttributeAssemblyFormat);
     }
 
@@ -168,7 +168,7 @@ public sealed partial class Parser
         _ = allowTypedSuffix;
         _ = stopBefore;
         return TryParseAttributeAssemblyFormat(
-            BuiltinAttributeConstraintDefinition("DictionaryAttr"),
+            expectedDefinition,
             DictionaryAttributeAssemblyFormat);
     }
 
@@ -195,7 +195,7 @@ public sealed partial class Parser
         _ = allowTypedSuffix;
         _ = stopBefore;
         return TryParseAttributeAssemblyFormat(
-            BuiltinAttributeConstraintDefinition("DenseArrayAttr"),
+            expectedDefinition,
             DenseArrayAttributeAssemblyFormat);
     }
 
@@ -210,7 +210,7 @@ public sealed partial class Parser
         _ = allowTypedSuffix;
         _ = stopBefore;
         return TryParseAttributeAssemblyFormat(
-            BuiltinAttributeConstraintDefinition("ElementsAttr"),
+            expectedDefinition,
             ElementsAttributeAssemblyFormat);
     }
 
