@@ -14,6 +14,24 @@ namespace MLIR.Dialects.Attributes;
 /// <param name="names">The mapping of enum values to their corresponding string representations.</param>
 public abstract class SimpleEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<ApInt, string> names) : EnumAttributeAssemblyFormat<T>(names) where T : AttributeValue
 {
+    private EnumAttributeValueSyntax CreateEnumSyntax(Token token, bool useAngleBrackets)
+    {
+        if (useAngleBrackets)
+        {
+            return new DelimitedEnumAttributeValueSyntax(new DelimitedSyntaxList<Token>(
+                TokenFactory.LessThan(),
+                [token],
+                [],
+                TokenFactory.GreaterThan()));
+        }
+        else
+        {
+            return new BareEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
+                [token],
+                []));
+        }
+    }
+
     /// <inheritdoc/>
     public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
@@ -59,32 +77,12 @@ public abstract class SimpleEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<A
 
         if (Names.TryGetValue(value, out var enumName))
         {
-            if (useAngleBrackets)
-            {
-                return new DelimitedEnumAttributeValueSyntax(new DelimitedSyntaxList<Token>(
-                    TokenFactory.LessThan(),
-                    [TokenFactory.Identifier(enumName)],
-                    [],
-                    TokenFactory.GreaterThan()));
-            }
-
-            return new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
-                [TokenFactory.Identifier(enumName)],
-                []));
+            return CreateEnumSyntax(TokenFactory.Identifier(enumName), useAngleBrackets);
         }
-
-        if (useAngleBrackets)
+        else
         {
-            return new DelimitedEnumAttributeValueSyntax(new DelimitedSyntaxList<Token>(
-                TokenFactory.LessThan(),
-                [TokenFactory.Integer(value.ToString())],
-                [],
-                TokenFactory.GreaterThan()));
+            return CreateEnumSyntax(TokenFactory.Integer(value.ToString()), useAngleBrackets);
         }
-
-        return new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
-            [TokenFactory.Integer(value.ToString())],
-            []));
     }
 
     /// <inheritdoc/>
@@ -124,7 +122,7 @@ public abstract class SimpleEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<A
                     close)));
             }
 
-            return ParseResult<AttributeValueSyntax>.Success(new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
+            return ParseResult<AttributeValueSyntax>.Success(new BareEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
                 [intToken],
                 [])));
         }
@@ -151,7 +149,7 @@ public abstract class SimpleEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<A
                 close)));
         }
 
-        return ParseResult<AttributeValueSyntax>.Success(new UndelimitedEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
+        return ParseResult<AttributeValueSyntax>.Success(new BareEnumAttributeValueSyntax(new SeparatedSyntaxList<Token>(
             [name.Value],
             [])));
     }

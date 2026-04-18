@@ -42,7 +42,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
         }
         else
         {
-            return new UndelimitedEnumAttributeValueSyntax(
+            return new BareEnumAttributeValueSyntax(
                 new SeparatedSyntaxList<Token>(
                     elements,
                     Enumerable.Repeat(CreateSeparatorToken(), elements.Count - 1).ToList()));
@@ -186,7 +186,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
             }
 
             return ParseResult<AttributeValueSyntax>.Success(
-                new UndelimitedEnumAttributeValueSyntax(
+                new BareEnumAttributeValueSyntax(
                     new SeparatedSyntaxList<Token>(
                         [intToken],
                         Array.Empty<Token>())));
@@ -233,7 +233,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
         }
 
         return ParseResult<AttributeValueSyntax>.Success(
-            new UndelimitedEnumAttributeValueSyntax(
+            new BareEnumAttributeValueSyntax(
                 new SeparatedSyntaxList<Token>(
                     identifiers,
                     separators)));

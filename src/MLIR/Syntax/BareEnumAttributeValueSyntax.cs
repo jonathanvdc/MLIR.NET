@@ -8,7 +8,7 @@ using MLIR.Text;
 /// For example, an enum attribute value might look like <c>foo, bar, baz</c>, where <c>foo</c>, <c>bar</c>, and <c>baz</c> are individual tokens that together represent the value of the enum attribute.
 /// </summary>
 /// <param name="elements">The list of tokens representing the enum attribute value.</param>
-public sealed class UndelimitedEnumAttributeValueSyntax(SeparatedSyntaxList<Token> elements) : EnumAttributeValueSyntax
+public sealed class BareEnumAttributeValueSyntax(SeparatedSyntaxList<Token> elements) : EnumAttributeValueSyntax
 {
     /// <summary>
     /// Gets the list of tokens representing the enum attribute value.
@@ -31,7 +31,7 @@ public sealed class UndelimitedEnumAttributeValueSyntax(SeparatedSyntaxList<Toke
     {
         var rewrittenElements = ElementList.Rewrite(rewriter.VisitToken, rewriter.VisitToken);
         if (ReferenceEquals(rewrittenElements, ElementList)) return this;
-        else return new UndelimitedEnumAttributeValueSyntax(rewrittenElements);
+        else return new BareEnumAttributeValueSyntax(rewrittenElements);
     }
 
     /// <inheritdoc/>
