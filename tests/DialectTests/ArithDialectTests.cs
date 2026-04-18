@@ -30,6 +30,14 @@ public sealed class ArithDialectTests : DialectIntegrationTestBase
     }
 
     [Fact]
+    public void MinimalGeneratedArithConstantCustomAssemblyParses()
+    {
+        var document = Document.Parse("%0 = arith.constant 42 : i32", CreateArithRegistry());
+
+        Assert.Single(document.Module.Operations);
+    }
+
+    [Fact]
     public void BindsIntegerConstantFromPreludeDialect()
     {
         var operation = BindSingleOperation<Arith_ConstantOp>(

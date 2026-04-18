@@ -1,10 +1,8 @@
 namespace MLIR.Text;
 
-using System.Globalization;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Collections;
 using MLIR.Dialects.Attributes.Primitives;
-using MLIR.Numerics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Primitives;
@@ -46,7 +44,9 @@ public sealed partial class Parser
             var result = parsers[i](mode, expectedDefinition, allowTypedSuffix, stopBefore);
             if (!result.IsNoMatch)
             {
-                return WrapTypedAttributeValueSyntax(result, allowTypedSuffix, mode, stopBefore);
+                var parserAllowsTypedSuffix = allowTypedSuffix
+                    && !(expectedDefinition != null && i == 0);
+                return WrapTypedAttributeValueSyntax(result, parserAllowsTypedSuffix, mode, stopBefore);
             }
         }
 
@@ -76,8 +76,8 @@ public sealed partial class Parser
 
     private static bool ShouldAllowTypedAttributeSuffix(AttributeValueParsingMode mode, TokenKind[] stopBefore)
     {
-        return mode == AttributeValueParsingMode.Normal
-            && !ContainsTokenKind(stopBefore, TokenKind.Colon);
+        _ = mode;
+        return !ContainsTokenKind(stopBefore, TokenKind.Colon);
     }
 
     private AttributeValueParser[] GetAttributeValueParserSequence(AttributeConstraintDefinition? expectedDefinition)
@@ -91,7 +91,8 @@ public sealed partial class Parser
         TryParseSelfIdentifyingAttributeValue,
         TryParseBuiltinStructuredAttributeValue,
         TryParseStringAttributeValue,
-        TryParseNumericAttributeValue,
+        TryParseFloatingPointAttributeValue,
+        TryParseIntegerAttributeValue,
         TryParseBooleanAttributeValue,
         TryParseUnitAttributeValue
     ];
@@ -170,14 +171,28 @@ public sealed partial class Parser
         return TryParseAttributeAssemblyFormat(expectedDefinition, UnitLiteralAttributeAssemblyFormat);
     }
 
-    private ParseResult<AttributeValueSyntax> TryParseNumericAttributeValue(
+    private ParseResult<AttributeValueSyntax> TryParseIntegerAttributeValue(
         AttributeValueParsingMode mode,
         AttributeConstraintDefinition? expectedDefinition,
         bool allowTypedSuffix,
         TokenKind[] stopBefore)
     {
-        _ = expectedDefinition;
-        return TryParseNumericAttribute(mode, allowTypedSuffix, stopBefore);
+        _ = mode;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseAttributeAssemblyFormat(expectedDefinition, IntegerLiteralAttributeAssemblyFormat);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseFloatingPointAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseAttributeAssemblyFormat(expectedDefinition, FloatingPointLiteralAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseRawAttributeValue(
@@ -218,79 +233,6 @@ public sealed partial class Parser
         }
 
         return TryParseAttributeAssemblyFormat(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseNumericAttribute(
-        AttributeValueParsingMode mode,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        var checkpoint = Mark();
-
-        var floatingPointResult = FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(new AttributeParsingContext(this, dialectRegistry, null));
-        if (floatingPointResult.IsSuccess)
-        {
-            if (IsValidAttributeValueTermination(mode, allowTypedSuffix, stopBefore))
-            {
-                return floatingPointResult;
-            }
-
-            Reset(checkpoint);
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
-        if (!floatingPointResult.IsNoMatch)
-        {
-            return floatingPointResult;
-        }
-
-        Reset(checkpoint);
-
-        if (!IntegerLiteralAttributeAssemblyFormat.TryParseSignedIntegerLiteral(new AttributeParsingContext(this, dialectRegistry, null), out var signToken, out var integerToken, out var value))
-        {
-            Reset(checkpoint);
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
-        var integerSyntax = ParseResult<AttributeValueSyntax>.Success(
-            new IntegerAttributeValueSyntax(
-                signToken,
-                integerToken,
-                ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
-        if (IsValidAttributeValueTermination(mode, allowTypedSuffix, stopBefore))
-        {
-            return integerSyntax;
-        }
-
-        Reset(checkpoint);
-        return ParseResult<AttributeValueSyntax>.NoMatch();
-    }
-
-    private bool IsValidAttributeValueTermination(
-        AttributeValueParsingMode mode,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        if (Is(TokenKind.EndOfFile))
-        {
-            return true;
-        }
-
-        for (var i = 0; i < stopBefore.Length; i++)
-        {
-            if (Current.TokenKind == stopBefore[i])
-            {
-                return true;
-            }
-        }
-
-        if (allowTypedSuffix && Is(TokenKind.Colon))
-        {
-            return true;
-        }
-
-        return mode == AttributeValueParsingMode.StopAtOperationBoundary
-            && IsOperationBoundary(Current, false);
     }
 
     private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(
