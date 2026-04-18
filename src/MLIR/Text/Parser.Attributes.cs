@@ -5,8 +5,6 @@ using MLIR.Dialects.Attributes.Collections;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
-using MLIR.Syntax.Attributes.Primitives;
-using MLIR.Syntax.Attributes.Collections;
 
 public sealed partial class Parser
 {
