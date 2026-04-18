@@ -12,25 +12,16 @@ using MLIR.Syntax.Attributes.Primitives;
 /// </summary>
 public sealed class AttributeParsingContext : DialectParsingContext
 {
-    internal AttributeParsingContext(
-        Parser parser,
-        DialectRegistry? dialectRegistry,
-        AttributeConstraintDefinition? expectedDefinition)
+    internal AttributeParsingContext(Parser parser, DialectRegistry? dialectRegistry)
         : base(parser)
     {
         DialectRegistry = dialectRegistry;
-        ExpectedDefinition = expectedDefinition;
     }
 
     /// <summary>
     /// Gets the dialect registry used for parsing, if one is available.
     /// </summary>
     public DialectRegistry? DialectRegistry { get; }
-
-    /// <summary>
-    /// Gets the attribute definition expected by the caller, if one is known.
-    /// </summary>
-    public AttributeConstraintDefinition? ExpectedDefinition { get; }
 
     /// <summary>
     /// Creates a diagnostic at the current parser position.

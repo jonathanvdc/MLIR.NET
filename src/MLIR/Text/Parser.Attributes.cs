@@ -47,7 +47,7 @@ public sealed partial class Parser
             }
         }
 
-        var result = TryParseDefaultAttributeValue(mode, expectedDefinition, allowTypedSuffix, stopBefore);
+        var result = TryParseDefaultAttributeValue(mode, allowTypedSuffix, stopBefore);
         return WrapTypedAttributeValueSyntax(result, allowTypedSuffix, mode, stopBefore);
     }
 
@@ -89,7 +89,6 @@ public sealed partial class Parser
 
     private ParseResult<AttributeValueSyntax> TryParseDefaultAttributeValue(
         AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
         bool allowTypedSuffix,
         TokenKind[] stopBefore)
     {
@@ -101,7 +100,7 @@ public sealed partial class Parser
 
         foreach (var assemblyFormat in DefaultAttributeAssemblyFormats)
         {
-            var result = TryParseAttributeAssemblyFormat(expectedDefinition, assemblyFormat);
+            var result = TryParseAttributeAssemblyFormat(assemblyFormat);
             if (!result.IsNoMatch)
             {
                 return result;
@@ -168,12 +167,10 @@ public sealed partial class Parser
     /// Saves a checkpoint before calling and restores it when the handler returns <c>NoMatch</c>.
     /// Propagates <c>Success</c> and <c>Error</c> unchanged.
     /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseAttributeAssemblyFormat(
-        AttributeConstraintDefinition? definition,
-        IAttributeAssemblyFormat assemblyFormat)
+    private ParseResult<AttributeValueSyntax> TryParseAttributeAssemblyFormat(IAttributeAssemblyFormat assemblyFormat)
     {
         var checkpoint = Mark();
-        var result = assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition));
+        var result = assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry));
         if (result.IsSuccess)
         {
             return result;
@@ -301,7 +298,7 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition));
+        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry));
         if (result.IsSuccess)
         {
             return result;
