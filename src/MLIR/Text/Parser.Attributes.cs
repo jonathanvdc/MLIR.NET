@@ -25,77 +25,37 @@ public sealed partial class Parser
     /// <summary>Cached singleton format handler for elements attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
 
-    /// <summary>
-    /// Parses an attribute value, trying production rules in the following priority order:
-    /// <list type="number">
-    ///   <item><description>Caller-supplied <paramref name="expectedDefinition"/> (if not <see langword="null"/>).</description></item>
-    ///   <item><description>Self-identifying attributes of the form <c>#name</c> looked up in the dialect registry.</description></item>
-    ///   <item><description>Built-in structured attributes: arrays (<c>[...]</c>), dictionaries (<c>{...}</c>),
-    ///     dense arrays, and elements attributes.</description></item>
-    ///   <item><description>Primitive numeric literals (floating-point and integer forms).</description></item>
-    ///   <item><description>Raw token scan as a fallback <c>RawAttributeValueSyntax</c>.</description></item>
-    /// </list>
-    /// </summary>
-    /// <param name="stopAtOperationBoundary">
-    /// When <see langword="true"/>, the raw fallback scan stops at a newline operation boundary in addition to
-    /// the explicit <paramref name="stopBefore"/> delimiters. This should be <see langword="true"/> when parsing
-    /// inside a custom operation assembly format.
-    /// </param>
-    /// <param name="expectedDefinition">
-    /// Optional hint from the caller indicating the expected attribute type. When supplied, the corresponding
-    /// assembly format is tried first before the generic dispatch.
-    /// </param>
-    /// <param name="stopBefore">
-    /// Token kinds that terminate the raw fallback scan at depth zero.
-    /// </param>
-    private ParseResult<AttributeValueSyntax> TryParseAttributeValue(bool stopAtOperationBoundary, AttributeConstraintDefinition? expectedDefinition, params TokenKind[] stopBefore)
+    private enum AttributeValueParsingMode
     {
-        var allowTypedSuffix = !stopAtOperationBoundary && !ContainsTokenKind(stopBefore, TokenKind.Colon);
+        Normal,
+        StopAtOperationBoundary,
+    }
 
-        if (expectedDefinition != null)
+    private ParseResult<AttributeValueSyntax> TryParseAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        params TokenKind[] stopBefore)
+    {
+        var allowTypedSuffix = ShouldAllowTypedAttributeSuffix(mode, stopBefore);
+
+        var parsers = GetAttributeValueParserSequence(expectedDefinition);
+        for (var i = 0; i < parsers.Length; i++)
         {
-            var expectedResult = TryParseCustomAttribute(expectedDefinition);
-            if (!expectedResult.IsNoMatch)
+            var result = parsers[i](mode, expectedDefinition, allowTypedSuffix, stopBefore);
+            if (!result.IsNoMatch)
             {
-                return WrapTypedAttributeValueSyntax(expectedResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
+                return WrapTypedAttributeValueSyntax(result, allowTypedSuffix, mode, stopBefore);
             }
         }
 
-        var selfIdentifyingResult = TryParseSelfIdentifyingAttribute();
-        if (!selfIdentifyingResult.IsNoMatch)
-        {
-            return WrapTypedAttributeValueSyntax(selfIdentifyingResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
-        }
-
-        var builtinStructuredResult = TryParseBuiltinStructuredAttribute();
-        if (!builtinStructuredResult.IsNoMatch)
-        {
-            return WrapTypedAttributeValueSyntax(builtinStructuredResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
-        }
-
-        var numericLiteralResult = TryParseNumericAttribute(stopAtOperationBoundary, allowTypedSuffix, stopBefore);
-        if (!numericLiteralResult.IsNoMatch)
-        {
-            return WrapTypedAttributeValueSyntax(numericLiteralResult, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
-        }
-
-        var rawStopBefore = allowTypedSuffix ? [.. stopBefore, TokenKind.Colon] : stopBefore;
-        var rawResult = stopAtOperationBoundary
-            ? TryParseRawUntilDelimiterOrBoundaryResult(rawStopBefore)
-            : TryParseRawUntilDelimiterResult(rawStopBefore);
-        var parsedRaw = rawResult.IsSuccess
-            ? ParseResult<AttributeValueSyntax>.Success(new RawAttributeValueSyntax(rawResult.Value))
-            : ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
-        return WrapTypedAttributeValueSyntax(parsedRaw, allowTypedSuffix, stopAtOperationBoundary, stopBefore);
+        var rawResult = TryParseRawAttributeValue(mode, allowTypedSuffix, stopBefore);
+        return WrapTypedAttributeValueSyntax(rawResult, allowTypedSuffix, mode, stopBefore);
     }
 
-    /// <summary>
-    /// Overload of <see cref="TryParseAttributeValue(bool, AttributeConstraintDefinition?, TokenKind[])"/>
-    /// that resolves the expected definition by name from the dialect registry.
-    /// When <paramref name="expectedDefinitionName"/> is <see langword="null"/> or empty, or when no matching
-    /// definition is found in the registry, the method falls back to unguided dispatch.
-    /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseAttributeValue(bool stopAtOperationBoundary, string? expectedDefinitionName, params TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> TryParseAttributeValue(
+        AttributeValueParsingMode mode,
+        string? expectedDefinitionName,
+        params TokenKind[] stopBefore)
     {
         AttributeConstraintDefinition? expectedDefinition = null;
         if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
@@ -103,7 +63,94 @@ public sealed partial class Parser
             dialectRegistry.TryResolveAttributeConstraint(expectedDefinitionName!, out expectedDefinition);
         }
 
-        return TryParseAttributeValue(stopAtOperationBoundary, expectedDefinition, stopBefore);
+        return TryParseAttributeValue(mode, expectedDefinition, stopBefore);
+    }
+
+    private delegate ParseResult<AttributeValueSyntax> AttributeValueParser(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore);
+
+    private static bool ShouldAllowTypedAttributeSuffix(AttributeValueParsingMode mode, TokenKind[] stopBefore)
+    {
+        return mode == AttributeValueParsingMode.Normal
+            && !ContainsTokenKind(stopBefore, TokenKind.Colon);
+    }
+
+    private AttributeValueParser[] GetAttributeValueParserSequence(AttributeConstraintDefinition? expectedDefinition)
+    {
+        return expectedDefinition != null
+            ? [TryParseExpectedAttributeValue, .. DefaultAttributeValueParsers]
+            : DefaultAttributeValueParsers;
+    }
+
+    private AttributeValueParser[] DefaultAttributeValueParsers => [
+        TryParseSelfIdentifyingAttributeValue,
+        TryParseBuiltinStructuredAttributeValue,
+        TryParseNumericAttributeValue,
+    ];
+
+    private ParseResult<AttributeValueSyntax> TryParseExpectedAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseCustomAttribute(expectedDefinition);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseSelfIdentifyingAttribute();
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseBuiltinStructuredAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseBuiltinStructuredAttribute();
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseNumericAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = expectedDefinition;
+        return TryParseNumericAttribute(mode, allowTypedSuffix, stopBefore);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseRawAttributeValue(
+        AttributeValueParsingMode mode,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        var rawStopBefore = allowTypedSuffix ? [.. stopBefore, TokenKind.Colon] : stopBefore;
+        var rawResult = mode == AttributeValueParsingMode.StopAtOperationBoundary
+            ? TryParseRawUntilDelimiterOrBoundaryResult(rawStopBefore)
+            : TryParseRawUntilDelimiterResult(rawStopBefore);
+        return rawResult.IsSuccess
+            ? ParseResult<AttributeValueSyntax>.Success(new RawAttributeValueSyntax(rawResult.Value))
+            : ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
     }
 
     /// <summary>
@@ -132,18 +179,17 @@ public sealed partial class Parser
         return TryParseAttributeAssemblyFormat(BuiltinAttributeConstraintDefinition("ElementsAttr"), ElementsAttributeAssemblyFormat);
     }
 
-    /// <summary>
-    /// Tries to parse a primitive numeric attribute literal, preferring floating-point forms over integers.
-    /// The method backtracks cleanly so partially-consumed non-numeric text can still fall through to raw syntax.
-    /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseNumericAttribute(bool stopAtOperationBoundary, bool allowTypedSuffix, TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> TryParseNumericAttribute(
+        AttributeValueParsingMode mode,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
     {
         var checkpoint = Mark();
 
         var floatingPointResult = FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(new AttributeParsingContext(this, dialectRegistry, null));
         if (floatingPointResult.IsSuccess)
         {
-            if (IsValidAttributeValueTermination(stopAtOperationBoundary, allowTypedSuffix, stopBefore))
+            if (IsValidAttributeValueTermination(mode, allowTypedSuffix, stopBefore))
             {
                 return floatingPointResult;
             }
@@ -170,7 +216,7 @@ public sealed partial class Parser
                 signToken,
                 integerToken,
                 ApInt.Parse(64, value.ToString(CultureInfo.InvariantCulture), isSigned: true)));
-        if (IsValidAttributeValueTermination(stopAtOperationBoundary, allowTypedSuffix, stopBefore))
+        if (IsValidAttributeValueTermination(mode, allowTypedSuffix, stopBefore))
         {
             return integerSyntax;
         }
@@ -179,11 +225,10 @@ public sealed partial class Parser
         return ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
-    /// <summary>
-    /// Returns <see langword="true"/> when the current parser position is a valid termination point for
-    /// a completed attribute value in the current parsing mode.
-    /// </summary>
-    private bool IsValidAttributeValueTermination(bool stopAtOperationBoundary, bool allowTypedSuffix, TokenKind[] stopBefore)
+    private bool IsValidAttributeValueTermination(
+        AttributeValueParsingMode mode,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
     {
         if (Is(TokenKind.EndOfFile))
         {
@@ -203,13 +248,14 @@ public sealed partial class Parser
             return true;
         }
 
-        return stopAtOperationBoundary && IsOperationBoundary(Current, false);
+        return mode == AttributeValueParsingMode.StopAtOperationBoundary
+            && IsOperationBoundary(Current, false);
     }
 
     private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(
         ParseResult<AttributeValueSyntax> result,
         bool allowTypedSuffix,
-        bool stopAtOperationBoundary,
+        AttributeValueParsingMode mode,
         TokenKind[] stopBefore)
     {
         if (!allowTypedSuffix || !result.IsSuccess || result.Value is TypedAttributeValueSyntax)
@@ -222,7 +268,7 @@ public sealed partial class Parser
             return result;
         }
 
-        var typeResult = TryParseTypeSyntaxCoreResult(stopBefore, stopAtOperationBoundary);
+        var typeResult = TryParseTypeSyntaxCoreResult(stopBefore, mode == AttributeValueParsingMode.StopAtOperationBoundary);
         if (!typeResult.IsSuccess)
         {
             return ParseResult<AttributeValueSyntax>.Failure(typeResult.Diagnostic!);
@@ -270,7 +316,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(false, (AttributeDefinition?)null, delimiters);
+        return TryParseAttributeValue(AttributeValueParsingMode.Normal, (AttributeConstraintDefinition?)null, delimiters);
     }
 
     /// <summary>
@@ -278,7 +324,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(false, expectedDefinitionName, delimiters);
+        return TryParseAttributeValue(AttributeValueParsingMode.Normal, expectedDefinitionName, delimiters);
     }
 
     /// <summary>
@@ -286,7 +332,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(false, expectedDefinition, delimiters);
+        return TryParseAttributeValue(AttributeValueParsingMode.Normal, expectedDefinition, delimiters);
     }
 
     /// <summary>
@@ -296,7 +342,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueOrBoundaryInternal(params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(true, (AttributeDefinition?)null, delimiters);
+        return TryParseAttributeValue(AttributeValueParsingMode.StopAtOperationBoundary, (AttributeConstraintDefinition?)null, delimiters);
     }
 
     /// <summary>
@@ -305,7 +351,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueOrBoundaryInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(true, expectedDefinitionName, delimiters);
+        return TryParseAttributeValue(AttributeValueParsingMode.StopAtOperationBoundary, expectedDefinitionName, delimiters);
     }
 
     /// <summary>
@@ -314,7 +360,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(true, expectedDefinition, delimiters);
+        return TryParseAttributeValue(AttributeValueParsingMode.StopAtOperationBoundary, expectedDefinition, delimiters);
     }
 
     /// <summary>
@@ -347,7 +393,7 @@ public sealed partial class Parser
             return ParseResult<NamedAttributeSyntax>.Failure(CreateDiagnostic("Expected '=' or ':' after attribute name."));
         }
 
-        return TryParseAttributeValue(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace)
+        return TryParseAttributeValue(AttributeValueParsingMode.Normal, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace)
             .Map(valueSyntax => new NamedAttributeSyntax(nameToken, separatorToken, valueSyntax));
     }
 
@@ -358,7 +404,7 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<AttributeValueSyntax> TryParseStandaloneAttributeValue(AttributeConstraintDefinition? expectedDefinition)
     {
-        var parsed = TryParseAttributeValue(false, expectedDefinition);
+        var parsed = TryParseAttributeValue(AttributeValueParsingMode.Normal, expectedDefinition);
         if (!parsed.IsSuccess)
         {
             return parsed;
@@ -480,7 +526,7 @@ public sealed partial class Parser
         return TryParseRequiredCommaSeparatedDelimitedList(
             TokenKind.LBracket,
             TokenKind.RBracket,
-            () => TryParseAttributeValue(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
+            () => TryParseAttributeValue(AttributeValueParsingMode.Normal, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
             "Expected '[' to start the array attribute.",
             "Expected ']' to close the array attribute.")
             .Map(static list => new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value));
