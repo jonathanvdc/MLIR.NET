@@ -21,11 +21,10 @@ using MLIR.Text;
 /// call <see cref="WritePrefix"/> first, then write the body tokens.
 /// </para>
 /// <para>
-/// The parser consumes the <c>#name</c> prefix tokens before delegating to the
-/// registered <see cref="Dialects.IAttributeAssemblyFormat"/>; the format therefore
-/// only sees the body.  The actual parsed prefix tokens are passed to the generated
-/// syntax constructor via <see cref="Text.AttributeParsingContext.Prefix"/>
-/// so that <see cref="WritePrefix"/> emits the original source tokens.
+/// <see cref="Dialects.BodyOnlyAttributeAssemblyFormat"/> consumes the <c>#name</c>
+/// prefix tokens before delegating to the body parser. The actual parsed prefix
+/// tokens are passed to the generated syntax constructor so that <see cref="WritePrefix"/>
+/// emits the original source tokens.
 /// When a syntax node is constructed programmatically, use
 /// <see cref="DialectAttributePrefix.Synthetic"/> to create placeholder tokens.
 /// </para>

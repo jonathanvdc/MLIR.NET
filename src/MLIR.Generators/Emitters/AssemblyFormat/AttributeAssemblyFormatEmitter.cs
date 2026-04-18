@@ -10,7 +10,7 @@ using MLIR.Text;
 
 /// <summary>
 /// Generates the structured <c>DialectPrefixedAttributeValueSyntax</c> subclass and the
-/// <c>IBodyOnlyAttributeAssemblyFormat</c> implementation for an <c>AttrDef</c> with a
+/// <c>BodyOnlyAttributeAssemblyFormat</c> implementation for an <c>AttrDef</c> with a
 /// declarative <c>assemblyFormat</c> string.
 /// </summary>
 /// <remarks>
@@ -29,7 +29,7 @@ using MLIR.Text;
 ///   </item>
 ///   <item>
 ///     <c>{ClassName}AssemblyFormat</c> — a sealed implementation of
-///     <c>IBodyOnlyAttributeAssemblyFormat</c> with <c>TryParse</c>, <c>Bind</c>, and
+///     <c>BodyOnlyAttributeAssemblyFormat</c> with <c>TryParseBody</c>, <c>Bind</c>, and
 ///     <c>BuildCustomAssemblySyntax</c> methods derived from the format elements.
 ///   </item>
 /// </list>
@@ -201,7 +201,7 @@ internal static class AttributeAssemblyFormatEmitter
     }
 
     /// <summary>
-    /// Emits the <c>IBodyOnlyAttributeAssemblyFormat</c> implementation class for the given attribute.
+    /// Emits the <c>BodyOnlyAttributeAssemblyFormat</c> implementation class for the given attribute.
     /// The class name is <c>{className}AssemblyFormat</c>.
     /// </summary>
     public static void EmitAssemblyFormatClass(StringBuilder builder, AttributeModel attribute, string className)
@@ -211,14 +211,16 @@ internal static class AttributeAssemblyFormatEmitter
         var syntaxClassName = className + "Syntax";
         var formatClassName = className + "AssemblyFormat";
 
-        // IBodyOnlyAttributeAssemblyFormat signals to the parser that this format handles only
-        // the body after '#dialect.attr'; the parser strips the prefix before calling TryParse.
-        builder.AppendLine("internal sealed class " + formatClassName + " : IBodyOnlyAttributeAssemblyFormat");
+        builder.AppendLine("internal sealed class " + formatClassName + " : BodyOnlyAttributeAssemblyFormat");
         builder.AppendLine("{");
+        builder.AppendLine("    public " + formatClassName + "()");
+        builder.AppendLine("        : base(" + EmitterHelpers.ToCSharpStringLiteral(attribute.Name) + ")");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
         builder.AppendLine();
 
-        // TryParse
-        builder.AppendLine("    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)");
+        // TryParseBody
+        builder.AppendLine("    protected override ParseResult<AttributeValueSyntax> TryParseBody(AttributeParsingContext context, DialectAttributePrefix prefix)");
         builder.AppendLine("    {");
         EmitTryParseBody(builder, attribute, format, slots, syntaxClassName);
         builder.AppendLine("    }");
@@ -231,14 +233,14 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine("    }");
         builder.AppendLine();
 
-        builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
+        builder.AppendLine("    public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
         builder.AppendLine("    {");
         builder.AppendLine("        return BindValue(syntax, binder);");
         builder.AppendLine("    }");
         builder.AppendLine();
 
         // BuildCustomAssemblySyntax
-        builder.AppendLine("    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
+        builder.AppendLine("    public override AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
         builder.AppendLine("    {");
         EmitBuildCustomAssemblySyntaxBody(builder, attribute, slots, className, syntaxClassName);
         builder.AppendLine("    }");
@@ -323,7 +325,7 @@ internal static class AttributeAssemblyFormatEmitter
         }
 
         // Construct and return the syntax; pass prefix + all slots in order.
-        builder.Append("        return ParseResult<AttributeValueSyntax>.Success(new " + syntaxClassName + "(context.Prefix ?? DialectAttributePrefix.Synthetic(" + EmitterHelpers.ToCSharpStringLiteral(attribute.Name) + ")");
+        builder.Append("        return ParseResult<AttributeValueSyntax>.Success(new " + syntaxClassName + "(prefix");
         foreach (var slot in slots)
         {
             if (slot is LiteralTokenSlot lit)

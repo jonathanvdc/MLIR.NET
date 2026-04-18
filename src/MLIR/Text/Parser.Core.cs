@@ -481,6 +481,12 @@ public sealed partial class Parser
         return new Diagnostic(message, Current.Location);
     }
 
+    /// <summary>Bridges <see cref="CreateDiagnostic"/> for use by dialect parsing contexts.</summary>
+    internal Diagnostic CreateDiagnosticInternal(string message)
+    {
+        return CreateDiagnostic(message);
+    }
+
     /// <summary>Bridges <see cref="Is"/> for use by <see cref="DialectParsingContext"/>.</summary>
     internal bool IsToken(TokenKind kind)
     {

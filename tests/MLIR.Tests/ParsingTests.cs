@@ -355,6 +355,15 @@ public sealed class ParsingTests
         Assert.Equal("#builtin.unit", syntax.ToString());
     }
 
+    [Fact]
+    public void ParsesBuiltinUnitAttributeFromBodylessSelfIdentifyingSyntax()
+    {
+        var syntax = Parser.ParseAttributeValue("#builtin.unit");
+
+        Assert.IsType<PrefixedUnitAttributeValueSyntax>(syntax);
+        Assert.Equal("#builtin.unit", syntax.ToString());
+    }
+
     [Theory]
     [InlineData("1.5")]
     [InlineData("+1.5")]

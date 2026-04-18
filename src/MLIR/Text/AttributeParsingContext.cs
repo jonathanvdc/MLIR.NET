@@ -15,13 +15,11 @@ public sealed class AttributeParsingContext : DialectParsingContext
     internal AttributeParsingContext(
         Parser parser,
         DialectRegistry? dialectRegistry,
-        AttributeConstraintDefinition? expectedDefinition,
-        DialectAttributePrefix? prefix = null)
+        AttributeConstraintDefinition? expectedDefinition)
         : base(parser)
     {
         DialectRegistry = dialectRegistry;
         ExpectedDefinition = expectedDefinition;
-        Prefix = prefix;
     }
 
     /// <summary>
@@ -35,19 +33,12 @@ public sealed class AttributeParsingContext : DialectParsingContext
     public AttributeConstraintDefinition? ExpectedDefinition { get; }
 
     /// <summary>
-    /// Gets the <c>#dialect.mnemonic</c> prefix tokens that were consumed by the self-identifying
-    /// attribute parser before delegating to this format's <c>TryParse</c> method.
+    /// Creates a diagnostic at the current parser position.
     /// </summary>
-    /// <remarks>
-    /// This is set only for formats that implement
-    /// <see cref="Dialects.IBodyOnlyAttributeAssemblyFormat"/>.  The generated assembly format
-    /// class passes <c>context.Prefix</c> directly to the generated syntax constructor, so that
-    /// the actual parsed source tokens are stored on the syntax node and reproduced faithfully
-    /// by <c>WriteTo</c>.  For programmatic construction, use
-    /// <see cref="Syntax.DialectAttributePrefix.Synthetic"/> to create placeholder tokens.
-    /// When <see langword="null"/>, the format is not body-only or the prefix was not consumed.
-    /// </remarks>
-    public DialectAttributePrefix? Prefix { get; }
+    public Diagnostic CreateDiagnostic(string message)
+    {
+        return Parser.CreateDiagnosticInternal(message);
+    }
 
     /// <summary>
     /// Tries to match a string literal token and returns it as a

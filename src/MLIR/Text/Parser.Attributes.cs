@@ -22,8 +22,10 @@ public sealed partial class Parser
     private static readonly DenseIntegerArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for elements attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for unit literal attributes. Stateless and safe to share across parse operations.</summary>
+    /// <summary>Cached singleton format handler for expected unit attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly UnitLiteralAttributeAssemblyFormat UnitLiteralAttributeAssemblyFormat = new();
+    /// <summary>Cached singleton format handler for bare unit literals in default parsing. Stateless and safe to share across parse operations.</summary>
+    private static readonly UnitLiteralAttributeAssemblyFormat BareUnitLiteralAttributeAssemblyFormat = new(parseSelfIdentifyingSyntax: false);
 
     private enum AttributeValueParsingMode
     {
@@ -93,18 +95,14 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        if (Is(TokenKind.Hash))
-        {
-            return TryParseSelfIdentifyingAttribute(expectedDefinition);
-        }
-
-        if (expectedDefinition.AssemblyFormat is IBodyOnlyAttributeAssemblyFormat)
+        var result = TryParseCustomAttribute(expectedDefinition);
+        if (result.IsNoMatch)
         {
             return ParseResult<AttributeValueSyntax>.Failure(
-                CreateDiagnostic($"Expected '#{expectedDefinition.Name}'."));
+                CreateDiagnostic($"Expected attribute value for '{expectedDefinition.Name}'."));
         }
 
-        return TryParseCustomAttribute(expectedDefinition);
+        return result;
     }
 
     private ParseResult<AttributeValueSyntax> TryParseDefaultAttributeValue(
@@ -185,7 +183,7 @@ public sealed partial class Parser
         _ = mode;
         _ = allowTypedSuffix;
         _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(expectedDefinition, UnitLiteralAttributeAssemblyFormat);
+        return TryParseAttributeAssemblyFormat(expectedDefinition, BareUnitLiteralAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseIntegerAttributeValue(
@@ -443,23 +441,22 @@ public sealed partial class Parser
     /// and looking the name up in the dialect registry. Returns <see cref="ParseOutcome.NoMatch"/> when no
     /// registry is available or the name is not registered.
     /// </summary>
-    /// <remarks>
-    /// When the dialect's custom format is responsible only for the body of the attribute (i.e. the
-    /// tokens that appear after <c>#dialect.attr</c>), the method consumes the <c>#</c> and the name
-    /// token before delegating to the format so that the format sees only what it needs to parse.
-    /// The result is wrapped in a <see cref="Syntax.DialectPrefixedAttributeValueSyntax"/> so that the
-    /// full <c>#name body</c> form is re-emitted correctly on the print path.
-    /// If the format does not match, the tokens are put back via checkpoint reset.
-    /// </remarks>
     private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttribute()
     {
-        if (dialectRegistry == null)
+        var canonicalName = TryPeekAttributeDefinitionName();
+        if (canonicalName == null)
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        var canonicalName = TryPeekAttributeDefinitionName();
-        if (canonicalName == null)
+        if (canonicalName == "builtin.unit")
+        {
+            return TryParseAttributeAssemblyFormat(
+                new AttributeConstraintDefinition("builtin.unit", UnitLiteralAttributeAssemblyFormat),
+                UnitLiteralAttributeAssemblyFormat);
+        }
+
+        if (dialectRegistry == null)
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
@@ -469,70 +466,13 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        return TryParseSelfIdentifyingAttribute(definition);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttribute(AttributeConstraintDefinition definition)
-    {
-        var canonicalName = TryPeekAttributeDefinitionName();
-        if (canonicalName == null)
-        {
-            return ParseResult<AttributeValueSyntax>.Failure(CreateDiagnostic("Expected an attribute name after '#'."));
-        }
-
-        var assemblyFormat = definition.AssemblyFormat;
-        if (assemblyFormat is IBodylessSelfIdentifyingAttributeAssemblyFormat bodylessFormat)
-        {
-            if (!bodylessFormat.CanParseSelfIdentifyingAttribute(canonicalName))
-            {
-                return ParseResult<AttributeValueSyntax>.Failure(
-                    CreateDiagnostic($"Expected '#{bodylessFormat.SelfIdentifyingAttributeName}' but found '#{canonicalName}'."));
-            }
-
-            var bodylessHashToken = ConsumeToken();
-            var bodylessNameToken = ConsumeToken();
-            return ParseResult<AttributeValueSyntax>.Success(
-                bodylessFormat.CreateSelfIdentifyingSyntax(new DialectAttributePrefix(bodylessHashToken, bodylessNameToken)));
-        }
-
-        if (!string.Equals(canonicalName, definition.Name, StringComparison.Ordinal))
-        {
-            return ParseResult<AttributeValueSyntax>.Failure(
-                CreateDiagnostic($"Expected '#{definition.Name}' but found '#{canonicalName}'."));
-        }
-
-        if (assemblyFormat == null)
+        if (definition.AssemblyFormat == null)
         {
             // No custom format: fall through to raw syntax (the attribute will be bound later).
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        if (assemblyFormat is not IBodyOnlyAttributeAssemblyFormat)
-        {
-            // Legacy format that consumes '#name' itself: delegate without stripping the prefix.
-            return TryParseCustomAttribute(definition);
-        }
-
-        // Body-only format (generated from AttrDef): consume '#' and name, then delegate.
-        // The format sees only the body (e.g. `<"NULL">`).
-        // Both consumed tokens are passed to TryParse via the context's Prefix property so
-        // that the generated syntax class can store and replay the original source tokens.
-        var outerCheckpoint = Mark();
-        var hashToken = ConsumeToken();   // '#'
-        var nameToken = ConsumeToken();   // 'dialect.attr' (lexed as a single identifier with the dot)
-        var prefix = new DialectAttributePrefix(hashToken, nameToken);
-
-        var result = assemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, definition, prefix));
-        if (result.IsSuccess)
-        {
-            // The generated syntax class is itself a DialectPrefixedAttributeValueSyntax and
-            // already stores the prefix; no additional wrapping is needed.
-            return result;
-        }
-
-        // Format returned NoMatch or Error — restore position to before '#name'.
-        Reset(outerCheckpoint);
-        return result.IsError ? result : ParseResult<AttributeValueSyntax>.NoMatch();
+        return TryParseCustomAttribute(definition);
     }
 
     /// <summary>

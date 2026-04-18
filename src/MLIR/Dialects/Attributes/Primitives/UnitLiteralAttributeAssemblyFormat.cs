@@ -11,44 +11,47 @@ using MLIR.Transforms;
 /// <summary>
 /// Parses unit attribute literals.
 /// </summary>
-public sealed class UnitLiteralAttributeAssemblyFormat : IBodylessSelfIdentifyingAttributeAssemblyFormat
+public sealed class UnitLiteralAttributeAssemblyFormat : BodylessSelfIdentifyingAttributeAssemblyFormat
 {
     private const string BuiltinUnitAttributeName = "builtin.unit";
+    private readonly bool parseSelfIdentifyingSyntax;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UnitLiteralAttributeAssemblyFormat"/> class.
+    /// </summary>
+    public UnitLiteralAttributeAssemblyFormat(bool parseSelfIdentifyingSyntax = true)
+        : base(BuiltinUnitAttributeName)
+    {
+        this.parseSelfIdentifyingSyntax = parseSelfIdentifyingSyntax;
+    }
 
     /// <inheritdoc/>
-    public string SelfIdentifyingAttributeName => BuiltinUnitAttributeName;
-
-    /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public override ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
         if (context.TryMatch(TokenKind.Identifier, out var token) && token.Text == "unit")
         {
             return ParseResult<AttributeValueSyntax>.Success(new UnitAttributeValueSyntax(token));
         }
 
-        return ParseResult<AttributeValueSyntax>.NoMatch();
+        return parseSelfIdentifyingSyntax
+            ? base.TryParse(context)
+            : ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     /// <inheritdoc/>
-    public bool CanParseSelfIdentifyingAttribute(string name)
-    {
-        return name == SelfIdentifyingAttributeName;
-    }
-
-    /// <inheritdoc/>
-    public AttributeValueSyntax CreateSelfIdentifyingSyntax(DialectAttributePrefix prefix)
+    protected override AttributeValueSyntax CreateSelfIdentifyingSyntax(DialectAttributePrefix prefix)
     {
         return new PrefixedUnitAttributeValueSyntax(prefix);
     }
 
     /// <inheritdoc/>
-    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
         return new UnitAttr(syntax);
     }
 
     /// <inheritdoc/>
-    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
+    public override AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)
     {
         return attribute.Syntax ?? new UnitAttributeValueSyntax(TokenFactory.Identifier("unit"));
     }

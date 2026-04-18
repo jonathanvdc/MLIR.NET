@@ -473,9 +473,9 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
         // Assembly format class
         AssertContainsAll(
             registrationSource,
-            // Body-only marker so the parser strips '#name' before calling TryParse
-            "internal sealed class FooAttrAssemblyFormat : IBodyOnlyAttributeAssemblyFormat",
-            "ParseResult<AttributeValueSyntax> TryParse",
+            // Body-only base class owns '#name' parsing before calling TryParseBody.
+            "internal sealed class FooAttrAssemblyFormat : BodyOnlyAttributeAssemblyFormat",
+            "ParseResult<AttributeValueSyntax> TryParseBody",
             // StringRefParameter.csharpParser delegates to the string-literal helper
             "context.TryParseStringLiteralSyntax()",
             "BindValue(AttributeValueSyntax syntax, Binder binder)",

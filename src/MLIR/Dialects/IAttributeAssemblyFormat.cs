@@ -36,52 +36,85 @@ public interface IAttributeAssemblyFormat
 }
 
 /// <summary>
-/// Marker interface for attribute assembly format implementations that handle only the
-/// body portion of the attribute syntax, after the <c>#dialect.attr</c> prefix has been
-/// consumed by the parser.
+/// Base class for attribute assembly formats whose custom grammar handles only
+/// the body after a self-identifying <c>#dialect.attr</c> prefix.
 /// </summary>
-/// <remarks>
-/// <para>
-/// When the parser encounters <c>#dialect.attr body</c> and the registered format implements
-/// this interface, the parser consumes the <c>#</c> and name identifier tokens before
-/// delegating to <see cref="IAttributeAssemblyFormat.TryParse"/>.  The returned syntax is
-/// wrapped in a <see cref="Syntax.DialectPrefixedAttributeValueSyntax"/> so that the printer
-/// can reproduce the full <c>#name body</c> form.
-/// </para>
-/// <para>
-/// Hand-written formats that consume <c>#name</c> themselves should implement only
-/// <see cref="IAttributeAssemblyFormat"/> and leave this marker absent.
-/// </para>
-/// </remarks>
-public interface IBodyOnlyAttributeAssemblyFormat : IAttributeAssemblyFormat
+public abstract class BodyOnlyAttributeAssemblyFormat(string attributeName) : IAttributeAssemblyFormat
 {
+    /// <summary>
+    /// Gets the self-identifying attribute name accepted by this format.
+    /// </summary>
+    public string AttributeName { get; } = attributeName;
+
+    /// <summary>
+    /// Parses the full self-identifying attribute form, consuming and validating
+    /// the prefix before delegating body parsing to <see cref="TryParseBody"/>.
+    /// </summary>
+    public virtual ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    {
+        if (!context.TryMatch(TokenKind.Hash, out var hashToken))
+        {
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        var nameTokenResult = context.Expect(TokenKind.Identifier, "Expected an attribute name after '#'.");
+        if (!nameTokenResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(nameTokenResult.Diagnostic!);
+        }
+
+        var nameToken = nameTokenResult.Value;
+        if (!string.Equals(nameToken.Text, AttributeName, System.StringComparison.Ordinal))
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(
+                context.CreateDiagnostic($"Expected '#{AttributeName}' but found '#{nameToken.Text}'."));
+        }
+
+        var result = TryParseBody(context, new DialectAttributePrefix(hashToken, nameToken));
+        if (result.IsNoMatch)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(
+                context.CreateDiagnostic($"Expected body for '#{AttributeName}'."));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Parses the custom body after <paramref name="prefix"/> has been consumed and validated.
+    /// </summary>
+    protected abstract ParseResult<AttributeValueSyntax> TryParseBody(
+        AttributeParsingContext context,
+        DialectAttributePrefix prefix);
+
+    /// <summary>
+    /// Interprets the supplied attribute-value syntax into a semantic attribute value.
+    /// </summary>
+    public abstract AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder);
+
+    /// <summary>
+    /// Builds a custom concrete syntax tree for the supplied attribute value.
+    /// </summary>
+    public abstract AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context);
 }
 
 /// <summary>
-/// Attribute assembly format capability for self-identifying syntax with no body
-/// after the <c>#dialect.attr</c> prefix.
+/// Base class for self-identifying attribute formats that have no body after
+/// the <c>#dialect.attr</c> prefix.
 /// </summary>
-/// <remarks>
-/// The parser owns prefix recognition and validation.  Formats implementing this
-/// interface provide the small amount of format-specific knowledge needed to decide
-/// whether a consumed prefix denotes the same logical attribute and to build the
-/// corresponding prefix-preserving syntax node.
-/// </remarks>
-public interface IBodylessSelfIdentifyingAttributeAssemblyFormat : IAttributeAssemblyFormat
+public abstract class BodylessSelfIdentifyingAttributeAssemblyFormat(string attributeName)
+    : BodyOnlyAttributeAssemblyFormat(attributeName)
 {
-    /// <summary>
-    /// Gets the self-identifying attribute name accepted by this bodyless form.
-    /// </summary>
-    string SelfIdentifyingAttributeName { get; }
-
-    /// <summary>
-    /// Returns <see langword="true"/> when this format can parse the supplied
-    /// self-identifying attribute name as its bodyless form.
-    /// </summary>
-    bool CanParseSelfIdentifyingAttribute(string name);
+    /// <inheritdoc/>
+    protected sealed override ParseResult<AttributeValueSyntax> TryParseBody(
+        AttributeParsingContext context,
+        DialectAttributePrefix prefix)
+    {
+        return ParseResult<AttributeValueSyntax>.Success(CreateSelfIdentifyingSyntax(prefix));
+    }
 
     /// <summary>
     /// Builds syntax for the already-consumed self-identifying attribute prefix.
     /// </summary>
-    AttributeValueSyntax CreateSelfIdentifyingSyntax(DialectAttributePrefix prefix);
+    protected abstract AttributeValueSyntax CreateSelfIdentifyingSyntax(DialectAttributePrefix prefix);
 }
