@@ -115,7 +115,7 @@ public sealed partial class Parser
     {
         if (Is(TokenKind.LBracket))
         {
-            return TryParseArrayAttributeValueSyntaxResult().Map<AttributeValueSyntax>(static syntax => syntax);
+            return TryParseArrayAttributeValue().Map<AttributeValueSyntax>(static syntax => syntax);
         }
 
         if (Is(TokenKind.LBrace))
@@ -470,4 +470,20 @@ public sealed partial class Parser
             "Expected '{' to start the attribute dictionary.",
             "Expected '}' to close the attribute dictionary.");
     }
+
+    /// <summary>
+    /// Parses an array attribute value of the form <c>[ elem, elem, ... ]</c>.
+    /// Each element is parsed as a generic attribute value stopping before <c>,</c> and <c>]</c>.
+    /// </summary>
+    private ParseResult<ArrayAttributeValueSyntax> TryParseArrayAttributeValue()
+    {
+        return TryParseRequiredCommaSeparatedDelimitedList(
+            TokenKind.LBracket,
+            TokenKind.RBracket,
+            () => TryParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
+            "Expected '[' to start the array attribute.",
+            "Expected ']' to close the array attribute.")
+            .Map(static list => new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value));
+    }
+
 }

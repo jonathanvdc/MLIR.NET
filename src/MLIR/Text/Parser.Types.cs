@@ -11,21 +11,6 @@ using MLIR.Syntax.Types.Primitives;
 public sealed partial class Parser
 {
     /// <summary>
-    /// Parses an array attribute value of the form <c>[ elem, elem, ... ]</c>.
-    /// Each element is parsed as a generic attribute value stopping before <c>,</c> and <c>]</c>.
-    /// </summary>
-    private ParseResult<ArrayAttributeValueSyntax> TryParseArrayAttributeValueSyntaxResult()
-    {
-        return TryParseRequiredCommaSeparatedDelimitedList(
-            TokenKind.LBracket,
-            TokenKind.RBracket,
-            () => TryParseAttributeValueSyntax(false, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
-            "Expected '[' to start the array attribute.",
-            "Expected ']' to close the array attribute.")
-            .Map(static list => new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value));
-    }
-
-    /// <summary>
     /// Creates a minimal <see cref="AttributeConstraintDefinition"/> for a built-in attribute type
     /// identified by <paramref name="name"/> only (no assembly format). Used to pass type context to
     /// assembly format handlers for built-in types such as <c>DenseArrayAttr</c> and <c>ElementsAttr</c>.
