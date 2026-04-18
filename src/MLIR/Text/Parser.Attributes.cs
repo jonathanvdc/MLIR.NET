@@ -492,7 +492,7 @@ public sealed partial class Parser
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        if (!(definition.AssemblyFormat is IBodyOnlyAttributeAssemblyFormat))
+        if (definition.AssemblyFormat is not IBodyOnlyAttributeAssemblyFormat)
         {
             // Legacy format that consumes '#name' itself: delegate without stripping the prefix.
             return TryParseCustomAttribute(definition);
