@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
@@ -314,12 +313,49 @@ public readonly struct ApInt : IEquatable<ApInt>
     }
 
     /// <summary>
+    /// Compares this value with <paramref name="other"/> using unsigned interpretation.
+    /// </summary>
+    /// <param name="other">The value to compare against.</param>
+    /// <returns>
+    /// A negative value if this value is less than <paramref name="other"/>,
+    /// zero if they are equal, or a positive value if this value is greater.
+    /// </returns>
+    public int CompareUnsigned(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return value.CompareTo(other.value);
+    }
+
+    /// <summary>
+    /// Compares this value with <paramref name="other"/> using signed two's-complement interpretation.
+    /// </summary>
+    /// <param name="other">The value to compare against.</param>
+    /// <returns>
+    /// A negative value if this value is less than <paramref name="other"/>,
+    /// zero if they are equal, or a positive value if this value is greater.
+    /// </returns>
+    public int CompareSigned(ApInt other)
+    {
+        EnsureCompatibleWidth(other);
+        return ToBigIntegerSigned().CompareTo(other.ToBigIntegerSigned());
+    }
+
+    /// <summary>
+    /// Gets a comparer that orders <see cref="ApInt"/> values using unsigned interpretation.
+    /// </summary>
+    public static IComparer<ApInt> UnsignedComparer { get; } = new UnsignedApIntComparer();
+
+    /// <summary>
+    /// Gets a comparer that orders <see cref="ApInt"/> values using signed two's-complement interpretation.
+    /// </summary>
+    public static IComparer<ApInt> SignedComparer { get; } = new SignedApIntComparer();
+
+    /// <summary>
     /// Determines whether this value is less than <paramref name="other"/> under unsigned interpretation.
     /// </summary>
     public bool ULessThan(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return value < other.value;
+        return CompareUnsigned(other) < 0;
     }
 
     /// <summary>
@@ -327,8 +363,7 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     public bool ULessThanOrEqual(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return value <= other.value;
+        return CompareUnsigned(other) <= 0;
     }
 
     /// <summary>
@@ -336,8 +371,7 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     public bool UGreaterThan(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return value > other.value;
+        return CompareUnsigned(other) > 0;
     }
 
     /// <summary>
@@ -345,8 +379,7 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     public bool UGreaterThanOrEqual(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return value >= other.value;
+        return CompareUnsigned(other) >= 0;
     }
 
     /// <summary>
@@ -354,8 +387,7 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     public bool SLessThan(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return ToBigIntegerSigned() < other.ToBigIntegerSigned();
+        return CompareSigned(other) < 0;
     }
 
     /// <summary>
@@ -363,8 +395,7 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     public bool SLessThanOrEqual(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return ToBigIntegerSigned() <= other.ToBigIntegerSigned();
+        return CompareSigned(other) <= 0;
     }
 
     /// <summary>
@@ -372,8 +403,7 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     public bool SGreaterThan(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return ToBigIntegerSigned() > other.ToBigIntegerSigned();
+        return CompareSigned(other) > 0;
     }
 
     /// <summary>
@@ -381,8 +411,7 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// </summary>
     public bool SGreaterThanOrEqual(ApInt other)
     {
-        EnsureCompatibleWidth(other);
-        return ToBigIntegerSigned() >= other.ToBigIntegerSigned();
+        return CompareSigned(other) >= 0;
     }
 
     /// <summary>
@@ -907,6 +936,16 @@ public readonly struct ApInt : IEquatable<ApInt>
     /// the intended interpretation must be explicit.
     /// </remarks>
     public override string ToString() => ToStringUnsigned();
+
+    private sealed class UnsignedApIntComparer : IComparer<ApInt>
+    {
+        public int Compare(ApInt x, ApInt y) => x.CompareUnsigned(y);
+    }
+
+    private sealed class SignedApIntComparer : IComparer<ApInt>
+    {
+        public int Compare(ApInt x, ApInt y) => x.CompareSigned(y);
+    }
 
     private static int ValidateBitWidth(int bitWidth)
     {

@@ -23,6 +23,32 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
     /// </summary>
     public abstract TokenKind SeparatorTokenKind { get; }
 
+    private readonly (string Name, ApInt Value)[] orderedNames =
+        names.Select(pair => (Name: pair.Value, Value: pair.Key))
+             .OrderByDescending(pair => pair.Value.PopCount()) // Sort by number of bits set, so that we match larger flags first when printing.
+             .ThenByDescending(pair => pair.Value, ApInt.UnsignedComparer) // For flags with the same number of bits set, sort by value to ensure deterministic ordering.
+             .ToArray();
+
+    private AttributeValueSyntax CreateEnumSyntax(IReadOnlyList<Token> elements, bool useAngleBrackets)
+    {
+        if (useAngleBrackets)
+        {
+            return new DelimitedEnumAttributeValueSyntax(
+                new DelimitedSyntaxList<Token>(
+                    TokenFactory.LessThan(),
+                    elements,
+                    Enumerable.Repeat(CreateSeparatorToken(), elements.Count - 1).ToList(),
+                    TokenFactory.GreaterThan()));
+        }
+        else
+        {
+            return new UndelimitedEnumAttributeValueSyntax(
+                new SeparatedSyntaxList<Token>(
+                    elements,
+                    Enumerable.Repeat(CreateSeparatorToken(), elements.Count - 1).ToList()));
+        }
+    }
+
     private Token CreateSeparatorToken()
     {
         return SeparatorTokenKind switch
@@ -77,56 +103,26 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
             var flags = EnumToInt(enumAttribute);
             var useAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;
 
-            // Check for an exact-value name first (covers group aliases such as 'xy' for X|Y)
-            // before attempting greedy bit-by-bit decomposition.
-            if (Names.TryGetValue(flags, out var exactName))
-            {
-                var exactToken = TokenFactory.Identifier(exactName);
-                if (useAngleBrackets)
-                {
-                    return new DelimitedEnumAttributeValueSyntax(
-                        new DelimitedSyntaxList<Token>(
-                            TokenFactory.LessThan(),
-                            [exactToken],
-                            Array.Empty<Token>(),
-                            TokenFactory.GreaterThan()));
-                }
-                else
-                {
-                  return new UndelimitedEnumAttributeValueSyntax(
-                      new SeparatedSyntaxList<Token>(
-                          [exactToken],
-                          Array.Empty<Token>()));
-                }
-            }
-
             var parts = new List<Token>();
-            foreach (var pair in Names)
+            foreach (var (name, value) in orderedNames)
             {
-                var flagValue = reverseNames[pair.Value];
-                if (!flagValue.IsZero && (flags & flagValue) == flagValue)
+                if (flags == value)
                 {
-                    parts.Add(TokenFactory.Identifier(pair.Value));
-                    flags &= ~flagValue;
+                    parts.Add(TokenFactory.Identifier(name));
+                    flags = zero;
+                    break;
+                }
+
+                if (!value.IsZero && (flags & value) == value)
+                {
+                    parts.Add(TokenFactory.Identifier(name));
+                    flags &= ~value;
                 }
             }
 
             if (!flags.IsZero)
             {
-                if (useAngleBrackets)
-                {
-                    return new DelimitedEnumAttributeValueSyntax(
-                        new DelimitedSyntaxList<Token>(
-                            TokenFactory.LessThan(),
-                            [TokenFactory.Integer(flags.ToString())],
-                            Array.Empty<Token>(),
-                            TokenFactory.GreaterThan()));
-                }
-
-                return new UndelimitedEnumAttributeValueSyntax(
-                    new SeparatedSyntaxList<Token>(
-                        [TokenFactory.Integer(flags.ToString())],
-                        Array.Empty<Token>()));
+                return CreateEnumSyntax([TokenFactory.Integer(flags.ToString())], useAngleBrackets);
             }
 
             if (parts.Count == 0)
@@ -138,38 +134,11 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
                 }
                 else
                 {
-                    // No name for zero value, just return "0".
-                    if (useAngleBrackets)
-                    {
-                        return new DelimitedEnumAttributeValueSyntax(
-                            new DelimitedSyntaxList<Token>(
-                                TokenFactory.LessThan(),
-                                [TokenFactory.Integer("0")],
-                                Array.Empty<Token>(),
-                                TokenFactory.GreaterThan()));
-                    }
-
-                    return new UndelimitedEnumAttributeValueSyntax(
-                        new SeparatedSyntaxList<Token>(
-                            [TokenFactory.Integer("0")],
-                            Array.Empty<Token>()));
+                    return CreateEnumSyntax([TokenFactory.Integer("0")], useAngleBrackets);
                 }
             }
 
-            if (useAngleBrackets)
-            {
-                return new DelimitedEnumAttributeValueSyntax(
-                    new DelimitedSyntaxList<Token>(
-                        TokenFactory.LessThan(),
-                        parts,
-                        Enumerable.Repeat(CreateSeparatorToken(), parts.Count - 1).ToList(),
-                        TokenFactory.GreaterThan()));
-            }
-
-            return new UndelimitedEnumAttributeValueSyntax(
-                new SeparatedSyntaxList<Token>(
-                    parts,
-                    Enumerable.Repeat(CreateSeparatorToken(), parts.Count - 1).ToList()));
+            return CreateEnumSyntax(parts, useAngleBrackets);
         }
         else
         {
