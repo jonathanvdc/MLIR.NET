@@ -43,13 +43,8 @@ public sealed partial class Parser
         var parsers = GetAttributeValueParserSequence(expectedDefinition);
         for (var i = 0; i < parsers.Length; i++)
         {
-            var mark = Mark();
             var result = parsers[i](mode, expectedDefinition, allowTypedSuffix, stopBefore);
-            if (result.IsNoMatch)
-            {
-                Reset(mark);
-            }
-            else
+            if (!result.IsNoMatch)
             {
                 return WrapTypedAttributeValueSyntax(result, allowTypedSuffix, mode, stopBefore);
             }
@@ -99,7 +94,6 @@ public sealed partial class Parser
         TryParseNumericAttributeValue,
         TryParseBooleanAttributeValue,
         TryParseUnitAttributeValue
-
     ];
 
     private ParseResult<AttributeValueSyntax> TryParseExpectedAttributeValue(
@@ -147,10 +141,9 @@ public sealed partial class Parser
         TokenKind[] stopBefore)
     {
         _ = mode;
-        _ = expectedDefinition;
         _ = allowTypedSuffix;
         _ = stopBefore;
-        return StringLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
+        return TryParseAttributeAssemblyFormat(expectedDefinition, StringLiteralAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseBooleanAttributeValue(
@@ -160,10 +153,9 @@ public sealed partial class Parser
         TokenKind[] stopBefore)
     {
         _ = mode;
-        _ = expectedDefinition;
         _ = allowTypedSuffix;
         _ = stopBefore;
-        return BooleanLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
+        return TryParseAttributeAssemblyFormat(expectedDefinition, BooleanLiteralAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseUnitAttributeValue(
@@ -173,10 +165,9 @@ public sealed partial class Parser
         TokenKind[] stopBefore)
     {
         _ = mode;
-        _ = expectedDefinition;
         _ = allowTypedSuffix;
         _ = stopBefore;
-        return UnitLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
+        return TryParseAttributeAssemblyFormat(expectedDefinition, UnitLiteralAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseNumericAttributeValue(
