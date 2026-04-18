@@ -214,7 +214,7 @@ internal static class AttributeEmitter
 
         // EnumFromInt – creates the typed attribute from a parsed integer and preserves syntax.
         builder.AppendLine("    public override " + attributeClassName + " EnumFromInt(global::MLIR.Numerics.ApInt value, global::MLIR.Syntax.AttributeValueSyntax syntax)");
-        builder.AppendLine("        => new " + attributeClassName + "(" + infoClassName + ".TryFromInteger(value, out var enumValue) ? enumValue : default, syntax);");
+        builder.AppendLine("        => new " + attributeClassName + "(" + infoClassName + ".FromInteger(value), syntax);");
         builder.AppendLine();
 
         // EnumToInt – returns the underlying integer for printing.

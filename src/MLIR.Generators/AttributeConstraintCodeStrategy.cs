@@ -822,7 +822,7 @@ internal static class AttributeConstraintCodeStrategyFactory
             enumModel,
             enumTypeName,
             "global::MLIR.Dialects.Builtin.IntegerAttr",
-            AttributeValueConversion.FromExpression(EnumEmitter.GetIntegerToEnumExpression(enumModel, "${self}.Value", "default")),
+            AttributeValueConversion.FromExpression(EnumEmitter.GetIntegerToEnumExpression(enumModel, "${self}.Value")),
             AttributeValueConversion.FromExpression(EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "${value}", "null")),
             emitConstraintAssemblyFormat: true);
     }

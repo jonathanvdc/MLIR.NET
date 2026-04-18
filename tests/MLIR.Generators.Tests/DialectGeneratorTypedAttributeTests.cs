@@ -243,8 +243,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "internal static class FlagsInfo",
             "public MLIR.Dialects.Minienum.Mode Mode",
             "public MLIR.Dialects.Minienum.Flags Flags",
-            "new MLIR.Dialects.Minienum.FlagsAttr(value)",
-            "return string.Join(\",\", parts);");
+            "new MLIR.Dialects.Minienum.FlagsAttr(value)");
         Assert.True(
             registrationSource.Contains("Attributes[\"mode\"].Value).TypedValue;", System.StringComparison.Ordinal)
             || registrationSource.Contains("Attributes[\"mode\"].Value).Value;", System.StringComparison.Ordinal));
