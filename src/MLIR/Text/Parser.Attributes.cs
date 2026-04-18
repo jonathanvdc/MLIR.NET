@@ -36,7 +36,7 @@ public sealed partial class Parser
         AttributeConstraintDefinition? expectedDefinition,
         params TokenKind[] stopBefore)
     {
-        var allowTypedSuffix = ShouldAllowTypedAttributeSuffix(mode, stopBefore);
+        var allowTypedSuffix = ShouldAllowTypedAttributeSuffix(stopBefore);
 
         var parsers = GetAttributeValueParserSequence(expectedDefinition);
         for (var i = 0; i < parsers.Length; i++)
@@ -74,9 +74,8 @@ public sealed partial class Parser
         bool allowTypedSuffix,
         TokenKind[] stopBefore);
 
-    private static bool ShouldAllowTypedAttributeSuffix(AttributeValueParsingMode mode, TokenKind[] stopBefore)
+    private static bool ShouldAllowTypedAttributeSuffix(TokenKind[] stopBefore)
     {
-        _ = mode;
         return !ContainsTokenKind(stopBefore, TokenKind.Colon);
     }
 
