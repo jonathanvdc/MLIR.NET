@@ -537,49 +537,43 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
 
     private void EmitEnumConstraintAssemblyFormat(StringBuilder builder)
     {
-        var localEnumTypeName = EnumHelpers.GetCSharpEnumTypeName(enumModel);
+        var formatTypeName = EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(recordName);
+        var infoClassName = EnumEmitter.GetEnumInfoClassName(enumModel);
 
-        builder.AppendLine("internal sealed class " + EnumEmitter.GetEnumConstraintAssemblyFormatTypeName(recordName) + " : IAttributeAssemblyFormat");
+        // Pure enum constraints store as IntegerAttr so the typed parameter for the runtime
+        // base is IntegerAttr. Angle brackets are never used for inline operation-attribute
+        // enum syntax (no angle brackets in declarative assembly format).
+        var baseTypeName = enumModel.IsBitEnum
+            ? "global::MLIR.Dialects.Attributes.FlagsEnumAttributeAssemblyFormat<global::MLIR.Dialects.Builtin.IntegerAttr>"
+            : "global::MLIR.Dialects.Attributes.SimpleEnumAttributeAssemblyFormat<global::MLIR.Dialects.Builtin.IntegerAttr>";
+
+        builder.AppendLine("internal sealed class " + formatTypeName);
+        builder.AppendLine("    : " + baseTypeName);
         builder.AppendLine("{");
-        EnumEmitter.EmitParseEnumValueHelperMethod(
-            builder,
-            enumModel,
-            localEnumTypeName,
-            "    ",
-            "private static",
-            includeIntegerLiteralSyntaxFallback: true,
-            allowBitEnumAngleBrackets: false);
-        EnumEmitter.EmitAssemblyFormatTryParseMethod(
-            builder,
-            enumModel,
-            "    ",
-            allowBitEnumAngleBrackets: false);
-        builder.AppendLine("    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        return " + EnumEmitter.GetEnumToIntegerAttrExpression(enumModel, "ParseEnumValue(syntax)", "syntax") + ";");
-        builder.AppendLine("    }");
+        builder.AppendLine("    public " + formatTypeName + "()");
+        builder.AppendLine("        : base(" + infoClassName + ".NamesByInteger) { }");
         builder.AppendLine();
-        builder.AppendLine("    public AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr integerAttr");
-        builder.AppendLine("            && " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".TryFromInteger(integerAttr.Value, out var enumValue))");
-        builder.AppendLine("        {");
-        builder.AppendLine("            var text = " + EnumEmitter.GetEnumInfoClassName(enumModel) + ".Format(enumValue);");
-        builder.AppendLine("            return new MLIR.Syntax.RawAttributeValueSyntax(new MLIR.Syntax.RawSyntaxText(text));");
-        builder.AppendLine("        }");
+        builder.AppendLine("    public override int BitWidth => " + enumModel.Bitwidth + ";");
+        builder.AppendLine("    public override global::MLIR.Dialects.Attributes.EnumAngleBracketRequirement AngleBracketRequirement");
+        builder.AppendLine("        => global::MLIR.Dialects.Attributes.EnumAngleBracketRequirement.Prohibited;");
         builder.AppendLine();
-        builder.AppendLine("        if (attribute.Syntax != null)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return attribute.Syntax;");
-        builder.AppendLine("        }");
+
+        if (enumModel.IsBitEnum)
+        {
+            var sepKind = EnumEmitter.GetSeparatorTokenKind(enumModel);
+            builder.AppendLine("    public override global::MLIR.Text.TokenKind SeparatorTokenKind");
+            builder.AppendLine("        => global::MLIR.Text." + sepKind + ";");
+            builder.AppendLine();
+        }
+
+        // EnumFromInt – wraps the parsed integer in an IntegerAttr with the correct storage type.
+        builder.AppendLine("    public override global::MLIR.Dialects.Builtin.IntegerAttr EnumFromInt(global::MLIR.Numerics.ApInt value, global::MLIR.Syntax.AttributeValueSyntax syntax)");
+        builder.AppendLine("        => new global::MLIR.Dialects.Builtin.IntegerAttr(" + EnumEmitter.GetIntegerTypeFactoryExpression(enumModel.Bitwidth) + ", value, syntax);");
         builder.AppendLine();
-        builder.AppendLine("        if (attribute is global::MLIR.Dialects.Builtin.IntegerAttr fallbackIntegerAttr)");
-        builder.AppendLine("        {");
-        builder.AppendLine("            return context.BuildAttributeValueSyntax(fallbackIntegerAttr);");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        throw new global::System.InvalidOperationException(\"Enum constraints require IntegerAttr storage for custom assembly emission, but received \" + attribute.GetType().FullName + \".\");");
-        builder.AppendLine("    }");
+
+        // EnumToInt – reads the integer stored in the IntegerAttr for printing.
+        builder.AppendLine("    public override global::MLIR.Numerics.ApInt EnumToInt(global::MLIR.Dialects.Builtin.IntegerAttr value)");
+        builder.AppendLine("        => value.Value;");
         builder.AppendLine("}");
     }
 }

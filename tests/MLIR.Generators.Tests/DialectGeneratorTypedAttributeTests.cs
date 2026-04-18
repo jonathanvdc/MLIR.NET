@@ -295,7 +295,11 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"mask\"].Value).Value",
             "SetAttribute(\"predicate\", new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)value), null))",
             "SetAttribute(\"mask\", new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)value), null))",
-            "return new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)ParseEnumValue(syntax)), syntax)");
+            // Constraint assembly format classes now inherit from the shared runtime base.
+            "MyArithCmpPredicateConstraintAttributeValueAssemblyFormat",
+            "MyArithCmpMaskConstraintAttributeValueAssemblyFormat",
+            "SimpleEnumAttributeAssemblyFormat<global::MLIR.Dialects.Builtin.IntegerAttr>",
+            "FlagsEnumAttributeAssemblyFormat<global::MLIR.Dialects.Builtin.IntegerAttr>");
 
         AssertDoesNotContainAny(
             registrationSource,
@@ -308,7 +312,9 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "new MLIR.Dialects.Myarith.MyArithCmpPredicateConstraintAttributeValue(value)",
             "new MLIR.Dialects.Myarith.MyArithCmpMaskConstraintAttributeValue(value)",
             "((MLIR.Dialects.Myarith.CmpPredicateAttr)Attributes[\"predicate\"].Value).",
-            "((MLIR.Dialects.Myarith.CmpMaskAttr)Attributes[\"mask\"].Value).");
+            "((MLIR.Dialects.Myarith.CmpMaskAttr)Attributes[\"mask\"].Value).",
+            // Old bespoke helpers must not be emitted inside constraint format classes.
+            "return new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I32, global::MLIR.Numerics.ApInt.FromUInt64(32, (ulong)ParseEnumValue(syntax)), syntax)");
     }
 
     [Fact]
@@ -345,14 +351,21 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             registrationSource,
             "public sealed class CmpPredicateAttr : AttributeValue",
             "public MLIR.Dialects.Myarith.CmpPredicate Predicate",
-            "new MLIR.Dialects.Myarith.CmpPredicateAttr(value)");
+            "new MLIR.Dialects.Myarith.CmpPredicateAttr(value)",
+            // The assembly format class is now a thin subclass of the shared runtime base.
+            "internal sealed class CmpPredicateAttrAssemblyFormat",
+            "SimpleEnumAttributeAssemblyFormat<CmpPredicateAttr>");
         Assert.True(
             registrationSource.Contains("Attributes[\"predicate\"].Value).TypedValue;", System.StringComparison.Ordinal)
             || registrationSource.Contains("Attributes[\"predicate\"].Value).Value;", System.StringComparison.Ordinal));
 
         AssertDoesNotContainAny(
             registrationSource,
-            "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"predicate\"].Value).Value.ToUInt64()");
+            "((global::MLIR.Dialects.Builtin.IntegerAttr)Attributes[\"predicate\"].Value).Value.ToUInt64()",
+            // Old bespoke helpers must not be emitted inside EnumAttr assembly format classes.
+            "public static CmpPredicate ParseEnumValue(",
+            "internal string PrintEnumValue(",
+            ": IAttributeAssemblyFormat");
     }
 
     [Fact]
@@ -403,7 +416,8 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "internal static class CmpPredicateInfo",
             "public static class MyArithCmpPredicateAttrConstraintAttributeValue",
             "internal sealed class MyArithCmpPredicateAttrConstraintAttributeValueAssemblyFormat",
-            "return new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I64, global::MLIR.Numerics.ApInt.FromUInt64(64, (ulong)ParseEnumValue(syntax)), syntax);");
+            // New: thin subclass of the shared runtime base replaces bespoke inline logic.
+            "SimpleEnumAttributeAssemblyFormat<global::MLIR.Dialects.Builtin.IntegerAttr>");
 
         // The operation property must use the fully-qualified dialect type.
         AssertContainsAll(

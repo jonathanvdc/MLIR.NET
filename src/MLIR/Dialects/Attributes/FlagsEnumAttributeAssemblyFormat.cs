@@ -76,6 +76,30 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
         {
             var flags = EnumToInt(enumAttribute);
             var useAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;
+
+            // Check for an exact-value name first (covers group aliases such as 'xy' for X|Y)
+            // before attempting greedy bit-by-bit decomposition.
+            if (Names.TryGetValue(flags, out var exactName))
+            {
+                var exactToken = TokenFactory.Identifier(exactName);
+                if (useAngleBrackets)
+                {
+                    return new DelimitedEnumAttributeValueSyntax(
+                        new DelimitedSyntaxList<Token>(
+                            TokenFactory.LessThan(),
+                            [exactToken],
+                            Array.Empty<Token>(),
+                            TokenFactory.GreaterThan()));
+                }
+                else
+                {
+                  return new UndelimitedEnumAttributeValueSyntax(
+                      new SeparatedSyntaxList<Token>(
+                          [exactToken],
+                          Array.Empty<Token>()));
+                }
+            }
+
             var parts = new List<Token>();
             foreach (var pair in Names)
             {
