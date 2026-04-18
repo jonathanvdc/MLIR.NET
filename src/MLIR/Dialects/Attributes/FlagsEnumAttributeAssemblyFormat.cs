@@ -78,8 +78,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
             var useAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;
 
             // Check for an exact-value name first (covers group aliases such as 'xy' for X|Y)
-            // before attempting greedy bit-by-bit decomposition. This matches the precedence
-            // the old generated Format helper had via its ExactValueToSymbol lookup.
+            // before attempting greedy bit-by-bit decomposition.
             if (Names.TryGetValue(flags, out var exactName))
             {
                 var exactToken = TokenFactory.Identifier(exactName);
@@ -92,11 +91,13 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
                             Array.Empty<Token>(),
                             TokenFactory.GreaterThan()));
                 }
-
-                return new UndelimitedEnumAttributeValueSyntax(
-                    new SeparatedSyntaxList<Token>(
-                        [exactToken],
-                        Array.Empty<Token>()));
+                else
+                {
+                  return new UndelimitedEnumAttributeValueSyntax(
+                      new SeparatedSyntaxList<Token>(
+                          [exactToken],
+                          Array.Empty<Token>()));
+                }
             }
 
             var parts = new List<Token>();
