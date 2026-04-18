@@ -22,6 +22,8 @@ public sealed partial class Parser
     private static readonly DenseIntegerArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for elements attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
+    /// <summary>Cached singleton format handler for dictionary attributes. Stateless and safe to share across parse operations.</summary>
+    private static readonly DictionaryAttributeAssemblyFormat DictionaryAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for bare unit literals in default parsing. Stateless and safe to share across parse operations.</summary>
     private static readonly UnitLiteralAttributeAssemblyFormat BareUnitLiteralAttributeAssemblyFormat = new(parseSelfIdentifyingSyntax: false);
 
@@ -78,7 +80,8 @@ public sealed partial class Parser
 
     private AttributeValueParser[] DefaultAttributeValueParsers => [
         TryParseSelfIdentifyingAttributeValue,
-        TryParseBuiltinStructuredAttributeValue,
+        TryParseArrayAttributeValue,
+        TryParseDictionaryAttributeValue,
         TryParseDenseArrayAttributeValue,
         TryParseElementsAttributeValue,
         TryParseStringAttributeValue,
@@ -137,7 +140,7 @@ public sealed partial class Parser
         return TryParseSelfIdentifyingAttribute();
     }
 
-    private ParseResult<AttributeValueSyntax> TryParseBuiltinStructuredAttributeValue(
+    private ParseResult<AttributeValueSyntax> TryParseArrayAttributeValue(
         AttributeValueParsingMode mode,
         AttributeConstraintDefinition? expectedDefinition,
         bool allowTypedSuffix,
@@ -147,7 +150,27 @@ public sealed partial class Parser
         _ = expectedDefinition;
         _ = allowTypedSuffix;
         _ = stopBefore;
-        return TryParseBuiltinStructuredAttribute();
+        if (!Is(TokenKind.LBracket))
+        {
+            return ParseResult<AttributeValueSyntax>.NoMatch();
+        }
+
+        return TryParseArrayAttributeValue().Map<AttributeValueSyntax>(static syntax => syntax);
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseDictionaryAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return TryParseAttributeAssemblyFormat(
+            BuiltinAttributeConstraintDefinition("DictionaryAttr"),
+            DictionaryAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseStringAttributeValue(
@@ -252,26 +275,6 @@ public sealed partial class Parser
         return rawResult.IsSuccess
             ? ParseResult<AttributeValueSyntax>.Success(new RawAttributeValueSyntax(rawResult.Value))
             : ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
-    }
-
-    /// <summary>
-    /// Tries to parse a built-in structured attribute value: an array literal (<c>[...]</c>)
-    /// or an attribute dictionary (<c>{...}</c>).
-    /// Returns <see cref="ParseOutcome.NoMatch"/> when none of those forms is present.
-    /// </summary>
-    private ParseResult<AttributeValueSyntax> TryParseBuiltinStructuredAttribute()
-    {
-        if (Is(TokenKind.LBracket))
-        {
-            return TryParseArrayAttributeValue().Map<AttributeValueSyntax>(static syntax => syntax);
-        }
-
-        if (Is(TokenKind.LBrace))
-        {
-            return TryParseAttrDict().Map<AttributeValueSyntax>(static syntax => new DictionaryAttributeValueSyntax(syntax));
-        }
-
-        return ParseResult<AttributeValueSyntax>.NoMatch();
     }
 
     private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(
