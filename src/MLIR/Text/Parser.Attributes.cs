@@ -24,6 +24,8 @@ public sealed partial class Parser
     private static readonly DenseIntegerArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for elements attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
+    /// <summary>Cached singleton format handler for unit literal attributes. Stateless and safe to share across parse operations.</summary>
+    private static readonly UnitLiteralAttributeAssemblyFormat UnitLiteralAttributeAssemblyFormat = new();
 
     private enum AttributeValueParsingMode
     {
@@ -95,7 +97,9 @@ public sealed partial class Parser
         TryParseBuiltinStructuredAttributeValue,
         TryParseStringAttributeValue,
         TryParseNumericAttributeValue,
-        TryParseBooleanAttributeValue
+        TryParseBooleanAttributeValue,
+        TryParseUnitAttributeValue
+
     ];
 
     private ParseResult<AttributeValueSyntax> TryParseExpectedAttributeValue(
@@ -160,6 +164,19 @@ public sealed partial class Parser
         _ = allowTypedSuffix;
         _ = stopBefore;
         return BooleanLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
+    }
+
+    private ParseResult<AttributeValueSyntax> TryParseUnitAttributeValue(
+        AttributeValueParsingMode mode,
+        AttributeConstraintDefinition? expectedDefinition,
+        bool allowTypedSuffix,
+        TokenKind[] stopBefore)
+    {
+        _ = mode;
+        _ = expectedDefinition;
+        _ = allowTypedSuffix;
+        _ = stopBefore;
+        return UnitLiteralAttributeAssemblyFormat.TryParse(new AttributeParsingContext(this, dialectRegistry, null));
     }
 
     private ParseResult<AttributeValueSyntax> TryParseNumericAttributeValue(
