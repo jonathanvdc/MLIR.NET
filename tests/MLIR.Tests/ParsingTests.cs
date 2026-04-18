@@ -358,7 +358,10 @@ public sealed class ParsingTests
     [Fact]
     public void ParsesBuiltinUnitAttributeFromBodylessSelfIdentifyingSyntax()
     {
-        var syntax = Parser.ParseAttributeValue("#builtin.unit");
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(Dialects.Builtin.BuiltinDialectRegistration.Create());
+
+        var syntax = Parser.ParseAttributeValue("#builtin.unit", registry);
 
         Assert.IsType<PrefixedUnitAttributeValueSyntax>(syntax);
         Assert.Equal("#builtin.unit", syntax.ToString());

@@ -39,6 +39,10 @@ extends Builtin_TypeAttr : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins Builtin_TypeParameter:$value);
 }
 
+extends Builtin_UnitAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.UnitLiteralAttributeAssemblyFormat()";
+}
+
 extends Builtin_DenseArray : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins
     Builtin_TypeParameter:$elementType,

@@ -22,8 +22,6 @@ public sealed partial class Parser
     private static readonly DenseIntegerArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for elements attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for expected unit attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly UnitLiteralAttributeAssemblyFormat UnitLiteralAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for bare unit literals in default parsing. Stateless and safe to share across parse operations.</summary>
     private static readonly UnitLiteralAttributeAssemblyFormat BareUnitLiteralAttributeAssemblyFormat = new(parseSelfIdentifyingSyntax: false);
 
@@ -447,13 +445,6 @@ public sealed partial class Parser
         if (canonicalName == null)
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
-        if (canonicalName == "builtin.unit")
-        {
-            return TryParseAttributeAssemblyFormat(
-                new AttributeConstraintDefinition("builtin.unit", UnitLiteralAttributeAssemblyFormat),
-                UnitLiteralAttributeAssemblyFormat);
         }
 
         if (dialectRegistry == null)
