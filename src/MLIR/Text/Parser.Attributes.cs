@@ -24,6 +24,8 @@ public sealed partial class Parser
     private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for dictionary attributes. Stateless and safe to share across parse operations.</summary>
     private static readonly DictionaryAttributeAssemblyFormat DictionaryAttributeAssemblyFormat = new();
+    /// <summary>Cached singleton format handler for array attributes. Stateless and safe to share across parse operations.</summary>
+    private static readonly TypedArrayAttributeAssemblyFormat ArrayAttributeAssemblyFormat = new();
     /// <summary>Cached singleton format handler for bare unit literals in default parsing. Stateless and safe to share across parse operations.</summary>
     private static readonly UnitLiteralAttributeAssemblyFormat BareUnitLiteralAttributeAssemblyFormat = new(parseSelfIdentifyingSyntax: false);
 
@@ -150,12 +152,9 @@ public sealed partial class Parser
         _ = expectedDefinition;
         _ = allowTypedSuffix;
         _ = stopBefore;
-        if (!Is(TokenKind.LBracket))
-        {
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
-        return TryParseArrayAttributeValue().Map<AttributeValueSyntax>(static syntax => syntax);
+        return TryParseAttributeAssemblyFormat(
+            BuiltinAttributeConstraintDefinition("ArrayAttr"),
+            ArrayAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseDictionaryAttributeValue(
@@ -512,21 +511,6 @@ public sealed partial class Parser
             TryParseAttribute,
             "Expected '{' to start the attribute dictionary.",
             "Expected '}' to close the attribute dictionary.");
-    }
-
-    /// <summary>
-    /// Parses an array attribute value of the form <c>[ elem, elem, ... ]</c>.
-    /// Each element is parsed as a generic attribute value stopping before <c>,</c> and <c>]</c>.
-    /// </summary>
-    private ParseResult<ArrayAttributeValueSyntax> TryParseArrayAttributeValue()
-    {
-        return TryParseRequiredCommaSeparatedDelimitedList(
-            TokenKind.LBracket,
-            TokenKind.RBracket,
-            () => TryParseAttributeValue(AttributeValueParsingMode.Normal, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBracket),
-            "Expected '[' to start the array attribute.",
-            "Expected ']' to close the array attribute.")
-            .Map(static list => new ArrayAttributeValueSyntax(list.OpenToken!.Value, list.Items, list.SeparatorTokens, list.CloseToken!.Value));
     }
 
 }
