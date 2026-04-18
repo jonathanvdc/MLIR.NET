@@ -10,24 +10,21 @@ using MLIR.Syntax.Attributes.Collections;
 
 public sealed partial class Parser
 {
-    /// <summary>Cached singleton format handler for boolean literal attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly BooleanLiteralAttributeAssemblyFormat BooleanLiteralAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for integer literal attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly IntegerLiteralAttributeAssemblyFormat IntegerLiteralAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for floating-point literal attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly FloatingPointLiteralAttributeAssemblyFormat FloatingPointLiteralAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for string literal attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly StringLiteralAttributeAssemblyFormat StringLiteralAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for dense integer array attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly DenseIntegerArrayAttributeAssemblyFormat DenseArrayAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for elements attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly ElementsAttributeAssemblyFormat ElementsAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for dictionary attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly DictionaryAttributeAssemblyFormat DictionaryAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for array attributes. Stateless and safe to share across parse operations.</summary>
-    private static readonly ArrayAttributeAssemblyFormat ArrayAttributeAssemblyFormat = new();
-    /// <summary>Cached singleton format handler for bare unit literals in default parsing. Stateless and safe to share across parse operations.</summary>
-    private static readonly UnitLiteralAttributeAssemblyFormat BareUnitLiteralAttributeAssemblyFormat = new(parseSelfIdentifyingSyntax: false);
+    /// <summary>
+    /// Ordered fallback parsers for attribute values with no expected assembly format.
+    /// Self-identifying attributes are handled separately through the dialect registry.
+    /// </summary>
+    private static readonly IAttributeAssemblyFormat[] DefaultAttributeAssemblyFormats = [
+        new ArrayAttributeAssemblyFormat(),
+        new DictionaryAttributeAssemblyFormat(),
+        new DenseIntegerArrayAttributeAssemblyFormat(),
+        new ElementsAttributeAssemblyFormat(),
+        new StringLiteralAttributeAssemblyFormat(),
+        new FloatingPointLiteralAttributeAssemblyFormat(),
+        new IntegerLiteralAttributeAssemblyFormat(),
+        new BooleanLiteralAttributeAssemblyFormat(),
+        new UnitLiteralAttributeAssemblyFormat(parseSelfIdentifyingSyntax: false)
+    ];
 
     private enum AttributeValueParsingMode
     {
@@ -68,30 +65,10 @@ public sealed partial class Parser
         return TryParseAttributeValue(mode, expectedDefinition, stopBefore);
     }
 
-    private delegate ParseResult<AttributeValueSyntax> AttributeValueParser(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore);
-
     private static bool ShouldAllowTypedAttributeSuffix(TokenKind[] stopBefore)
     {
         return !ContainsTokenKind(stopBefore, TokenKind.Colon);
     }
-
-
-    private AttributeValueParser[] DefaultAttributeValueParsers => [
-        TryParseSelfIdentifyingAttributeValue,
-        TryParseArrayAttributeValue,
-        TryParseDictionaryAttributeValue,
-        TryParseDenseArrayAttributeValue,
-        TryParseElementsAttributeValue,
-        TryParseStringAttributeValue,
-        TryParseFloatingPointAttributeValue,
-        TryParseIntegerAttributeValue,
-        TryParseBooleanAttributeValue,
-        TryParseUnitAttributeValue
-    ];
 
     private ParseResult<AttributeValueSyntax> TryParseExpectedAttributeValue(AttributeConstraintDefinition expectedDefinition)
     {
@@ -116,10 +93,15 @@ public sealed partial class Parser
         bool allowTypedSuffix,
         TokenKind[] stopBefore)
     {
-        var parsers = DefaultAttributeValueParsers;
-        for (var i = 0; i < parsers.Length; i++)
+        var selfIdentifyingResult = TryParseSelfIdentifyingAttribute();
+        if (!selfIdentifyingResult.IsNoMatch)
         {
-            var result = parsers[i](mode, expectedDefinition, allowTypedSuffix, stopBefore);
+            return selfIdentifyingResult;
+        }
+
+        foreach (var assemblyFormat in DefaultAttributeAssemblyFormats)
+        {
+            var result = TryParseAttributeAssemblyFormat(expectedDefinition, assemblyFormat);
             if (!result.IsNoMatch)
             {
                 return result;
@@ -127,139 +109,6 @@ public sealed partial class Parser
         }
 
         return TryParseRawAttributeValue(mode, allowTypedSuffix, stopBefore);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseSelfIdentifyingAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = expectedDefinition;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseSelfIdentifyingAttribute();
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseArrayAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = expectedDefinition;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(
-            expectedDefinition,
-            ArrayAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseDictionaryAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = expectedDefinition;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(
-            expectedDefinition,
-            DictionaryAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseStringAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(expectedDefinition, StringLiteralAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseDenseArrayAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = expectedDefinition;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(
-            expectedDefinition,
-            DenseArrayAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseElementsAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = expectedDefinition;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(
-            expectedDefinition,
-            ElementsAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseBooleanAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(expectedDefinition, BooleanLiteralAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseUnitAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(expectedDefinition, BareUnitLiteralAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseIntegerAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(expectedDefinition, IntegerLiteralAttributeAssemblyFormat);
-    }
-
-    private ParseResult<AttributeValueSyntax> TryParseFloatingPointAttributeValue(
-        AttributeValueParsingMode mode,
-        AttributeConstraintDefinition? expectedDefinition,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
-    {
-        _ = mode;
-        _ = allowTypedSuffix;
-        _ = stopBefore;
-        return TryParseAttributeAssemblyFormat(expectedDefinition, FloatingPointLiteralAttributeAssemblyFormat);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseRawAttributeValue(
