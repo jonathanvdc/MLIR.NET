@@ -79,13 +79,77 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
                     "};",
                 ]));
 
+        // Summary tags are emitted as-is.
         AssertContainsAll(
             registrationSource,
             "/// <summary>integer constant</summary>",
+            "/// <summary>Mini arithmetic dialect</summary>");
+
+        // Descriptions are now converted from Markdown to structured XML doc content.
+        // Plain-text paragraphs become <para> blocks.
+        AssertContainsAll(
+            registrationSource,
             "/// <remarks>",
+            "/// <para>",
             "/// Produces a constant integer value.",
-            "/// <summary>Mini arithmetic dialect</summary>",
+            "/// </para>",
             "/// A dialect for basic integer arithmetic operations.");
+    }
+
+    [Fact]
+    public void GeneratesStructuredXmlDocCommentsFromMarkdownDescription()
+    {
+        var registrationSource = GenerateRegistrationSource(
+            "miniarith.td",
+            "MiniarithDialectRegistration.g.cs",
+            ComposeSource(
+                [
+                    "class MiniArith_Op<string mnemonic, list<Trait> traits = []> :",
+                    "    Op<MiniArith_Dialect, mnemonic, traits>;",
+                    string.Empty,
+                    "def MiniArith_Dialect : Dialect {",
+                    "  let name = \"miniarith\";",
+                    "  let cppNamespace = \"::mlir::miniarith\";",
+                    "};",
+                    string.Empty,
+                    "def MiniArith_ConstantOp : MiniArith_Op<\"constant\", [Pure]> {",
+                    "  let summary = \"integer constant\";",
+                    "  let description = [{",
+                    "    Produces a constant integer value of type `i32`.",
+                    "    The value is specified as an attribute.",
+                    "",
+                    "    Example:",
+                    "",
+                    "    ```mlir",
+                    "    %0 = miniarith.constant {value = 42 : i32} : i32",
+                    "    ```",
+                    "",
+                    "    See [dialect docs](https://example.com/miniarith).",
+                    "  }];",
+                    "  let arguments = (ins I32Attr:$value);",
+                    "  let results = (outs I32:$result);",
+                    "};",
+                ]));
+
+        // Summary is unchanged.
+        Assert.Contains("/// <summary>integer constant</summary>", registrationSource);
+
+        // Paragraphs are wrapped in <para>.
+        Assert.Contains("/// <para>", registrationSource);
+        Assert.Contains("/// </para>", registrationSource);
+
+        // Inline code is converted (as part of a paragraph line).
+        Assert.Contains("<c>i32</c>", registrationSource);
+
+        // Section-header line ("Example:") is rendered as bold.
+        Assert.Contains("/// <b>Example:</b>", registrationSource);
+
+        // Fenced code block with language tag is rendered as <code language="mlir">.
+        Assert.Contains("/// <code language=\"mlir\">", registrationSource);
+        Assert.Contains("/// </code>", registrationSource);
+
+        // Inline link is converted to <see href="..."> (as part of a paragraph line).
+        Assert.Contains("<see href=\"https://example.com/miniarith\">dialect docs</see>", registrationSource);
     }
 
     [Fact]

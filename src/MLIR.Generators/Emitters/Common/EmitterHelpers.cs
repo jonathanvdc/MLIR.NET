@@ -238,6 +238,17 @@ internal static class EmitterHelpers
         builder.AppendLine(");");
     }
 
+    /// <summary>
+    /// Appends XML doc comment lines for the supplied ODS <paramref name="summary"/> and
+    /// <paramref name="description"/> fields to <paramref name="builder"/>.
+    /// </summary>
+    /// <remarks>
+    /// The summary is placed in a single-line <c>&lt;summary&gt;</c> tag.
+    /// The description is interpreted as Markdown and converted to structured XML doc
+    /// comment content inside a <c>&lt;remarks&gt;</c> block.  Paragraphs, fenced code
+    /// blocks, ATX headings, inline code, and inline links are all translated to their
+    /// XML doc equivalents.
+    /// </remarks>
     public static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description)
     {
         if (!string.IsNullOrWhiteSpace(summary))
@@ -248,10 +259,16 @@ internal static class EmitterHelpers
         if (!string.IsNullOrWhiteSpace(description))
         {
             builder.AppendLine("/// <remarks>");
-            var trimmedDescription = description!.Trim();
-            foreach (var rawLine in trimmedDescription.Split('\n'))
+            // Pass the raw description to ConvertToRemarksLines, which handles dedenting
+            // and blank-line normalization internally.  Calling Trim() here would strip
+            // the leading whitespace only from the first line, which breaks the dedent
+            // calculation when ODS multi-line strings indent every line consistently.
+            var remarksLines = MarkdownXmlDocConverter.ConvertToRemarksLines(description!);
+            foreach (var line in remarksLines)
             {
-                builder.AppendLine("/// " + EscapeXmlText(rawLine.TrimEnd('\r')));
+                // Emit a bare `///` for blank lines so that empty XML doc lines do not
+                // include a trailing space (consistent with standard C# doc comment style).
+                builder.AppendLine(string.IsNullOrEmpty(line) ? "///" : "/// " + line);
             }
 
             builder.AppendLine("/// </remarks>");
