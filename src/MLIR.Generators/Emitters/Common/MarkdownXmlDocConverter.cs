@@ -54,6 +54,18 @@ internal static class MarkdownXmlDocConverter
     }
 
     // -----------------------------------------------------------------------
+    // Constants
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Maximum line length (in characters) for a single-line paragraph to be
+    /// promoted to a section-header heading.  MLIR-style section headers such as
+    /// <c>Example:</c> or <c>Note:</c> are always short; longer lines are unlikely
+    /// to be headings even if they end with a colon.
+    /// </summary>
+    private const int MaxSectionHeaderLength = 80;
+
+    // -----------------------------------------------------------------------
     // Dedenting
     // -----------------------------------------------------------------------
 
@@ -75,7 +87,7 @@ internal static class MarkdownXmlDocConverter
                 continue;
             }
 
-            var indent = CountLeadingSpaces(line);
+            var indent = CountLeadingWhitespace(line);
             if (indent < minIndent)
             {
                 minIndent = indent;
@@ -110,7 +122,7 @@ internal static class MarkdownXmlDocConverter
         return result.ToString();
     }
 
-    private static int CountLeadingSpaces(string line)
+    private static int CountLeadingWhitespace(string line)
     {
         var count = 0;
         while (count < line.Length && (line[count] == ' ' || line[count] == '\t'))
@@ -323,7 +335,7 @@ internal static class MarkdownXmlDocConverter
         }
 
         // Reject very long lines — real section headers in MLIR descriptions are short.
-        return trimmedLine.Length <= 80;
+        return trimmedLine.Length <= MaxSectionHeaderLength;
     }
 
     // -----------------------------------------------------------------------
