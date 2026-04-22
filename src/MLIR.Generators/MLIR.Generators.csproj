@@ -18,6 +18,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>MLIR.Generators.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MLIR.ODS\MLIR.ODS.csproj" />
     <ProjectReference Include="..\MLIR.Text\MLIR.Text.csproj" />
     <ProjectReference Include="..\TableGen\TableGen.csproj" />
