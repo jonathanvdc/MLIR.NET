@@ -30,6 +30,16 @@ def Builtin_DictionaryParameter : AttrOrTypeParameter<
   let csharpDefault = "global::MLIR.Semantics.NamedAttributeCollection.Empty";
 }
 
+def Builtin_StringAttrParameter : AttrOrTypeParameter<"StringAttr", "string attribute">,
+    MLIRNet_AttrOrTypeParameterExtension {
+  let csharpType = "string";
+  let csharpSyntaxType = "StringAttributeValueSyntax";
+  let csharpParser = "$_parser.TryParseStringLiteralSyntax()";
+  let csharpExtractor = "$_syntax.Value";
+  let csharpDefault = "string.Empty";
+  let csharpPrinter = "new StringAttributeValueSyntax(TokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)";
+}
+
 extends Builtin_DenseArrayRawDataParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::System.ReadOnlyMemory<byte>";
   let csharpDefault = "global::System.ReadOnlyMemory<byte>.Empty";
@@ -79,6 +89,11 @@ extends Builtin_DenseResourceElementsAttr : MLIRNet_AttrOrTypeDefExtension {
     AttributeSelfTypeParameter<"", "ShapedType">:$type,
     "string":$rawHandle
   );
+}
+
+extends Builtin_OpaqueAttr : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins Builtin_StringAttrParameter:$dialectNamespace);
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinOpaqueAttributeAssemblyFormat()";
 }
 
 extends Builtin_SparseElementsAttr : MLIRNet_AttrOrTypeDefExtension {

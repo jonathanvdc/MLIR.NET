@@ -19,6 +19,7 @@ public sealed partial class Parser
         new DenseIntegerArrayAttributeAssemblyFormat(),
         new ElementsAttributeAssemblyFormat(),
         new BuiltinSymbolRefAttributeAssemblyFormat(),
+        new BuiltinOpaqueAttributeAssemblyFormat(),
         new StringLiteralAttributeAssemblyFormat(),
         new FloatingPointLiteralAttributeAssemblyFormat(),
         new IntegerLiteralAttributeAssemblyFormat(),
@@ -107,10 +108,10 @@ public sealed partial class Parser
             }
         }
 
-        return TryParseRawAttributeValue(mode, allowTypedSuffix, stopBefore);
+        return CreateUnrecognizedAttributeValueFailure(mode, allowTypedSuffix, stopBefore);
     }
 
-    private ParseResult<AttributeValueSyntax> TryParseRawAttributeValue(
+    private ParseResult<AttributeValueSyntax> CreateUnrecognizedAttributeValueFailure(
         AttributeValueParsingMode mode,
         bool allowTypedSuffix,
         TokenKind[] stopBefore)
@@ -119,9 +120,13 @@ public sealed partial class Parser
         var rawResult = mode == AttributeValueParsingMode.StopAtOperationBoundary
             ? TryParseRawUntilDelimiterOrBoundaryResult(rawStopBefore)
             : TryParseRawUntilDelimiterResult(rawStopBefore);
-        return rawResult.IsSuccess
-            ? ParseResult<AttributeValueSyntax>.Success(new RawAttributeValueSyntax(rawResult.Value))
-            : ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
+        if (!rawResult.IsSuccess)
+        {
+            return ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
+        }
+
+        return ParseResult<AttributeValueSyntax>.Failure(
+            CreateDiagnostic("Expected an attribute value; unrecognized raw syntax '" + rawResult.Value.Text + "'."));
     }
 
     private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(

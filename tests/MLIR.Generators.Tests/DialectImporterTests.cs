@@ -364,6 +364,12 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Semantics.TypeFactory.None", opaqueAttr.SelfTypeParameter.CsharpDefault);
         Assert.Equal(2, opaqueAttr.PayloadParameters.Count);
         Assert.Equal(["dialectNamespace", "attrData"], opaqueAttr.PayloadParameters.Select(static param => param.Name).ToArray());
+        Assert.Equal("string", opaqueAttr.PayloadParameters[0].CsharpType);
+        Assert.Null(opaqueAttr.PayloadParameters[0].ConstraintRecordName);
+        Assert.Equal("StringAttr", opaqueAttr.PayloadParameters[0].CppType);
+        Assert.Equal("StringAttributeValueSyntax", opaqueAttr.PayloadParameters[0].CsharpSyntaxType);
+        Assert.Equal("string", opaqueAttr.PayloadParameters[1].CsharpType);
+        Assert.Equal("new global::MLIR.Dialects.Builtin.BuiltinOpaqueAttributeAssemblyFormat()", opaqueAttr.CsharpAssemblyFormat);
     }
 
     [Fact]

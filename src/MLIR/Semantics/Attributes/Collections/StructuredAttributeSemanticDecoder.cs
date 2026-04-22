@@ -109,6 +109,7 @@ public static class StructuredAttributeSemanticDecoder
             UnitAttributeValueSyntax unitSyntax => new UnitAttr(unitSyntax),
             TypeAttributeValueSyntax typeSyntax => new TypeAttr(new UnknownTypeReference(typeSyntax.TypeSyntax, null, null), typeSyntax),
             SymbolRefAttributeValueSyntax symbolRefSyntax => DecodeSymbolRefValue(symbolRefSyntax),
+            OpaqueAttributeValueSyntax opaqueSyntax => BuiltinOpaqueAttributeAssemblyFormat.Decode(opaqueSyntax),
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
             ArrayAttributeValueSyntax arraySyntax => new ArrayAttr(DecodeItems(arraySyntax.Items.Items), arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),

@@ -187,7 +187,11 @@ public sealed class ParsingTests
 
         var module = Parser.ParseModule(source);
         var text = Printer.Print(module);
+        var boundModule = Binder.BindModule(module);
+        var fastmath = Assert.IsType<OpaqueAttr>(boundModule.Operations[0].Attributes["fastmath"].Value);
 
+        Assert.Equal("arith.fastmath", fastmath.DialectNamespace);
+        Assert.Equal("none", fastmath.AttrData);
         Assert.Equal(source, text);
     }
 
@@ -236,7 +240,7 @@ public sealed class ParsingTests
             "  \"func.return\"(%cast) : (memref<*xf32>) -> ()\n" +
             "} {predicate = #builtin.unit} : (index) -> ()";
 
-        var module = Parser.ParseModule(source);
+        var module = Parser.ParseModule(source, Dialects.BuiltinDialects.CreateRegistry());
         var text = Printer.Print(module);
 
         Assert.Equal(4, module.Operations.Count);
@@ -490,7 +494,7 @@ public sealed class ParsingTests
     [Fact]
     public void PreservesDenseArrayTriviaWhenItemsHaveNoSpaces()
     {
-        const string source = "\"test.op\"() {value = #dense<[1,2,3]>} : () -> i32";
+        const string source = "\"test.op\"() {value = dense<[1,2,3]> : tensor<3xi32>} : () -> i32";
 
         var module = Parser.ParseModule(source);
 

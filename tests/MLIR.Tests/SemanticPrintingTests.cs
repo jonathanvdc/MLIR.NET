@@ -294,7 +294,7 @@ public sealed partial class SemanticTests
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
 
         var module = Binder.BindModule(
-            Parser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32"),
+            Parser.ParseModule("\"test.op\"() {value = #dense<[1, 2]>} : () -> i32", registry),
             registry);
 
         Assert.Single(module.AssemblyDiagnostics);
