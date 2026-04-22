@@ -1,6 +1,5 @@
 namespace MLIR.Tests;
 
-using System.Linq;
 using MLIR;
 using MLIR.Dialects;
 using MLIR.Dialects.Builtin;
@@ -357,7 +356,7 @@ public sealed class ParsingTests
 
         var symbolSyntax = Assert.IsType<SymbolRefAttributeValueSyntax>(syntax);
         Assert.Equal(1 + expectedNested.Length, symbolSyntax.Count);
-        Assert.Equal(symbolSyntax.Components.Select(static component => component.NameToken.Text), symbolSyntax.NameTokens.Select(static token => token.Text));
+        Assert.All(symbolSyntax.SymbolNameTokens, static token => Assert.Equal(TokenKind.SymbolName, token.TokenKind));
         Assert.Equal(source, syntax.ToString());
 
         var moduleSyntax = Parser.ParseModule("\"test.op\"() {callee = " + source + "} : () -> ()");

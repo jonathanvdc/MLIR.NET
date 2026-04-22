@@ -185,6 +185,7 @@ internal static class EmitterHelpers
             TokenKind.Identifier => "TokenFactory.Identifier(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
             TokenKind.Integer => "TokenFactory.Integer(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
             TokenKind.StringLiteral => "TokenFactory.StringLiteral(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
+            TokenKind.SymbolName => "TokenFactory.SymbolName(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
             TokenKind.SsaName => "TokenFactory.SsaName(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
             TokenKind.BlockLabel => "TokenFactory.BlockLabel(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
             TokenKind.EndOfFile => "TokenFactory.EndOfFile()",
@@ -821,6 +822,7 @@ internal static class EmitterHelpers
             TokenKind.Dot => "DotToken",
             TokenKind.At => "AtToken",
             TokenKind.Hash => "HashToken",
+            TokenKind.SymbolName => "SymbolNameToken",
             _ => "Token",
         };
     }

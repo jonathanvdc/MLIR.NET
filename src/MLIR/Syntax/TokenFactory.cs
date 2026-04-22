@@ -139,6 +139,13 @@ public static class TokenFactory
         new Token(TokenKind.StringLiteral, text, leadingTrivia);
 
     /// <summary>
+    /// Creates a synthetic symbol-name token with the supplied <paramref name="text"/>
+    /// (e.g. <c>@foo</c> or <c>@"quoted-name"</c>).
+    /// </summary>
+    public static Token SymbolName(string text, string? leadingTrivia = null) =>
+        new Token(TokenKind.SymbolName, text, leadingTrivia);
+
+    /// <summary>
     /// Creates a synthetic SSA name token with the supplied <paramref name="text"/>
     /// (e.g. <c>%0</c> or <c>%arg0</c>).
     /// </summary>

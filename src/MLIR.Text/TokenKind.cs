@@ -36,6 +36,11 @@ public enum TokenKind
     BlockLabel,
 
     /// <summary>
+    /// Represents a symbol name such as <c>@foo</c> or <c>@"quoted-name"</c>.
+    /// </summary>
+    SymbolName,
+
+    /// <summary>
     /// Represents the <c>@</c> token.
     /// </summary>
     At,

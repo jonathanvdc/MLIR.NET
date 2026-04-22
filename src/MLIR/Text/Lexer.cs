@@ -57,6 +57,30 @@ internal static class Lexer
             var tokenStart = index;
             var chAtToken = source[index];
 
+            if (chAtToken == '@' && index + 1 < source.Length && IsSymbolNameStart(source[index + 1]))
+            {
+                index++;
+                if (source[index] == '"')
+                {
+                    var stringEndResult = TryConsumeStringLiteral(source, document, tokenStart, ref index);
+                    if (!stringEndResult.IsSuccess)
+                    {
+                        return ParseResult<IReadOnlyList<Token>>.Failure(stringEndResult.Diagnostic!);
+                    }
+                }
+                else
+                {
+                    index++;
+                    while (index < source.Length && IsIdentifierPart(source[index]))
+                    {
+                        index++;
+                    }
+                }
+
+                tokens.Add(new Token(TokenKind.SymbolName, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
+                continue;
+            }
+
             if (chAtToken == '%' || chAtToken == '^')
             {
                 var tokenKind = chAtToken == '%' ? TokenKind.SsaName : TokenKind.BlockLabel;
@@ -102,34 +126,10 @@ internal static class Lexer
 
             if (chAtToken == '"')
             {
-                index++;
-                var escaped = false;
-                while (index < source.Length)
+                var stringEndResult = TryConsumeStringLiteral(source, document, tokenStart, ref index);
+                if (!stringEndResult.IsSuccess)
                 {
-                    var current = source[index];
-                    index++;
-                    if (escaped)
-                    {
-                        escaped = false;
-                        continue;
-                    }
-
-                    if (current == '\\')
-                    {
-                        escaped = true;
-                        continue;
-                    }
-
-                    if (current == '"')
-                    {
-                        break;
-                    }
-                }
-
-                if (index == tokenStart + 1 || source[index - 1] != '"')
-                {
-                    var location = new SourceLocation(document, tokenStart, 1);
-                    return ParseResult<IReadOnlyList<Token>>.Failure(new Diagnostic("Unterminated string literal.", location));
+                    return ParseResult<IReadOnlyList<Token>>.Failure(stringEndResult.Diagnostic!);
                 }
 
                 tokens.Add(new Token(TokenKind.StringLiteral, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
@@ -218,6 +218,41 @@ internal static class Lexer
         }
 
         throw new ParseException(result.Diagnostic!);
+    }
+
+    private static ParseResult<bool> TryConsumeStringLiteral(string source, SourceDocument document, int tokenStart, ref int index)
+    {
+        index++;
+        var escaped = false;
+        while (index < source.Length)
+        {
+            var current = source[index];
+            index++;
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+
+            if (current == '\\')
+            {
+                escaped = true;
+                continue;
+            }
+
+            if (current == '"')
+            {
+                return ParseResult<bool>.Success(true);
+            }
+        }
+
+        var location = new SourceLocation(document, tokenStart, 1);
+        return ParseResult<bool>.Failure(new Diagnostic("Unterminated string literal.", location));
+    }
+
+    private static bool IsSymbolNameStart(char ch)
+    {
+        return ch == '"' || IsIdentifierStart(ch);
     }
 
     private static bool IsIdentifierStart(char ch)

@@ -14,7 +14,6 @@ using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Syntax.Attributes.Primitives;
-using MLIR.Text;
 
 /// <summary>
 /// Provides syntax-only decoding helpers for structured attribute payloads.
@@ -123,19 +122,20 @@ public static class StructuredAttributeSemanticDecoder
     private static AttributeValue DecodeSymbolRefValue(SymbolRefAttributeValueSyntax syntax)
     {
         var nestedReferences = new string[System.Math.Max(0, syntax.Count - 1)];
-        for (var i = 1; i < syntax.Count; i++)
+        for (var i = 0; i < syntax.NestedReferences.Count; i++)
         {
-            nestedReferences[i - 1] = DecodeSymbolName(syntax.Components[i].NameToken);
+            nestedReferences[i] = DecodeSymbolName(syntax.NestedReferences[i].SymbolNameToken);
         }
 
-        return new SymbolRefAttr(DecodeSymbolName(syntax.Components[0].NameToken), nestedReferences, syntax);
+        return new SymbolRefAttr(DecodeSymbolName(syntax.RootSymbolNameToken), nestedReferences, syntax);
     }
 
     private static string DecodeSymbolName(Token token)
     {
-        return token.TokenKind == TokenKind.StringLiteral
-            ? StringLiteralAttributeAssemblyFormat.Unescape(token.Text)
-            : token.Text;
+        var text = token.Text.Length > 0 && token.Text[0] == '@' ? token.Text.Substring(1) : token.Text;
+        return text.Length >= 2 && text[0] == '"' && text[text.Length - 1] == '"'
+            ? StringLiteralAttributeAssemblyFormat.Unescape(text)
+            : text;
     }
 
     private static AttributeValue DecodeDenseArrayValue(DenseArrayAttributeValueSyntax syntax)

@@ -6,83 +6,66 @@ using MLIR.Semantics;
 using MLIR.Text;
 
 /// <summary>
-/// Represents one component of a symbol-reference attribute, consisting of
-/// an <c>@</c> token and its following symbol-name token.
+/// Represents one nested component of a symbol-reference attribute, including
+/// the two <c>:</c> tokens and the following symbol-name token.
 /// </summary>
-/// <param name="atToken">The <c>@</c> token.</param>
-/// <param name="nameToken">The symbol-name token.</param>
-public readonly struct SymbolRefAttributeComponentSyntax(Token atToken, Token nameToken) : IHasSourceLocation
+public readonly struct SymbolRefNestedReferenceSyntax : IHasSourceLocation
 {
     /// <summary>
-    /// Gets the <c>@</c> token.
+    /// Initializes a new instance of the <see cref="SymbolRefNestedReferenceSyntax"/> struct.
     /// </summary>
-    public Token AtToken { get; } = atToken;
-
-    /// <summary>
-    /// Gets the symbol-name token.
-    /// </summary>
-    public Token NameToken { get; } = nameToken;
-
-    /// <inheritdoc/>
-    public SourceLocation Location => SourceLocation.Merge(AtToken.Location, NameToken.Location);
-
-    /// <summary>
-    /// Writes this component to the supplied syntax writer.
-    /// </summary>
-    public void WriteTo(SyntaxWriter writer)
+    /// <param name="firstColonToken">The first <c>:</c> token.</param>
+    /// <param name="secondColonToken">The second <c>:</c> token.</param>
+    /// <param name="symbolNameToken">The nested symbol-name token.</param>
+    public SymbolRefNestedReferenceSyntax(Token firstColonToken, Token secondColonToken, Token symbolNameToken)
     {
-        writer.WriteToken(AtToken);
-        writer.WriteToken(NameToken);
+        if (symbolNameToken.TokenKind != TokenKind.SymbolName)
+        {
+            throw new System.ArgumentException("Nested symbol reference token must be a symbol-name token.", nameof(symbolNameToken));
+        }
+
+        FirstColonToken = firstColonToken;
+        SecondColonToken = secondColonToken;
+        SymbolNameToken = symbolNameToken;
     }
 
-    /// <summary>
-    /// Rewrites this component with the supplied syntax rewriter.
-    /// </summary>
-    public SymbolRefAttributeComponentSyntax Rewrite(SyntaxRewriter rewriter)
-    {
-        return new SymbolRefAttributeComponentSyntax(
-            rewriter.VisitToken(AtToken),
-            rewriter.VisitToken(NameToken));
-    }
-}
-
-/// <summary>
-/// Represents the <c>::</c> separator between nested symbol-reference components.
-/// </summary>
-/// <param name="firstColonToken">The first <c>:</c> token.</param>
-/// <param name="secondColonToken">The second <c>:</c> token.</param>
-public readonly struct SymbolRefAttributeSeparatorSyntax(Token firstColonToken, Token secondColonToken) : IHasSourceLocation
-{
     /// <summary>
     /// Gets the first <c>:</c> token.
     /// </summary>
-    public Token FirstColonToken { get; } = firstColonToken;
+    public Token FirstColonToken { get; }
 
     /// <summary>
     /// Gets the second <c>:</c> token.
     /// </summary>
-    public Token SecondColonToken { get; } = secondColonToken;
-
-    /// <inheritdoc/>
-    public SourceLocation Location => SourceLocation.Merge(FirstColonToken.Location, SecondColonToken.Location);
+    public Token SecondColonToken { get; }
 
     /// <summary>
-    /// Writes this separator to the supplied syntax writer.
+    /// Gets the nested symbol-name token.
+    /// </summary>
+    public Token SymbolNameToken { get; }
+
+    /// <inheritdoc/>
+    public SourceLocation Location => SourceLocation.Merge(FirstColonToken.Location, SymbolNameToken.Location);
+
+    /// <summary>
+    /// Writes this nested reference to the supplied syntax writer.
     /// </summary>
     public void WriteTo(SyntaxWriter writer)
     {
         writer.WriteToken(FirstColonToken);
         writer.WriteToken(SecondColonToken);
+        writer.WriteToken(SymbolNameToken);
     }
 
     /// <summary>
-    /// Rewrites this separator with the supplied syntax rewriter.
+    /// Rewrites this nested reference with the supplied syntax rewriter.
     /// </summary>
-    public SymbolRefAttributeSeparatorSyntax Rewrite(SyntaxRewriter rewriter)
+    public SymbolRefNestedReferenceSyntax Rewrite(SyntaxRewriter rewriter)
     {
-        return new SymbolRefAttributeSeparatorSyntax(
+        return new SymbolRefNestedReferenceSyntax(
             rewriter.VisitToken(FirstColonToken),
-            rewriter.VisitToken(SecondColonToken));
+            rewriter.VisitToken(SecondColonToken),
+            rewriter.VisitToken(SymbolNameToken));
     }
 }
 
@@ -91,100 +74,101 @@ public readonly struct SymbolRefAttributeSeparatorSyntax(Token firstColonToken, 
 /// <c>@parent::@child</c>.
 /// </summary>
 /// <remarks>
-/// MLIR lexes <c>::</c> as two colon tokens in this runtime, so nested-reference
-/// separators are represented as structured two-token separator values.
-/// The semantic name values are intentionally not stored here; binding derives them
-/// from the preserved name tokens so parsed syntax remains the source of truth.
+/// MLIR lexes <c>::</c> as two colon tokens in this runtime, so nested references
+/// preserve both colon tokens while each <c>@name</c> component is represented as
+/// a single <see cref="TokenKind.SymbolName"/> token.
 /// </remarks>
 public sealed class SymbolRefAttributeValueSyntax : AttributeValueSyntax
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SymbolRefAttributeValueSyntax"/> class.
     /// </summary>
-    /// <param name="components">The symbol-reference components.</param>
-    /// <param name="separators">The nested-reference <c>::</c> separators.</param>
+    /// <param name="rootSymbolNameToken">The root symbol-name token.</param>
+    /// <param name="nestedReferences">The nested symbol-reference components.</param>
     public SymbolRefAttributeValueSyntax(
-        IReadOnlyList<SymbolRefAttributeComponentSyntax> components,
-        IReadOnlyList<SymbolRefAttributeSeparatorSyntax> separators)
+        Token rootSymbolNameToken,
+        IReadOnlyList<SymbolRefNestedReferenceSyntax> nestedReferences)
     {
-        if (components.Count == 0)
+        if (rootSymbolNameToken.TokenKind != TokenKind.SymbolName)
         {
-            throw new System.ArgumentException("A symbol reference must contain at least one component.", nameof(components));
+            throw new System.ArgumentException("Root symbol reference token must be a symbol-name token.", nameof(rootSymbolNameToken));
         }
 
-        if (separators.Count != components.Count - 1)
-        {
-            throw new System.ArgumentException("A symbol reference must contain exactly one separator per nested reference.", nameof(separators));
-        }
-
-        Components = components;
-        Separators = separators;
-        NameTokens = new NameTokenList(components);
+        RootSymbolNameToken = rootSymbolNameToken;
+        NestedReferences = nestedReferences;
+        SymbolNameTokens = new SymbolNameTokenList(this);
     }
 
     /// <summary>
-    /// Gets the symbol-reference components.
+    /// Gets the root symbol-name token.
     /// </summary>
-    public IReadOnlyList<SymbolRefAttributeComponentSyntax> Components { get; }
+    public Token RootSymbolNameToken { get; }
 
     /// <summary>
-    /// Gets the nested-reference <c>::</c> separators.
+    /// Gets the nested symbol-reference components.
     /// </summary>
-    public IReadOnlyList<SymbolRefAttributeSeparatorSyntax> Separators { get; }
+    public IReadOnlyList<SymbolRefNestedReferenceSyntax> NestedReferences { get; }
 
     /// <summary>
-    /// Gets a read-only token view of the symbol names in this reference.
+    /// Gets a read-only token view of all symbol-name tokens in this reference.
     /// </summary>
-    public IReadOnlyList<Token> NameTokens { get; }
+    public IReadOnlyList<Token> SymbolNameTokens { get; }
 
     /// <summary>
-    /// Gets the number of reference components in this symbol reference.
+    /// Gets the number of symbol-name components in this symbol reference.
     /// </summary>
-    public int Count => Components.Count;
+    public int Count => 1 + NestedReferences.Count;
 
     /// <inheritdoc/>
-    public override SourceLocation Location => Components[0].Location;
+    public override SourceLocation Location => RootSymbolNameToken.Location;
 
     /// <inheritdoc/>
     public override void WriteTo(SyntaxWriter writer)
     {
-        Components[0].WriteTo(writer);
-        for (var i = 1; i < Components.Count; i++)
+        writer.WriteToken(RootSymbolNameToken);
+        for (var i = 0; i < NestedReferences.Count; i++)
         {
-            Separators[i - 1].WriteTo(writer);
-            Components[i].WriteTo(writer);
+            NestedReferences[i].WriteTo(writer);
         }
     }
 
     /// <inheritdoc/>
     public override SyntaxNode Rewrite(SyntaxRewriter rewriter)
     {
-        var components = new SymbolRefAttributeComponentSyntax[Components.Count];
-        for (var i = 0; i < Components.Count; i++)
+        var nestedReferences = new SymbolRefNestedReferenceSyntax[NestedReferences.Count];
+        for (var i = 0; i < NestedReferences.Count; i++)
         {
-            components[i] = Components[i].Rewrite(rewriter);
+            nestedReferences[i] = NestedReferences[i].Rewrite(rewriter);
         }
 
-        var separators = new SymbolRefAttributeSeparatorSyntax[Separators.Count];
-        for (var i = 0; i < Separators.Count; i++)
-        {
-            separators[i] = Separators[i].Rewrite(rewriter);
-        }
-
-        return new SymbolRefAttributeValueSyntax(components, separators);
+        return new SymbolRefAttributeValueSyntax(
+            rewriter.VisitToken(RootSymbolNameToken),
+            nestedReferences);
     }
 
-    private sealed class NameTokenList(IReadOnlyList<SymbolRefAttributeComponentSyntax> components) : IReadOnlyList<Token>
+    private sealed class SymbolNameTokenList(SymbolRefAttributeValueSyntax syntax) : IReadOnlyList<Token>
     {
-        public int Count => components.Count;
+        public int Count => syntax.Count;
 
-        public Token this[int index] => components[index].NameToken;
+        public Token this[int index]
+        {
+            get
+            {
+                if (index == 0)
+                {
+                    return syntax.RootSymbolNameToken;
+                }
+
+                return syntax.NestedReferences[index - 1].SymbolNameToken;
+            }
+        }
 
         public IEnumerator<Token> GetEnumerator()
         {
-            for (var i = 0; i < components.Count; i++)
+            yield return syntax.RootSymbolNameToken;
+            for (var i = 0; i < syntax.NestedReferences.Count; i++)
             {
-                yield return components[i].NameToken;
+                yield return syntax.NestedReferences[i].SymbolNameToken;
             }
         }
 

@@ -18,22 +18,12 @@ public sealed class BuiltinSymbolRefAttributeAssemblyFormat : IAttributeAssembly
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
-        if (!context.TryMatch(TokenKind.At, out var rootAtToken))
+        if (!context.TryMatch(TokenKind.SymbolName, out var rootSymbolNameToken))
         {
             return ParseResult<AttributeValueSyntax>.NoMatch();
         }
 
-        var rootNameResult = TryParseSymbolNameToken(context);
-        if (!rootNameResult.IsSuccess)
-        {
-            return ParseResult<AttributeValueSyntax>.Failure(rootNameResult.Diagnostic!);
-        }
-
-        var components = new List<SymbolRefAttributeComponentSyntax>
-        {
-            new(rootAtToken, rootNameResult.Value),
-        };
-        var separators = new List<SymbolRefAttributeSeparatorSyntax>();
+        var nestedReferences = new List<SymbolRefNestedReferenceSyntax>();
 
         while (IsNestedReferenceSeparator(context))
         {
@@ -49,24 +39,20 @@ public sealed class BuiltinSymbolRefAttributeAssemblyFormat : IAttributeAssembly
                 return ParseResult<AttributeValueSyntax>.Failure(secondColonResult.Diagnostic!);
             }
 
-            var nestedAtResult = context.Expect(TokenKind.At, "Expected '@' after '::' in nested symbol reference.");
-            if (!nestedAtResult.IsSuccess)
-            {
-                return ParseResult<AttributeValueSyntax>.Failure(nestedAtResult.Diagnostic!);
-            }
-
-            var nestedNameResult = TryParseSymbolNameToken(context);
+            var nestedNameResult = context.Expect(TokenKind.SymbolName, "Expected a symbol name after '::' in nested symbol reference.");
             if (!nestedNameResult.IsSuccess)
             {
                 return ParseResult<AttributeValueSyntax>.Failure(nestedNameResult.Diagnostic!);
             }
 
-            separators.Add(new SymbolRefAttributeSeparatorSyntax(firstColonResult.Value, secondColonResult.Value));
-            components.Add(new SymbolRefAttributeComponentSyntax(nestedAtResult.Value, nestedNameResult.Value));
+            nestedReferences.Add(new SymbolRefNestedReferenceSyntax(
+                firstColonResult.Value,
+                secondColonResult.Value,
+                nestedNameResult.Value));
         }
 
         return ParseResult<AttributeValueSyntax>.Success(
-            new SymbolRefAttributeValueSyntax(components, separators));
+            new SymbolRefAttributeValueSyntax(rootSymbolNameToken, nestedReferences));
     }
 
     /// <inheritdoc/>
@@ -83,12 +69,12 @@ public sealed class BuiltinSymbolRefAttributeAssemblyFormat : IAttributeAssembly
         }
 
         var nestedReferences = new string[Math.Max(0, symbolSyntax.Count - 1)];
-        for (var i = 1; i < symbolSyntax.Count; i++)
+        for (var i = 0; i < symbolSyntax.NestedReferences.Count; i++)
         {
-            nestedReferences[i - 1] = DecodeSymbolName(symbolSyntax.Components[i].NameToken);
+            nestedReferences[i] = DecodeSymbolName(symbolSyntax.NestedReferences[i].SymbolNameToken);
         }
 
-        return new SymbolRefAttr(DecodeSymbolName(symbolSyntax.Components[0].NameToken), nestedReferences, symbolSyntax);
+        return new SymbolRefAttr(DecodeSymbolName(symbolSyntax.RootSymbolNameToken), nestedReferences, symbolSyntax);
     }
 
     /// <inheritdoc/>
@@ -99,33 +85,18 @@ public sealed class BuiltinSymbolRefAttributeAssemblyFormat : IAttributeAssembly
             return attribute.Syntax ?? throw new InvalidOperationException("Symbol-reference attributes require SymbolRefAttr storage or reusable syntax.");
         }
 
-        var componentCount = 1 + symbolRef.NestedReferences.Count;
-        var components = new List<SymbolRefAttributeComponentSyntax>(componentCount);
-        var separators = new List<SymbolRefAttributeSeparatorSyntax>(Math.Max(0, componentCount - 1));
-
-        AddComponent(TrimLeadingAt(symbolRef.RootReference), components);
+        var nestedReferences = new List<SymbolRefNestedReferenceSyntax>(symbolRef.NestedReferences.Count);
         for (var i = 0; i < symbolRef.NestedReferences.Count; i++)
         {
-            separators.Add(new SymbolRefAttributeSeparatorSyntax(TokenFactory.Colon(), TokenFactory.Colon()));
-            AddComponent(TrimLeadingAt(symbolRef.NestedReferences[i]), components);
+            nestedReferences.Add(new SymbolRefNestedReferenceSyntax(
+                TokenFactory.Colon(),
+                TokenFactory.Colon(),
+                CreateSymbolNameToken(symbolRef.NestedReferences[i])));
         }
 
-        return new SymbolRefAttributeValueSyntax(components, separators);
-    }
-
-    private static ParseResult<Token> TryParseSymbolNameToken(AttributeParsingContext context)
-    {
-        if (context.TryMatch(TokenKind.Identifier, out var identifierToken))
-        {
-            return ParseResult<Token>.Success(identifierToken);
-        }
-
-        if (context.TryMatch(TokenKind.StringLiteral, out var stringToken))
-        {
-            return ParseResult<Token>.Success(stringToken);
-        }
-
-        return ParseResult<Token>.Failure(context.CreateDiagnostic("Expected a symbol name after '@'."));
+        return new SymbolRefAttributeValueSyntax(
+            CreateSymbolNameToken(symbolRef.RootReference),
+            nestedReferences);
     }
 
     private static bool IsNestedReferenceSeparator(AttributeParsingContext context)
@@ -136,23 +107,20 @@ public sealed class BuiltinSymbolRefAttributeAssemblyFormat : IAttributeAssembly
             nextKind == TokenKind.Colon;
     }
 
-    private static void AddComponent(string name, List<SymbolRefAttributeComponentSyntax> components)
-    {
-        components.Add(new SymbolRefAttributeComponentSyntax(TokenFactory.At(), CreateSymbolNameToken(name)));
-    }
-
     private static Token CreateSymbolNameToken(string name)
     {
+        name = TrimLeadingAt(name);
         return IsBareSymbolName(name)
-            ? TokenFactory.Identifier(name)
-            : TokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote(name));
+            ? TokenFactory.SymbolName("@" + name)
+            : TokenFactory.SymbolName("@" + StringLiteralAttributeAssemblyFormat.Quote(name));
     }
 
     private static string DecodeSymbolName(Token token)
     {
-        return token.TokenKind == TokenKind.StringLiteral
-            ? StringLiteralAttributeAssemblyFormat.Unescape(token.Text)
-            : token.Text;
+        var text = TrimLeadingAt(token.Text);
+        return text.Length >= 2 && text[0] == '"' && text[text.Length - 1] == '"'
+            ? StringLiteralAttributeAssemblyFormat.Unescape(text)
+            : text;
     }
 
     private static string TrimLeadingAt(string name)
