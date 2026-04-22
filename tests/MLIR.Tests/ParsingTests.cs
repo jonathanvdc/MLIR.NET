@@ -1,7 +1,9 @@
 namespace MLIR.Tests;
 
+using System.Linq;
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Builtin;
 using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Numerics;
 using MLIR.Semantics;
@@ -342,6 +344,54 @@ public sealed class ParsingTests
         var payloadSyntax = Assert.IsType<IntegerAttributeValueSyntax>(typedSyntax.AttributeSyntax);
         Assert.Equal(42, (int)payloadSyntax.Value.ToBigIntegerSigned());
         Assert.Equal(source, typedSyntax.ToString());
+    }
+
+    [Theory]
+    [InlineData("@foo", "foo", new string[0])]
+    [InlineData("@outer::@inner", "outer", new[] { "inner" })]
+    [InlineData("@outer::@middle::@leaf", "outer", new[] { "middle", "leaf" })]
+    [InlineData("@\"not-valid-bare\"::@leaf", "not-valid-bare", new[] { "leaf" })]
+    public void ParsesAndBindsSymbolRefAttributeValues(string source, string expectedRoot, string[] expectedNested)
+    {
+        var syntax = Parser.ParseAttributeValue(source);
+
+        var symbolSyntax = Assert.IsType<SymbolRefAttributeValueSyntax>(syntax);
+        Assert.Equal(1 + expectedNested.Length, symbolSyntax.Count);
+        Assert.Equal(symbolSyntax.Components.Select(static component => component.NameToken.Text), symbolSyntax.NameTokens.Select(static token => token.Text));
+        Assert.Equal(source, syntax.ToString());
+
+        var moduleSyntax = Parser.ParseModule("\"test.op\"() {callee = " + source + "} : () -> ()");
+        var module = Binder.BindModule(moduleSyntax, Dialects.BuiltinDialects.CreateRegistry());
+        var operation = module.Operations[0];
+        var symbolRef = Assert.IsType<SymbolRefAttr>(operation.Attributes["callee"].Value);
+        Assert.Equal(expectedRoot, symbolRef.RootReference);
+        Assert.Equal(expectedNested, symbolRef.NestedReferences);
+    }
+
+    [Theory]
+    [InlineData("@foo")]
+    [InlineData("@outer::@inner")]
+    [InlineData("@\"not valid bare\"::@leaf")]
+    public void RebuildsSymbolRefAttributesThroughBuiltinAssemblyFormat(string source)
+    {
+        var moduleSyntax = Parser.ParseModule("\"test.op\"() {callee = " + source + "} : () -> ()");
+        var module = Binder.BindModule(moduleSyntax, Dialects.BuiltinDialects.CreateRegistry());
+        var options = new ConcreteSyntaxBuilder.ConcreteSyntaxBuilderOptions(
+            existingSyntaxHandling: ConcreteSyntaxBuilder.ExistingSyntaxHandling.ReplaceExistingSyntax);
+
+        var text = Printer.Print(module, options);
+
+        Assert.Equal("\"test.op\"() {callee = " + source + "} : () -> ()", text);
+    }
+
+    [Fact]
+    public void SymbolRefAttributeDoesNotTreatSingleColonAsNestedReferenceSeparator()
+    {
+        var syntax = Parser.ParseAttributeValue("@foo : i32");
+
+        var typedSyntax = Assert.IsType<TypedAttributeValueSyntax>(syntax);
+        Assert.IsType<SymbolRefAttributeValueSyntax>(typedSyntax.AttributeSyntax);
+        Assert.Equal("@foo : i32", syntax.ToString());
     }
 
     [Fact]

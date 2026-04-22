@@ -712,6 +712,7 @@ public sealed class DialectImporterTests
         var symbolRefAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_SymbolRefAttr");
         Assert.Equal("string", symbolRefAttr.Parameters[0].CsharpType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<string>", symbolRefAttr.Parameters[1].CsharpType);
+        Assert.Equal("new global::MLIR.Dialects.Builtin.BuiltinSymbolRefAttributeAssemblyFormat()", symbolRefAttr.CsharpAssemblyFormat);
 
         var stridedLayoutAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "StridedLayoutAttr");
         Assert.Equal("long?", stridedLayoutAttr.Parameters[0].CsharpType);

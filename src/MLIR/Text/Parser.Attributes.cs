@@ -3,6 +3,7 @@ namespace MLIR.Text;
 using MLIR.Dialects;
 using MLIR.Dialects.Attributes.Collections;
 using MLIR.Dialects.Attributes.Primitives;
+using MLIR.Dialects.Builtin;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 
@@ -17,6 +18,7 @@ public sealed partial class Parser
         new DictionaryAttributeAssemblyFormat(),
         new DenseIntegerArrayAttributeAssemblyFormat(),
         new ElementsAttributeAssemblyFormat(),
+        new BuiltinSymbolRefAttributeAssemblyFormat(),
         new StringLiteralAttributeAssemblyFormat(),
         new FloatingPointLiteralAttributeAssemblyFormat(),
         new IntegerLiteralAttributeAssemblyFormat(),

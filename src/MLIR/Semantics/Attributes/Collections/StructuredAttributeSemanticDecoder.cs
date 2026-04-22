@@ -14,6 +14,7 @@ using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Syntax.Attributes.Primitives;
+using MLIR.Text;
 
 /// <summary>
 /// Provides syntax-only decoding helpers for structured attribute payloads.
@@ -108,6 +109,7 @@ public static class StructuredAttributeSemanticDecoder
                 new StringAttr(stringSyntax.Value, TypeFactory.None, stringSyntax),
             UnitAttributeValueSyntax unitSyntax => new UnitAttr(unitSyntax),
             TypeAttributeValueSyntax typeSyntax => new TypeAttr(new UnknownTypeReference(typeSyntax.TypeSyntax, null, null), typeSyntax),
+            SymbolRefAttributeValueSyntax symbolRefSyntax => DecodeSymbolRefValue(symbolRefSyntax),
             DenseArrayAttributeValueSyntax denseArraySyntax => DecodeDenseArrayValue(denseArraySyntax),
             ArrayAttributeValueSyntax arraySyntax => new ArrayAttr(DecodeItems(arraySyntax.Items.Items), arraySyntax),
             DictionaryAttributeValueSyntax dictionarySyntax => new DictionaryAttr(DecodeAttributes(dictionarySyntax.Attributes.Items), dictionarySyntax),
@@ -116,6 +118,24 @@ public static class StructuredAttributeSemanticDecoder
             RawAttributeValueSyntax rawSyntax => DecodeRawValue(rawSyntax),
             _ => new UnknownAttributeValue(syntax, null, null),
         };
+    }
+
+    private static AttributeValue DecodeSymbolRefValue(SymbolRefAttributeValueSyntax syntax)
+    {
+        var nestedReferences = new string[System.Math.Max(0, syntax.Count - 1)];
+        for (var i = 1; i < syntax.Count; i++)
+        {
+            nestedReferences[i - 1] = DecodeSymbolName(syntax.Components[i].NameToken);
+        }
+
+        return new SymbolRefAttr(DecodeSymbolName(syntax.Components[0].NameToken), nestedReferences, syntax);
+    }
+
+    private static string DecodeSymbolName(Token token)
+    {
+        return token.TokenKind == TokenKind.StringLiteral
+            ? StringLiteralAttributeAssemblyFormat.Unescape(token.Text)
+            : token.Text;
     }
 
     private static AttributeValue DecodeDenseArrayValue(DenseArrayAttributeValueSyntax syntax)

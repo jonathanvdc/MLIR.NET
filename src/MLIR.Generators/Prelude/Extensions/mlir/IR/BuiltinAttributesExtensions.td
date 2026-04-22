@@ -94,6 +94,7 @@ extends Builtin_SymbolRefAttr : MLIRNet_AttrOrTypeDefExtension {
     "string":$rootReference,
     "global::System.Collections.Generic.IReadOnlyList<string>":$nestedReferences
   );
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinSymbolRefAttributeAssemblyFormat()";
 }
 
 extends StridedLayoutAttr : MLIRNet_AttrOrTypeDefExtension {
