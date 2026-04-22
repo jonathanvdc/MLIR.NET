@@ -119,8 +119,8 @@ internal abstract class AttributeConstraintCodeStrategy
     /// Gets a value indicating whether this constraint, when used as an element type inside
     /// a typed-array attribute, should have its payload extracted via a named property on
     /// the generated constraint class (see <see cref="GetTypedArrayElementPayloadPropertyName"/>).
-    /// When <see langword="false"/> the decoder falls back to
-    /// <c>StructuredAttributeSemanticDecoder.DecodeValue</c>.
+    /// When <see langword="false"/> the strategy provides a direct syntax-to-value decode
+    /// expression for the element.
     /// </summary>
     public virtual bool UsesTypedArrayElementPayload => false;
 
@@ -417,7 +417,7 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     public override string? GetAssemblyFormatType() => "DictionaryAttributeAssemblyFormat";
     public override string? GetTypedArrayElementDecodeExpression() =>
         "{itemSyntax} is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
-        "? global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(dictionarySyntax.Attributes.Items) " +
+        "? global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax(dictionarySyntax.Attributes.Items) " +
         ": global::MLIR.Semantics.NamedAttributeCollection.Empty";
     public override string? GetTypedArrayElementToSyntaxExpression() =>
         "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BuildSyntax({element}, {context})";

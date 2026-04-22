@@ -23,6 +23,7 @@ public sealed class TypeAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
             syntax = typedSyntax.AttributeSyntax;
@@ -31,8 +32,7 @@ public sealed class TypeAttributeAssemblyFormat : IAttributeAssemblyFormat
         var typeSyntax = syntax is TypeAttributeValueSyntax typeAttributeSyntax
             ? typeAttributeSyntax.TypeSyntax
             : throw new InvalidOperationException("Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.");
-        var normalizedSyntax = new TypeAttributeValueSyntax(typeSyntax);
-        return new TypeAttr(binder.BindTypeReference(typeSyntax), normalizedSyntax);
+        return new TypeAttr(binder.BindTypeReference(typeSyntax), resultSyntax);
     }
 
     /// <inheritdoc/>

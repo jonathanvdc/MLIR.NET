@@ -47,6 +47,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
             syntax = typedSyntax.AttributeSyntax;
@@ -54,7 +55,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
 
         if (syntax is FloatingPointAttributeValueSyntax floatingPointSyntax)
         {
-            return new FloatAttr(GetResultType(), floatingPointSyntax.Value, floatingPointSyntax);
+            return new FloatAttr(GetResultType(), floatingPointSyntax.Value, resultSyntax);
         }
         else if (syntax is IntegerAttributeValueSyntax integerSyntax)
         {
@@ -68,7 +69,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
                     integerSyntax.SignToken.HasValue
                         ? integerSyntax.SignToken.Value.Text + integerSyntax.IntegerToken.Text
                         : integerSyntax.IntegerToken.Text));
-            return new FloatAttr(GetResultType(), convertedSyntax.Value, convertedSyntax);
+            return new FloatAttr(GetResultType(), convertedSyntax.Value, resultSyntax);
         }
         else
         {

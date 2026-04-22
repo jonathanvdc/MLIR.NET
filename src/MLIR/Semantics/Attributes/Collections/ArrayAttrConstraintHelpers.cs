@@ -14,11 +14,23 @@ public static class ArrayAttrConstraintHelpers
     /// <summary>
     /// Builds an <see cref="ArrayAttr"/> from parsed array syntax.
     /// </summary>
-    public static ArrayAttr BindFromSyntax(AttributeValueSyntax? syntax)
+    public static ArrayAttr BindFromSyntax(AttributeValueSyntax? syntax, Binder? binder = null)
     {
         return syntax is ArrayAttributeValueSyntax arraySyntax
-            ? new ArrayAttr(StructuredAttributeSemanticDecoder.DecodeItems(arraySyntax.Items.Items), arraySyntax)
+            ? new ArrayAttr(BindItemsFromSyntax(arraySyntax.Items.Items, binder), arraySyntax)
             : new ArrayAttr(Array.Empty<AttributeValue>(), syntax);
+    }
+
+    /// <summary>
+    /// Binds array item syntax through the normal attribute binder.
+    /// </summary>
+    /// <param name="items">The item syntax nodes in the array.</param>
+    /// <param name="binder">The binder to use, or <see langword="null"/> to use a syntax-only binder.</param>
+    /// <returns>The bound item values.</returns>
+    public static IReadOnlyList<AttributeValue> BindItemsFromSyntax(IReadOnlyList<AttributeValueSyntax> items, Binder? binder = null)
+    {
+        binder ??= new Binder(null);
+        return binder.BindAttributeValues(items);
     }
 
     /// <summary>
@@ -76,7 +88,7 @@ public static class ArrayAttrConstraintHelpers
     private static IReadOnlyList<AttributeValue> DecodeStorageItemsFromSyntax(AttributeValueSyntax? syntax)
     {
         return syntax is ArrayAttributeValueSyntax arraySyntax
-            ? StructuredAttributeSemanticDecoder.DecodeItems(arraySyntax.Items.Items)
+            ? BindItemsFromSyntax(arraySyntax.Items.Items)
             : Array.Empty<AttributeValue>();
     }
 }

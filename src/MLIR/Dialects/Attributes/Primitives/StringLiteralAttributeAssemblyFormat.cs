@@ -30,6 +30,7 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
             syntax = typedSyntax.AttributeSyntax;
@@ -40,7 +41,7 @@ public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFor
             throw new InvalidOperationException("Expected a string literal syntax for a primitive string attribute.");
         }
 
-        return new StringAttr(stringSyntax.Value, TypeFactory.None, stringSyntax);
+        return new StringAttr(stringSyntax.Value, TypeFactory.None, resultSyntax);
     }
 
     /// <inheritdoc/>

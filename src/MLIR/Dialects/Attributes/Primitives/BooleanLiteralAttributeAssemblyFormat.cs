@@ -39,6 +39,7 @@ public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
             syntax = typedSyntax.AttributeSyntax;
@@ -49,7 +50,7 @@ public sealed class BooleanLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
             throw new InvalidOperationException("Expected a boolean literal syntax for a primitive boolean attribute.");
         }
 
-        return new IntegerAttr(TypeFactory.I1, MLIR.Numerics.ApInt.FromInt64(1, booleanSyntax.Value ? 1 : 0), booleanSyntax);
+        return new IntegerAttr(TypeFactory.I1, MLIR.Numerics.ApInt.FromInt64(1, booleanSyntax.Value ? 1 : 0), resultSyntax);
     }
 
     /// <inheritdoc/>

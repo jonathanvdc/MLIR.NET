@@ -5,6 +5,7 @@ using MLIR.Dialects;
 using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -64,9 +65,17 @@ public sealed class ArrayAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         var normalizedSyntax = syntax as ArrayAttributeValueSyntax
             ?? throw new InvalidOperationException("Unexpected syntax for array attribute. Expected an array attribute literal such as '[1, 2]'.");
-        return MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindFromSyntax(normalizedSyntax);
+        return new ArrayAttr(
+            MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindItemsFromSyntax(normalizedSyntax.Items.Items, binder),
+            resultSyntax);
     }
 
     /// <inheritdoc/>

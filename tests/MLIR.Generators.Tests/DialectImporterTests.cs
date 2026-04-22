@@ -323,14 +323,14 @@ public sealed class DialectImporterTests
         var arrayParam = Assert.Single(arrayAttr.Parameters);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>", arrayParam.CsharpType);
         Assert.Equal("global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax", arrayParam.CsharpSyntaxType);
-        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeItems($_syntax.Items.Items)", arrayParam.CsharpExtractor);
+        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindItemsFromSyntax($_syntax.Items.Items)", arrayParam.CsharpExtractor);
         Assert.Equal("global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>()", arrayParam.CsharpDefault);
 
         var dictionaryAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_DictionaryAttr");
         var dictionaryParam = Assert.Single(dictionaryAttr.Parameters);
         Assert.Equal("global::MLIR.Semantics.NamedAttributeCollection", dictionaryParam.CsharpType);
         Assert.Equal("global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax", dictionaryParam.CsharpSyntaxType);
-        Assert.Equal("global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes($_syntax.Attributes.Items)", dictionaryParam.CsharpExtractor);
+        Assert.Equal("global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax($_syntax.Attributes.Items)", dictionaryParam.CsharpExtractor);
         Assert.Equal("global::MLIR.Semantics.NamedAttributeCollection.Empty", dictionaryParam.CsharpDefault);
 
         var integerAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_IntegerAttr");

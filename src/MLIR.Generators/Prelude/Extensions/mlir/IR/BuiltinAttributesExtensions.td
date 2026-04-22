@@ -17,7 +17,7 @@ def Builtin_ArrayParameter : AttrOrTypeParameter<
     MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax";
-  let csharpExtractor = "global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeItems($_syntax.Items.Items)";
+  let csharpExtractor = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindItemsFromSyntax($_syntax.Items.Items)";
   let csharpDefault = "global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>()";
 }
 
@@ -26,7 +26,7 @@ def Builtin_DictionaryParameter : AttrOrTypeParameter<
     MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::MLIR.Semantics.NamedAttributeCollection";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax";
-  let csharpExtractor = "global::MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes($_syntax.Attributes.Items)";
+  let csharpExtractor = "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax($_syntax.Attributes.Items)";
   let csharpDefault = "global::MLIR.Semantics.NamedAttributeCollection.Empty";
 }
 

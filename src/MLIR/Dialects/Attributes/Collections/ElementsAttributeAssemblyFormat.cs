@@ -4,8 +4,8 @@ using MLIR;
 using MLIR.Dialects;
 using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
-using MLIR.Semantics.Attributes.Collections;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -66,7 +66,7 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
         var normalizedSyntax = NormalizeSyntax(syntax);
-        var payload = StructuredAttributeSemanticDecoder.DecodeValue(normalizedSyntax.Payload);
+        var payload = binder.BindAttributeValue(normalizedSyntax.Payload, expectedDefinition: null);
         var type = binder.BindTypeReference(normalizedSyntax.TypeSyntax);
 
         return new DenseTypedElementsAttr(type, payload, syntax);
@@ -91,6 +91,11 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
 
     private static ElementsAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax)
     {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         if (syntax is ElementsAttributeValueSyntax elementsSyntax)
         {
             return elementsSyntax;

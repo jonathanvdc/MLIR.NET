@@ -57,6 +57,7 @@ public sealed class BuiltinOpaqueAttributeAssemblyFormat : IAttributeAssemblyFor
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
             syntax = typedSyntax.AttributeSyntax;
@@ -67,7 +68,7 @@ public sealed class BuiltinOpaqueAttributeAssemblyFormat : IAttributeAssemblyFor
             throw new InvalidOperationException("Opaque attributes require opaque attribute syntax.");
         }
 
-        return Decode(opaqueSyntax);
+        return Decode(opaqueSyntax, resultSyntax);
     }
 
     /// <inheritdoc/>
@@ -98,6 +99,11 @@ public sealed class BuiltinOpaqueAttributeAssemblyFormat : IAttributeAssemblyFor
     /// </summary>
     public static OpaqueAttr Decode(OpaqueAttributeValueSyntax syntax)
     {
+        return Decode(syntax, syntax);
+    }
+
+    private static OpaqueAttr Decode(OpaqueAttributeValueSyntax syntax, AttributeValueSyntax resultSyntax)
+    {
         var tokens = syntax.RawText.Tokens;
         if (tokens.Count < 4 ||
             tokens[0].TokenKind != TokenKind.Hash ||
@@ -115,6 +121,6 @@ public sealed class BuiltinOpaqueAttributeAssemblyFormat : IAttributeAssemblyFor
             ? attrDataEndToken.Document!.Text.Substring(attrDataStart, attrDataEndToken.TokenStart - attrDataStart)
             : string.Concat(tokens.Skip(3).Take(tokens.Count - 4).Select(static token => token.FullText));
 
-        return new OpaqueAttr(dialectNamespace, attrData, TypeFactory.None, syntax);
+        return new OpaqueAttr(dialectNamespace, attrData, TypeFactory.None, resultSyntax);
     }
 }

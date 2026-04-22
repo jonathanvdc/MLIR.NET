@@ -5,6 +5,7 @@ using MLIR.Dialects;
 using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -29,10 +30,9 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         var normalizedSyntax = NormalizeSyntax(syntax, definition, binder);
-        return new DictionaryAttr(
-            MLIR.Semantics.Attributes.Collections.StructuredAttributeSemanticDecoder.DecodeAttributes(normalizedSyntax.Attributes.Items),
-            normalizedSyntax);
+        return new DictionaryAttr(BindAttributesFromSyntax(normalizedSyntax.Attributes.Items, binder), resultSyntax);
     }
 
     /// <inheritdoc/>
@@ -63,8 +63,25 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
             new DelimitedSyntaxList<NamedAttributeSyntax>(TokenFactory.LBrace(), items, separators, TokenFactory.RBrace()));
     }
 
+    /// <summary>
+    /// Binds dictionary item syntax through the normal attribute binder.
+    /// </summary>
+    /// <param name="attributes">The named attribute syntax items in the dictionary.</param>
+    /// <param name="binder">The binder to use, or <see langword="null"/> to use a syntax-only binder.</param>
+    /// <returns>The bound named attribute collection.</returns>
+    public static NamedAttributeCollection BindAttributesFromSyntax(IReadOnlyList<NamedAttributeSyntax> attributes, Binder? binder = null)
+    {
+        binder ??= new Binder(null);
+        return binder.BindNamedAttributes(attributes);
+    }
+
     private static DictionaryAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         if (syntax is DictionaryAttributeValueSyntax dictionarySyntax)
         {
             return dictionarySyntax;

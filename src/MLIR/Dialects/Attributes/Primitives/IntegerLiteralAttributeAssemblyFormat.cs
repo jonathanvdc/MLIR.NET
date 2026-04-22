@@ -36,6 +36,7 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
             syntax = typedSyntax.AttributeSyntax;
@@ -46,7 +47,7 @@ public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFo
             throw new InvalidOperationException("Expected an integer literal syntax for a primitive integer attribute.");
         }
 
-        return new IntegerAttr(TypeFactory.I(integerSyntax.Value.BitWidth), integerSyntax.Value, integerSyntax);
+        return new IntegerAttr(TypeFactory.I(integerSyntax.Value.BitWidth), integerSyntax.Value, resultSyntax);
     }
 
     /// <inheritdoc/>

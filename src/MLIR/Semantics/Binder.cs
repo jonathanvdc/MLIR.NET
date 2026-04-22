@@ -4,12 +4,16 @@ using System;
 using System.Collections.Generic;
 using MLIR;
 using MLIR.Dialects;
+using MLIR.Dialects.Attributes;
+using MLIR.Dialects.Attributes.Collections;
+using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Dialects.Builtin;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
-using MLIR.Semantics.Attributes.Collections;
 using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
+using MLIR.Syntax.Attributes.Collections;
+using MLIR.Syntax.Attributes.Primitives;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Syntax.Types.Primitives;
 using MLIR.Text;
@@ -436,24 +440,62 @@ public sealed class Binder
             }
         }
 
+        var isBuiltinFallbackDefinition = false;
+        if (definition == null)
+        {
+            definition = TryGetBuiltinAttributeDefinition(syntaxNode);
+            isBuiltinFallbackDefinition = definition != null;
+        }
+
         AttributeValue attribute;
         if (definition?.AssemblyFormat != null)
         {
-            attribute = BindAttributeValueWithAssemblyFormat(syntaxNode, definition, selfTypeReference);
+            attribute = BindAttributeValueWithAssemblyFormat(
+                isBuiltinFallbackDefinition ? outerSyntax : syntaxNode,
+                definition,
+                selfTypeReference);
         }
         else
         {
-            attribute = StructuredAttributeSemanticDecoder.DecodeValue(outerSyntax);
-            if (attribute is UnknownAttributeValue)
-            {
-                attribute = new UnknownAttributeValue(
-                    outerSyntax,
-                    definition?.Name ?? canonicalName,
-                    definition);
-            }
+            attribute = new UnknownAttributeValue(
+                outerSyntax,
+                definition?.Name ?? canonicalName,
+                definition);
         }
 
         return attribute;
+    }
+
+    /// <summary>
+    /// Binds each attribute-value syntax node in a collection through the normal attribute binding path.
+    /// </summary>
+    /// <param name="items">The syntax nodes to bind.</param>
+    /// <returns>The bound semantic attribute values.</returns>
+    public IReadOnlyList<AttributeValue> BindAttributeValues(IReadOnlyList<AttributeValueSyntax> items)
+    {
+        var result = new List<AttributeValue>(items.Count);
+        for (var i = 0; i < items.Count; i++)
+        {
+            result.Add(BindAttributeValue(items[i], expectedDefinition: null));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Binds each named attribute syntax node in a collection through the normal attribute binding path.
+    /// </summary>
+    /// <param name="attributes">The syntax nodes to bind.</param>
+    /// <returns>The bound semantic named-attribute collection.</returns>
+    public NamedAttributeCollection BindNamedAttributes(IReadOnlyList<NamedAttributeSyntax> attributes)
+    {
+        var result = new List<NamedAttribute>(attributes.Count);
+        for (var i = 0; i < attributes.Count; i++)
+        {
+            result.Add(BindNamedAttribute(attributes[i]));
+        }
+
+        return new NamedAttributeCollection(result);
     }
 
     private AttributeValue BindAttributeValueWithAssemblyFormat(
@@ -474,6 +516,107 @@ public sealed class Binder
 
     private TypeReference? CurrentAttributeSelfTypeReference =>
         attributeSelfTypeReferences.Count > 0 ? attributeSelfTypeReferences.Peek() : null;
+
+    private static AttributeConstraintDefinition? TryGetBuiltinAttributeDefinition(AttributeValueSyntax syntax)
+    {
+        return syntax switch
+        {
+            BooleanAttributeValueSyntax => BuiltinBooleanAttributeDefinition,
+            IntegerAttributeValueSyntax => BuiltinIntegerAttributeDefinition,
+            FloatingPointAttributeValueSyntax => BuiltinFloatingPointAttributeDefinition,
+            StringAttributeValueSyntax => BuiltinStringAttributeDefinition,
+            UnitAttributeValueSyntax or PrefixedUnitAttributeValueSyntax => BuiltinUnitAttributeDefinition,
+            TypeAttributeValueSyntax => BuiltinTypeAttributeDefinition,
+            SymbolRefAttributeValueSyntax => BuiltinSymbolRefAttributeDefinition,
+            OpaqueAttributeValueSyntax => BuiltinOpaqueAttributeDefinition,
+            DenseArrayAttributeValueSyntax denseArraySyntax => GetDenseArrayAttributeDefinition(denseArraySyntax),
+            ArrayAttributeValueSyntax => BuiltinArrayAttributeDefinition,
+            DictionaryAttributeValueSyntax => BuiltinDictionaryAttributeDefinition,
+            ElementsAttributeValueSyntax => BuiltinDenseTypedElementsAttributeDefinition,
+            _ => null,
+        };
+    }
+
+    private static AttributeConstraintDefinition GetDenseArrayAttributeDefinition(DenseArrayAttributeValueSyntax syntax)
+    {
+        var elementTypeText = syntax.ElementTypeSyntax.ToString();
+        return elementTypeText switch
+        {
+            "i1" => BuiltinDenseBooleanArrayAttributeDefinition,
+            "i8" => BuiltinDenseI8ArrayAttributeDefinition,
+            "i16" => BuiltinDenseI16ArrayAttributeDefinition,
+            "i64" => BuiltinDenseI64ArrayAttributeDefinition,
+            "f32" => BuiltinDenseF32ArrayAttributeDefinition,
+            "f64" => BuiltinDenseF64ArrayAttributeDefinition,
+            _ when IsFloatingPointTypeText(elementTypeText) => BuiltinDenseF64ArrayAttributeDefinition,
+            _ => BuiltinDenseI32ArrayAttributeDefinition,
+        };
+    }
+
+    private static bool IsFloatingPointTypeText(string text)
+    {
+        return text == "f16"
+            || text == "bf16"
+            || text == "f32"
+            || text == "f64"
+            || text == "tf32"
+            || text == "f80"
+            || text == "f128";
+    }
+
+    private static readonly AttributeDefinition BuiltinBooleanAttributeDefinition =
+        new("builtin.integer", new BooleanLiteralAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinIntegerAttributeDefinition =
+        new("builtin.integer", new IntegerLiteralAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinFloatingPointAttributeDefinition =
+        new("builtin.float", new FloatingPointLiteralAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinStringAttributeDefinition =
+        new("builtin.string", new StringLiteralAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinUnitAttributeDefinition =
+        new("builtin.unit", new UnitLiteralAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinTypeAttributeDefinition =
+        new("builtin.type", new TypeAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinSymbolRefAttributeDefinition =
+        new("builtin.symbol_ref", new BuiltinSymbolRefAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinOpaqueAttributeDefinition =
+        new("builtin.opaque", new BuiltinOpaqueAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDenseI32ArrayAttributeDefinition =
+        new("DenseI32ArrayAttr", new DenseIntegerArrayAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDenseI8ArrayAttributeDefinition =
+        new("DenseI8ArrayAttr", new DenseIntegerArrayAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDenseI16ArrayAttributeDefinition =
+        new("DenseI16ArrayAttr", new DenseIntegerArrayAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDenseI64ArrayAttributeDefinition =
+        new("DenseI64ArrayAttr", new DenseIntegerArrayAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDenseBooleanArrayAttributeDefinition =
+        new("DenseBoolArrayAttr", new DenseBooleanArrayAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDenseF32ArrayAttributeDefinition =
+        new("DenseF32ArrayAttr", new DenseFloatingPointArrayAttributeAssemblyFormat("f32"));
+
+    private static readonly AttributeDefinition BuiltinDenseF64ArrayAttributeDefinition =
+        new("DenseF64ArrayAttr", new DenseFloatingPointArrayAttributeAssemblyFormat("f64"));
+
+    private static readonly AttributeDefinition BuiltinArrayAttributeDefinition =
+        new("builtin.array", new ArrayAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDictionaryAttributeDefinition =
+        new("builtin.dictionary", new DictionaryAttributeAssemblyFormat());
+
+    private static readonly AttributeDefinition BuiltinDenseTypedElementsAttributeDefinition =
+        new("builtin.dense_typed_elements", new ElementsAttributeAssemblyFormat());
 
     private TypeReference? TryBindTypedAttributeSelfType(
         AttributeValueSyntax syntax,

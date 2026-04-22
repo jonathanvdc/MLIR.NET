@@ -6,6 +6,7 @@ using MLIR.Dialects;
 using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -84,6 +85,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     /// <inheritdoc/>
     public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        var resultSyntax = syntax;
         var normalizedSyntax = NormalizeSyntax(syntax, definition, binder);
         var items = new List<TElement>(normalizedSyntax.Items.Count);
         for (var i = 0; i < normalizedSyntax.Items.Count; i++)
@@ -91,7 +93,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             items.Add(ElementFromSyntax(normalizedSyntax.Items[i]));
         }
 
-        return CreateDenseArrayAttribute(normalizedSyntax, definition.Name, items);
+        return CreateDenseArrayAttribute(resultSyntax, definition.Name, items);
     }
 
     /// <inheritdoc/>
@@ -161,7 +163,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     protected abstract TypeSyntax GetElementTypeSyntax(string? constraintName);
 
     private DenseArrayAttr CreateDenseArrayAttribute(
-        DenseArrayAttributeValueSyntax syntax,
+        AttributeValueSyntax syntax,
         string? constraintName,
         IReadOnlyList<TElement> items)
     {
@@ -174,6 +176,11 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
 
     private static DenseArrayAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
     {
+        if (syntax is TypedAttributeValueSyntax typedSyntax)
+        {
+            syntax = typedSyntax.AttributeSyntax;
+        }
+
         if (syntax is DenseArrayAttributeValueSyntax denseArraySyntax)
         {
             return denseArraySyntax;
