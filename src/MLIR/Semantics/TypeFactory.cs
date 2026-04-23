@@ -3,7 +3,6 @@ namespace MLIR.Semantics;
 using System.Collections.Generic;
 using MLIR;
 using MLIR.Dialects.Builtin;
-using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
 
@@ -89,52 +88,54 @@ public static class TypeFactory
     /// <summary>
     /// Creates a ranked builtin tensor type with optional trailing parameters such as encodings.
     /// </summary>
-    public static TensorTypeReference Tensor(IReadOnlyList<long?> dimensions, TypeReference elementType, params string[] trailingParameters)
+    public static RankedTensorType Tensor(IReadOnlyList<long?> dimensions, TypeReference elementType, params string[] trailingParameters)
     {
-        return new TensorTypeReference(dimensions, false, elementType, ToRawSyntaxTexts(trailingParameters));
+        return new RankedTensorType(
+            BuiltinShapedTypeHelpers.EncodeShape(dimensions),
+            elementType,
+            GetOptionalTrailingAttribute(trailingParameters, 0)!);
     }
 
     /// <summary>
     /// Creates an unranked builtin tensor type with optional trailing parameters such as encodings.
     /// </summary>
-    public static TensorTypeReference UnrankedTensor(TypeReference elementType, params string[] trailingParameters)
+    public static UnrankedTensorType UnrankedTensor(TypeReference elementType, params string[] trailingParameters)
     {
-        return new TensorTypeReference([], true, elementType, ToRawSyntaxTexts(trailingParameters));
+        return new UnrankedTensorType(elementType);
     }
 
     /// <summary>
     /// Creates a builtin vector type.
     /// </summary>
-    public static VectorTypeReference Vector(IReadOnlyList<long?> dimensions, TypeReference elementType)
+    public static VectorType Vector(IReadOnlyList<long?> dimensions, TypeReference elementType)
     {
-        return new VectorTypeReference(dimensions, elementType);
+        return new VectorType(BuiltinShapedTypeHelpers.EncodeShape(dimensions), elementType, null!);
     }
 
     /// <summary>
     /// Creates a ranked builtin memref type with optional layout and memory-space parameters.
     /// </summary>
-    public static MemRefTypeReference MemRef(IReadOnlyList<long?> dimensions, TypeReference elementType, params string[] trailingParameters)
+    public static MemRefType MemRef(IReadOnlyList<long?> dimensions, TypeReference elementType, params string[] trailingParameters)
     {
-        return new MemRefTypeReference(dimensions, false, elementType, ToRawSyntaxTexts(trailingParameters));
+        return new MemRefType(
+            BuiltinShapedTypeHelpers.EncodeShape(dimensions),
+            elementType,
+            GetOptionalTrailingAttribute(trailingParameters, 0)!,
+            GetOptionalTrailingAttribute(trailingParameters, 1)!);
     }
 
     /// <summary>
     /// Creates an unranked builtin memref type with optional layout and memory-space parameters.
     /// </summary>
-    public static MemRefTypeReference UnrankedMemRef(TypeReference elementType, params string[] trailingParameters)
+    public static UnrankedMemRefType UnrankedMemRef(TypeReference elementType, params string[] trailingParameters)
     {
-        return new MemRefTypeReference([], true, elementType, ToRawSyntaxTexts(trailingParameters));
+        return new UnrankedMemRefType(elementType, GetOptionalTrailingAttribute(trailingParameters, 0)!);
     }
 
-    private static IReadOnlyList<RawSyntaxText> ToRawSyntaxTexts(IReadOnlyList<string> values)
+    private static AttributeValueSyntax? GetOptionalTrailingAttribute(IReadOnlyList<string> trailingParameters, int index)
     {
-        var results = new RawSyntaxText[values.Count];
-        for (var i = 0; i < values.Count; i++)
-        {
-            results[i] = new RawSyntaxText(values[i]);
-        }
-
-        return results;
+        return index < trailingParameters.Count
+            ? BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(trailingParameters[index])
+            : null;
     }
-
 }

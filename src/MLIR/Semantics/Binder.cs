@@ -728,22 +728,33 @@ public sealed class Binder
                     GetFunctionResults(functionSyntax).Select(BindTypeReference).ToArray(),
                     functionSyntax);
             case TensorTypeSyntax tensorSyntax:
-                return new TensorTypeReference(
-                    tensorSyntax,
-                    DecodeDimensions(tensorSyntax.Dimensions),
-                    BindTypeReference(tensorSyntax.ElementType),
-                    tensorSyntax.TrailingParameters);
+                return tensorSyntax.IsUnranked
+                    ? new UnrankedTensorType(
+                        BindTypeReference(tensorSyntax.ElementType),
+                        tensorSyntax)
+                    : new RankedTensorType(
+                        MLIR.Dialects.Builtin.BuiltinShapedTypeHelpers.DecodeShape(tensorSyntax.Dimensions),
+                        BindTypeReference(tensorSyntax.ElementType),
+                        MLIR.Dialects.Builtin.BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(tensorSyntax.TrailingParameters, 0)!,
+                        tensorSyntax);
             case VectorTypeSyntax vectorSyntax:
-                return new VectorTypeReference(
-                    vectorSyntax,
-                    DecodeDimensions(vectorSyntax.Dimensions),
-                    BindTypeReference(vectorSyntax.ElementType));
+                return new VectorType(
+                    MLIR.Dialects.Builtin.BuiltinShapedTypeHelpers.DecodeShape(vectorSyntax.Dimensions),
+                    BindTypeReference(vectorSyntax.ElementType),
+                    null!,
+                    vectorSyntax);
             case MemRefTypeSyntax memRefSyntax:
-                return new MemRefTypeReference(
-                    memRefSyntax,
-                    DecodeDimensions(memRefSyntax.Dimensions),
-                    BindTypeReference(memRefSyntax.ElementType),
-                    memRefSyntax.TrailingParameters);
+                return memRefSyntax.IsUnranked
+                    ? new UnrankedMemRefType(
+                        BindTypeReference(memRefSyntax.ElementType),
+                        MLIR.Dialects.Builtin.BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(memRefSyntax.TrailingParameters, 0)!,
+                        memRefSyntax)
+                    : new MemRefType(
+                        MLIR.Dialects.Builtin.BuiltinShapedTypeHelpers.DecodeShape(memRefSyntax.Dimensions),
+                        BindTypeReference(memRefSyntax.ElementType),
+                        MLIR.Dialects.Builtin.BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(memRefSyntax.TrailingParameters, 0)!,
+                        MLIR.Dialects.Builtin.BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(memRefSyntax.TrailingParameters, 1)!,
+                        memRefSyntax);
             default:
                 Report(new AssemblyDiagnostic(syntax.Location, $"Unsupported type syntax '{syntax.GetType().Name}'."));
                 return new UnknownTypeReference(syntax, null, null);
@@ -836,33 +847,17 @@ public sealed class Binder
                 return "builtin.tuple";
             case FunctionTypeSyntax:
                 return "builtin.function";
-            case TensorTypeSyntax:
-                return "tensor";
+            case TensorTypeSyntax tensorSyntax:
+                return tensorSyntax.IsUnranked ? "builtin.unranked_tensor" : "builtin.tensor";
             case VectorTypeSyntax:
-                return "vector";
-            case MemRefTypeSyntax:
-                return "memref";
+                return "builtin.vector";
+            case MemRefTypeSyntax memRefSyntax:
+                return memRefSyntax.IsUnranked ? "builtin.unranked_memref" : "builtin.memref";
             case DialectNamedTypeSyntax namedTypeSyntax:
                 return namedTypeSyntax.Name;
             default:
                 return null;
         }
-    }
-
-    private static IReadOnlyList<long?> DecodeDimensions(IReadOnlyList<ShapedTypeDimensionSyntax> dimensions)
-    {
-        var decoded = new long?[dimensions.Count];
-        for (var i = 0; i < dimensions.Count; i++)
-        {
-            decoded[i] = dimensions[i] switch
-            {
-                StaticShapedTypeDimensionSyntax staticDimension => staticDimension.Size,
-                DynamicShapedTypeDimensionSyntax => null,
-                _ => null,
-            };
-        }
-
-        return decoded;
     }
 
     private static string? TryGetAttributeDefinitionName(string text)

@@ -7,7 +7,6 @@ using MLIR.Dialects.Builtin;
 using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
-using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
@@ -44,18 +43,18 @@ public sealed partial class SemanticTests
             Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32, #map>>"));
 
         var function = Assert.IsType<FunctionType>(module.Operations[0].TypeSignatureReference);
-        var tensor = Assert.IsType<TensorTypeReference>(function.Inputs[0]);
+        var tensor = Assert.IsType<RankedTensorType>(function.Inputs[0]);
         var index = Assert.IsType<IndexType>(function.Inputs[1]);
         var tuple = Assert.IsType<TupleType>(function.Results[0]);
-        var vector = Assert.IsType<VectorTypeReference>(tuple.Types[0]);
-        var memref = Assert.IsType<MemRefTypeReference>(tuple.Types[1]);
+        var vector = Assert.IsType<VectorType>(tuple.Types[0]);
+        var memref = Assert.IsType<UnrankedMemRefType>(tuple.Types[1]);
 
-        Assert.Equal(new long?[] { 2, null }, tensor.Dimensions);
+        Assert.Equal(new long[] { 2, -1 }, tensor.Shape);
         Assert.IsType<UnknownTypeReference>(tensor.ElementType);
         Assert.Equal("index", index.Name);
-        Assert.Equal(new long?[] { 4 }, vector.Dimensions);
-        Assert.True(memref.IsUnranked);
-        Assert.Equal("#map", Assert.Single(memref.TrailingParameters).Text);
+        Assert.Equal(new long[] { 4 }, vector.Shape);
+        Assert.False(memref.HasRank);
+        Assert.Equal("#map", memref.MemorySpace?.ToString());
     }
 
     [Fact]
@@ -198,15 +197,35 @@ public sealed partial class SemanticTests
 
         var function = TypeFactory.Function(
             [TypeFactory.Tensor([2, null], TypeFactory.F32), TypeFactory.Index],
-            [TypeFactory.Tuple(TypeFactory.Vector([4], TypeFactory.F32), TypeFactory.UnrankedMemRef(TypeFactory.F32, "#map"))]);
+            [TypeFactory.Tuple(TypeFactory.Vector([4], TypeFactory.F32), TypeFactory.UnrankedMemRef(TypeFactory.F32))]);
 
         var rebound = Binder.BindModule(
-            Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32, #map>>", registry),
+            Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, index) -> tuple<vector<4xf32>, memref<*xf32>>", registry),
             registry)
             .Operations[0]
             .TypeSignatureReference!;
 
         Assert.Equal(rebound, function);
+    }
+
+    [Fact]
+    public void BindsBuiltinShapedTypesToGeneratedTypeDefsWhenRegistered()
+    {
+        var registry = new DialectRegistry();
+        registry.RegisterDialect(BuiltinDialectRegistration.Create());
+
+        var module = Binder.BindModule(
+            Parser.ParseModule("\"test.op\"() : (tensor<2x?xf32>, vector<4xf32>, memref<*xf32>) -> ()", registry),
+            registry);
+        var function = Assert.IsType<FunctionType>(module.Operations[0].TypeSignatureReference);
+
+        var tensor = Assert.IsType<RankedTensorType>(function.Inputs[0]);
+        var vector = Assert.IsType<VectorType>(function.Inputs[1]);
+        var memref = Assert.IsType<UnrankedMemRefType>(function.Inputs[2]);
+
+        Assert.Same(RankedTensorType.TypeDefinition, tensor.Definition);
+        Assert.Same(VectorType.TypeDefinition, vector.Definition);
+        Assert.Same(UnrankedMemRefType.TypeDefinition, memref.Definition);
     }
 
     [Fact]

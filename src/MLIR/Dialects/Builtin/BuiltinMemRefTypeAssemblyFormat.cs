@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MLIR.Semantics;
-using MLIR.Semantics.Types.Collections;
 using MLIR.Syntax;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Text;
@@ -35,11 +34,18 @@ public sealed class BuiltinMemRefTypeAssemblyFormat : ITypeAssemblyFormat
             throw new InvalidOperationException("MemRef types require memref type syntax.");
         }
 
-        return new MemRefTypeReference(
-            memRefSyntax,
-            DecodeDimensions(memRefSyntax.Dimensions),
-            binder.BindTypeReference(memRefSyntax.ElementType),
-            memRefSyntax.TrailingParameters);
+        var elementType = binder.BindTypeReference(memRefSyntax.ElementType);
+        return memRefSyntax.IsUnranked
+            ? new UnrankedMemRefType(
+                elementType,
+                BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(memRefSyntax.TrailingParameters, 0)!,
+                memRefSyntax)
+            : new MemRefType(
+                BuiltinShapedTypeHelpers.DecodeShape(memRefSyntax.Dimensions),
+                elementType,
+                BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(memRefSyntax.TrailingParameters, 0)!,
+                BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(memRefSyntax.TrailingParameters, 1)!,
+                memRefSyntax);
     }
 
     /// <inheritdoc/>
@@ -50,18 +56,44 @@ public sealed class BuiltinMemRefTypeAssemblyFormat : ITypeAssemblyFormat
             return existing;
         }
 
-        if (type is not MemRefTypeReference memRefType)
+        IReadOnlyList<long> shape;
+        bool isUnranked;
+        TypeReference elementType;
+        var trailingParameters = new List<RawSyntaxText>();
+        switch (type)
         {
-            throw new InvalidOperationException(
-                $"Cannot rebuild assembly syntax for an unrecognized memref type reference of type {type.GetType().FullName}.");
+            case MemRefType memRefType:
+                shape = memRefType.Shape;
+                isUnranked = false;
+                elementType = memRefType.ElementType;
+                if (memRefType.Layout != null)
+                {
+                    trailingParameters.Add(BuiltinShapedTypeHelpers.EncodeTrailingAttribute(memRefType.Layout));
+                }
+
+                if (memRefType.MemorySpace != null)
+                {
+                    trailingParameters.Add(BuiltinShapedTypeHelpers.EncodeTrailingAttribute(memRefType.MemorySpace));
+                }
+
+                break;
+            case UnrankedMemRefType unrankedMemRefType:
+                shape = [];
+                isUnranked = true;
+                elementType = unrankedMemRefType.ElementType;
+                if (unrankedMemRefType.MemorySpace != null)
+                {
+                    trailingParameters.Add(BuiltinShapedTypeHelpers.EncodeTrailingAttribute(unrankedMemRefType.MemorySpace));
+                }
+
+                break;
+            default:
+                throw new InvalidOperationException(
+                    $"Cannot rebuild assembly syntax for an unrecognized memref type reference of type {type.GetType().FullName}.");
         }
 
-        var dimensions = memRefType.Dimensions;
-        var isUnranked = memRefType.IsUnranked;
-        var elementTypeSyntax = context.BuildTypeSyntax(memRefType.ElementType);
-        var trailingParameters = memRefType.TrailingParameters;
-
-        var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
+        var elementTypeSyntax = context.BuildTypeSyntax(elementType);
+        var dimensionSyntax = shape.Select(BuiltinShapedTypeHelpers.CreateDimensionSyntax).ToArray();
         var xTokens = new List<Token>(isUnranked ? 1 : dimensionSyntax.Length);
         for (var i = 0; i < xTokens.Capacity; i++)
         {
@@ -84,16 +116,5 @@ public sealed class BuiltinMemRefTypeAssemblyFormat : ITypeAssemblyFormat
             commas,
             trailingParameters,
             TokenFactory.GreaterThan());
-    }
-
-    private static IReadOnlyList<long?> DecodeDimensions(IReadOnlyList<ShapedTypeDimensionSyntax> dimensions)
-    {
-        var decoded = new long?[dimensions.Count];
-        for (var i = 0; i < dimensions.Count; i++)
-        {
-            decoded[i] = dimensions[i] is StaticShapedTypeDimensionSyntax staticDim ? staticDim.Size : null;
-        }
-
-        return decoded;
     }
 }

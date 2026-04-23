@@ -4,8 +4,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MLIR.Semantics;
-using MLIR.Semantics.Types.Collections;
 using MLIR.Syntax;
+using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
@@ -35,11 +35,14 @@ public sealed class BuiltinTensorTypeAssemblyFormat : ITypeAssemblyFormat
             throw new InvalidOperationException("Tensor types require tensor type syntax.");
         }
 
-        return new TensorTypeReference(
-            tensorSyntax,
-            DecodeDimensions(tensorSyntax.Dimensions),
-            binder.BindTypeReference(tensorSyntax.ElementType),
-            tensorSyntax.TrailingParameters);
+        var elementType = binder.BindTypeReference(tensorSyntax.ElementType);
+        return tensorSyntax.IsUnranked
+            ? new UnrankedTensorType(elementType, tensorSyntax)
+            : new RankedTensorType(
+                BuiltinShapedTypeHelpers.DecodeShape(tensorSyntax.Dimensions),
+                elementType,
+                BuiltinShapedTypeHelpers.DecodeOptionalTrailingAttribute(tensorSyntax.TrailingParameters, 0)!,
+                tensorSyntax);
     }
 
     /// <inheritdoc/>
@@ -50,18 +53,33 @@ public sealed class BuiltinTensorTypeAssemblyFormat : ITypeAssemblyFormat
             return existing;
         }
 
-        if (type is not TensorTypeReference tensorType)
+        IReadOnlyList<long> shape;
+        bool isUnranked;
+        TypeReference elementType;
+        IReadOnlyList<RawSyntaxText> trailingParameters;
+        switch (type)
         {
-            throw new InvalidOperationException(
-                $"Cannot rebuild assembly syntax for an unrecognized tensor type reference of type {type.GetType().FullName}.");
+            case RankedTensorType rankedTensor:
+                shape = rankedTensor.Shape;
+                isUnranked = false;
+                elementType = rankedTensor.ElementType;
+                trailingParameters = rankedTensor.Encoding != null
+                    ? [BuiltinShapedTypeHelpers.EncodeTrailingAttribute(rankedTensor.Encoding)]
+                    : [];
+                break;
+            case UnrankedTensorType unrankedTensor:
+                shape = [];
+                isUnranked = true;
+                elementType = unrankedTensor.ElementType;
+                trailingParameters = [];
+                break;
+            default:
+                throw new InvalidOperationException(
+                    $"Cannot rebuild assembly syntax for an unrecognized tensor type reference of type {type.GetType().FullName}.");
         }
 
-        var dimensions = tensorType.Dimensions;
-        var isUnranked = tensorType.IsUnranked;
-        var elementTypeSyntax = context.BuildTypeSyntax(tensorType.ElementType);
-        var trailingParameters = tensorType.TrailingParameters;
-
-        var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
+        var elementTypeSyntax = context.BuildTypeSyntax(elementType);
+        var dimensionSyntax = shape.Select(BuiltinShapedTypeHelpers.CreateDimensionSyntax).ToArray();
         var xTokens = new List<Token>(isUnranked ? 1 : dimensionSyntax.Length);
         for (var i = 0; i < xTokens.Capacity; i++)
         {
@@ -84,16 +102,5 @@ public sealed class BuiltinTensorTypeAssemblyFormat : ITypeAssemblyFormat
             commas,
             trailingParameters,
             TokenFactory.GreaterThan());
-    }
-
-    private static IReadOnlyList<long?> DecodeDimensions(IReadOnlyList<ShapedTypeDimensionSyntax> dimensions)
-    {
-        var decoded = new long?[dimensions.Count];
-        for (var i = 0; i < dimensions.Count; i++)
-        {
-            decoded[i] = dimensions[i] is StaticShapedTypeDimensionSyntax staticDim ? staticDim.Size : null;
-        }
-
-        return decoded;
     }
 }

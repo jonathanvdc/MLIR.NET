@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
-using MLIR.Semantics.Types.Collections;
 using MLIR.Text;
 using MLIR.Transforms;
 using Xunit;
@@ -74,10 +73,10 @@ public sealed class SyntaxlessTypeTests
         Assert.Equal("tuple<>", Printer.PrintType(type, ReplaceOptions));
     }
 
-    // --- TensorTypeReference ---
+    // --- RankedTensorType ---
 
     [Fact]
-    public void TensorTypeReference_SyntaxIsNullWhenConstructedProgrammatically()
+    public void RankedTensorType_SyntaxIsNullWhenConstructedProgrammatically()
     {
         var type = TypeFactory.Tensor([2L, 3L], TypeFactory.I32);
         Assert.Null(type.Syntax);
@@ -85,70 +84,84 @@ public sealed class SyntaxlessTypeTests
 
     [Theory]
     [InlineData("tensor<2x3xi32>")]
-    public void TensorTypeReference_PrintsCorrectlyWithoutSyntax(string expected)
+    public void RankedTensorType_PrintsCorrectlyWithoutSyntax(string expected)
     {
         var type = TypeFactory.Tensor([2L, 3L], TypeFactory.I32);
         Assert.Equal(expected, Printer.PrintType(type, ReplaceOptions));
     }
 
     [Fact]
-    public void TensorTypeReference_DynamicDimension_PrintsCorrectly()
+    public void RankedTensorType_DynamicDimension_PrintsCorrectly()
     {
         var type = TypeFactory.Tensor([null, 3L], TypeFactory.I32);
         Assert.Equal("tensor<?x3xi32>", Printer.PrintType(type, ReplaceOptions));
     }
 
     [Fact]
-    public void TensorTypeReference_UnrankedTensor_PrintsCorrectly()
+    public void UnrankedTensorType_PrintsCorrectly()
     {
         var type = TypeFactory.UnrankedTensor(TypeFactory.I32);
         Assert.Equal("tensor<*xi32>", Printer.PrintType(type, ReplaceOptions));
     }
 
-    // --- VectorTypeReference ---
+    [Fact]
+    public void RankedTensorType_WithEncoding_PrintsCorrectly()
+    {
+        var type = TypeFactory.Tensor([2L, 3L], TypeFactory.I32, "#encoding");
+        Assert.Equal("tensor<2x3xi32, #encoding>", Printer.PrintType(type, ReplaceOptions));
+    }
+
+    // --- VectorType ---
 
     [Fact]
-    public void VectorTypeReference_SyntaxIsNullWhenConstructedProgrammatically()
+    public void VectorType_SyntaxIsNullWhenConstructedProgrammatically()
     {
         var type = TypeFactory.Vector([4L], TypeFactory.F32);
         Assert.Null(type.Syntax);
     }
 
     [Fact]
-    public void VectorTypeReference_PrintsCorrectlyWithoutSyntax()
+    public void VectorType_PrintsCorrectlyWithoutSyntax()
     {
         var type = TypeFactory.Vector([4L], TypeFactory.F32);
         Assert.Equal("vector<4xf32>", Printer.PrintType(type, ReplaceOptions));
     }
 
     [Fact]
-    public void VectorTypeReference_MultidimensionalVector_PrintsCorrectly()
+    public void VectorType_MultidimensionalVector_PrintsCorrectly()
     {
         var type = TypeFactory.Vector([2L, 8L], TypeFactory.F32);
         Assert.Equal("vector<2x8xf32>", Printer.PrintType(type, ReplaceOptions));
     }
 
-    // --- MemRefTypeReference ---
+    // --- MemRefType ---
 
     [Fact]
-    public void MemRefTypeReference_SyntaxIsNullWhenConstructedProgrammatically()
+    public void MemRefType_SyntaxIsNullWhenConstructedProgrammatically()
     {
         var type = TypeFactory.MemRef([10L], TypeFactory.F32);
         Assert.Null(type.Syntax);
     }
 
     [Fact]
-    public void MemRefTypeReference_PrintsCorrectlyWithoutSyntax()
+    public void MemRefType_PrintsCorrectlyWithoutSyntax()
     {
         var type = TypeFactory.MemRef([10L], TypeFactory.F32);
         Assert.Equal("memref<10xf32>", Printer.PrintType(type, ReplaceOptions));
     }
 
     [Fact]
-    public void MemRefTypeReference_UnrankedMemRef_PrintsCorrectly()
+    public void UnrankedMemRefType_PrintsCorrectly()
     {
         var type = TypeFactory.UnrankedMemRef(TypeFactory.I32);
         Assert.Equal("memref<*xi32>", Printer.PrintType(type, ReplaceOptions));
+    }
+
+    [Fact]
+    public void UnrankedMemRefType_WithMemorySpace_PrintsCorrectly()
+    {
+        var type = TypeFactory.UnrankedMemRef(TypeFactory.I32, "#space");
+        Assert.Equal("memref<*xi32, #space>", Printer.PrintType(type, ReplaceOptions));
     }
 
     // --- IndexType ---
@@ -288,9 +301,11 @@ public sealed class SyntaxlessTypeTests
     {
         Assert.NotNull(FunctionType.TypeDefinition.AssemblyFormat);
         Assert.NotNull(TupleType.TypeDefinition.AssemblyFormat);
-        Assert.NotNull(TensorTypeReference.TypeDefinition.AssemblyFormat);
-        Assert.NotNull(VectorTypeReference.TypeDefinition.AssemblyFormat);
-        Assert.NotNull(MemRefTypeReference.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(RankedTensorType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(UnrankedTensorType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(VectorType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(MemRefType.TypeDefinition.AssemblyFormat);
+        Assert.NotNull(UnrankedMemRefType.TypeDefinition.AssemblyFormat);
     }
 
     [Fact]

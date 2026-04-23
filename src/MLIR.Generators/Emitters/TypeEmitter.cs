@@ -170,14 +170,15 @@ internal static class TypeEmitter
 
     private static string GetSemanticEqualsExpression(string csharpType, string leftExpression, string rightExpression)
     {
-        return IsTypeReferenceList(csharpType)
+        return TryGetReadOnlyListElementType(csharpType) != null
             ? "global::System.Linq.Enumerable.SequenceEqual(" + leftExpression + ", " + rightExpression + ")"
             : "global::System.Collections.Generic.EqualityComparer<" + csharpType + ">.Default.Equals(" + leftExpression + ", " + rightExpression + ")";
     }
 
     private static void EmitHashContribution(StringBuilder builder, string csharpType, string propertyName)
     {
-        if (!IsTypeReferenceList(csharpType))
+        var readOnlyListElementType = TryGetReadOnlyListElementType(csharpType);
+        if (readOnlyListElementType == null)
         {
             builder.AppendLine("            hash = (hash * 31) + global::System.Collections.Generic.EqualityComparer<" + csharpType + ">.Default.GetHashCode(" + propertyName + ");");
             return;
@@ -185,16 +186,16 @@ internal static class TypeEmitter
 
         builder.AppendLine("            foreach (var item in " + propertyName + ")");
         builder.AppendLine("            {");
-        builder.AppendLine("                hash = (hash * 31) + global::System.Collections.Generic.EqualityComparer<global::MLIR.Semantics.TypeReference>.Default.GetHashCode(item);");
+        builder.AppendLine("                hash = (hash * 31) + global::System.Collections.Generic.EqualityComparer<" + readOnlyListElementType + ">.Default.GetHashCode(item);");
         builder.AppendLine("            }");
     }
 
-    private static bool IsTypeReferenceList(string csharpType)
+    private static string? TryGetReadOnlyListElementType(string csharpType)
     {
-        return string.Equals(
-            csharpType,
-            "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>",
-            System.StringComparison.Ordinal);
+        const string prefix = "global::System.Collections.Generic.IReadOnlyList<";
+        return csharpType.StartsWith(prefix, System.StringComparison.Ordinal) && csharpType.EndsWith(">", System.StringComparison.Ordinal)
+            ? csharpType.Substring(prefix.Length, csharpType.Length - prefix.Length - 1)
+            : null;
     }
 
 }

@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MLIR.Semantics;
-using MLIR.Semantics.Types.Collections;
 using MLIR.Syntax;
 using MLIR.Syntax.Types.Collections;
 using MLIR.Text;
@@ -35,10 +34,11 @@ public sealed class BuiltinVectorTypeAssemblyFormat : ITypeAssemblyFormat
             throw new InvalidOperationException("Vector types require vector type syntax.");
         }
 
-        return new VectorTypeReference(
-            vectorSyntax,
-            DecodeDimensions(vectorSyntax.Dimensions),
-            binder.BindTypeReference(vectorSyntax.ElementType));
+        return new VectorType(
+            BuiltinShapedTypeHelpers.DecodeShape(vectorSyntax.Dimensions),
+            binder.BindTypeReference(vectorSyntax.ElementType),
+            null!,
+            vectorSyntax);
     }
 
     /// <inheritdoc/>
@@ -49,16 +49,22 @@ public sealed class BuiltinVectorTypeAssemblyFormat : ITypeAssemblyFormat
             return existing;
         }
 
-        if (type is not VectorTypeReference vectorType)
+        IReadOnlyList<long> shape;
+        TypeReference elementType;
+        switch (type)
         {
-            throw new InvalidOperationException(
-                $"Cannot rebuild assembly syntax for an unrecognized vector type reference of type {type.GetType().FullName}.");
+            case VectorType vectorType:
+                shape = vectorType.Shape;
+                elementType = vectorType.ElementType;
+                break;
+            default:
+                throw new InvalidOperationException(
+                    $"Cannot rebuild assembly syntax for an unrecognized vector type reference of type {type.GetType().FullName}.");
         }
 
-        var dimensions = vectorType.Dimensions;
-        var elementTypeSyntax = context.BuildTypeSyntax(vectorType.ElementType);
+        var elementTypeSyntax = context.BuildTypeSyntax(elementType);
 
-        var dimensionSyntax = dimensions.Select(TensorTypeReference.CreateDimensionSyntax).ToArray();
+        var dimensionSyntax = shape.Select(BuiltinShapedTypeHelpers.CreateDimensionSyntax).ToArray();
         var xTokens = new List<Token>(dimensionSyntax.Length);
         for (var i = 0; i < dimensionSyntax.Length; i++)
         {
@@ -72,16 +78,5 @@ public sealed class BuiltinVectorTypeAssemblyFormat : ITypeAssemblyFormat
             xTokens,
             elementTypeSyntax,
             TokenFactory.GreaterThan());
-    }
-
-    private static IReadOnlyList<long?> DecodeDimensions(IReadOnlyList<ShapedTypeDimensionSyntax> dimensions)
-    {
-        var decoded = new long?[dimensions.Count];
-        for (var i = 0; i < dimensions.Count; i++)
-        {
-            decoded[i] = dimensions[i] is StaticShapedTypeDimensionSyntax staticDim ? staticDim.Size : null;
-        }
-
-        return decoded;
     }
 }

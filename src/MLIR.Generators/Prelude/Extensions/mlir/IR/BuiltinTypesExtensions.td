@@ -163,6 +163,8 @@ extends Builtin_RankedTensor : MLIRNet_AttrOrTypeDefExtension {
     "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
     "global::MLIR.Semantics.TypeReference":$elementType
   );
+  let csharpName = "\"tensor\"";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinTensorTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
   ];
@@ -172,6 +174,8 @@ extends Builtin_UnrankedTensor : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins
     "global::MLIR.Semantics.TypeReference":$elementType
   );
+  let csharpName = "\"tensor\"";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinTensorTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "false">,
     MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "Shape", "throw new global::System.InvalidOperationException(\"Unranked shaped types do not have a shape.\")">
@@ -183,6 +187,8 @@ extends Builtin_Vector : MLIRNet_AttrOrTypeDefExtension {
     "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
     "global::MLIR.Semantics.TypeReference":$elementType
   );
+  let csharpName = "\"vector\"";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinVectorTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
   ];
@@ -193,6 +199,8 @@ extends Builtin_MemRef : MLIRNet_AttrOrTypeDefExtension {
     "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
     "global::MLIR.Semantics.TypeReference":$elementType
   );
+  let csharpName = "\"memref\"";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinMemRefTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
   ];
@@ -202,6 +210,8 @@ extends Builtin_UnrankedMemRef : MLIRNet_AttrOrTypeDefExtension {
   let csharpParameters = (ins
     "global::MLIR.Semantics.TypeReference":$elementType
   );
+  let csharpName = "\"memref\"";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinMemRefTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "false">,
     MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "Shape", "throw new global::System.InvalidOperationException(\"Unranked shaped types do not have a shape.\")">
