@@ -3,6 +3,7 @@ namespace MLIR.Generators.Emitters;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Microsoft.CodeAnalysis;
 using MLIR.Generators.Emitters;
 using MLIR.Generators.Emitters.AssemblyFormat;
 using MLIR.Generators.Emitters.Operation;
@@ -12,13 +13,14 @@ internal sealed class DialectEmitter
 {
     private readonly DialectSymbolResolver resolver;
     private readonly StringBuilder builder = new();
+    private readonly List<Diagnostic> diagnostics = [];
 
     public DialectEmitter(DialectSymbolResolver resolver)
     {
         this.resolver = resolver;
     }
 
-    public string Generate(DialectModel dialect)
+    public GeneratedDialectSourceResult Generate(DialectModel dialect)
     {
         DialectFileEmitter.EmitHeader(builder, dialect);
 
@@ -36,7 +38,7 @@ internal sealed class DialectEmitter
 
         foreach (var operation in dialect.Operations)
         {
-            try
+            if (!TryEmit(dialect, "operation", operation.ClassName ?? operation.Name, () =>
             {
                 OperationEmitter.Emit(builder, operation, resolver);
                 builder.AppendLine();
@@ -49,57 +51,45 @@ internal sealed class DialectEmitter
                     OperationAssemblyFormatEmitter.Emit(builder, operation, metadata, resolver);
                     builder.AppendLine();
                 }
-            }
-            catch (System.Exception exception)
+            }))
             {
-                throw new System.InvalidOperationException(
-                    "Failed to generate operation '" + (operation.ClassName ?? operation.Name) + "' in dialect '" + dialect.Name + "'.",
-                    exception);
+                return new GeneratedDialectSourceResult(builder.ToString(), diagnostics);
             }
         }
 
         foreach (var attribute in dialect.Attributes)
         {
-            try
+            if (!TryEmit(dialect, "attribute", attribute.RecordName, () =>
             {
                 AttributeEmitter.Emit(builder, attribute);
                 builder.AppendLine();
-            }
-            catch (System.Exception exception)
+            }))
             {
-                throw new System.InvalidOperationException(
-                    "Failed to generate attribute '" + attribute.RecordName + "' in dialect '" + dialect.Name + "'.",
-                    exception);
+                return new GeneratedDialectSourceResult(builder.ToString(), diagnostics);
             }
         }
 
-            foreach (var attributeConstraint in dialect.AttributeConstraints)
+        foreach (var attributeConstraint in dialect.AttributeConstraints)
+        {
+            if (!TryEmit(dialect, "attribute constraint", attributeConstraint.RecordName, () =>
             {
-                try
-                {
-                    AttributeConstraintEmitter.Emit(builder, attributeConstraint, resolver);
-                    builder.AppendLine();
-                }
-                catch (System.Exception exception)
-                {
-                throw new System.InvalidOperationException(
-                    "Failed to generate attribute constraint '" + attributeConstraint.RecordName + "' in dialect '" + dialect.Name + "'.",
-                    exception);
+                AttributeConstraintEmitter.Emit(builder, attributeConstraint, resolver);
+                builder.AppendLine();
+            }))
+            {
+                return new GeneratedDialectSourceResult(builder.ToString(), diagnostics);
             }
         }
 
         foreach (var typeConstraint in dialect.TypeConstraints)
         {
-            try
+            if (!TryEmit(dialect, "type constraint", typeConstraint.RecordName, () =>
             {
                 TypeConstraintEmitter.Emit(builder, typeConstraint);
                 builder.AppendLine();
-            }
-            catch (System.Exception exception)
+            }))
             {
-                throw new System.InvalidOperationException(
-                    "Failed to generate type constraint '" + typeConstraint.RecordName + "' in dialect '" + dialect.Name + "'.",
-                    exception);
+                return new GeneratedDialectSourceResult(builder.ToString(), diagnostics);
             }
         }
 
@@ -111,38 +101,32 @@ internal sealed class DialectEmitter
                 continue;
             }
 
-            try
+            if (!TryEmit(dialect, "type interface", interfaceModel.RecordName, () =>
             {
                 TypeInterfaceEmitter.Emit(builder, interfaceModel);
                 builder.AppendLine();
-            }
-            catch (System.Exception exception)
+            }))
             {
-                throw new System.InvalidOperationException(
-                    "Failed to generate type interface '" + interfaceModel.RecordName + "' in dialect '" + dialect.Name + "'.",
-                    exception);
+                return new GeneratedDialectSourceResult(builder.ToString(), diagnostics);
             }
         }
 
         foreach (var type in dialect.Types)
         {
-            try
+            if (!TryEmit(dialect, "type", type.RecordName, () =>
             {
                 var typeInterfaces = ResolveTypeInterfaces(type);
                 TypeEmitter.Emit(builder, type, typeInterfaces);
                 builder.AppendLine();
-            }
-            catch (System.Exception exception)
+            }))
             {
-                throw new System.InvalidOperationException(
-                    "Failed to generate type '" + type.RecordName + "' in dialect '" + dialect.Name + "'.",
-                    exception);
+                return new GeneratedDialectSourceResult(builder.ToString(), diagnostics);
             }
         }
 
         DialectRegistrationEmitter.Emit(builder, dialect);
 
-        return builder.ToString();
+        return new GeneratedDialectSourceResult(builder.ToString(), diagnostics);
     }
 
     /// <summary>
@@ -179,5 +163,41 @@ internal sealed class DialectEmitter
         }
 
         return resolved ?? (IReadOnlyList<ResolvedTypeInterfaceModel>)System.Array.Empty<ResolvedTypeInterfaceModel>();
+    }
+
+    private bool TryEmit(DialectModel dialect, string entityKind, string entityName, System.Action emit)
+    {
+        try
+        {
+            emit();
+            return true;
+        }
+        catch (System.Exception exception)
+        {
+            diagnostics.Add(Diagnostic.Create(
+                DialectGeneratorDiagnostics.DialectDefinitionEmissionFailed,
+                Location.None,
+                entityKind,
+                entityName,
+                dialect.Name,
+                FormatExceptionMessage(exception)));
+            return false;
+        }
+    }
+
+    private static string FormatExceptionMessage(System.Exception exception)
+    {
+        var parts = new List<string>();
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            if (!string.IsNullOrWhiteSpace(current.Message))
+            {
+                parts.Add(current.Message);
+            }
+        }
+
+        return parts.Count == 0
+            ? exception.GetType().FullName ?? exception.GetType().Name
+            : string.Join(" --> ", parts);
     }
 }

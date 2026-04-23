@@ -84,11 +84,22 @@ public static class TableGenDialectCompiler
 
         var resolver = DialectSymbolResolver.Create(mergedDialects);
         return selectedDialects
-            .Select(dialect => new GeneratedDialectSource(
-                dialect.Name,
-                DialectGeneratorNaming.GetHintName(dialect),
-                DialectSourceEmitter.GenerateDialectSource(dialect, resolver),
-                dialect.IsPrelude))
+            .Select(dialect =>
+            {
+                var generated = DialectSourceEmitter.GenerateDialectSource(dialect, resolver);
+                if (!generated.IsSuccess)
+                {
+                    throw new InvalidOperationException(
+                        "Failed to generate dialect '" + dialect.Name + "': "
+                        + string.Join(" | ", generated.Diagnostics.Select(static diagnostic => diagnostic.GetMessage())));
+                }
+
+                return new GeneratedDialectSource(
+                    dialect.Name,
+                    DialectGeneratorNaming.GetHintName(dialect),
+                    generated.Source,
+                    dialect.IsPrelude);
+            })
             .ToArray();
     }
 }

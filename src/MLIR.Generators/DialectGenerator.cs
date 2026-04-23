@@ -1,6 +1,5 @@
 namespace MLIR.Generators;
 
-using System;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -33,21 +32,20 @@ public sealed class DialectGenerator : IIncrementalGenerator
                     continue;
                 }
 
-                try
+                var generated = DialectSourceEmitter.GenerateDialectSource(dialect, resolver);
+                foreach (var diagnostic in generated.Diagnostics)
                 {
-                    productionContext.AddSource(
-                        DialectGeneratorNaming.GetHintName(dialect),
-                        SourceText.From(DialectSourceEmitter.GenerateDialectSource(dialect, resolver), Encoding.UTF8));
+                    productionContext.ReportDiagnostic(diagnostic);
                 }
-                catch (Exception exception)
+
+                if (!generated.IsSuccess)
                 {
-                    productionContext.ReportDiagnostic(
-                        Diagnostic.Create(
-                            DialectGeneratorDiagnostics.DialectEmissionFailed,
-                            Location.None,
-                            dialect.Name,
-                            exception.ToString()));
+                    continue;
                 }
+
+                productionContext.AddSource(
+                    DialectGeneratorNaming.GetHintName(dialect),
+                    SourceText.From(generated.Source, Encoding.UTF8));
             }
         });
     }

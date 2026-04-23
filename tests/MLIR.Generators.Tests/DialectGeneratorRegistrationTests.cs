@@ -185,11 +185,13 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
                     ])));
 
         var result = Assert.Single(runResult.Results);
-        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN002"));
+        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN003"));
 
         Assert.Contains(result.GeneratedSources, static source => source.HintName == "PreludeDialectRegistration.g.cs");
         Assert.DoesNotContain(result.GeneratedSources, static source => source.HintName == "MiniarithDialectRegistration.g.cs");
+        Assert.Contains("operation", diagnostic.GetMessage());
         Assert.Contains("MiniArith_BrokenOp", diagnostic.GetMessage());
+        Assert.Contains("miniarith", diagnostic.GetMessage());
         Assert.Contains("No body field was generated for operand 'lhs'", diagnostic.GetMessage());
     }
 

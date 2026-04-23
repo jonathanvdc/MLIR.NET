@@ -485,8 +485,10 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
                 "};",
             ])));
 
-        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN002"));
+        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN003"));
+        Assert.Contains("type", diagnostic.GetMessage());
         Assert.Contains("MissingShape_Foo", diagnostic.GetMessage());
+        Assert.Contains("missingshape", diagnostic.GetMessage());
         Assert.Contains("ShapedTypeInterface", diagnostic.GetMessage());
         Assert.Contains("HasRank", diagnostic.GetMessage());
     }

@@ -19,4 +19,12 @@ internal static class DialectGeneratorDiagnostics
         category: "MLIR.Generators",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DialectDefinitionEmissionFailed = new DiagnosticDescriptor(
+        id: "MLIRGEN003",
+        title: "Dialect member generation failed",
+        messageFormat: "Failed to generate {0} '{1}' in dialect '{2}': {3}",
+        category: "MLIR.Generators",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }
