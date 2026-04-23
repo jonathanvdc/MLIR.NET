@@ -460,7 +460,7 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
             }
 
-            var typeResult = context.TryParseRawUntilOperationBoundary();
+            var typeResult = context.TryParseTypeSyntax();
             if (!typeResult.IsSuccess)
             {
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
@@ -468,7 +468,7 @@ public sealed partial class SemanticTests
 
             var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueAttrSyntax)]);
 
-            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, new RawTypeSyntax(typeResult.Value), attributes));
+            return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
         public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
@@ -609,14 +609,14 @@ public sealed partial class SemanticTests
                     return ParseResult<AttributeValueSyntax>.Failure(colonTokenResult.Diagnostic!);
                 }
 
-                var typeSyntaxResult = context.TryParseRawUntilDelimiter(TokenKind.Comma, TokenKind.RBrace);
+                var typeSyntaxResult = context.TryParseTypeSyntax(TokenKind.Comma, TokenKind.RBrace);
                 if (!typeSyntaxResult.IsSuccess)
                 {
                     return ParseResult<AttributeValueSyntax>.Failure(typeSyntaxResult.Diagnostic!);
                 }
 
                 colonToken = colonTokenResult.Value;
-                typeSyntax = new RawTypeSyntax(typeSyntaxResult.Value);
+                typeSyntax = typeSyntaxResult.Value;
             }
 
             return ParseResult<AttributeValueSyntax>.Success(new DenseAttributeValueSyntax(

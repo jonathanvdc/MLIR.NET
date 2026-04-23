@@ -1,6 +1,7 @@
 namespace MLIR.Dialects.Extensions;
 
 using System.Collections.Generic;
+using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Types.Collections;
@@ -124,13 +125,17 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
             return new UninterpretedOperation(syntax, definition.Name);
         }
 
-        var conditionType = body.SecondType != null ? body.FirstType : new RawTypeSyntax(new RawSyntaxText("i1"));
+        var conditionType = body.SecondType != null
+            ? body.FirstType
+            : Parser.ParseType("i1");
         var valueType = body.SecondType ?? body.FirstType;
-        var typeSignature = binder.BindTypeReference(new RawSyntaxText(
-            "(" + conditionType.ToString() + ", "
-            + valueType.ToString() + ", "
-            + valueType.ToString() + ") -> "
-            + valueType.ToString()));
+        var typeSignature = new FunctionType(
+            [
+                binder.BindTypeReference(conditionType),
+                binder.BindTypeReference(valueType),
+                binder.BindTypeReference(valueType)
+            ],
+            [binder.BindTypeReference(valueType)]);
 
         var attributes = new List<NamedAttribute>(body.AttrDict.Items.Count);
         foreach (var attribute in body.AttrDict.Items)

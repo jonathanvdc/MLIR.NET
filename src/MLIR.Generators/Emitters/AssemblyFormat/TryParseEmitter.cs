@@ -682,7 +682,7 @@ internal sealed class TryParseEmitter
                 ? "new[] { " + BuildKeywordList(keywords) + " }"
                 : "global::System.Array.Empty<string>()";
             var delimiterSuffix = delimiters.Count > 0 ? ", " + BuildDelimiterList(delimiters) : string.Empty;
-            return "context.TryParseRawUntilDelimiterOrKeyword(" + keywordArray + delimiterSuffix + ").Map<TypeSyntax>(static raw => new RawTypeSyntax(raw))";
+            return "context.TryParseTypeSyntax(" + keywordArray + delimiterSuffix + ")";
         }
 
         return "context.TryParseTypeSyntax()";

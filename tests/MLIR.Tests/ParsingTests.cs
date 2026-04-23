@@ -218,6 +218,16 @@ public sealed class ParsingTests
     }
 
     [Fact]
+    public void PreservesProjectedToTypeSignatureText()
+    {
+        const string source = "vector.broadcast %arg0 : vector<1xf32> to vector<4xf32>";
+
+        var module = Parser.ParseModule(source);
+
+        Assert.Equal("vector<1xf32> to vector<4xf32>", ((GenericOperationBodySyntax)module.Operations[0].Body).TypeSignatureSyntax!.ToString());
+    }
+
+    [Fact]
     public void MlirDocumentParsesAndPrints()
     {
         const string source = "\"func.return\"() : () -> ()";

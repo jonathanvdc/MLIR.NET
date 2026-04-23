@@ -7,6 +7,7 @@ using MLIR.Semantics;
 using MLIR.Semantics.Attributes.Primitives;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
+using MLIR.Text;
 
 /// <summary>
 /// Parses dense floating-point array attribute literals such as <c>array&lt;f32: 1.0, 2.0&gt;</c>.
@@ -99,7 +100,7 @@ public sealed class DenseFloatingPointArrayAttributeAssemblyFormat : DenseArrayA
     /// <inheritdoc/>
     protected override TypeSyntax GetElementTypeSyntax(string? constraintName)
     {
-        return new RawTypeSyntax(new RawSyntaxText(elementTypeText));
+        return Parser.ParseType(elementTypeText);
     }
 
     /// <summary>

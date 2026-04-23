@@ -78,7 +78,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             TokenFactory.SsaName("%rhs"),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null),
             TokenFactory.Colon(),
-            new RawTypeSyntax(new RawSyntaxText("i32")));
+            Parser.ParseType("i32"));
 
         var syntax = new OperationSyntax(
             resultList: new SeparatedSyntaxList<Token>([TokenFactory.SsaName("%result")], []),
@@ -148,7 +148,7 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
             TokenFactory.SsaName("%rhs"),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null),
             TokenFactory.Colon(),
-            new RawTypeSyntax(new RawSyntaxText("i32")));
+            Parser.ParseType("i32"));
 
         var syntax = new OperationSyntax(
             resultList: SeparatedSyntaxList<Token>.Empty,

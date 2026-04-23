@@ -10,7 +10,6 @@ using MLIR.Dialects.Attributes.Primitives;
 using MLIR.Dialects.Builtin;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
-using MLIR.Semantics.Types.Collections;
 using MLIR.Semantics.Types.Primitives;
 using MLIR.Syntax.Attributes.Collections;
 using MLIR.Syntax.Attributes.Primitives;
@@ -676,26 +675,6 @@ public sealed class Binder
     /// <returns>The semantic type reference.</returns>
     public TypeReference BindTypeReference(TypeSyntax syntax)
     {
-        if (syntax is RawTypeSyntax rawTypeSyntax)
-        {
-            TypeSyntax reparsed;
-            try
-            {
-                reparsed = ReparseTypeSyntax(rawTypeSyntax.RawText);
-            }
-            catch (MLIR.Text.ParseException)
-            {
-                return new UnknownTypeReference(rawTypeSyntax, TryGetTypeDefinitionName(rawTypeSyntax.RawText.Text), null);
-            }
-
-            if (reparsed is not RawTypeSyntax)
-            {
-                return BindTypeReference(reparsed);
-            }
-
-            return BindTypeReferenceCore(reparsed, rawTypeSyntax.RawText);
-        }
-
         return BindStructuredTypeReference(syntax);
     }
 
@@ -727,6 +706,11 @@ public sealed class Binder
                     functionSyntax.InputTypes.Items.Select(BindTypeReference).ToArray(),
                     GetFunctionResults(functionSyntax).Select(BindTypeReference).ToArray(),
                     functionSyntax);
+            case ProjectedToTypeSyntax projectedToSyntax:
+                return new FunctionType(
+                    [BindTypeReference(projectedToSyntax.SourceType)],
+                    [BindTypeReference(projectedToSyntax.ResultType)],
+                    projectedToSyntax);
             case TensorTypeSyntax tensorSyntax:
                 return tensorSyntax.IsUnranked
                     ? new UnrankedTensorType(

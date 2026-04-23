@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
+using MLIR.Text;
 
 /// <summary>
 /// Parses dense boolean-array attribute literals such as <c>array&lt;i1: true, false&gt;</c>.
@@ -58,6 +59,6 @@ public sealed class DenseBooleanArrayAttributeAssemblyFormat : DenseArrayAttribu
     /// <inheritdoc/>
     protected override TypeSyntax GetElementTypeSyntax(string? constraintName)
     {
-        return new RawTypeSyntax(new RawSyntaxText("i1"));
+        return Parser.ParseType("i1");
     }
 }

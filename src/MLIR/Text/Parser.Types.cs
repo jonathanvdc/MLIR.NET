@@ -51,16 +51,34 @@ public sealed partial class Parser
         out Token? unrankedToken,
         out string elementTypeText)
     {
+        text = text.Trim();
         dimensions = [];
         xTokens = [];
         unrankedToken = null;
         elementTypeText = string.Empty;
 
-        if (allowUnranked && text.StartsWith("*x", System.StringComparison.Ordinal))
+        if (allowUnranked && text.StartsWith("*", System.StringComparison.Ordinal))
         {
             unrankedToken = TokenFactory.Star();
+            var unrankedIndex = 1;
+            while (unrankedIndex < text.Length && char.IsWhiteSpace(text[unrankedIndex]))
+            {
+                unrankedIndex++;
+            }
+
+            if (unrankedIndex >= text.Length || text[unrankedIndex] != 'x')
+            {
+                return false;
+            }
+
             xTokens.Add(TokenFactory.Identifier("x"));
-            elementTypeText = text.Substring(2);
+            unrankedIndex++;
+            while (unrankedIndex < text.Length && char.IsWhiteSpace(text[unrankedIndex]))
+            {
+                unrankedIndex++;
+            }
+
+            elementTypeText = text.Substring(unrankedIndex);
             return elementTypeText.Length > 0;
         }
 
@@ -88,6 +106,11 @@ public sealed partial class Parser
                 break;
             }
 
+            while (index < text.Length && char.IsWhiteSpace(text[index]))
+            {
+                index++;
+            }
+
             if (index >= text.Length || text[index] != 'x')
             {
                 return false;
@@ -95,6 +118,10 @@ public sealed partial class Parser
 
             xTokens.Add(TokenFactory.Identifier("x"));
             index++;
+            while (index < text.Length && char.IsWhiteSpace(text[index]))
+            {
+                index++;
+            }
         }
 
         if (dimensions.Count < minimumDimensionCount)
@@ -102,7 +129,7 @@ public sealed partial class Parser
             return false;
         }
 
-        elementTypeText = text.Substring(index);
+        elementTypeText = text.Substring(index).Trim();
         return elementTypeText.Length > 0;
     }
 
@@ -125,7 +152,36 @@ public sealed partial class Parser
     /// </summary>
     private static bool IsBuiltinFloatName(string text)
     {
-        return text is "bf16" or "f16" or "f32" or "f64" or "f80" or "f128" or "tf32";
+        if (text is "bf16" or "tf32")
+        {
+            return true;
+        }
+
+        if (text.Length < 2 || text[0] != 'f' || !char.IsDigit(text[1]))
+        {
+            return false;
+        }
+
+        var index = 1;
+        while (index < text.Length && char.IsDigit(text[index]))
+        {
+            index++;
+        }
+
+        if (index == text.Length)
+        {
+            return true;
+        }
+
+        for (; index < text.Length; index++)
+        {
+            if (!char.IsLetterOrDigit(text[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <summary>Returns <see langword="true"/> when the current token is an identifier matching <paramref name="text"/>.</summary>
@@ -148,9 +204,26 @@ public sealed partial class Parser
         }
 
         var canonicalName = TryPeekTypeDefinitionName();
-        if (canonicalName == null || !dialectRegistry.TryGetType(canonicalName, out var definition) || definition.AssemblyFormat == null)
+        if (canonicalName == null || !dialectRegistry.TryGetType(canonicalName, out var definition))
         {
             return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        if (definition.AssemblyFormat == null)
+        {
+            var bareTypeCheckpoint = Mark();
+            if (!TryMatch(TokenKind.Bang, out var bangToken) || !TryMatch(TokenKind.Identifier, out var nameToken))
+            {
+                return ParseResult<TypeSyntax>.NoMatch();
+            }
+
+            if (Is(TokenKind.LessThan))
+            {
+                Reset(bareTypeCheckpoint);
+                return ParseResult<TypeSyntax>.NoMatch();
+            }
+
+            return ParseResult<TypeSyntax>.Success(new BareDialectTypeSyntax(new DialectTypePrefix(bangToken, nameToken)));
         }
 
         var checkpoint = Mark();
@@ -602,7 +675,8 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Core type parsing dispatcher: tries built-in types, then registered dialect types, then raw fallback.
+    /// Core type parsing dispatcher: tries built-in types, then registered dialect types, then
+    /// reports an unrecognized type fragment.
     /// </summary>
     private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
     {
@@ -610,14 +684,14 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Core type parsing dispatcher with both delimiter and keyword stop conditions.
-    /// <list type="number">
-    ///   <item><description>Tries built-in type forms (function, tuple, tensor, vector, memref, primitive) via
-    ///     <see cref="TryParseBuiltinTypeSyntaxResult"/>.</description></item>
-    ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntaxResult"/>.</description></item>
-    ///   <item><description>Falls back to a raw token scan that produces a <c>RawTypeSyntax</c>.</description></item>
-    /// </list>
-    /// </summary>
+     /// Core type parsing dispatcher with both delimiter and keyword stop conditions.
+     /// <list type="number">
+     ///   <item><description>Tries built-in type forms (function, tuple, tensor, vector, memref, primitive) via
+     ///     <see cref="TryParseBuiltinTypeSyntaxResult"/>.</description></item>
+     ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntaxResult"/>.</description></item>
+    ///   <item><description>Reports a diagnostic describing the unrecognized type fragment.</description></item>
+     /// </list>
+     /// </summary>
     private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
     {
         var builtinTypeResult = TryParseBuiltinTypeSyntaxResult(stopBefore, stopAtOperationBoundary);
@@ -632,10 +706,21 @@ public sealed partial class Parser
             return customTypeResult;
         }
 
+        return CreateUnrecognizedTypeFailure(stopBefore, stopBeforeKeywords, stopAtOperationBoundary);
+    }
+
+    private ParseResult<TypeSyntax> CreateUnrecognizedTypeFailure(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
+    {
         var rawResult = stopAtOperationBoundary
             ? TryParseRawUntilDelimiterOrBoundaryResult(stopBefore)
             : TryParseRawUntilDelimiterOrKeywordResult(stopBefore, stopBeforeKeywords);
-        return rawResult.Map<TypeSyntax>(static raw => new RawTypeSyntax(raw));
+        if (!rawResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(rawResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Failure(
+            CreateDiagnostic("Expected a type; unrecognized raw syntax '" + rawResult.Value.Text + "'."));
     }
 
     /// <summary>Bridges <see cref="TryParseTypeSyntaxResult(TokenKind[])"/> for use by <see cref="DialectParsingContext"/>.</summary>

@@ -6,6 +6,7 @@ using MLIR.Numerics;
 using MLIR.Semantics;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes.Primitives;
+using MLIR.Text;
 
 /// <summary>
 /// Parses dense integer-array attribute literals such as <c>array&lt;i32: 1, 2&gt;</c>.
@@ -78,7 +79,7 @@ public sealed class DenseIntegerArrayAttributeAssemblyFormat : DenseArrayAttribu
     /// <inheritdoc/>
     protected override TypeSyntax GetElementTypeSyntax(string? constraintName)
     {
-        return new RawTypeSyntax(new RawSyntaxText("i" + GetConstraintBitWidth(constraintName)));
+        return Parser.ParseType("i" + GetConstraintBitWidth(constraintName));
     }
 
     /// <summary>

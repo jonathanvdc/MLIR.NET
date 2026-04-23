@@ -557,11 +557,12 @@ public sealed partial class Parser
 
     /// <summary>
     /// Attempts to parse an operation body using a "projected" format that resembles custom assembly:
-    /// bare operand names, an optional attribute dictionary, a <c>:</c> separator, and a raw type signature.
+    /// bare operand names, an optional attribute dictionary, a <c>:</c> separator, and a structured type signature.
     /// </summary>
     /// <remarks>
     /// This production handles non-generic operations whose assembly format is not registered in the dialect
-    /// registry but still follows the common pattern <c>%a, %b {attrs} : type</c>. The result is wrapped in a
+    /// registry but still follows the common pattern <c>%a, %b {attrs} : type</c> or <c>%a : type to type</c>.
+    /// The result is wrapped in a
     /// <see cref="GenericOperationBodySyntax"/> with synthetic parentheses around the operands so the CST
     /// has a uniform shape regardless of which parse path was taken.
     /// Returns <see cref="ParseOutcome.NoMatch"/> if no <c>:</c> is found, resetting the parser to the
@@ -607,7 +608,7 @@ public sealed partial class Parser
             return ParseResult<OperationBodySyntax>.NoMatch();
         }
 
-        var typeSignatureResult = TryParseRawUntilOperationBoundaryResult();
+        var typeSignatureResult = TryParseProjectedCustomLikeTypeSignatureResult();
         if (!typeSignatureResult.IsSuccess)
         {
             return ParseResult<OperationBodySyntax>.Failure(typeSignatureResult.Diagnostic!);
@@ -623,7 +624,42 @@ public sealed partial class Parser
             new List<RegionSyntax>(),
             attributeDictResult.Value,
             colonToken,
-            new RawTypeSyntax(typeSignatureResult.Value)));
+            typeSignatureResult.Value));
+    }
+
+    /// <summary>
+    /// Parses the trailing type portion of an unregistered custom-like operation.
+    /// This accepts either a single type or the common custom-assembly shape <c>sourceType to resultType</c>.
+    /// </summary>
+    private ParseResult<TypeSyntax> TryParseProjectedCustomLikeTypeSignatureResult()
+    {
+        var sourceTypeResult = TryParseTypeSyntaxResult(["to"]);
+        if (!sourceTypeResult.IsSuccess)
+        {
+            return sourceTypeResult;
+        }
+
+        if (!IsKeyword("to"))
+        {
+            return sourceTypeResult;
+        }
+
+        var toKeywordResult = ExpectKeywordResult("to", "Expected 'to'.");
+        if (!toKeywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(toKeywordResult.Diagnostic!);
+        }
+
+        var resultTypeResult = TryParseTypeSyntaxUntilOperationBoundaryResult();
+        if (!resultTypeResult.IsSuccess)
+        {
+            return resultTypeResult;
+        }
+
+        return ParseResult<TypeSyntax>.Success(new ProjectedToTypeSyntax(
+            sourceTypeResult.Value,
+            toKeywordResult.Value,
+            resultTypeResult.Value));
     }
 
     /// <summary>
