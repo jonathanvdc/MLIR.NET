@@ -1,18 +1,15 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Microsoft.CodeAnalysis;
 using MLIR.Generators;
 using Pixie;
 using Pixie.Markup;
 using Pixie.Options;
 using Pixie.Terminal;
+using Pixie.Transforms;
 using TableGen;
 using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 
-var stdoutLog = TerminalLog.AcquireStandardOutput();
-var stderrLog = TerminalLog.AcquireStandardError();
+var stdoutLog = TerminalLog.AcquireStandardOutput().WithDiagnostics("tdtocsharp");
+var stderrLog = TerminalLog.AcquireStandardError().WithDiagnostics("tdtocsharp");
 
 var helpFlag = FlagOption.CreateFlagOption(
         OptionForm.Short("h"),
@@ -34,25 +31,29 @@ var dialectOption = SequenceOption.CreateStringOption(OptionForm.Long("dialect")
     .WithCategory("Filtering")
     .WithDescription(new Text("Emit only the named dialect. Can be repeated."))
     .WithParameters(new SymbolicOptionParameter("name"));
-var inputOption = SequenceOption.CreateStringOption(OptionForm.Long("input"))
+var inputOption = Option.StringSequence("--input")
     .WithCategory("Input")
     .WithDescription(new Text("One or more TableGen input files to compile."))
     .WithParameters(new SymbolicOptionParameter("file", true));
 var options = new Option[] { helpFlag, stdoutFlag, includePreludeFlag, outputOption, dialectOption };
-var parser = new GnuOptionSetParser(options, inputOption);
 
-var parsedOptions = parser.Parse(args, stderrLog);
-if (parsedOptions.GetValue<bool>(helpFlag))
+var commandLine = new CommandLine(options, inputOption)
+    .WithHelp("Compile one or more TableGen dialect inputs into generated C# sources.", "tdtocsharp <file.td> [more.td ...] [options]");
+
+var parsedOptions = commandLine.Parse(args, stderrLog);
+if (parsedOptions.WasHandled)
 {
-    stdoutLog.Log(CreateHelpMessage(options));
     return 0;
+}
+else if (!parsedOptions.IsSuccess)
+{
+    return 1;
 }
 
 var inputPaths = parsedOptions.GetValue<string[]>(inputOption);
 if (inputPaths.Length == 0)
 {
-    LogError(stderrLog, "At least one input .td file is required.");
-    stderrLog.Log(CreateHelpMessage(options));
+    LogError(stderrLog, "At least one input .td file is required");
     return 1;
 }
 
@@ -63,7 +64,7 @@ var dialectNames = parsedOptions.GetValue<string[]>(dialectOption);
 
 if (writeToStdout && !string.IsNullOrWhiteSpace(outputDirectory))
 {
-    LogError(stderrLog, "Use either --stdout or --output, not both.");
+    LogError(stderrLog, "Use either --stdout or --output, not both");
     return 1;
 }
 
@@ -136,14 +137,6 @@ catch (Exception exception)
     return 1;
 }
 
-static HelpMessage CreateHelpMessage(IReadOnlyList<Option> options)
-{
-    return new HelpMessage(
-        new Text("Compile one or more TableGen dialect inputs into generated C# sources."),
-        new Text("tdtocsharp <file.td> [more.td ...] [options]"),
-        options);
-}
-
 static void LogDiagnostic(ILog log, RoslynDiagnostic diagnostic)
 {
     log.Log(
@@ -161,7 +154,7 @@ static void LogDiagnostic(ILog log, RoslynDiagnostic diagnostic)
 
 static void LogError(ILog log, string message)
 {
-    log.Log(new LogEntry(Severity.Error, new Text("error: " + message)));
+    log.Log(new LogEntry(Severity.Error, message));
 }
 
 static void LogInfo(ILog log, string message)
