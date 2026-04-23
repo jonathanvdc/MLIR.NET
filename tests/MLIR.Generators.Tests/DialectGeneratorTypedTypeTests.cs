@@ -9,9 +9,12 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     {
         var registrationSource = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
+                "include \"mlir/IR/Interfaces.td\"",
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -57,9 +60,10 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
 
         var registrationSource = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -89,9 +93,10 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     {
         var registrationSource = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -120,7 +125,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             [
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -143,9 +148,10 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     {
         var registrationSource = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -232,13 +238,14 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         // A TypeInterface with no methods should generate a partial C# marker interface.
         var source = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
                 "def MyDialect_MarkerIface : TypeInterface<\"MyMarkerIface\"> {",
                 "  let cppNamespace = \"::mlir::mydialect\";",
                 "};",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -248,7 +255,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         // Marker interface declaration should be emitted.
         AssertContainsAll(source, "public partial interface IMyMarkerIface", "{", "}");
         // Type class should implement it.
-        AssertContainsAll(source, "public sealed partial class FooType : TypeReference, MLIR.Dialects.Mydialect.IMyMarkerIface");
+        AssertContainsAll(source, "public sealed partial class fooType : TypeReference, MLIR.Dialects.Mydialect.IMyMarkerIface");
         // No generated members inside the marker interface.
         AssertDoesNotContainAny(source, "IMyMarkerIface\r\n{\r\n    ");
     }
@@ -269,7 +276,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
                 "  ];",
                 "};",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -279,7 +286,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         // Marker interface is emitted with no C# method members.
         AssertContainsAll(source, "public partial interface IMyMethodIface");
         // Type class implements the marker interface.
-        AssertContainsAll(source, "public sealed partial class RankedType : TypeReference, MLIR.Dialects.Mydialect.IMyMethodIface");
+        AssertContainsAll(source, "public sealed partial class rankedType : TypeReference, MLIR.Dialects.Mydialect.IMyMethodIface");
         // No C# method translation inside the interface.
         AssertDoesNotContainAny(source, "int64_t", "getRank");
     }
@@ -291,6 +298,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         // they appear in the trait list.
         var source = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
                 "def MyDialect_IfaceA : TypeInterface<\"MyIfaceA\"> {",
@@ -301,7 +309,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
                 "  let cppNamespace = \"::mlir::mydialect\";",
                 "};",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -312,7 +320,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         AssertContainsAll(source, "public partial interface IMyIfaceA", "public partial interface IMyIfaceB");
         // Type class implements both in trait-list order.
         AssertContainsAll(source,
-            "public sealed partial class MultiType : TypeReference, MLIR.Dialects.Mydialect.IMyIfaceA, MLIR.Dialects.Mydialect.IMyIfaceB");
+            "public sealed partial class multiType : TypeReference, MLIR.Dialects.Mydialect.IMyIfaceA, MLIR.Dialects.Mydialect.IMyIfaceB");
     }
 
     [Fact]
@@ -331,8 +339,8 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             ]);
 
         // The class should have exactly the plain TypeReference base – no extra interfaces.
-        AssertContainsAll(source, "public sealed partial class Plain2Type : TypeReference");
-        AssertDoesNotContainAny(source, "Plain2Type : TypeReference,");
+        AssertContainsAll(source, "public sealed partial class plain2Type : TypeReference");
+        AssertDoesNotContainAny(source, "plain2Type : TypeReference,");
     }
 
     [Fact]
@@ -343,13 +351,14 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         // generation is purely metadata-driven.
         var source = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
                 "def MyDialect_SomeNonStandardIface : TypeInterface<\"SomeNonStandardIface\"> {",
                 "  let cppNamespace = \"::mlir::mydialect\";",
                 "};",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -357,7 +366,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             ]);
 
         AssertContainsAll(source, "public partial interface ISomeNonStandardIface");
-        AssertContainsAll(source, "public sealed partial class SpecialType : TypeReference, MLIR.Dialects.Mydialect.ISomeNonStandardIface");
+        AssertContainsAll(source, "public sealed partial class specialType : TypeReference, MLIR.Dialects.Mydialect.ISomeNonStandardIface");
     }
 
     [Fact]
@@ -367,13 +376,14 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         // e.g., VectorElementTypeInterface -> IVectorElementType
         var source = GenerateMyDialectRegistrationSource(
             [
+                "include \"mlir/IR/Interfaces.td\"",
                 "include \"mlir/IR/AttrTypeBase.td\"",
                 string.Empty,
                 "def MyDialect_VecElemIface : TypeInterface<\"VectorElementTypeInterface\"> {",
                 "  let cppNamespace = \"::mlir::mydialect\";",
                 "};",
                 string.Empty,
-                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
                 "  let typeName = \"myp.\" # name;",
                 "};",
                 string.Empty,
@@ -382,7 +392,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
 
         // "Interface" suffix is stripped → "IVectorElementType"
         AssertContainsAll(source, "public partial interface IVectorElementType");
-        AssertContainsAll(source, "public sealed partial class VecType : TypeReference, MLIR.Dialects.Mydialect.IVectorElementType");
+        AssertContainsAll(source, "public sealed partial class vecType : TypeReference, MLIR.Dialects.Mydialect.IVectorElementType");
         // The original name without stripping should NOT appear as an interface.
         AssertDoesNotContainAny(source, "IVectorElementTypeInterface");
     }
