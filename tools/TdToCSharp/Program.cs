@@ -4,39 +4,85 @@ using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using MLIR.Generators;
+using Pixie;
+using Pixie.Markup;
+using Pixie.Options;
+using Pixie.Terminal;
 using TableGen;
+using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 
-var parseResult = ParseArguments(args);
-if (parseResult.ShowHelp)
+var stdoutLog = TerminalLog.AcquireStandardOutput();
+var stderrLog = TerminalLog.AcquireStandardError();
+
+var helpFlag = FlagOption.CreateFlagOption(
+        OptionForm.Short("h"),
+        OptionForm.Long("help"))
+    .WithCategory("General")
+    .WithDescription(new Text("Show this help text."));
+var stdoutFlag = FlagOption.CreateFlagOption(OptionForm.Long("stdout"))
+    .WithCategory("Output")
+    .WithDescription(new Text("Print generated sources to stdout instead of writing files."));
+var includePreludeFlag = FlagOption.CreateFlagOption(OptionForm.Long("include-prelude"))
+    .WithCategory("Output")
+    .WithDescription(new Text("Also emit PreludeDialectRegistration.g.cs."));
+var outputOption = ValueOption.CreateStringOption(
+        new[] { OptionForm.Short("o"), OptionForm.Long("output") },
+        string.Empty)
+    .WithCategory("Output")
+    .WithDescription(new Text("Output directory for generated .g.cs files."));
+var dialectOption = SequenceOption.CreateStringOption(OptionForm.Long("dialect"))
+    .WithCategory("Filtering")
+    .WithDescription(new Text("Emit only the named dialect. Can be repeated."))
+    .WithParameters(new SymbolicOptionParameter("name"));
+var inputOption = SequenceOption.CreateStringOption(OptionForm.Long("input"))
+    .WithCategory("Input")
+    .WithDescription(new Text("One or more TableGen input files to compile."))
+    .WithParameters(new SymbolicOptionParameter("file", true));
+var options = new Option[] { helpFlag, stdoutFlag, includePreludeFlag, outputOption, dialectOption };
+var parser = new GnuOptionSetParser(options, inputOption);
+
+var parsedOptions = parser.Parse(args, stderrLog);
+if (parsedOptions.GetValue<bool>(helpFlag))
 {
-    PrintUsage();
-    return parseResult.HelpExitCode;
+    stdoutLog.Log(CreateHelpMessage(options));
+    return 0;
 }
 
-if (parseResult.ErrorMessage != null)
+var inputPaths = parsedOptions.GetValue<string[]>(inputOption);
+if (inputPaths.Length == 0)
 {
-    Console.Error.WriteLine(parseResult.ErrorMessage);
-    Console.Error.WriteLine();
-    PrintUsage();
+    LogError(stderrLog, "At least one input .td file is required.");
+    stderrLog.Log(CreateHelpMessage(options));
+    return 1;
+}
+
+var writeToStdout = parsedOptions.GetValue<bool>(stdoutFlag);
+var includePrelude = parsedOptions.GetValue<bool>(includePreludeFlag);
+var outputDirectory = parsedOptions.GetValue<string>(outputOption);
+var dialectNames = parsedOptions.GetValue<string[]>(dialectOption);
+
+if (writeToStdout && !string.IsNullOrWhiteSpace(outputDirectory))
+{
+    LogError(stderrLog, "Use either --stdout or --output, not both.");
     return 1;
 }
 
 try
 {
     var compilationResult = TableGenDialectCompiler.CompileSourcesDetailed(
-        parseResult.InputPaths
+        inputPaths
             .Select(path => Path.GetFullPath(path))
             .Select(path => new TableGenInput(path, File.ReadAllText(path))),
         new CompositeIncludeResolver(
             new FileSystemIncludeResolver(),
             PreludeIncludeResolvers.CreateEmbeddedPreludeResolver()),
-        includePrelude: parseResult.IncludePrelude,
-        dialectNames: parseResult.DialectNames);
+        includePrelude: includePrelude,
+        dialectNames: dialectNames);
     var generatedSources = compilationResult.GeneratedSources;
 
     foreach (var diagnostic in compilationResult.Diagnostics)
     {
-        Console.Error.WriteLine(FormatDiagnostic(diagnostic));
+        LogDiagnostic(stderrLog, diagnostic);
     }
 
     if (compilationResult.Diagnostics.Count > 0)
@@ -46,11 +92,11 @@ try
 
     if (generatedSources.Count == 0)
     {
-        Console.Error.WriteLine("No dialect sources were generated for the requested inputs and filters.");
+        LogError(stderrLog, "No dialect sources were generated for the requested inputs and filters.");
         return 1;
     }
 
-    if (parseResult.WriteToStdout)
+    if (writeToStdout)
     {
         for (var i = 0; i < generatedSources.Count; i++)
         {
@@ -70,27 +116,60 @@ try
         return 0;
     }
 
-    var outputDirectory = parseResult.OutputDirectory != null
-        ? Path.GetFullPath(parseResult.OutputDirectory)
-        : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(parseResult.InputPaths[0])) ?? Environment.CurrentDirectory, "Generated");
-    Directory.CreateDirectory(outputDirectory);
+    var resolvedOutputDirectory = !string.IsNullOrWhiteSpace(outputDirectory)
+        ? Path.GetFullPath(outputDirectory)
+        : Path.Combine(Path.GetDirectoryName(Path.GetFullPath(inputPaths[0])) ?? Environment.CurrentDirectory, "Generated");
+    Directory.CreateDirectory(resolvedOutputDirectory);
 
     foreach (var generatedSource in generatedSources)
     {
-        var outputPath = Path.Combine(outputDirectory, generatedSource.HintName);
+        var outputPath = Path.Combine(resolvedOutputDirectory, generatedSource.HintName);
         File.WriteAllText(outputPath, generatedSource.SourceText);
-        Console.WriteLine("Wrote " + outputPath);
+        LogInfo(stdoutLog, "Wrote " + outputPath);
     }
 
     return 0;
 }
 catch (Exception exception)
 {
-    Console.Error.WriteLine("error: " + FormatExceptionMessage(exception));
+    LogError(stderrLog, FormatExceptionMessage(exception));
     return 1;
 }
 
-static string FormatDiagnostic(Diagnostic diagnostic)
+static HelpMessage CreateHelpMessage(IReadOnlyList<Option> options)
+{
+    return new HelpMessage(
+        new Text("Compile one or more TableGen dialect inputs into generated C# sources."),
+        new Text("tdtocsharp <file.td> [more.td ...] [options]"),
+        options);
+}
+
+static void LogDiagnostic(ILog log, RoslynDiagnostic diagnostic)
+{
+    log.Log(
+        new LogEntry(
+            diagnostic.Severity switch
+            {
+                DiagnosticSeverity.Hidden => Severity.Message,
+                DiagnosticSeverity.Info => Severity.Info,
+                DiagnosticSeverity.Warning => Severity.Warning,
+                DiagnosticSeverity.Error => Severity.Error,
+                _ => Severity.Error,
+            },
+            new Text(FormatDiagnostic(diagnostic))));
+}
+
+static void LogError(ILog log, string message)
+{
+    log.Log(new LogEntry(Severity.Error, new Text("error: " + message)));
+}
+
+static void LogInfo(ILog log, string message)
+{
+    log.Log(new LogEntry(Severity.Message, new Text(message)));
+}
+
+static string FormatDiagnostic(RoslynDiagnostic diagnostic)
 {
     var locationPrefix = diagnostic.Location == Location.None || !diagnostic.Location.IsInSource
         ? string.Empty
@@ -117,190 +196,4 @@ static string FormatExceptionMessage(Exception exception)
     return parts.Count == 0
         ? exception.GetType().FullName ?? exception.GetType().Name
         : string.Join(" --> ", parts);
-}
-
-static void PrintUsage()
-{
-    Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run --project tools/TdToCSharp/TdToCSharp.csproj -- <file.td> [more.td ...] [options]");
-    Console.WriteLine();
-    Console.WriteLine("Options:");
-    Console.WriteLine("  -o, --output <dir>         Output directory for generated .g.cs files.");
-    Console.WriteLine("      --stdout               Print generated sources to stdout instead of writing files.");
-    Console.WriteLine("      --dialect <name>       Emit only the named dialect. Can be repeated.");
-    Console.WriteLine("      --include-prelude      Also emit PreludeDialectRegistration.g.cs.");
-    Console.WriteLine("  -h, --help                 Show this help text.");
-    Console.WriteLine();
-    Console.WriteLine("Behavior:");
-    Console.WriteLine("  Includes are resolved from the local filesystem first, then from the embedded MLIR prelude.");
-    Console.WriteLine("  Multiple input files are merged by dialect name using the same merge logic as the source generator.");
-    Console.WriteLine("  When --output is omitted, files are written to a Generated/ directory next to the first input file.");
-}
-
-static ParseResult ParseArguments(IReadOnlyList<string> args)
-{
-    if (args.Count == 0)
-    {
-        return ParseResult.Error("At least one input .td file is required.");
-    }
-
-    var inputPaths = new List<string>();
-    var dialectNames = new List<string>();
-    string? outputDirectory = null;
-    var includePrelude = false;
-    var writeToStdout = false;
-
-    for (var i = 0; i < args.Count; i++)
-    {
-        var arg = args[i];
-        switch (arg)
-        {
-            case "-h":
-            case "--help":
-                return ParseResult.Help();
-            case "--stdout":
-                writeToStdout = true;
-                break;
-            case "--include-prelude":
-                includePrelude = true;
-                break;
-            case "-o":
-            case "--output":
-                if (i + 1 >= args.Count)
-                {
-                    return ParseResult.Error("Missing value for --output.");
-                }
-
-                outputDirectory = args[++i];
-                break;
-            case "--dialect":
-                if (i + 1 >= args.Count)
-                {
-                    return ParseResult.Error("Missing value for --dialect.");
-                }
-
-                dialectNames.Add(args[++i]);
-                break;
-            default:
-                if (arg.StartsWith("-", StringComparison.Ordinal))
-                {
-                    return ParseResult.Error("Unknown option: " + arg);
-                }
-
-                inputPaths.Add(arg);
-                break;
-        }
-    }
-
-    if (inputPaths.Count == 0)
-    {
-        return ParseResult.Error("At least one input .td file is required.");
-    }
-
-    if (writeToStdout && outputDirectory != null)
-    {
-        return ParseResult.Error("Use either --stdout or --output, not both.");
-    }
-
-    return new ParseResult(
-        showHelp: false,
-        helpExitCode: 0,
-        errorMessage: null,
-        inputPaths: inputPaths.ToArray(),
-        outputDirectory: outputDirectory,
-        includePrelude: includePrelude,
-        writeToStdout: writeToStdout,
-        dialectNames: dialectNames.ToArray());
-}
-
-internal sealed class ParseResult
-{
-    public ParseResult(
-        bool showHelp,
-        int helpExitCode,
-        string? errorMessage,
-        string[] inputPaths,
-        string? outputDirectory,
-        bool includePrelude,
-        bool writeToStdout,
-        string[] dialectNames)
-    {
-        ShowHelp = showHelp;
-        HelpExitCode = helpExitCode;
-        ErrorMessage = errorMessage;
-        InputPaths = inputPaths;
-        OutputDirectory = outputDirectory;
-        IncludePrelude = includePrelude;
-        WriteToStdout = writeToStdout;
-        DialectNames = dialectNames;
-    }
-
-    public bool ShowHelp { get; }
-
-    public int HelpExitCode { get; }
-
-    public string? ErrorMessage { get; }
-
-    public string[] InputPaths { get; }
-
-    public string? OutputDirectory { get; }
-
-    public bool IncludePrelude { get; }
-
-    public bool WriteToStdout { get; }
-
-    public string[] DialectNames { get; }
-
-    public static ParseResult Help()
-    {
-        return new ParseResult(true, 0, null, Array.Empty<string>(), null, false, false, Array.Empty<string>());
-    }
-
-    public static ParseResult Error(string message)
-    {
-        return new ParseResult(false, 1, message, Array.Empty<string>(), null, false, false, Array.Empty<string>());
-    }
-}
-
-internal sealed class FileSystemIncludeResolver : IncludeResolver
-{
-    public override bool TryResolveInclude(
-        string includePath,
-        SourceFile? includingFile,
-        out ResolvedInclude resolvedInclude)
-    {
-        if (TryResolveExistingPath(includePath, out resolvedInclude))
-        {
-            return true;
-        }
-
-        if (includingFile != null)
-        {
-            var directory = Path.GetDirectoryName(includingFile.LogicalPath);
-            if (!string.IsNullOrEmpty(directory))
-            {
-                var candidate = Path.Combine(directory, includePath);
-                if (TryResolveExistingPath(candidate, out resolvedInclude))
-                {
-                    return true;
-                }
-            }
-        }
-
-        resolvedInclude = null!;
-        return false;
-    }
-
-    private static bool TryResolveExistingPath(string path, out ResolvedInclude resolvedInclude)
-    {
-        if (!File.Exists(path))
-        {
-            resolvedInclude = null!;
-            return false;
-        }
-
-        var fullPath = Path.GetFullPath(path);
-        resolvedInclude = new ResolvedInclude(fullPath, File.ReadAllText(fullPath));
-        return true;
-    }
 }

@@ -5,24 +5,56 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using MLIR.Generators;
+using Pixie;
+using Pixie.Markup;
+using Pixie.Options;
+using Pixie.Terminal;
 using TableGen;
 using TableGen.Evaluation;
 using TableGenDebug;
 
-if (args.Length is 0 or > 2 || args.Contains("--help", StringComparer.OrdinalIgnoreCase) || args.Contains("-h", StringComparer.OrdinalIgnoreCase))
+var stdoutLog = TerminalLog.AcquireStandardOutput();
+var stderrLog = TerminalLog.AcquireStandardError();
+
+var helpFlag = FlagOption.CreateFlagOption(
+        OptionForm.Short("h"),
+        OptionForm.Long("help"))
+    .WithCategory("General")
+    .WithDescription(new Text("Show this help text."));
+var positionalOption = SequenceOption.CreateStringOption(OptionForm.Long("argument"))
+    .WithCategory("Input")
+    .WithDescription(new Text("The input TableGen file, followed by an optional record-name glob pattern."))
+    .WithParameters(
+        new SymbolicOptionParameter("file"),
+        new SymbolicOptionParameter("record-pattern"));
+var options = new Option[] { helpFlag };
+var parser = new GnuOptionSetParser(options, positionalOption);
+
+var parsedOptions = parser.Parse(args, stderrLog);
+if (parsedOptions.GetValue<bool>(helpFlag))
 {
-    PrintUsage();
-    return args.Length == 0 ? 1 : 0;
+    stdoutLog.Log(CreateHelpMessage(options));
+    return 0;
 }
 
-var inputPath = args[0];
-if (!File.Exists(inputPath))
+var positionalArguments = parsedOptions.GetValue<string[]>(positionalOption);
+if (positionalArguments.Length == 0 || positionalArguments.Length > 2)
 {
-    Console.Error.WriteLine($"Input file not found: {inputPath}");
+    LogError(stderrLog, positionalArguments.Length == 0
+        ? "An input .td file is required."
+        : "Expected at most two positional arguments: <file.td> [record-pattern].");
+    stderrLog.Log(CreateHelpMessage(options));
     return 1;
 }
 
-var recordPattern = args.Length >= 2 ? args[1] : "*";
+var inputPath = positionalArguments[0];
+if (!File.Exists(inputPath))
+{
+    LogError(stderrLog, "Input file not found: " + inputPath);
+    return 1;
+}
+
+var recordPattern = positionalArguments.Length >= 2 ? positionalArguments[1] : "*";
 try
 {
     var sourceText = File.ReadAllText(inputPath);
@@ -38,7 +70,7 @@ try
 
     if (records.Length == 0)
     {
-        Console.WriteLine($"No records matched pattern '{recordPattern}'.");
+        LogInfo(stdoutLog, "No records matched pattern '" + recordPattern + "'.");
         return 0;
     }
 
@@ -56,23 +88,42 @@ try
 }
 catch (Exception exception)
 {
-    Console.Error.WriteLine(exception);
+    LogError(stderrLog, FormatExceptionMessage(exception));
     return 1;
 }
 
-static void PrintUsage()
+static HelpMessage CreateHelpMessage(IReadOnlyList<Option> options)
 {
-    Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- <file.td> [record-pattern]");
-    Console.WriteLine();
-    Console.WriteLine("Arguments:");
-    Console.WriteLine("  <file.td>         TableGen file to load and evaluate.");
-    Console.WriteLine("  [record-pattern]   Optional glob-style filter for record names.");
-    Console.WriteLine("                    Use * to match any sequence of characters and ? for one character.");
-    Console.WriteLine();
-    Console.WriteLine("Examples:");
-    Console.WriteLine("  dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- samples/GeneratedDialectConsumer/Dialects/arith.td");
-    Console.WriteLine("  dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- samples/GeneratedDialectConsumer/Dialects/arith.td 'Arith_*'");
+    return new HelpMessage(
+        new Text("Load a TableGen file, evaluate it with the embedded MLIR prelude, and print matching records."),
+        new Text("tablegendebug <file.td> [record-pattern]"),
+        options);
+}
+
+static void LogError(ILog log, string message)
+{
+    log.Log(new LogEntry(Severity.Error, new Text("error: " + message)));
+}
+
+static void LogInfo(ILog log, string message)
+{
+    log.Log(new LogEntry(Severity.Message, new Text(message)));
+}
+
+static string FormatExceptionMessage(Exception exception)
+{
+    var parts = new System.Collections.Generic.List<string>();
+    for (var current = exception; current != null; current = current.InnerException)
+    {
+        if (!string.IsNullOrWhiteSpace(current.Message))
+        {
+            parts.Add(current.Message);
+        }
+    }
+
+    return parts.Count == 0
+        ? exception.GetType().FullName ?? exception.GetType().Name
+        : string.Join(" --> ", parts);
 }
 
 static bool MatchesPattern(string value, string pattern)
