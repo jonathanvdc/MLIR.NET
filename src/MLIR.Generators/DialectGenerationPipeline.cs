@@ -36,10 +36,26 @@ internal static class DialectGenerationPipeline
         IReadOnlyList<TableGenInput> inputs,
         IncludeResolver includeResolver)
     {
+        return ParseAndMergeDetailed(inputs, includeResolver).Dialects;
+    }
+
+    internal static DialectMergeResult ParseAndMergeDetailed(
+        IReadOnlyList<TableGenInput> inputs,
+        IncludeResolver includeResolver)
+    {
         var results = inputs
             .Select(input => DialectGeneratorInput.ParseFile(input, includeResolver))
             .ToArray();
-        return MergeDialects(results).ToArray();
+        var diagnostics = new List<Diagnostic>();
+        var dialects = MergeDialects(
+            results,
+            result => diagnostics.Add(
+                Diagnostic.Create(
+                    DialectGeneratorDiagnostics.InvalidTableGenInput,
+                    Location.None,
+                    result.Path,
+                    result.ErrorMessage!))).ToArray();
+        return new DialectMergeResult(dialects, diagnostics);
     }
 
     private static IncludeResolver BuildIncludeResolver(
@@ -72,4 +88,17 @@ internal static class DialectGenerationPipeline
             .Select(DialectModelMerger.MergeDialectGroup)
             .OrderBy(static dialect => dialect.Name, StringComparer.Ordinal);
     }
+}
+
+internal sealed class DialectMergeResult
+{
+    public DialectMergeResult(IReadOnlyList<DialectModel> dialects, IReadOnlyList<Diagnostic> diagnostics)
+    {
+        Dialects = dialects;
+        Diagnostics = diagnostics;
+    }
+
+    public IReadOnlyList<DialectModel> Dialects { get; }
+
+    public IReadOnlyList<Diagnostic> Diagnostics { get; }
 }

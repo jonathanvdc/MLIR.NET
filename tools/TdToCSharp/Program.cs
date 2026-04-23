@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Microsoft.CodeAnalysis;
 using MLIR.Generators;
 using TableGen;
 
@@ -22,7 +23,7 @@ if (parseResult.ErrorMessage != null)
 
 try
 {
-    var generatedSources = TableGenDialectCompiler.CompileSources(
+    var compilationResult = TableGenDialectCompiler.CompileSourcesDetailed(
         parseResult.InputPaths
             .Select(path => Path.GetFullPath(path))
             .Select(path => new TableGenInput(path, File.ReadAllText(path))),
@@ -31,6 +32,17 @@ try
             PreludeIncludeResolvers.CreateEmbeddedPreludeResolver()),
         includePrelude: parseResult.IncludePrelude,
         dialectNames: parseResult.DialectNames);
+    var generatedSources = compilationResult.GeneratedSources;
+
+    foreach (var diagnostic in compilationResult.Diagnostics)
+    {
+        Console.Error.WriteLine(FormatDiagnostic(diagnostic));
+    }
+
+    if (compilationResult.Diagnostics.Count > 0)
+    {
+        return 1;
+    }
 
     if (generatedSources.Count == 0)
     {
@@ -76,6 +88,19 @@ catch (Exception exception)
 {
     Console.Error.WriteLine(exception);
     return 1;
+}
+
+static string FormatDiagnostic(Diagnostic diagnostic)
+{
+    var locationPrefix = diagnostic.Location == Location.None || !diagnostic.Location.IsInSource
+        ? string.Empty
+        : diagnostic.Location.ToString() + ": ";
+    return locationPrefix
+        + diagnostic.Severity.ToString().ToLowerInvariant()
+        + " "
+        + diagnostic.Id
+        + ": "
+        + diagnostic.GetMessage();
 }
 
 static void PrintUsage()

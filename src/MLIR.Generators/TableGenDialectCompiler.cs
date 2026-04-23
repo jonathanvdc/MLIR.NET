@@ -3,6 +3,7 @@ namespace MLIR.Generators;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis;
 using TableGen;
 
 /// <summary>
@@ -38,6 +39,27 @@ public static class TableGenDialectCompiler
         bool includePrelude = false,
         IEnumerable<string>? dialectNames = null)
     {
+        var result = CompileSourcesDetailed(inputs, includeResolver, includePrelude, dialectNames);
+        if (!result.IsSuccess)
+        {
+            throw new InvalidOperationException(
+                "Failed to generate dialect sources: "
+                + string.Join(" | ", result.Diagnostics.Select(static diagnostic => diagnostic.GetMessage())));
+        }
+
+        return result.GeneratedSources;
+    }
+
+    /// <summary>
+    /// Compiles the given in-memory <c>.td</c> inputs into generated dialect source files, returning
+    /// both successful sources and any diagnostics produced during parsing and emission.
+    /// </summary>
+    public static GeneratedDialectCompilationResult CompileSourcesDetailed(
+        IEnumerable<TableGenInput> inputs,
+        IncludeResolver includeResolver,
+        bool includePrelude = false,
+        IEnumerable<string>? dialectNames = null)
+    {
         if (inputs == null)
         {
             throw new ArgumentNullException(nameof(inputs));
@@ -67,7 +89,9 @@ public static class TableGenDialectCompiler
             }
         }
 
-        var mergedDialects = DialectGenerationPipeline.ParseAndMerge(inputArray, includeResolver).ToArray();
+        var mergeResult = DialectGenerationPipeline.ParseAndMergeDetailed(inputArray, includeResolver);
+        var mergedDialects = mergeResult.Dialects.ToArray();
+        var diagnostics = new List<Diagnostic>(mergeResult.Diagnostics);
 
         var requestedNames = dialectNames == null
             ? null
@@ -83,23 +107,24 @@ public static class TableGenDialectCompiler
             .ToArray();
 
         var resolver = DialectSymbolResolver.Create(mergedDialects);
-        return selectedDialects
+        var generatedSources = selectedDialects
             .Select(dialect =>
             {
                 var generated = DialectSourceEmitter.GenerateDialectSource(dialect, resolver);
-                if (!generated.IsSuccess)
-                {
-                    throw new InvalidOperationException(
-                        "Failed to generate dialect '" + dialect.Name + "': "
-                        + string.Join(" | ", generated.Diagnostics.Select(static diagnostic => diagnostic.GetMessage())));
-                }
+                diagnostics.AddRange(generated.Diagnostics);
 
-                return new GeneratedDialectSource(
+                return generated.IsSuccess
+                    ? new GeneratedDialectSource(
                     dialect.Name,
                     DialectGeneratorNaming.GetHintName(dialect),
                     generated.Source,
-                    dialect.IsPrelude);
+                    dialect.IsPrelude)
+                    : null;
             })
+            .Where(static source => source != null)
+            .Cast<GeneratedDialectSource>()
             .ToArray();
+
+        return new GeneratedDialectCompilationResult(generatedSources, diagnostics);
     }
 }
