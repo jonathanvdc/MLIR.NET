@@ -100,6 +100,11 @@ internal static class DialectGeneratorNaming
     /// </remarks>
     public static string GetTypeInterfaceName(InterfaceModel interfaceModel)
     {
+        if (!string.IsNullOrEmpty(interfaceModel.CsharpName))
+        {
+            return interfaceModel.CsharpName!;
+        }
+
         const string suffix = "Interface";
         var rawName = interfaceModel.CppInterfaceName;
         var baseName = rawName.EndsWith(suffix, StringComparison.Ordinal) && rawName.Length > suffix.Length

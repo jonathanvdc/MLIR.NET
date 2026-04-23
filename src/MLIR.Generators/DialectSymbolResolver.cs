@@ -16,6 +16,7 @@ internal sealed class DialectSymbolResolver
     private readonly Dictionary<string, string> typeTypesByRecordName;
     // Maps (cppNamespace + "\0" + cppInterfaceName) → fully qualified C# marker interface name.
     private readonly Dictionary<string, string> typeInterfaceNamesByKey;
+    private readonly Dictionary<string, InterfaceModel> typeInterfacesByKey;
 
     private DialectSymbolResolver(
         Dictionary<string, string> attributeTypesByRecordName,
@@ -26,7 +27,8 @@ internal sealed class DialectSymbolResolver
         Dictionary<string, string> enumTypesByRecordName,
         Dictionary<string, string> typeConstraintTypesByRecordName,
         Dictionary<string, string> typeTypesByRecordName,
-        Dictionary<string, string> typeInterfaceNamesByKey)
+        Dictionary<string, string> typeInterfaceNamesByKey,
+        Dictionary<string, InterfaceModel> typeInterfacesByKey)
     {
         this.attributeTypesByRecordName = attributeTypesByRecordName;
         this.attrsByRecordName = attrsByRecordName;
@@ -37,6 +39,7 @@ internal sealed class DialectSymbolResolver
         this.typeConstraintTypesByRecordName = typeConstraintTypesByRecordName;
         this.typeTypesByRecordName = typeTypesByRecordName;
         this.typeInterfaceNamesByKey = typeInterfaceNamesByKey;
+        this.typeInterfacesByKey = typeInterfacesByKey;
     }
 
     public static DialectSymbolResolver Create(IReadOnlyList<DialectModel> dialects)
@@ -50,6 +53,7 @@ internal sealed class DialectSymbolResolver
         var typeConstraintTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeTypesByRecordName = new Dictionary<string, string>(StringComparer.Ordinal);
         var typeInterfaceNamesByKey = new Dictionary<string, string>(StringComparer.Ordinal);
+        var typeInterfacesByKey = new Dictionary<string, InterfaceModel>(StringComparer.Ordinal);
 
         foreach (var dialect in dialects)
         {
@@ -119,6 +123,7 @@ internal sealed class DialectSymbolResolver
                 var key = MakeTypeInterfaceKey(interfaceModel.CppNamespace, interfaceModel.CppInterfaceName);
                 var qualifiedName = generatedNamespace + "." + DialectGeneratorNaming.GetTypeInterfaceName(interfaceModel);
                 typeInterfaceNamesByKey[key] = qualifiedName;
+                typeInterfacesByKey[key] = interfaceModel;
             }
         }
 
@@ -131,7 +136,8 @@ internal sealed class DialectSymbolResolver
             enumTypesByRecordName,
             typeConstraintTypesByRecordName,
             typeTypesByRecordName,
-            typeInterfaceNamesByKey);
+            typeInterfaceNamesByKey,
+            typeInterfacesByKey);
     }
 
     public string? TryResolveAttributeDefinitionExpression(string recordName)
@@ -257,6 +263,12 @@ internal sealed class DialectSymbolResolver
     {
         var key = MakeTypeInterfaceKey(cppNamespace, cppInterfaceName);
         return typeInterfaceNamesByKey.TryGetValue(key, out var name) ? name : null;
+    }
+
+    public InterfaceModel? TryResolveTypeInterfaceModel(string? cppNamespace, string cppInterfaceName)
+    {
+        var key = MakeTypeInterfaceKey(cppNamespace, cppInterfaceName);
+        return typeInterfacesByKey.TryGetValue(key, out var model) ? model : null;
     }
 
     private static string MakeTypeInterfaceKey(string? cppNamespace, string cppInterfaceName)

@@ -945,10 +945,12 @@ internal sealed class OdsRecordIndex
                 return TryBuildAttrOrTypeParameterModelFromAnonymousRecord(name, anonymous);
 
             case RecordReferenceValue recordRef:
-                // A named record reference in a parameters dag is uncommon but can occur when a def
-                // that inherits from AttrOrTypeParameter is used by name.
+                // A named record reference in a parameters dag can point either to an
+                // AttrOrTypeParameter subclass or to a constraint/type record that still
+                // carries a cppType field (for example, Builtin_VectorTypeElementType).
                 if (TryGetRecord(recordRef.RecordName, out var referencedRecord)
-                    && referencedRecord.HasBaseClass("AttrOrTypeParameter"))
+                    && (referencedRecord.HasBaseClass("AttrOrTypeParameter")
+                        || referencedRecord.Fields.ContainsKey("cppType")))
                 {
                     return TryBuildAttrOrTypeParameterModelFromFields(name, recordRef.RecordName, referencedRecord.Fields);
                 }
@@ -1042,6 +1044,22 @@ internal sealed class OdsRecordIndex
         }
 
         return null;
+    }
+
+    private static string? GetRecordNameFromValueDictionary(IReadOnlyDictionary<string, Value> fields, string key)
+    {
+        if (!fields.TryGetValue(key, out var field))
+        {
+            return null;
+        }
+
+        return field switch
+        {
+            RecordReferenceValue record => record.RecordName,
+            SymbolReferenceValue symbol => symbol.SymbolName,
+            StringValue str when !string.IsNullOrEmpty(str.Value) => str.Value,
+            _ => null,
+        };
     }
 
     /// <summary>
@@ -1212,6 +1230,8 @@ internal sealed class OdsRecordIndex
         var description = GetOptionalStringField(record, "description");
         var baseInterfaces = GetStringListField(record, "baseInterfaces");
         var methods = BuildInterfaceMethods(record);
+        var csharpName = GetOptionalStringField(record, "csharpName");
+        var csharpMembers = BuildInterfaceCSharpMembers(record);
 
         return new Model.InterfaceModel(
             record.Name,
@@ -1220,7 +1240,57 @@ internal sealed class OdsRecordIndex
             cppNamespace,
             description,
             baseInterfaces,
-            methods);
+            methods,
+            csharpName,
+            csharpMembers);
+    }
+
+    /// <summary>
+    /// Extracts the explicit C# interface members declared for an interface record through
+    /// MLIR.NET overlay metadata.
+    /// </summary>
+    private IReadOnlyList<Model.InterfaceCSharpMemberModel> BuildInterfaceCSharpMembers(Record record)
+    {
+        if (!record.Fields.TryGetValue("csharpMembers", out var field) || field is not ListValue list)
+        {
+            return EmptyInterfaceCSharpMembers;
+        }
+
+        var members = new List<Model.InterfaceCSharpMemberModel>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            var member = TryBuildInterfaceCSharpMemberModel(item);
+            if (member != null)
+            {
+                members.Add(member);
+            }
+        }
+
+        return members.Count == 0 ? EmptyInterfaceCSharpMembers : members;
+    }
+
+    /// <summary>
+    /// Extracts the explicit interface-member implementations attached to a type record through
+    /// MLIR.NET overlay metadata.
+    /// </summary>
+    public IReadOnlyList<Model.InterfaceMemberImplementationModel> GetInterfaceMemberImplementations(Record record)
+    {
+        if (!record.Fields.TryGetValue("csharpInterfaceImplementations", out var field) || field is not ListValue list)
+        {
+            return EmptyInterfaceMemberImplementations;
+        }
+
+        var implementations = new List<Model.InterfaceMemberImplementationModel>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            var implementation = TryBuildInterfaceMemberImplementationModel(item);
+            if (implementation != null)
+            {
+                implementations.Add(implementation);
+            }
+        }
+
+        return implementations.Count == 0 ? EmptyInterfaceMemberImplementations : implementations;
     }
 
     /// <summary>
@@ -1366,6 +1436,83 @@ internal sealed class OdsRecordIndex
         return Model.InterfaceMethodKind.Regular;
     }
 
+    private Model.InterfaceCSharpMemberModel? TryBuildInterfaceCSharpMemberModel(Value item)
+    {
+        IReadOnlyDictionary<string, Value>? fields = null;
+        string className = "MLIRNet_InterfaceProperty";
+
+        switch (item)
+        {
+            case AnonymousRecordValue anonymous:
+                fields = anonymous.Fields;
+                className = anonymous.ClassName;
+                break;
+            case RecordReferenceValue recordRef:
+                if (TryGetRecord(recordRef.RecordName, out var referencedRecord))
+                {
+                    fields = referencedRecord.Fields;
+                    className = recordRef.RecordName;
+                }
+                break;
+        }
+
+        if (fields == null)
+        {
+            return null;
+        }
+
+        var upstreamName = GetStringFromValueDictionary(fields, "upstreamName");
+        var csharpType = GetStringFromValueDictionary(fields, "csharpType");
+        var csharpName = GetStringFromValueDictionary(fields, "csharpName");
+        if (string.IsNullOrEmpty(upstreamName) || string.IsNullOrEmpty(csharpType) || string.IsNullOrEmpty(csharpName))
+        {
+            return null;
+        }
+
+        var kind = className switch
+        {
+            "MLIRNet_InterfaceProperty" => Model.InterfaceCSharpMemberKind.Property,
+            _ => Model.InterfaceCSharpMemberKind.Property,
+        };
+
+        return new Model.InterfaceCSharpMemberModel(kind, upstreamName!, csharpType!, csharpName!);
+    }
+
+    private Model.InterfaceMemberImplementationModel? TryBuildInterfaceMemberImplementationModel(Value item)
+    {
+        IReadOnlyDictionary<string, Value>? fields = null;
+
+        switch (item)
+        {
+            case AnonymousRecordValue anonymous:
+                fields = anonymous.Fields;
+                break;
+            case RecordReferenceValue recordRef:
+                if (TryGetRecord(recordRef.RecordName, out var referencedRecord))
+                {
+                    fields = referencedRecord.Fields;
+                }
+                break;
+        }
+
+        if (fields == null)
+        {
+            return null;
+        }
+
+        var interfaceRecordName = GetRecordNameFromValueDictionary(fields, "interfaceDef");
+        var csharpMemberName = GetStringFromValueDictionary(fields, "csharpMemberName");
+        var csharpExpression = GetStringFromValueDictionary(fields, "csharpExpression");
+        if (string.IsNullOrEmpty(interfaceRecordName)
+            || string.IsNullOrEmpty(csharpMemberName)
+            || string.IsNullOrEmpty(csharpExpression))
+        {
+            return null;
+        }
+
+        return new Model.InterfaceMemberImplementationModel(interfaceRecordName!, csharpMemberName!, csharpExpression!);
+    }
+
     /// <summary>
     /// Extracts C++ argument type/name pairs from the <c>arguments</c> dag field of an
     /// interface method record.
@@ -1408,5 +1555,8 @@ internal sealed class OdsRecordIndex
     private static readonly IReadOnlyList<Model.EnumCaseModel> EmptyEnumCases = new Model.EnumCaseModel[0];
     private static readonly IReadOnlyList<Model.AttrOrTypeParameterModel> EmptyAttrOrTypeParameters = new Model.AttrOrTypeParameterModel[0];
     private static readonly IReadOnlyList<Model.InterfaceMethodModel> EmptyInterfaceMethods = new Model.InterfaceMethodModel[0];
+    private static readonly IReadOnlyList<Model.InterfaceCSharpMemberModel> EmptyInterfaceCSharpMembers = new Model.InterfaceCSharpMemberModel[0];
+    private static readonly IReadOnlyList<Model.InterfaceMemberImplementationModel> EmptyInterfaceMemberImplementations =
+        new Model.InterfaceMemberImplementationModel[0];
     private static readonly IReadOnlyList<(string, string)> EmptyMethodArguments = new (string, string)[0];
 }

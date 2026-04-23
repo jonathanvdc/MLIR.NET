@@ -158,4 +158,54 @@ extends Builtin_Tuple : MLIRNet_AttrOrTypeDefExtension {
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinTupleTypeAssemblyFormat()";
 }
 
+extends Builtin_RankedTensor : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
+    "global::MLIR.Semantics.TypeReference":$elementType
+  );
+  let csharpInterfaceImplementations = [
+    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
+  ];
+}
+
+extends Builtin_UnrankedTensor : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "global::MLIR.Semantics.TypeReference":$elementType
+  );
+  let csharpInterfaceImplementations = [
+    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "false">,
+    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "Shape", "throw new global::System.InvalidOperationException(\"Unranked shaped types do not have a shape.\")">
+  ];
+}
+
+extends Builtin_Vector : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
+    "global::MLIR.Semantics.TypeReference":$elementType
+  );
+  let csharpInterfaceImplementations = [
+    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
+  ];
+}
+
+extends Builtin_MemRef : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
+    "global::MLIR.Semantics.TypeReference":$elementType
+  );
+  let csharpInterfaceImplementations = [
+    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
+  ];
+}
+
+extends Builtin_UnrankedMemRef : MLIRNet_AttrOrTypeDefExtension {
+  let csharpParameters = (ins
+    "global::MLIR.Semantics.TypeReference":$elementType
+  );
+  let csharpInterfaceImplementations = [
+    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "false">,
+    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, "Shape", "throw new global::System.InvalidOperationException(\"Unranked shaped types do not have a shape.\")">
+  ];
+}
+
 #endif // BUILTIN_TYPES_EXTENSIONS_TD

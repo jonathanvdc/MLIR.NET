@@ -1,5 +1,6 @@
 namespace MLIR.Generators.Tests;
 
+using System.Linq;
 using Xunit;
 
 public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
@@ -170,10 +171,14 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     [Fact]
     public void GeneratedBuiltinFloatTypesCarryMnemonicInNameProperty()
     {
-        var builtinSource = GenerateRegistrationSource(
-            "builtin.td",
-            "BuiltinDialectRegistration.g.cs",
-            "include \"mlir/IR/BuiltinTypes.td\"");
+        var result = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: true,
+            ("builtin.td", "include \"mlir/IR/BuiltinTypes.td\""));
+        Assert.Empty(result.Diagnostics);
+        var builtinSource = string.Join(
+            "\n",
+            result.Results.Single().GeneratedSources.Select(static source => "// " + source.HintName + "\n" + source.SourceText));
 
         // Name property must return the MLIR mnemonic, not the qualified registry key.
         AssertContainsAll(
@@ -188,10 +193,14 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     [Fact]
     public void GeneratedBuiltinIndexAndNoneUseNormalTypeEmissionPath()
     {
-        var builtinSource = GenerateRegistrationSource(
-            "builtin.td",
-            "BuiltinDialectRegistration.g.cs",
-            "include \"mlir/IR/BuiltinTypes.td\"");
+        var result = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: true,
+            ("builtin.td", "include \"mlir/IR/BuiltinTypes.td\""));
+        Assert.Empty(result.Diagnostics);
+        var builtinSource = string.Join(
+            "\n",
+            result.Results.Single().GeneratedSources.Select(static source => "// " + source.HintName + "\n" + source.SourceText));
 
         // IndexType and NoneType are fully generated via the standard path with
         // csharpAssemblyFormat and csharpName.
@@ -208,10 +217,14 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     [Fact]
     public void GeneratedBuiltinAggregateTypesOwnTypeDefinitionsAndSemanticPayload()
     {
-        var builtinSource = GenerateRegistrationSource(
-            "builtin.td",
-            "BuiltinDialectRegistration.g.cs",
-            "include \"mlir/IR/BuiltinTypes.td\"");
+        var result = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: true,
+            ("builtin.td", "include \"mlir/IR/BuiltinTypes.td\""));
+        Assert.Empty(result.Diagnostics);
+        var builtinSource = string.Join(
+            "\n",
+            result.Results.Single().GeneratedSources.Select(static source => "// " + source.HintName + "\n" + source.SourceText));
 
         AssertContainsAll(
             builtinSource,
@@ -395,5 +408,86 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
         AssertContainsAll(source, "public sealed partial class vecType : TypeReference, MLIR.Dialects.Mydialect.IVectorElementType");
         // The original name without stripping should NOT appear as an interface.
         AssertDoesNotContainAny(source, "IVectorElementTypeInterface");
+    }
+
+    [Fact]
+    public void TypeInterfaceOverlayEmitsMemberBearingInterfaceAndTypeImplementations()
+    {
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("shaped.td", ComposeSource(
+            [
+                "include \"mlir/IR/BuiltinTypeInterfaces.td\"",
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def ShapedTest_Dialect : Dialect {",
+                "  let name = \"shapedtest\";",
+                "  let cppNamespace = \"::mlir::shapedtest\";",
+                "};",
+                string.Empty,
+                "class ShapedTest_Type<string name, list<Trait> traits = []> : TypeDef<ShapedTest_Dialect, name, traits> {",
+                "  let typeName = \"shapedtest.\" # name;",
+                "};",
+                string.Empty,
+                "def ShapedTest_Shaped : ShapedTest_Type<\"shaped\", [ShapedTypeInterface]> {",
+                "  let parameters = (ins \"ArrayRef<int64_t>\":$shape, \"Type\":$elementType);",
+                "};",
+                string.Empty,
+                "extends ShapedTest_Shaped : MLIRNet_AttrOrTypeDefExtension {",
+                "  let csharpParameters = (ins",
+                "    \"global::System.Collections.Generic.IReadOnlyList<long>\":$shape,",
+                "    \"global::MLIR.Semantics.TypeReference\":$elementType",
+                "  );",
+                "  let csharpInterfaceImplementations = [",
+                "    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, \"HasRank\", \"true\">",
+                "  ];",
+                "};",
+            ])));
+        var source = string.Join("\n", generatedSources.Select(static result => result.SourceText.ToString()));
+
+        AssertContainsAll(
+            source,
+            "public partial interface IShapedType",
+            "global::MLIR.Semantics.TypeReference ElementType { get; }",
+            "bool HasRank { get; }",
+            "global::System.Collections.Generic.IReadOnlyList<long> Shape { get; }",
+            "public sealed partial class shapedType : TypeReference, MLIR.Dialects.Prelude.IShapedType",
+            "public global::System.Collections.Generic.IReadOnlyList<long> Shape { get; }",
+            "public global::MLIR.Semantics.TypeReference ElementType { get; }",
+            "public bool HasRank => true;");
+    }
+
+    [Fact]
+    public void MissingMappedInterfaceImplementationProducesClearDiagnostic()
+    {
+        var result = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: true,
+            ("missing-shape.td", ComposeSource(
+            [
+                "include \"mlir/IR/BuiltinTypeInterfaces.td\"",
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                "def MissingShape_Dialect : Dialect {",
+                "  let name = \"missingshape\";",
+                "  let cppNamespace = \"::mlir::missingshape\";",
+                "};",
+                string.Empty,
+                "class MissingShape_Type<string name, list<Trait> traits = []> : TypeDef<MissingShape_Dialect, name, traits> {",
+                "  let typeName = \"missingshape.\" # name;",
+                "};",
+                string.Empty,
+                "def MissingShape_Foo : MissingShape_Type<\"foo\", [ShapedTypeInterface]> {",
+                "  let parameters = (ins \"Type\":$elementType);",
+                "};",
+                string.Empty,
+                "extends MissingShape_Foo : MLIRNet_AttrOrTypeDefExtension {",
+                "  let csharpParameters = (ins \"global::MLIR.Semantics.TypeReference\":$elementType);",
+                "};",
+            ])));
+
+        var diagnostic = Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id == "MLIRGEN002"));
+        Assert.Contains("MissingShape_Foo", diagnostic.GetMessage());
+        Assert.Contains("ShapedTypeInterface", diagnostic.GetMessage());
+        Assert.Contains("HasRank", diagnostic.GetMessage());
     }
 }

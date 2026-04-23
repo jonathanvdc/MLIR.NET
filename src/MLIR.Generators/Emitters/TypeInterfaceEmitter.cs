@@ -21,6 +21,17 @@ internal static class TypeInterfaceEmitter
         var interfaceName = DialectGeneratorNaming.GetTypeInterfaceName(interfaceModel);
         builder.AppendLine("public partial interface " + interfaceName);
         builder.AppendLine("{");
+        foreach (var member in interfaceModel.CsharpMembers)
+        {
+            if (member.Kind != InterfaceCSharpMemberKind.Property)
+            {
+                throw new System.InvalidOperationException(
+                    "Unsupported mapped type interface member kind '" + member.Kind + "' for interface '"
+                    + interfaceModel.RecordName + "'.");
+            }
+
+            builder.AppendLine("    " + member.CsharpType + " " + member.CsharpName + " { get; }");
+        }
         builder.AppendLine("}");
     }
 }

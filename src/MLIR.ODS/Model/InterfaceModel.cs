@@ -25,7 +25,9 @@ public sealed class InterfaceModel
         string? cppNamespace = null,
         string? description = null,
         IReadOnlyList<string>? baseInterfaces = null,
-        IReadOnlyList<InterfaceMethodModel>? methods = null)
+        IReadOnlyList<InterfaceMethodModel>? methods = null,
+        string? csharpName = null,
+        IReadOnlyList<InterfaceCSharpMemberModel>? csharpMembers = null)
     {
         RecordName = recordName;
         Kind = kind;
@@ -34,6 +36,8 @@ public sealed class InterfaceModel
         Description = description;
         BaseInterfaces = baseInterfaces ?? EmptyStrings;
         Methods = methods ?? EmptyMethods;
+        CsharpName = csharpName;
+        CsharpMembers = csharpMembers ?? EmptyCsharpMembers;
     }
 
     /// <summary>
@@ -74,6 +78,17 @@ public sealed class InterfaceModel
     /// </summary>
     public IReadOnlyList<InterfaceMethodModel> Methods { get; }
 
+    /// <summary>
+    /// Gets the optional C# interface name override supplied by MLIR.NET overlay metadata.
+    /// </summary>
+    public string? CsharpName { get; }
+
+    /// <summary>
+    /// Gets the explicit C# members that should be emitted for this interface.
+    /// </summary>
+    public IReadOnlyList<InterfaceCSharpMemberModel> CsharpMembers { get; }
+
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];
     private static readonly IReadOnlyList<InterfaceMethodModel> EmptyMethods = new InterfaceMethodModel[0];
+    private static readonly IReadOnlyList<InterfaceCSharpMemberModel> EmptyCsharpMembers = new InterfaceCSharpMemberModel[0];
 }

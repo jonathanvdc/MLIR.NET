@@ -27,8 +27,20 @@ internal static class TypeRecordImporter
                 ? AssemblyFormatParser.Parse(assemblyFormatString!)
                 : null;
             var traits = index.GetTraitListField(record, "traits");
+            var interfaceMemberImplementations = index.GetInterfaceMemberImplementations(record);
 
-            dialect.Types.Add(new TypeModel(typeName, record.Name, className, summary, description, csharpName, csharpAssemblyFormat, parameters, assemblyFormat, traits));
+            dialect.Types.Add(new TypeModel(
+                typeName,
+                record.Name,
+                className,
+                summary,
+                description,
+                csharpName,
+                csharpAssemblyFormat,
+                parameters,
+                assemblyFormat,
+                traits,
+                interfaceMemberImplementations));
         }
     }
 }

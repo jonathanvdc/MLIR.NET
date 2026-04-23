@@ -8,6 +8,43 @@ class MLIRNet_OpExtension {
   string csharpAsmFormatCode = ?;
 }
 
+// Extension schema for Interface records.
+//
+// Applying this class to an upstream or local Interface record via `extends`
+// lets MLIR.NET describe a C#-specific surface without hard-coding particular
+// MLIR interfaces in the generator.
+class MLIRNet_InterfaceExtension {
+  // Optional C# interface name override. When absent, the generator derives a
+  // marker-style name from cppInterfaceName.
+  string csharpName = ?;
+  // Explicit member projections for the generated C# interface surface.
+  list<MLIRNet_InterfaceMember> csharpMembers = [];
+}
+
+class MLIRNet_InterfaceMember<string upstreamNameValue, string csharpTypeValue, string csharpNameValue> {
+  string upstreamName = upstreamNameValue;
+  string csharpType = csharpTypeValue;
+  string csharpName = csharpNameValue;
+}
+
+class MLIRNet_InterfaceProperty<string upstreamName, string csharpType, string csharpName>
+    : MLIRNet_InterfaceMember<upstreamName, csharpType, csharpName>;
+
+// Extension schema for concrete AttrDef/TypeDef interface-member implementations.
+//
+// The first implementation slice is type-focused, but the schema lives on the
+// shared AttrOrTypeDef overlay so attribute support can reuse it later.
+class MLIRNet_InterfaceMemberImplementation<Interface interfaceDefValue, string csharpMemberNameValue,
+                                            string csharpExpressionValue> {
+  Interface interfaceDef = interfaceDefValue;
+  string csharpMemberName = csharpMemberNameValue;
+  string csharpExpression = csharpExpressionValue;
+}
+
+class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csharpMemberName,
+                                              string csharpExpression>
+    : MLIRNet_InterfaceMemberImplementation<interfaceDef, csharpMemberName, csharpExpression>;
+
 // Extension schema for AttrOrTypeParameter subclasses.
 //
 // Applying this class to a parameter class via a class-level `extends` lets
@@ -119,6 +156,8 @@ class MLIRNet_AttrOrTypeDefExtension {
   string csharpName = ?;
   // C# expression that instantiates the custom assembly-format helper.
   string csharpAssemblyFormat = ?;
+  // Explicit implementations for generated C# interface members.
+  list<MLIRNet_InterfaceMemberImplementation> csharpInterfaceImplementations = [];
 }
 
 // Extension schema for upstream Attr records.

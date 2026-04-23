@@ -16,7 +16,8 @@ public sealed class TypeModel(
     string? csharpAssemblyFormat = null,
     IReadOnlyList<AttrOrTypeParameterModel>? parameters = null,
     AssemblyFormatModel? assemblyFormat = null,
-    IReadOnlyList<TraitModel>? traits = null)
+    IReadOnlyList<TraitModel>? traits = null,
+    IReadOnlyList<InterfaceMemberImplementationModel>? interfaceMemberImplementations = null)
 {
     /// <summary>
     /// Gets the canonical type name.
@@ -70,6 +71,15 @@ public sealed class TypeModel(
     /// </summary>
     public IReadOnlyList<TraitModel> Traits { get; } = traits ?? EmptyTraits;
 
+    /// <summary>
+    /// Gets the explicit C# interface-member implementations attached to this type by
+    /// MLIR.NET overlay metadata.
+    /// </summary>
+    public IReadOnlyList<InterfaceMemberImplementationModel> InterfaceMemberImplementations { get; } =
+        interfaceMemberImplementations ?? EmptyInterfaceMemberImplementations;
+
     private static readonly IReadOnlyList<AttrOrTypeParameterModel> EmptyParameters = new AttrOrTypeParameterModel[0];
     private static readonly IReadOnlyList<TraitModel> EmptyTraits = new TraitModel[0];
+    private static readonly IReadOnlyList<InterfaceMemberImplementationModel> EmptyInterfaceMemberImplementations =
+        new InterfaceMemberImplementationModel[0];
 }

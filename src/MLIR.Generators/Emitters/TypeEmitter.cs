@@ -7,7 +7,7 @@ using MLIR.ODS.Model;
 
 internal static class TypeEmitter
 {
-    public static void Emit(StringBuilder builder, TypeModel type, IReadOnlyList<string> markerInterfaces)
+    public static void Emit(StringBuilder builder, TypeModel type, IReadOnlyList<ResolvedTypeInterfaceModel> interfaces)
     {
         var className = DialectGeneratorNaming.GetTypeClassName(type);
 
@@ -17,18 +17,18 @@ internal static class TypeEmitter
             builder.AppendLine();
             builder.AppendLine();
             EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-            EmitParametrisedTypeClass(builder, type, className, markerInterfaces);
+            EmitParametrisedTypeClass(builder, type, className, interfaces);
             builder.AppendLine();
             TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
         }
         else
         {
             EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-            EmitParametrisedTypeClass(builder, type, className, markerInterfaces);
+            EmitParametrisedTypeClass(builder, type, className, interfaces);
         }
     }
 
-    private static void EmitParametrisedTypeClass(StringBuilder builder, TypeModel type, string className, IReadOnlyList<string> markerInterfaces)
+    private static void EmitParametrisedTypeClass(StringBuilder builder, TypeModel type, string className, IReadOnlyList<ResolvedTypeInterfaceModel> interfaces)
     {
         var parameters = type.Parameters;
         var hasAssemblyFormat = type.AssemblyFormat != null;
@@ -40,9 +40,9 @@ internal static class TypeEmitter
                 : null;
 
         var classDeclaration = "public sealed partial class " + className + " : TypeReference";
-        if (markerInterfaces.Count > 0)
+        if (interfaces.Count > 0)
         {
-            classDeclaration += ", " + string.Join(", ", markerInterfaces);
+            classDeclaration += ", " + string.Join(", ", interfaces.Select(static resolved => resolved.QualifiedName));
         }
 
         builder.AppendLine(classDeclaration);
@@ -54,6 +54,11 @@ internal static class TypeEmitter
         builder.AppendLine();
 
         EmitTypeParameterProperties(builder, parameters);
+        if (interfaces.Any(static resolved => resolved.InterfaceModel.CsharpMembers.Count > 0))
+        {
+            builder.AppendLine();
+            TypeInterfaceImplementationEmitter.Emit(builder, type, interfaces);
+        }
 
         builder.AppendLine();
         builder.AppendLine("    public override string? Name => " + (string.IsNullOrEmpty(type.CsharpName) ? "TypeDefinition.Name" : type.CsharpName) + ";");

@@ -128,8 +128,8 @@ internal sealed class DialectEmitter
         {
             try
             {
-                var markerInterfaces = ResolveMarkerInterfaces(type);
-                TypeEmitter.Emit(builder, type, markerInterfaces);
+                var typeInterfaces = ResolveTypeInterfaces(type);
+                TypeEmitter.Emit(builder, type, typeInterfaces);
                 builder.AppendLine();
             }
             catch (System.Exception exception)
@@ -151,9 +151,9 @@ internal sealed class DialectEmitter
     /// <see cref="InterfaceKind.Type"/> that have a resolvable C# interface name are included.
     /// The order is deterministic (same as the trait list order).
     /// </summary>
-    private IReadOnlyList<string> ResolveMarkerInterfaces(TypeModel type)
+    private IReadOnlyList<ResolvedTypeInterfaceModel> ResolveTypeInterfaces(TypeModel type)
     {
-        List<string>? names = null;
+        List<ResolvedTypeInterfaceModel>? resolved = null;
 
         foreach (var trait in type.Traits)
         {
@@ -165,18 +165,19 @@ internal sealed class DialectEmitter
             }
 
             var name = resolver.TryResolveTypeInterfaceName(interfaceTrait.CppNamespace, interfaceTrait.CppInterfaceName);
-            if (name == null)
+            var model = resolver.TryResolveTypeInterfaceModel(interfaceTrait.CppNamespace, interfaceTrait.CppInterfaceName);
+            if (name == null || model == null)
             {
                 continue;
             }
 
-            names ??= new List<string>();
-            if (!names.Contains(name))
+            resolved ??= new List<ResolvedTypeInterfaceModel>();
+            if (!resolved.Any(existing => existing.QualifiedName == name))
             {
-                names.Add(name);
+                resolved.Add(new ResolvedTypeInterfaceModel(name, model));
             }
         }
 
-        return names ?? (IReadOnlyList<string>)System.Array.Empty<string>();
+        return resolved ?? (IReadOnlyList<ResolvedTypeInterfaceModel>)System.Array.Empty<ResolvedTypeInterfaceModel>();
     }
 }

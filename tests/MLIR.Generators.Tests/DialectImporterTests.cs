@@ -1422,6 +1422,38 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
+    public void TypeInterfaceOverlayImportsCSharpMembers()
+    {
+        const string source =
+            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "def MyIMX_Dialect : Dialect {\n" +
+            "  let name = \"myimx\";\n" +
+            "  let cppNamespace = \"::mlir::myimx\";\n" +
+            "};\n" +
+            "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
+            "  let cppNamespace = \"::mlir::myimx\";\n" +
+            "};\n" +
+            "extends MyTypeIface : MLIRNet_InterfaceExtension {\n" +
+            "  let csharpName = \"IMyProjectedType\";\n" +
+            "  let csharpMembers = [\n" +
+            "    MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\">,\n" +
+            "  ];\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myimx");
+        var iface = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyTypeIface");
+
+        Assert.Equal("IMyProjectedType", iface.CsharpName);
+        var member = Assert.Single(iface.CsharpMembers);
+        Assert.Equal(InterfaceCSharpMemberKind.Property, member.Kind);
+        Assert.Equal("getValue", member.UpstreamName);
+        Assert.Equal("int", member.CsharpType);
+        Assert.Equal("Value", member.CsharpName);
+    }
+
+    [Fact]
     public void InterfaceWithBaseInterfacesPreservesBaseInterfaceRecordNames()
     {
         // An interface that declares base interfaces should preserve those record names
@@ -1444,6 +1476,39 @@ public sealed class DialectImporterTests
         var derived = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyDerivedTypeIface");
 
         Assert.Equal(["MyBaseTypeIface"], derived.BaseInterfaces.ToArray());
+    }
+
+    [Fact]
+    public void TypeOverlayImportsInterfaceMemberImplementations()
+    {
+        const string source =
+            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "def MyImpl_Dialect : Dialect {\n" +
+            "  let name = \"myimpl\";\n" +
+            "  let cppNamespace = \"::mlir::myimpl\";\n" +
+            "};\n" +
+            "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
+            "  let cppNamespace = \"::mlir::myimpl\";\n" +
+            "};\n" +
+            "class MyImpl_Type<string name, list<Trait> traits = []> : TypeDef<MyImpl_Dialect, name, traits> {\n" +
+            "  let typeName = \"myimpl.\" # name;\n" +
+            "};\n" +
+            "def MyImpl_FooType : MyImpl_Type<\"foo\", [MyTypeIface]>;\n" +
+            "extends MyImpl_FooType : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "  let csharpInterfaceImplementations = [\n" +
+            "    MLIRNet_InterfacePropertyImplementation<MyTypeIface, \"HasThing\", \"true\">\n" +
+            "  ];\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myimpl");
+        var type = Assert.Single(dialect.Types, static t => t.RecordName == "MyImpl_FooType");
+        var implementation = Assert.Single(type.InterfaceMemberImplementations);
+
+        Assert.Equal("MyTypeIface", implementation.InterfaceRecordName);
+        Assert.Equal("HasThing", implementation.CsharpMemberName);
+        Assert.Equal("true", implementation.CsharpExpression);
     }
 
     [Fact]
