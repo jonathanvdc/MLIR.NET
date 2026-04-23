@@ -19,6 +19,11 @@ using MLIR.Syntax.Attributes.Primitives;
 public static class ConstantAttributeFactory
 {
     /// <summary>
+    /// The unit attribute, which has no value and is used to represent the presence of a property without additional data.
+    /// </summary>
+    public static readonly UnitAttr Unit = new UnitAttr(syntax: null);
+
+    /// <summary>
     /// Creates a string attribute value.
     /// </summary>
     public static StringAttr String(string value)

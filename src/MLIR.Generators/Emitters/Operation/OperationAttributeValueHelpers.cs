@@ -130,7 +130,7 @@ internal static class OperationAttributeValueHelpers
 
     public static string GetUnitAttributeValueExpression()
     {
-        return "new UnknownAttributeValue(new UnitAttributeValueSyntax(TokenFactory.Identifier(\"unit\")), null, null)";
+        return "ConstantAttributeFactory.Unit";
     }
 
     private static bool IsOptionalMember(GeneratedMember member)
