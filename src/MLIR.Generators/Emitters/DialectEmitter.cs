@@ -1,5 +1,7 @@
 namespace MLIR.Generators.Emitters;
 
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using MLIR.Generators.Emitters;
 using MLIR.Generators.Emitters.AssemblyFormat;
@@ -101,11 +103,33 @@ internal sealed class DialectEmitter
             }
         }
 
+        // Emit C# marker interfaces for each TypeInterface defined in this dialect.
+        foreach (var interfaceModel in dialect.Interfaces)
+        {
+            if (interfaceModel.Kind != InterfaceKind.Type)
+            {
+                continue;
+            }
+
+            try
+            {
+                TypeInterfaceEmitter.Emit(builder, interfaceModel);
+                builder.AppendLine();
+            }
+            catch (System.Exception exception)
+            {
+                throw new System.InvalidOperationException(
+                    "Failed to generate type interface '" + interfaceModel.RecordName + "' in dialect '" + dialect.Name + "'.",
+                    exception);
+            }
+        }
+
         foreach (var type in dialect.Types)
         {
             try
             {
-                TypeEmitter.Emit(builder, type);
+                var markerInterfaces = ResolveMarkerInterfaces(type);
+                TypeEmitter.Emit(builder, type, markerInterfaces);
                 builder.AppendLine();
             }
             catch (System.Exception exception)
@@ -119,5 +143,40 @@ internal sealed class DialectEmitter
         DialectRegistrationEmitter.Emit(builder, dialect);
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// Computes the ordered list of fully qualified C# marker interface names for the given
+    /// type based on its ODS trait list. Only interface-backed traits of kind
+    /// <see cref="InterfaceKind.Type"/> that have a resolvable C# interface name are included.
+    /// The order is deterministic (same as the trait list order).
+    /// </summary>
+    private IReadOnlyList<string> ResolveMarkerInterfaces(TypeModel type)
+    {
+        List<string>? names = null;
+
+        foreach (var trait in type.Traits)
+        {
+            if (trait is not InterfaceTraitModel interfaceTrait
+                || interfaceTrait.Kind != InterfaceKind.Type
+                || interfaceTrait.CppInterfaceName == null)
+            {
+                continue;
+            }
+
+            var name = resolver.TryResolveTypeInterfaceName(interfaceTrait.CppNamespace, interfaceTrait.CppInterfaceName);
+            if (name == null)
+            {
+                continue;
+            }
+
+            names ??= new List<string>();
+            if (!names.Contains(name))
+            {
+                names.Add(name);
+            }
+        }
+
+        return names ?? (IReadOnlyList<string>)System.Array.Empty<string>();
     }
 }

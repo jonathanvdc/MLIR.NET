@@ -7,7 +7,7 @@ using MLIR.ODS.Model;
 
 internal static class TypeEmitter
 {
-    public static void Emit(StringBuilder builder, TypeModel type)
+    public static void Emit(StringBuilder builder, TypeModel type, IReadOnlyList<string> markerInterfaces)
     {
         var className = DialectGeneratorNaming.GetTypeClassName(type);
 
@@ -17,18 +17,18 @@ internal static class TypeEmitter
             builder.AppendLine();
             builder.AppendLine();
             EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-            EmitParametrisedTypeClass(builder, type, className);
+            EmitParametrisedTypeClass(builder, type, className, markerInterfaces);
             builder.AppendLine();
             TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
         }
         else
         {
             EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
-            EmitParametrisedTypeClass(builder, type, className);
+            EmitParametrisedTypeClass(builder, type, className, markerInterfaces);
         }
     }
 
-    private static void EmitParametrisedTypeClass(StringBuilder builder, TypeModel type, string className)
+    private static void EmitParametrisedTypeClass(StringBuilder builder, TypeModel type, string className, IReadOnlyList<string> markerInterfaces)
     {
         var parameters = type.Parameters;
         var hasAssemblyFormat = type.AssemblyFormat != null;
@@ -39,7 +39,13 @@ internal static class TypeEmitter
                 ? "new " + formatClassName + "()"
                 : null;
 
-        builder.AppendLine("public sealed partial class " + className + " : TypeReference");
+        var classDeclaration = "public sealed partial class " + className + " : TypeReference";
+        if (markerInterfaces.Count > 0)
+        {
+            classDeclaration += ", " + string.Join(", ", markerInterfaces);
+        }
+
+        builder.AppendLine(classDeclaration);
         builder.AppendLine("{");
         EmitTypeDefinition(builder, type, assemblyFormatExpression);
         builder.AppendLine();

@@ -221,4 +221,169 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             "dialect.AddType(FunctionType.TypeDefinition);",
             "dialect.AddType(TupleType.TypeDefinition);");
     }
+
+    // ---------------------------------------------------------------------------
+    // Issue #153: Generate C# marker interfaces for TypeInterface records
+    // ---------------------------------------------------------------------------
+
+    [Fact]
+    public void MethodlessTypeInterfaceGeneratesPartialCSharpMarkerInterface()
+    {
+        // A TypeInterface with no methods should generate a partial C# marker interface.
+        var source = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def MyDialect_MarkerIface : TypeInterface<\"MyMarkerIface\"> {",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "};",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_FooType : MyDialect_Type<\"foo\", [MyDialect_MarkerIface]>;",
+            ]);
+
+        // Marker interface declaration should be emitted.
+        AssertContainsAll(source, "public partial interface IMyMarkerIface", "{", "}");
+        // Type class should implement it.
+        AssertContainsAll(source, "public sealed partial class FooType : TypeReference, MLIR.Dialects.Mydialect.IMyMarkerIface");
+        // No generated members inside the marker interface.
+        AssertDoesNotContainAny(source, "IMyMarkerIface\r\n{\r\n    ");
+    }
+
+    [Fact]
+    public void MethodBearingTypeInterfaceGeneratesMarkerInterfaceWithNoMembers()
+    {
+        // A TypeInterface that has method declarations should still generate a marker interface
+        // with no C# members. Methods are out of scope for this layer.
+        var source = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def MyDialect_MethodIface : TypeInterface<\"MyMethodIface\"> {",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "  let methods = [",
+                "    InterfaceMethod<\"get rank\", \"int64_t\", \"getRank\">,",
+                "  ];",
+                "};",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_RankedType : MyDialect_Type<\"ranked\", [MyDialect_MethodIface]>;",
+            ]);
+
+        // Marker interface is emitted with no C# method members.
+        AssertContainsAll(source, "public partial interface IMyMethodIface");
+        // Type class implements the marker interface.
+        AssertContainsAll(source, "public sealed partial class RankedType : TypeReference, MLIR.Dialects.Mydialect.IMyMethodIface");
+        // No C# method translation inside the interface.
+        AssertDoesNotContainAny(source, "int64_t", "getRank");
+    }
+
+    [Fact]
+    public void TypeDefWithMultipleTypeInterfacesEmitsAllInDeterministicOrder()
+    {
+        // Multiple type interfaces on one type should all be emitted in the same order as
+        // they appear in the trait list.
+        var source = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def MyDialect_IfaceA : TypeInterface<\"MyIfaceA\"> {",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "};",
+                string.Empty,
+                "def MyDialect_IfaceB : TypeInterface<\"MyIfaceB\"> {",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "};",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_MultiType : MyDialect_Type<\"multi\", [MyDialect_IfaceA, MyDialect_IfaceB]>;",
+            ]);
+
+        // Both marker interfaces are emitted.
+        AssertContainsAll(source, "public partial interface IMyIfaceA", "public partial interface IMyIfaceB");
+        // Type class implements both in trait-list order.
+        AssertContainsAll(source,
+            "public sealed partial class MultiType : TypeReference, MLIR.Dialects.Mydialect.IMyIfaceA, MLIR.Dialects.Mydialect.IMyIfaceB");
+    }
+
+    [Fact]
+    public void TypeDefWithNoTypeInterfaceHasNoMarkerInterfaces()
+    {
+        // A type that has no type-interface traits should keep the plain TypeReference base class.
+        var source = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_PlainType2 : MyDialect_Type<\"plain2\">;",
+            ]);
+
+        // The class should have exactly the plain TypeReference base – no extra interfaces.
+        AssertContainsAll(source, "public sealed partial class Plain2Type : TypeReference");
+        AssertDoesNotContainAny(source, "Plain2Type : TypeReference,");
+    }
+
+    [Fact]
+    public void InterfaceGenerationIsDrivenByMetadataNotHardCoding()
+    {
+        // Verify that the generation works for a completely custom (non-MLIR-builtin) interface
+        // whose name does not appear in the generator source code. This demonstrates that
+        // generation is purely metadata-driven.
+        var source = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def MyDialect_SomeNonStandardIface : TypeInterface<\"SomeNonStandardIface\"> {",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "};",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_SpecialType : MyDialect_Type<\"special\", [MyDialect_SomeNonStandardIface]>;",
+            ]);
+
+        AssertContainsAll(source, "public partial interface ISomeNonStandardIface");
+        AssertContainsAll(source, "public sealed partial class SpecialType : TypeReference, MLIR.Dialects.Mydialect.ISomeNonStandardIface");
+    }
+
+    [Fact]
+    public void InterfaceSuffixIsStrippedFromMarkerInterfaceName()
+    {
+        // Interface names ending with "Interface" should have the suffix stripped.
+        // e.g., VectorElementTypeInterface -> IVectorElementType
+        var source = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def MyDialect_VecElemIface : TypeInterface<\"VectorElementTypeInterface\"> {",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "};",
+                string.Empty,
+                "class MyDialect_Type<string name> : TypeDef<MyDialect_Dialect, name> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_VecType : MyDialect_Type<\"vec\", [MyDialect_VecElemIface]>;",
+            ]);
+
+        // "Interface" suffix is stripped → "IVectorElementType"
+        AssertContainsAll(source, "public partial interface IVectorElementType");
+        AssertContainsAll(source, "public sealed partial class VecType : TypeReference, MLIR.Dialects.Mydialect.IVectorElementType");
+        // The original name without stripping should NOT appear as an interface.
+        AssertDoesNotContainAny(source, "IVectorElementTypeInterface");
+    }
 }
