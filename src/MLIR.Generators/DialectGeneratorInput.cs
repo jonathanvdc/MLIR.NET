@@ -20,18 +20,33 @@ internal static class DialectGeneratorInput
             return new ParsedDialectFile(file.Path, EmptyDialects, "Could not read the additional text.");
         }
 
+        return ParseSource(file.Path, text.ToString(), resolver);
+    }
+
+    public static ParsedDialectFile ParseFile(
+        TableGenInput input,
+        IncludeResolver? resolver)
+    {
+        return ParseSource(input.Path, input.SourceText, resolver);
+    }
+
+    private static ParsedDialectFile ParseSource(
+        string path,
+        string sourceText,
+        IncludeResolver? resolver)
+    {
         try
         {
-            var sourceFile = new SourceFile(file.Path);
+            var sourceFile = new SourceFile(path);
             var document = resolver != null
-                ? Document.Load(text.ToString(), resolver, sourceFile)
-                : Document.Parse(text.ToString());
+                ? Document.Load(sourceText, resolver, sourceFile)
+                : Document.Parse(sourceText);
             var dialects = DialectImporter.Import(document.Evaluate());
-            return new ParsedDialectFile(file.Path, dialects, null);
+            return new ParsedDialectFile(path, dialects, null);
         }
         catch (Exception exception)
         {
-            return new ParsedDialectFile(file.Path, EmptyDialects, exception.Message);
+            return new ParsedDialectFile(path, EmptyDialects, exception.Message);
         }
     }
 

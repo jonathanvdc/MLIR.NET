@@ -3,8 +3,6 @@ namespace MLIR.Generators;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using MLIR.ODS;
-using MLIR.ODS.Model;
 using TableGen;
 
 /// <summary>
@@ -56,7 +54,6 @@ public static class TableGenDialectCompiler
             throw new ArgumentException("At least one input is required.", nameof(inputs));
         }
 
-        var dialects = new List<DialectModel>();
         foreach (var input in inputArray)
         {
             if (input == null)
@@ -68,17 +65,9 @@ public static class TableGenDialectCompiler
             {
                 throw new ArgumentException("Input paths may not be null, empty, or whitespace.", nameof(inputs));
             }
-
-            var sourceFile = new SourceFile(input.Path);
-            var document = Document.Load(input.SourceText, includeResolver, sourceFile);
-            dialects.AddRange(DialectImporter.Import(document.Evaluate()));
         }
 
-        var mergedDialects = dialects
-            .GroupBy(static dialect => dialect.Name, StringComparer.Ordinal)
-            .Select(DialectModelMerger.MergeDialectGroup)
-            .OrderBy(static dialect => dialect.Name, StringComparer.Ordinal)
-            .ToArray();
+        var mergedDialects = DialectGenerationPipeline.ParseAndMerge(inputArray, includeResolver).ToArray();
 
         var requestedNames = dialectNames == null
             ? null

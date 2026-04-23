@@ -22,7 +22,24 @@ internal static class DialectGenerationPipeline
             static (file, state) => DialectGeneratorInput.ParseFile(file, state.Resolver, state.Token),
             (Resolver: includeResolver, Token: cancellationToken));
 
-        return MergeDialects(results, productionContext).ToArray();
+        return MergeDialects(
+            results,
+            result => productionContext.ReportDiagnostic(
+                Diagnostic.Create(
+                    DialectGeneratorDiagnostics.InvalidTableGenInput,
+                    Location.None,
+                    result.Path,
+                    result.ErrorMessage))).ToArray();
+    }
+
+    internal static IReadOnlyList<DialectModel> ParseAndMerge(
+        IReadOnlyList<TableGenInput> inputs,
+        IncludeResolver includeResolver)
+    {
+        var results = inputs
+            .Select(input => DialectGeneratorInput.ParseFile(input, includeResolver))
+            .ToArray();
+        return MergeDialects(results).ToArray();
     }
 
     private static IncludeResolver BuildIncludeResolver(
@@ -36,19 +53,14 @@ internal static class DialectGenerationPipeline
 
     private static IEnumerable<DialectModel> MergeDialects(
         IReadOnlyList<ParsedDialectFile> results,
-        SourceProductionContext productionContext)
+        Action<ParsedDialectFile>? reportError = null)
     {
         var dialects = new List<DialectModel>();
         foreach (var result in results)
         {
             if (result.ErrorMessage != null)
             {
-                productionContext.ReportDiagnostic(
-                    Diagnostic.Create(
-                        DialectGeneratorDiagnostics.InvalidTableGenInput,
-                        Location.None,
-                        result.Path,
-                        result.ErrorMessage));
+                reportError?.Invoke(result);
                 continue;
             }
 
