@@ -35,8 +35,9 @@ internal static class AttributeRecordImporter
             var assemblyFormat = !string.IsNullOrEmpty(assemblyFormatString)
                 ? AssemblyFormatParser.Parse(assemblyFormatString!)
                 : null;
+            var traits = index.GetTraitListField(record, "traits");
 
-            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel, csharpAssemblyFormat, parameters, assemblyFormat));
+            dialect.Attributes.Add(new AttributeModel(attributeName, record.Name, className, enumModel, csharpAssemblyFormat, parameters, assemblyFormat, traits));
         }
     }
 }

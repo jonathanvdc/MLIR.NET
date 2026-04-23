@@ -22,7 +22,8 @@ public sealed class DialectModel
         IReadOnlyList<AttributeConstraintModel>? attributeConstraints = null,
         IReadOnlyList<TypeConstraintModel>? typeConstraints = null,
         IReadOnlyList<TypeModel>? types = null,
-        bool isPrelude = false)
+        bool isPrelude = false,
+        IReadOnlyList<InterfaceModel>? interfaces = null)
     {
         Name = name;
         CppNamespace = cppNamespace;
@@ -36,6 +37,7 @@ public sealed class DialectModel
         TypeConstraints = typeConstraints ?? EmptyTypeConstraints;
         Types = types ?? EmptyTypes;
         IsPrelude = isPrelude;
+        Interfaces = interfaces ?? EmptyInterfaces;
     }
 
     /// <summary>
@@ -44,7 +46,8 @@ public sealed class DialectModel
     public static DialectModel CreatePrelude(
         IReadOnlyList<AttributeConstraintModel> attributeConstraints,
         IReadOnlyList<AttrModel> attrs,
-        IReadOnlyList<TypeConstraintModel> typeConstraints)
+        IReadOnlyList<TypeConstraintModel> typeConstraints,
+        IReadOnlyList<InterfaceModel>? interfaces = null)
     {
         return new DialectModel(
             "prelude",
@@ -52,7 +55,8 @@ public sealed class DialectModel
             attributeConstraints: attributeConstraints,
             attrs: attrs,
             typeConstraints: typeConstraints,
-            isPrelude: true);
+            isPrelude: true,
+            interfaces: interfaces);
     }
 
     /// <summary>
@@ -116,10 +120,18 @@ public sealed class DialectModel
     /// </summary>
     public bool IsPrelude { get; }
 
+    /// <summary>
+    /// Gets the interface definitions associated with this dialect.
+    /// Interfaces are routed to a dialect based on their <c>cppNamespace</c>; unmatched
+    /// interfaces are placed in the prelude.
+    /// </summary>
+    public IReadOnlyList<InterfaceModel> Interfaces { get; }
+
     private static readonly IReadOnlyList<OperationModel> EmptyOperations = new OperationModel[0];
     private static readonly IReadOnlyList<AttributeModel> EmptyAttributes = new AttributeModel[0];
     private static readonly IReadOnlyList<AttrModel> EmptyAttrs = new AttrModel[0];
     private static readonly IReadOnlyList<AttributeConstraintModel> EmptyAttributeConstraints = new AttributeConstraintModel[0];
     private static readonly IReadOnlyList<TypeConstraintModel> EmptyTypeConstraints = new TypeConstraintModel[0];
     private static readonly IReadOnlyList<TypeModel> EmptyTypes = new TypeModel[0];
+    private static readonly IReadOnlyList<InterfaceModel> EmptyInterfaces = new InterfaceModel[0];
 }

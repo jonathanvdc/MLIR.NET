@@ -10,6 +10,7 @@ internal sealed class DialectModelBuilder
     private readonly List<AttributeConstraintModel> sharedAttributeConstraints = new();
     private readonly List<AttrModel> sharedAttrs = new();
     private readonly List<TypeConstraintModel> sharedTypeConstraints = new();
+    private readonly List<InterfaceModel> sharedInterfaces = new();
 
     public MutableDialectModel GetOrCreateDialect(string name)
     {
@@ -35,6 +36,11 @@ internal sealed class DialectModelBuilder
     public void AddSharedTypeConstraint(TypeConstraintModel constraint)
     {
         sharedTypeConstraints.Add(constraint);
+    }
+
+    public void AddSharedInterface(InterfaceModel interfaceModel)
+    {
+        sharedInterfaces.Add(interfaceModel);
     }
 
     public IReadOnlyList<DialectModel> Build()
@@ -68,6 +74,23 @@ internal sealed class DialectModelBuilder
             }
         }
 
+        // Distribute interface definitions to the dialect whose cppNamespace matches the
+        // interface's cppNamespace, if any.  Interfaces without a matching namespace or with
+        // an absent namespace fall through to the shared prelude pool.
+        var preludeInterfaces = new List<InterfaceModel>();
+        foreach (var interfaceModel in sharedInterfaces)
+        {
+            if (!string.IsNullOrEmpty(interfaceModel.CppNamespace)
+                && dialectsByCppNamespace.TryGetValue(interfaceModel.CppNamespace!, out var targetDialect))
+            {
+                targetDialect.Interfaces.Add(interfaceModel);
+            }
+            else
+            {
+                preludeInterfaces.Add(interfaceModel);
+            }
+        }
+
         var dialects = dialectsByName.Values
             .Select(static dialect => dialect.ToImmutable())
             .OrderBy(static dialect => dialect.Name, System.StringComparer.Ordinal)
@@ -75,20 +98,21 @@ internal sealed class DialectModelBuilder
 
         if (dialects.Length == 0)
         {
-            if (preludeConstraints.Count == 0 && sharedAttrs.Count == 0 && sharedTypeConstraints.Count == 0)
+            if (preludeConstraints.Count == 0 && sharedAttrs.Count == 0 && sharedTypeConstraints.Count == 0
+                && preludeInterfaces.Count == 0)
             {
                 return dialects;
             }
 
             return new[]
             {
-                DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedAttrs.ToArray(), sharedTypeConstraints.ToArray()),
+                DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedAttrs.ToArray(), sharedTypeConstraints.ToArray(), preludeInterfaces.ToArray()),
             };
         }
 
         var result = new List<DialectModel>(dialects.Length + 1)
         {
-            DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedAttrs.ToArray(), sharedTypeConstraints.ToArray()),
+            DialectModel.CreatePrelude(preludeConstraints.ToArray(), sharedAttrs.ToArray(), sharedTypeConstraints.ToArray(), preludeInterfaces.ToArray()),
         };
         result.AddRange(dialects);
         return result;
@@ -112,10 +136,11 @@ internal sealed class DialectModelBuilder
         public List<AttributeConstraintModel> AttributeConstraints { get; } = new();
         public List<TypeModel> Types { get; } = new();
         public List<TypeConstraintModel> TypeConstraints { get; } = new();
+        public List<InterfaceModel> Interfaces { get; } = new();
 
         public DialectModel ToImmutable()
         {
-            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, Attrs, attributeConstraints: AttributeConstraints, typeConstraints: TypeConstraints, types: Types);
+            return new DialectModel(Name, CppNamespace, Summary, Description, HasConstantMaterializer, Operations, Attributes, Attrs, attributeConstraints: AttributeConstraints, typeConstraints: TypeConstraints, types: Types, interfaces: Interfaces);
         }
     }
 }

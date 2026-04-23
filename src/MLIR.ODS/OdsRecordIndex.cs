@@ -173,6 +173,15 @@ internal sealed class OdsRecordIndex
 
         if (traitRecord != null)
         {
+            // InterfaceTrait (and its subclasses OpInterfaceTrait, and concrete interfaces such as
+            // OpInterface, TypeInterface, AttrInterface, DialectInterface) must be recognized
+            // before the generic NativeTrait check because InterfaceTrait extends NativeTrait.
+            // This includes DeclareXxxInterfaceMethods wrappers, which also extend InterfaceTrait.
+            if (traitRecord.HasBaseClass("InterfaceTrait"))
+            {
+                return BuildInterfaceTraitModel(recordName, traitRecord);
+            }
+
             // NativeTrait (and its subclass NativeOpTrait) carries a C++ trait name and
             // namespace. Check this before GenInternalTrait because NativeTrait is more
             // specific in the class hierarchy.
@@ -976,9 +985,280 @@ internal sealed class OdsRecordIndex
         return null;
     }
 
+    /// <summary>
+    /// Builds an <see cref="Model.InterfaceTraitModel"/> from a record known to extend
+    /// <c>InterfaceTrait</c>. Classifies the kind and extracts interface metadata.
+    /// </summary>
+    private Model.InterfaceTraitModel BuildInterfaceTraitModel(string recordName, Record traitRecord)
+    {
+        var kind = ClassifyInterfaceKind(traitRecord);
+        var cppInterfaceName = GetOptionalStringField(traitRecord, "cppInterfaceName");
+        var cppNamespace = GetOptionalStringField(traitRecord, "cppNamespace");
+        var baseInterfaces = GetStringListField(traitRecord, "baseInterfaces");
+        var declaresMethods = traitRecord.HasBaseClass("DeclareInterfaceMethods");
+        var alwaysOverriddenMethods = GetStringListField(traitRecord, "alwaysOverriddenMethods");
+
+        return new Model.InterfaceTraitModel(
+            recordName,
+            kind,
+            cppInterfaceName,
+            cppNamespace,
+            baseInterfaces,
+            declaresMethods,
+            alwaysOverriddenMethods);
+    }
+
+    /// <summary>
+    /// Classifies the <see cref="Model.InterfaceKind"/> for a record that extends
+    /// <c>InterfaceTrait</c>.
+    /// </summary>
+    private static Model.InterfaceKind ClassifyInterfaceKind(Record record)
+    {
+        // DialectInterface extends OpInterfaceTrait, so check it before OpInterfaceTrait to
+        // distinguish dialect interfaces from ordinary op interfaces.
+        if (record.HasBaseClass("DialectInterface"))
+        {
+            return Model.InterfaceKind.Dialect;
+        }
+
+        if (record.HasBaseClass("OpInterfaceTrait"))
+        {
+            return Model.InterfaceKind.Op;
+        }
+
+        if (record.HasBaseClass("TypeInterface"))
+        {
+            return Model.InterfaceKind.Type;
+        }
+
+        if (record.HasBaseClass("AttrInterface"))
+        {
+            return Model.InterfaceKind.Attr;
+        }
+
+        // Fallback for plain InterfaceTrait subclasses that do not fit a specific category.
+        return Model.InterfaceKind.Op;
+    }
+
+    /// <summary>
+    /// Attempts to build an <see cref="Model.InterfaceModel"/> from a record that represents
+    /// an interface definition (a record with base class <c>Interface</c>).
+    /// Returns <see langword="null"/> when the record is not a recognizable interface definition.
+    /// </summary>
+    public Model.InterfaceModel? TryBuildInterfaceModel(Record record)
+    {
+        if (!record.HasBaseClass("Interface"))
+        {
+            return null;
+        }
+
+        var cppInterfaceName = GetOptionalStringField(record, "cppInterfaceName");
+        if (string.IsNullOrEmpty(cppInterfaceName))
+        {
+            // Without a cppInterfaceName the interface cannot be identified; skip it.
+            return null;
+        }
+
+        var kind = ClassifyInterfaceKind(record);
+        var cppNamespace = GetOptionalStringField(record, "cppNamespace");
+        var description = GetOptionalStringField(record, "description");
+        var baseInterfaces = GetStringListField(record, "baseInterfaces");
+        var methods = BuildInterfaceMethods(record);
+
+        return new Model.InterfaceModel(
+            record.Name,
+            kind,
+            cppInterfaceName!,
+            cppNamespace,
+            description,
+            baseInterfaces,
+            methods);
+    }
+
+    /// <summary>
+    /// Extracts the list of interface method models from the <c>methods</c> field of an
+    /// interface record.
+    /// </summary>
+    private IReadOnlyList<Model.InterfaceMethodModel> BuildInterfaceMethods(Record record)
+    {
+        if (!record.Fields.TryGetValue("methods", out var field) || field is not ListValue list)
+        {
+            return EmptyInterfaceMethods;
+        }
+
+        var methods = new List<Model.InterfaceMethodModel>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            var method = TryBuildInterfaceMethodModel(item);
+            if (method != null)
+            {
+                methods.Add(method);
+            }
+        }
+
+        return methods;
+    }
+
+    /// <summary>
+    /// Attempts to build an <see cref="Model.InterfaceMethodModel"/> from a single list-item
+    /// value representing an <c>InterfaceMethod</c> (or subclass) record.
+    /// </summary>
+    private Model.InterfaceMethodModel? TryBuildInterfaceMethodModel(Value item)
+    {
+        IReadOnlyDictionary<string, Value>? fields = null;
+        string className = "InterfaceMethod";
+
+        switch (item)
+        {
+            case AnonymousRecordValue anon:
+                fields = anon.Fields;
+                className = anon.ClassName;
+                break;
+            case RecordReferenceValue recordRef:
+                if (TryGetRecord(recordRef.RecordName, out var referencedRecord))
+                {
+                    fields = referencedRecord.Fields;
+                    className = recordRef.RecordName;
+                    // Determine method kind from base classes of the referenced record.
+                    return TryBuildInterfaceMethodModelFromRecord(referencedRecord);
+                }
+                return null;
+            default:
+                return null;
+        }
+
+        if (fields == null)
+        {
+            return null;
+        }
+
+        return TryBuildInterfaceMethodModelFromFields(className, fields);
+    }
+
+    /// <summary>
+    /// Builds an interface method model from a concrete <c>InterfaceMethod</c> record,
+    /// using base class information to determine the method kind.
+    /// </summary>
+    private Model.InterfaceMethodModel? TryBuildInterfaceMethodModelFromRecord(Record record)
+    {
+        var kind = ClassifyInterfaceMethodKind(record);
+        return TryBuildInterfaceMethodModelFromFields(record.Name, record.Fields, kind);
+    }
+
+    /// <summary>
+    /// Builds an interface method model from a field dictionary, optionally with a known
+    /// method kind (when the record is available).
+    /// </summary>
+    private static Model.InterfaceMethodModel? TryBuildInterfaceMethodModelFromFields(
+        string className,
+        IReadOnlyDictionary<string, Value> fields,
+        Model.InterfaceMethodKind? kindOverride = null)
+    {
+        var name = GetStringFromValueDictionary(fields, "name");
+        var returnType = GetStringFromValueDictionary(fields, "returnType");
+
+        if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(returnType))
+        {
+            return null;
+        }
+
+        var kind = kindOverride ?? ClassifyInterfaceMethodKindFromClassName(className);
+        var description = GetStringFromValueDictionary(fields, "description");
+        var arguments = ExtractMethodArguments(fields);
+        var body = GetStringFromValueDictionary(fields, "body");
+        var defaultBody = GetStringFromValueDictionary(fields, "defaultBody");
+
+        return new Model.InterfaceMethodModel(name!, returnType!, kind, description, arguments, body, defaultBody);
+    }
+
+    /// <summary>
+    /// Classifies an interface method kind from the base classes of a concrete record.
+    /// </summary>
+    private static Model.InterfaceMethodKind ClassifyInterfaceMethodKind(Record record)
+    {
+        if (record.HasBaseClass("StaticInterfaceMethod"))
+        {
+            return Model.InterfaceMethodKind.Static;
+        }
+
+        if (record.HasBaseClass("PureVirtualInterfaceMethod"))
+        {
+            return Model.InterfaceMethodKind.PureVirtual;
+        }
+
+        if (record.HasBaseClass("InterfaceMethodDeclaration"))
+        {
+            return Model.InterfaceMethodKind.Declaration;
+        }
+
+        return Model.InterfaceMethodKind.Regular;
+    }
+
+    /// <summary>
+    /// Classifies an interface method kind based on the TableGen class name of an
+    /// anonymous record (when no concrete record is available for base-class inspection).
+    /// </summary>
+    private static Model.InterfaceMethodKind ClassifyInterfaceMethodKindFromClassName(string className)
+    {
+        if (className.StartsWith("Static", StringComparison.Ordinal))
+        {
+            return Model.InterfaceMethodKind.Static;
+        }
+
+        if (className.StartsWith("PureVirtual", StringComparison.Ordinal))
+        {
+            return Model.InterfaceMethodKind.PureVirtual;
+        }
+
+        if (className.EndsWith("Declaration", StringComparison.Ordinal))
+        {
+            return Model.InterfaceMethodKind.Declaration;
+        }
+
+        return Model.InterfaceMethodKind.Regular;
+    }
+
+    /// <summary>
+    /// Extracts C++ argument type/name pairs from the <c>arguments</c> dag field of an
+    /// interface method record.
+    /// </summary>
+    private static IReadOnlyList<(string ArgType, string ArgName)> ExtractMethodArguments(
+        IReadOnlyDictionary<string, Value> fields)
+    {
+        if (!fields.TryGetValue("arguments", out var field) || field is not DagValue dag)
+        {
+            return EmptyMethodArguments;
+        }
+
+        var args = new List<(string, string)>(dag.Arguments.Count);
+        foreach (var argument in dag.Arguments)
+        {
+            if (argument.Name == null)
+            {
+                continue;
+            }
+
+            // The value is expected to be a string containing the C++ type.
+            var argType = argument.Value switch
+            {
+                StringValue str when !string.IsNullOrEmpty(str.Value) => str.Value,
+                _ => null,
+            };
+
+            if (argType != null)
+            {
+                args.Add((argType, argument.Name));
+            }
+        }
+
+        return args.Count == 0 ? EmptyMethodArguments : args;
+    }
+
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];
     private static readonly IReadOnlyList<Model.TraitModel> EmptyTraitModels = new Model.TraitModel[0];
     private static readonly IReadOnlyList<DagMemberModel> EmptyDagMembers = new DagMemberModel[0];
     private static readonly IReadOnlyList<Model.EnumCaseModel> EmptyEnumCases = new Model.EnumCaseModel[0];
     private static readonly IReadOnlyList<Model.AttrOrTypeParameterModel> EmptyAttrOrTypeParameters = new Model.AttrOrTypeParameterModel[0];
+    private static readonly IReadOnlyList<Model.InterfaceMethodModel> EmptyInterfaceMethods = new Model.InterfaceMethodModel[0];
+    private static readonly IReadOnlyList<(string, string)> EmptyMethodArguments = new (string, string)[0];
 }

@@ -22,6 +22,7 @@ public static class DialectImporter
         AttributeConstraintImporter.Import(index, builder);
         TypeConstraintImporter.Import(index, builder);
         TypeRecordImporter.Import(index, builder);
+        InterfaceRecordImporter.Import(index, builder);
 
         return builder.Build();
     }

@@ -15,7 +15,8 @@ public sealed class TypeModel(
     string? csharpName = null,
     string? csharpAssemblyFormat = null,
     IReadOnlyList<AttrOrTypeParameterModel>? parameters = null,
-    AssemblyFormatModel? assemblyFormat = null)
+    AssemblyFormatModel? assemblyFormat = null,
+    IReadOnlyList<TraitModel>? traits = null)
 {
     /// <summary>
     /// Gets the canonical type name.
@@ -63,5 +64,12 @@ public sealed class TypeModel(
     /// </summary>
     public AssemblyFormatModel? AssemblyFormat { get; } = assemblyFormat;
 
+    /// <summary>
+    /// Gets the traits declared on this type definition. Maps to the <c>traits</c> list in
+    /// the TableGen <c>TypeDef</c> record.
+    /// </summary>
+    public IReadOnlyList<TraitModel> Traits { get; } = traits ?? EmptyTraits;
+
     private static readonly IReadOnlyList<AttrOrTypeParameterModel> EmptyParameters = new AttrOrTypeParameterModel[0];
+    private static readonly IReadOnlyList<TraitModel> EmptyTraits = new TraitModel[0];
 }

@@ -13,7 +13,8 @@ public sealed class AttributeModel(
     EnumModel? enumModel = null,
     string? csharpAssemblyFormat = null,
     IReadOnlyList<AttrOrTypeParameterModel>? parameters = null,
-    AssemblyFormatModel? assemblyFormat = null)
+    AssemblyFormatModel? assemblyFormat = null,
+    IReadOnlyList<TraitModel>? traits = null)
 {
     /// <summary>
     /// Gets the canonical attribute name.
@@ -67,5 +68,12 @@ public sealed class AttributeModel(
     /// </summary>
     public AssemblyFormatModel? AssemblyFormat { get; } = assemblyFormat;
 
+    /// <summary>
+    /// Gets the traits declared on this attribute definition. Maps to the <c>traits</c> list
+    /// in the TableGen <c>AttrDef</c> record.
+    /// </summary>
+    public IReadOnlyList<TraitModel> Traits { get; } = traits ?? EmptyTraits;
+
     private static readonly IReadOnlyList<AttrOrTypeParameterModel> EmptyParameters = new AttrOrTypeParameterModel[0];
+    private static readonly IReadOnlyList<TraitModel> EmptyTraits = new TraitModel[0];
 }

@@ -119,3 +119,75 @@ public sealed class SimpleTraitModel : TraitModel
     {
     }
 }
+
+/// <summary>
+/// Represents a trait use backed by an MLIR interface: <c>OpInterface</c>,
+/// <c>TypeInterface</c>, <c>AttrInterface</c>, or <c>DialectInterface</c>.
+/// These traits are always subclasses of <c>InterfaceTrait</c> (and transitively
+/// <c>NativeTrait</c>), but carry richer metadata about the interface they attach.
+/// </summary>
+/// <remarks>
+/// A <c>DeclareXxxInterfaceMethods</c> wrapper also maps to this model and sets
+/// <see cref="DeclaresMethods"/> to <see langword="true"/>.
+/// </remarks>
+public sealed class InterfaceTraitModel : TraitModel
+{
+    /// <summary>
+    /// Initializes a new instance of <see cref="InterfaceTraitModel"/>.
+    /// </summary>
+    public InterfaceTraitModel(
+        string recordName,
+        InterfaceKind kind,
+        string? cppInterfaceName,
+        string? cppNamespace,
+        IReadOnlyList<string> baseInterfaces,
+        bool declaresMethods,
+        IReadOnlyList<string> alwaysOverriddenMethods)
+        : base(recordName)
+    {
+        Kind = kind;
+        CppInterfaceName = cppInterfaceName;
+        CppNamespace = cppNamespace;
+        BaseInterfaces = baseInterfaces;
+        DeclaresMethods = declaresMethods;
+        AlwaysOverriddenMethods = alwaysOverriddenMethods;
+    }
+
+    /// <summary>
+    /// Gets the interface kind: op, type, attribute, or dialect.
+    /// </summary>
+    public InterfaceKind Kind { get; }
+
+    /// <summary>
+    /// Gets the C++ interface class name from the <c>cppInterfaceName</c> field (e.g.,
+    /// <c>"ShapedType"</c>, <c>"SymbolOpInterface"</c>). May be <see langword="null"/> if
+    /// the interface record did not declare a <c>cppInterfaceName</c>.
+    /// </summary>
+    public string? CppInterfaceName { get; }
+
+    /// <summary>
+    /// Gets the C++ namespace from the <c>cppNamespace</c> field (e.g., <c>"::mlir"</c>).
+    /// May be <see langword="null"/> or empty if the field was absent or empty.
+    /// </summary>
+    public string? CppNamespace { get; }
+
+    /// <summary>
+    /// Gets the record names of the base interfaces listed in the <c>baseInterfaces</c>
+    /// field. Empty when the interface declares no bases.
+    /// </summary>
+    public IReadOnlyList<string> BaseInterfaces { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether this trait use came from a
+    /// <c>DeclareXxxInterfaceMethods</c> wrapper, which requests that the interface
+    /// method declarations be generated in the user entity's header.
+    /// </summary>
+    public bool DeclaresMethods { get; }
+
+    /// <summary>
+    /// Gets the list of method names from <c>alwaysOverriddenMethods</c> that must always
+    /// have declarations generated, even when those methods have default implementations.
+    /// Empty when none were specified.
+    /// </summary>
+    public IReadOnlyList<string> AlwaysOverriddenMethods { get; }
+}
