@@ -1,6 +1,7 @@
 namespace MLIR.Dialects.Builtin;
 
 using System.Collections.Generic;
+using System;
 using MLIR.Syntax;
 using MLIR.Syntax.Attributes;
 using MLIR.Syntax.Types.Collections;
@@ -102,5 +103,100 @@ internal static class BuiltinShapedTypeHelpers
         return attribute is OpaqueAttributeValueSyntax opaque
             ? opaque.RawText
             : new RawSyntaxText(text);
+    }
+
+    /// <summary>
+    /// Parses a shaped-type body string of the form <c>dim x dim x ... x elementType</c> or
+    /// <c>* x elementType</c>, splitting it into dimensions and element-type text.
+    /// </summary>
+    public static bool TryParseShapedTypeBody(
+        string text,
+        bool allowUnranked,
+        int minimumDimensionCount,
+        out List<ShapedTypeDimensionSyntax> dimensions,
+        out List<Token> xTokens,
+        out Token? unrankedToken,
+        out string elementTypeText)
+    {
+        text = text.Trim();
+        dimensions = [];
+        xTokens = [];
+        unrankedToken = null;
+        elementTypeText = string.Empty;
+
+        if (allowUnranked && text.StartsWith("*", StringComparison.Ordinal))
+        {
+            unrankedToken = TokenFactory.Star();
+            var unrankedIndex = 1;
+            while (unrankedIndex < text.Length && char.IsWhiteSpace(text[unrankedIndex]))
+            {
+                unrankedIndex++;
+            }
+
+            if (unrankedIndex >= text.Length || text[unrankedIndex] != 'x')
+            {
+                return false;
+            }
+
+            xTokens.Add(TokenFactory.Identifier("x"));
+            unrankedIndex++;
+            while (unrankedIndex < text.Length && char.IsWhiteSpace(text[unrankedIndex]))
+            {
+                unrankedIndex++;
+            }
+
+            elementTypeText = text.Substring(unrankedIndex);
+            return elementTypeText.Length > 0;
+        }
+
+        var index = 0;
+        while (index < text.Length)
+        {
+            if (text[index] == '?')
+            {
+                dimensions.Add(new DynamicShapedTypeDimensionSyntax(TokenFactory.Question()));
+                index++;
+            }
+            else if (char.IsDigit(text[index]))
+            {
+                var start = index;
+                while (index < text.Length && char.IsDigit(text[index]))
+                {
+                    index++;
+                }
+
+                var digits = text.Substring(start, index - start);
+                dimensions.Add(new StaticShapedTypeDimensionSyntax(TokenFactory.Integer(digits), long.Parse(digits)));
+            }
+            else
+            {
+                break;
+            }
+
+            while (index < text.Length && char.IsWhiteSpace(text[index]))
+            {
+                index++;
+            }
+
+            if (index >= text.Length || text[index] != 'x')
+            {
+                return false;
+            }
+
+            xTokens.Add(TokenFactory.Identifier("x"));
+            index++;
+            while (index < text.Length && char.IsWhiteSpace(text[index]))
+            {
+                index++;
+            }
+        }
+
+        if (dimensions.Count < minimumDimensionCount)
+        {
+            return false;
+        }
+
+        elementTypeText = text.Substring(index).Trim();
+        return elementTypeText.Length > 0;
     }
 }

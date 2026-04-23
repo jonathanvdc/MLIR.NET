@@ -13,7 +13,6 @@ using MLIR.Transforms;
 /// Binds and rebuilds the builtin <c>tuple</c> type, e.g. <c>tuple&lt;i32, f32&gt;</c>.
 /// </summary>
 /// <remarks>
-/// Parsing is handled by the core type parser; this format only provides binding and CST rebuild.
 /// <c>BuildCustomAssemblySyntax</c> uses the builder context to recursively synthesize syntax for
 /// nested element types so that syntaxless child types are supported.
 /// </remarks>
@@ -22,8 +21,57 @@ public sealed class BuiltinTupleTypeAssemblyFormat : ITypeAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
     {
-        // Parsing is handled by the core type parser, not by dialect custom syntax.
-        return ParseResult<TypeSyntax>.NoMatch();
+        if (!context.IsKeyword("tuple"))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var keywordResult = context.ExpectKeyword("tuple", "Expected 'tuple'.");
+        if (!keywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
+        }
+
+        var lessThanResult = context.Expect(TokenKind.LessThan, "Expected '<' after 'tuple'.");
+        if (!lessThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
+        }
+
+        var items = new List<TypeSyntax>();
+        var separators = new List<Token>();
+        if (!context.Is(TokenKind.GreaterThan))
+        {
+            while (true)
+            {
+                var elementResult = context.TryParseTypeSyntax(TokenKind.Comma, TokenKind.GreaterThan);
+                if (!elementResult.IsSuccess)
+                {
+                    return ParseResult<TypeSyntax>.Failure(elementResult.Diagnostic!);
+                }
+
+                items.Add(elementResult.Value);
+                if (!context.TryMatch(TokenKind.Comma, out var commaToken))
+                {
+                    break;
+                }
+
+                separators.Add(commaToken);
+            }
+        }
+
+        var greaterThanResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the tuple type.");
+        if (!greaterThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Success(new TupleTypeSyntax(
+            keywordResult.Value,
+            lessThanResult.Value,
+            items,
+            separators,
+            greaterThanResult.Value));
     }
 
     /// <inheritdoc/>

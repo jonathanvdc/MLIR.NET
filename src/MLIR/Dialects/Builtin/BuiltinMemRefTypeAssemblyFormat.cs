@@ -13,7 +13,6 @@ using MLIR.Transforms;
 /// Binds and rebuilds the builtin <c>memref</c> type, e.g. <c>memref&lt;2x3xf32&gt;</c>.
 /// </summary>
 /// <remarks>
-/// Parsing is handled by the core type parser; this format only provides binding and CST rebuild.
 /// <c>BuildCustomAssemblySyntax</c> uses the builder context to recursively synthesize syntax for
 /// the element type so that syntaxless child types are supported.
 /// </remarks>
@@ -22,8 +21,70 @@ public sealed class BuiltinMemRefTypeAssemblyFormat : ITypeAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
     {
-        // Parsing is handled by the core type parser, not by dialect custom syntax.
-        return ParseResult<TypeSyntax>.NoMatch();
+        if (!context.IsKeyword("memref"))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var keywordResult = context.ExpectKeyword("memref", "Expected 'memref'.");
+        if (!keywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
+        }
+
+        var lessThanResult = context.Expect(TokenKind.LessThan, "Expected '<' after 'memref'.");
+        if (!lessThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
+        }
+
+        var prefixResult = context.TryParseRawUntilDelimiter(TokenKind.Comma, TokenKind.GreaterThan);
+        if (!prefixResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
+        }
+
+        if (!BuiltinShapedTypeHelpers.TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: true, minimumDimensionCount: 0, out var dimensions, out var xTokens, out var unrankedToken, out var elementTypeText))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var elementTypeResult = context.TryParseStandaloneTypeText(elementTypeText);
+        if (!elementTypeResult.IsSuccess)
+        {
+            return elementTypeResult;
+        }
+
+        var trailingCommaTokens = new List<Token>();
+        var trailingParameters = new List<RawSyntaxText>();
+        while (context.TryMatch(TokenKind.Comma, out var commaToken))
+        {
+            trailingCommaTokens.Add(commaToken);
+            var trailingResult = context.TryParseRawUntilDelimiter(TokenKind.Comma, TokenKind.GreaterThan);
+            if (!trailingResult.IsSuccess)
+            {
+                return ParseResult<TypeSyntax>.Failure(trailingResult.Diagnostic!);
+            }
+
+            trailingParameters.Add(trailingResult.Value);
+        }
+
+        var greaterThanResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the memref type.");
+        if (!greaterThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Success(new MemRefTypeSyntax(
+            keywordResult.Value,
+            lessThanResult.Value,
+            dimensions,
+            xTokens,
+            unrankedToken,
+            elementTypeResult.Value,
+            trailingCommaTokens,
+            trailingParameters,
+            greaterThanResult.Value));
     }
 
     /// <inheritdoc/>

@@ -111,7 +111,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// Returns <see langword="true"/> when the current token is an identifier whose text
     /// equals <paramref name="spelling"/> (case-sensitive, exact match).
     /// </summary>
-    public bool IsKeyword(string spelling)
+    public new bool IsKeyword(string spelling)
     {
         return Parser.IsKeywordInternal(spelling);
     }
@@ -183,7 +183,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Expects an identifier token whose text matches <paramref name="spelling"/> exactly.
     /// </summary>
-    public ParseResult<Token> ExpectKeyword(string spelling, string message)
+    public new ParseResult<Token> ExpectKeyword(string spelling, string message)
     {
         return Parser.ExpectKeywordInternal(spelling, message);
     }

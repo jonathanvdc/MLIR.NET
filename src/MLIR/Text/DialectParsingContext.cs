@@ -57,6 +57,23 @@ public abstract class DialectParsingContext
     }
 
     /// <summary>
+    /// Returns <see langword="true"/> when the current token is an identifier whose text
+    /// equals <paramref name="spelling"/> exactly.
+    /// </summary>
+    public bool IsKeyword(string spelling)
+    {
+        return Parser.IsKeywordInternal(spelling);
+    }
+
+    /// <summary>
+    /// Expects an identifier token whose text matches <paramref name="spelling"/> exactly.
+    /// </summary>
+    public ParseResult<Token> ExpectKeyword(string spelling, string message)
+    {
+        return Parser.ExpectKeywordInternal(spelling, message);
+    }
+
+    /// <summary>
     /// Parses raw syntax until one of the supplied delimiters is reached at the outermost nesting level.
     /// </summary>
     public ParseResult<RawSyntaxText> TryParseRawUntilDelimiter(params TokenKind[] delimiters)

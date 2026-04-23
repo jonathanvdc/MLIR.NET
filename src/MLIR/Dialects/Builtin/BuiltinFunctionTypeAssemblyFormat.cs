@@ -13,7 +13,6 @@ using MLIR.Transforms;
 /// Binds and rebuilds the builtin <c>function</c> type, e.g. <c>(i32, f32) -> i64</c>.
 /// </summary>
 /// <remarks>
-/// Parsing is handled by the core type parser; this format only provides binding and CST rebuild.
 /// <c>BuildCustomAssemblySyntax</c> uses the builder context to recursively synthesize syntax for
 /// nested input and result types so that syntaxless child types are supported.
 /// </remarks>
@@ -22,8 +21,47 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
     {
-        // Parsing is handled by the core type parser, not by dialect custom syntax.
-        return ParseResult<TypeSyntax>.NoMatch();
+        if (!context.Is(TokenKind.LParen))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var inputsResult = TryParseTypeList(context, TokenKind.LParen, TokenKind.RParen);
+        if (!inputsResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(inputsResult.Diagnostic!);
+        }
+
+        if (!context.TryMatch(TokenKind.Arrow, out var arrowToken))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        TypeSyntax? resultType = null;
+        DelimitedSyntaxList<TypeSyntax> resultTypes;
+        if (context.Is(TokenKind.LParen))
+        {
+            var resultTypesResult = TryParseTypeList(context, TokenKind.LParen, TokenKind.RParen);
+            if (!resultTypesResult.IsSuccess)
+            {
+                return ParseResult<TypeSyntax>.Failure(resultTypesResult.Diagnostic!);
+            }
+
+            resultTypes = resultTypesResult.Value;
+        }
+        else
+        {
+            resultTypes = new DelimitedSyntaxList<TypeSyntax>(null, [], [], null);
+            var resultTypeResult = context.TryParseCurrentTypeSyntax();
+            if (!resultTypeResult.IsSuccess)
+            {
+                return ParseResult<TypeSyntax>.Failure(resultTypeResult.Diagnostic!);
+            }
+
+            resultType = resultTypeResult.Value;
+        }
+
+        return ParseResult<TypeSyntax>.Success(new FunctionTypeSyntax(inputsResult.Value, arrowToken, resultType, resultTypes));
     }
 
     /// <inheritdoc/>
@@ -89,5 +127,58 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
             null,
             new DelimitedSyntaxList<TypeSyntax>(
                 TokenFactory.LParen(), resultSyntax, resultCommas, TokenFactory.RParen()));
+    }
+
+    private static ParseResult<DelimitedSyntaxList<TypeSyntax>> TryParseTypeList(TypeParsingContext context, TokenKind openKind, TokenKind closeKind)
+    {
+        var openResult = context.Expect(openKind, $"Expected '{TokenText(openKind)}' to start the type list.");
+        if (!openResult.IsSuccess)
+        {
+            return ParseResult<DelimitedSyntaxList<TypeSyntax>>.Failure(openResult.Diagnostic!);
+        }
+
+        var items = new List<TypeSyntax>();
+        var separators = new List<Token>();
+        if (!context.Is(closeKind))
+        {
+            while (true)
+            {
+                var itemResult = context.TryParseTypeSyntax(TokenKind.Comma, closeKind);
+                if (!itemResult.IsSuccess)
+                {
+                    return ParseResult<DelimitedSyntaxList<TypeSyntax>>.Failure(itemResult.Diagnostic!);
+                }
+
+                items.Add(itemResult.Value);
+                if (!context.TryMatch(TokenKind.Comma, out var commaToken))
+                {
+                    break;
+                }
+
+                separators.Add(commaToken);
+            }
+        }
+
+        var closeResult = context.Expect(closeKind, $"Expected '{TokenText(closeKind)}' to close the type list.");
+        if (!closeResult.IsSuccess)
+        {
+            return ParseResult<DelimitedSyntaxList<TypeSyntax>>.Failure(closeResult.Diagnostic!);
+        }
+
+        return ParseResult<DelimitedSyntaxList<TypeSyntax>>.Success(new DelimitedSyntaxList<TypeSyntax>(
+            openResult.Value,
+            items,
+            separators,
+            closeResult.Value));
+    }
+
+    private static string TokenText(TokenKind kind)
+    {
+        return kind switch
+        {
+            TokenKind.LParen => "(",
+            TokenKind.RParen => ")",
+            _ => kind.ToString(),
+        };
     }
 }

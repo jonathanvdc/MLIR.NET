@@ -13,7 +13,6 @@ using MLIR.Transforms;
 /// Binds and rebuilds the builtin <c>vector</c> type, e.g. <c>vector&lt;4xf32&gt;</c>.
 /// </summary>
 /// <remarks>
-/// Parsing is handled by the core type parser; this format only provides binding and CST rebuild.
 /// <c>BuildCustomAssemblySyntax</c> uses the builder context to recursively synthesize syntax for
 /// the element type so that syntaxless child types are supported.
 /// </remarks>
@@ -22,8 +21,53 @@ public sealed class BuiltinVectorTypeAssemblyFormat : ITypeAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
     {
-        // Parsing is handled by the core type parser, not by dialect custom syntax.
-        return ParseResult<TypeSyntax>.NoMatch();
+        if (!context.IsKeyword("vector"))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var keywordResult = context.ExpectKeyword("vector", "Expected 'vector'.");
+        if (!keywordResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
+        }
+
+        var lessThanResult = context.Expect(TokenKind.LessThan, "Expected '<' after 'vector'.");
+        if (!lessThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
+        }
+
+        var prefixResult = context.TryParseRawUntilDelimiter(TokenKind.GreaterThan);
+        if (!prefixResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
+        }
+
+        if (!BuiltinShapedTypeHelpers.TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: false, minimumDimensionCount: 1, out var dimensions, out var xTokens, out _, out var elementTypeText))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        var elementTypeResult = context.TryParseStandaloneTypeText(elementTypeText);
+        if (!elementTypeResult.IsSuccess)
+        {
+            return elementTypeResult;
+        }
+
+        var greaterThanResult = context.Expect(TokenKind.GreaterThan, "Expected '>' to close the vector type.");
+        if (!greaterThanResult.IsSuccess)
+        {
+            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
+        }
+
+        return ParseResult<TypeSyntax>.Success(new VectorTypeSyntax(
+            keywordResult.Value,
+            lessThanResult.Value,
+            dimensions,
+            xTokens,
+            elementTypeResult.Value,
+            greaterThanResult.Value));
     }
 
     /// <inheritdoc/>

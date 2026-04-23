@@ -2,187 +2,26 @@ namespace MLIR.Text;
 
 using System.Collections.Generic;
 using MLIR.Dialects;
-using MLIR.Semantics.Types.Primitives;
+using MLIR.Dialects.Builtin;
 using MLIR.Syntax;
-using MLIR.Syntax.Attributes.Collections;
-using MLIR.Syntax.Types.Collections;
-using MLIR.Syntax.Types.Primitives;
 
 public sealed partial class Parser
 {
     /// <summary>
-    /// Creates a minimal <see cref="AttributeConstraintDefinition"/> for a built-in attribute type
-    /// identified by <paramref name="name"/> only (no assembly format). Used to pass type context to
-    /// assembly format handlers for built-in types such as <c>DenseArrayAttr</c> and <c>ElementsAttr</c>.
+    /// Ordered fallback parsers for type syntax with no expected dialect-specific assembly format.
+    /// Bare dialect types without an assembly format are handled separately through the registry.
     /// </summary>
-    private static AttributeConstraintDefinition BuiltinAttributeConstraintDefinition(string name)
-    {
-        return new AttributeConstraintDefinition(name);
-    }
-
-    /// <summary>
-    /// Parses a shaped-type body string of the form <c>dim×dim×...×elementType</c> or
-    /// <c>*×elementType</c> (unranked), splitting it into dimension tokens and the element type text.
-    /// </summary>
-    /// <remarks>
-    /// The body text arrives pre-extracted from a raw token scan so that the shaped-type parsers
-    /// (<see cref="TryParseTensorTypeSyntaxResult"/>, <see cref="TryParseVectorTypeSyntaxResult"/>,
-    /// <see cref="TryParseMemRefTypeSyntaxResult"/>) can re-use a single parsing kernel.
-    /// Dimension separators are literal <c>x</c> characters, and dimensions are either <c>?</c>
-    /// (dynamic) or a sequence of decimal digits (static).
-    /// </remarks>
-    /// <param name="text">The raw shaped-type body text, not including the surrounding angle brackets.</param>
-    /// <param name="allowUnranked">When <see langword="true"/>, a leading <c>*x</c> is accepted as an unranked marker.</param>
-    /// <param name="minimumDimensionCount">Minimum number of explicit dimensions required for a successful parse.</param>
-    /// <param name="dimensions">Receives the parsed dimension nodes.</param>
-    /// <param name="xTokens">Receives the <c>x</c> separator tokens between dimensions.</param>
-    /// <param name="unrankedToken">Receives the <c>*</c> token when an unranked type was matched.</param>
-    /// <param name="elementTypeText">Receives the element type text following the last dimension.</param>
-    /// <returns>
-    /// <see langword="true"/> when the body was successfully split; <see langword="false"/> when the
-    /// text does not match the expected shape.
-    /// </returns>
-    private static bool TryParseShapedTypeBody(
-        string text,
-        bool allowUnranked,
-        int minimumDimensionCount,
-        out List<ShapedTypeDimensionSyntax> dimensions,
-        out List<Token> xTokens,
-        out Token? unrankedToken,
-        out string elementTypeText)
-    {
-        text = text.Trim();
-        dimensions = [];
-        xTokens = [];
-        unrankedToken = null;
-        elementTypeText = string.Empty;
-
-        if (allowUnranked && text.StartsWith("*", System.StringComparison.Ordinal))
-        {
-            unrankedToken = TokenFactory.Star();
-            var unrankedIndex = 1;
-            while (unrankedIndex < text.Length && char.IsWhiteSpace(text[unrankedIndex]))
-            {
-                unrankedIndex++;
-            }
-
-            if (unrankedIndex >= text.Length || text[unrankedIndex] != 'x')
-            {
-                return false;
-            }
-
-            xTokens.Add(TokenFactory.Identifier("x"));
-            unrankedIndex++;
-            while (unrankedIndex < text.Length && char.IsWhiteSpace(text[unrankedIndex]))
-            {
-                unrankedIndex++;
-            }
-
-            elementTypeText = text.Substring(unrankedIndex);
-            return elementTypeText.Length > 0;
-        }
-
-        var index = 0;
-        while (index < text.Length)
-        {
-            if (text[index] == '?')
-            {
-                dimensions.Add(new DynamicShapedTypeDimensionSyntax(TokenFactory.Question()));
-                index++;
-            }
-            else if (char.IsDigit(text[index]))
-            {
-                var start = index;
-                while (index < text.Length && char.IsDigit(text[index]))
-                {
-                    index++;
-                }
-
-                var digits = text.Substring(start, index - start);
-                dimensions.Add(new StaticShapedTypeDimensionSyntax(TokenFactory.Integer(digits), long.Parse(digits)));
-            }
-            else
-            {
-                break;
-            }
-
-            while (index < text.Length && char.IsWhiteSpace(text[index]))
-            {
-                index++;
-            }
-
-            if (index >= text.Length || text[index] != 'x')
-            {
-                return false;
-            }
-
-            xTokens.Add(TokenFactory.Identifier("x"));
-            index++;
-            while (index < text.Length && char.IsWhiteSpace(text[index]))
-            {
-                index++;
-            }
-        }
-
-        if (dimensions.Count < minimumDimensionCount)
-        {
-            return false;
-        }
-
-        elementTypeText = text.Substring(index).Trim();
-        return elementTypeText.Length > 0;
-    }
-
-    /// <summary>
-    /// Parses a comma-separated, delimited type list enclosed by <paramref name="openKind"/> and <paramref name="closeKind"/>.
-    /// </summary>
-    private ParseResult<DelimitedSyntaxList<TypeSyntax>> TryParseTypeListResult(TokenKind openKind, TokenKind closeKind, bool stopAtOperationBoundary)
-    {
-        return TryParseRequiredCommaSeparatedDelimitedList(
-            openKind,
-            closeKind,
-            () => TryParseTypeSyntaxCoreResult([TokenKind.Comma, closeKind], stopAtOperationBoundary),
-            $"Expected '{TokenText(openKind)}' to start the type list.",
-            $"Expected '{TokenText(closeKind)}' to close the type list.");
-    }
-
-    /// <summary>
-    /// Returns <see langword="true"/> when <paramref name="text"/> is one of the MLIR built-in
-    /// floating-point type names: <c>bf16</c>, <c>f16</c>, <c>f32</c>, <c>f64</c>, <c>f80</c>, <c>f128</c>, or <c>tf32</c>.
-    /// </summary>
-    private static bool IsBuiltinFloatName(string text)
-    {
-        if (text is "bf16" or "tf32")
-        {
-            return true;
-        }
-
-        if (text.Length < 2 || text[0] != 'f' || !char.IsDigit(text[1]))
-        {
-            return false;
-        }
-
-        var index = 1;
-        while (index < text.Length && char.IsDigit(text[index]))
-        {
-            index++;
-        }
-
-        if (index == text.Length)
-        {
-            return true;
-        }
-
-        for (; index < text.Length; index++)
-        {
-            if (!char.IsLetterOrDigit(text[index]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+    private static readonly ITypeAssemblyFormat[] DefaultTypeAssemblyFormats = [
+        new BuiltinFunctionTypeAssemblyFormat(),
+        new BuiltinTupleTypeAssemblyFormat(),
+        new BuiltinTensorTypeAssemblyFormat(),
+        new BuiltinVectorTypeAssemblyFormat(),
+        new BuiltinMemRefTypeAssemblyFormat(),
+        new BuiltinIntegerTypeAssemblyFormat(),
+        new BuiltinScalarFloatTypeAssemblyFormat(static _ => throw new System.InvalidOperationException("The default parser-only float assembly format should never be used for binding.")),
+        new BuiltinIndexTypeAssemblyFormat(),
+        new BuiltinNoneTypeAssemblyFormat()
+    ];
 
     /// <summary>Returns <see langword="true"/> when the current token is an identifier matching <paramref name="text"/>.</summary>
     private bool IsKeyword(string text)
@@ -238,369 +77,25 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Re-parses a standalone type text string (typically the element-type fragment extracted from a shaped type)
-    /// by recursively invoking the public <c>TryParseType</c> entry point with the current dialect registry.
+    /// Invokes a specific <see cref="ITypeAssemblyFormat"/> handler against the current parser position.
+    /// Saves a checkpoint before calling and restores it when the handler returns <c>NoMatch</c>.
+    /// Propagates <c>Success</c> and <c>Error</c> unchanged.
     /// </summary>
-    private ParseResult<TypeSyntax> TryParseNestedStandaloneTypeText(string text)
-    {
-        return TryParseType(text, dialectRegistry, out var type, out var diagnostic)
-            ? ParseResult<TypeSyntax>.Success(type!)
-            : ParseResult<TypeSyntax>.Failure(diagnostic!);
-    }
-
-    /// <summary>
-    /// Tries to parse a built-in MLIR type (function type, tuple, tensor, vector, memref, or primitive)
-    /// using backtracking. Each alternative is tried in order; the position is reset between alternatives
-    /// when an earlier one returns <c>NoMatch</c>.
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseBuiltinTypeSyntaxResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
+    private ParseResult<TypeSyntax> TryParseTypeAssemblyFormat(
+        ITypeAssemblyFormat assemblyFormat,
+        TokenKind[] stopBefore,
+        string[] stopBeforeKeywords,
+        bool stopAtOperationBoundary)
     {
         var checkpoint = Mark();
-
-        var functionResult = TryParseFunctionTypeSyntaxResult(stopBefore, stopAtOperationBoundary);
-        if (!functionResult.IsNoMatch)
+        var result = assemblyFormat.TryParse(new TypeParsingContext(this, stopBefore, stopBeforeKeywords, stopAtOperationBoundary));
+        if (result.IsSuccess)
         {
-            return functionResult;
+            return result;
         }
 
         Reset(checkpoint);
-        var tupleResult = TryParseTupleTypeSyntaxResult();
-        if (!tupleResult.IsNoMatch)
-        {
-            return tupleResult;
-        }
-
-        Reset(checkpoint);
-        var tensorResult = TryParseTensorTypeSyntaxResult();
-        if (!tensorResult.IsNoMatch)
-        {
-            return tensorResult;
-        }
-
-        Reset(checkpoint);
-        var vectorResult = TryParseVectorTypeSyntaxResult();
-        if (!vectorResult.IsNoMatch)
-        {
-            return vectorResult;
-        }
-
-        Reset(checkpoint);
-        var memRefResult = TryParseMemRefTypeSyntaxResult();
-        if (!memRefResult.IsNoMatch)
-        {
-            return memRefResult;
-        }
-
-        Reset(checkpoint);
-        return TryParseBuiltinPrimitiveTypeSyntaxResult();
-    }
-
-    /// <summary>
-    /// Attempts to parse a built-in primitive type: an integer type (<c>i32</c>, <c>si8</c>, <c>ui16</c>),
-    /// a floating-point type (<c>f32</c>, etc.), <c>index</c>, or <c>none</c>.
-    /// Consumes the identifier and returns <c>NoMatch</c> by un-consuming it when the text is not recognized.
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseBuiltinPrimitiveTypeSyntaxResult()
-    {
-        if (!Is(TokenKind.Identifier))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var token = ConsumeToken();
-        if (BuiltinIntegerTypeName.TryParse(token.Text, out var signedness, out var width))
-        {
-            return ParseResult<TypeSyntax>.Success(new BuiltinIntegerTypeSyntax(token, signedness switch
-            {
-                BuiltinIntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
-                BuiltinIntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
-                _ => IntegerTypeSignedness.Signless,
-            }, width));
-        }
-
-        if (IsBuiltinFloatName(token.Text))
-        {
-            return ParseResult<TypeSyntax>.Success(new BuiltinFloatTypeSyntax(token));
-        }
-
-        if (token.Text == "index")
-        {
-            return ParseResult<TypeSyntax>.Success(new BuiltinIndexTypeSyntax(token));
-        }
-
-        if (token.Text == "none")
-        {
-            return ParseResult<TypeSyntax>.Success(new BuiltinNoneTypeSyntax(token));
-        }
-
-        position--;
-        return ParseResult<TypeSyntax>.NoMatch();
-    }
-
-    /// <summary>
-    /// Attempts to parse a function type: <c>(types) -> type</c> or <c>(types) -> (types)</c>.
-    /// Returns <c>NoMatch</c> when there is no opening <c>(</c>, or when a <c>(types)</c> is present but not
-    /// followed by <c>-&gt;</c> (which could be a parenthesized expression rather than a function type).
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseFunctionTypeSyntaxResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
-    {
-        if (!Is(TokenKind.LParen))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var checkpoint = Mark();
-        var inputsResult = TryParseTypeListResult(TokenKind.LParen, TokenKind.RParen, stopAtOperationBoundary: false);
-        if (!inputsResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(inputsResult.Diagnostic!);
-        }
-
-        if (!TryMatch(TokenKind.Arrow, out var arrowToken))
-        {
-            Reset(checkpoint);
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        TypeSyntax? resultType = null;
-        DelimitedSyntaxList<TypeSyntax> resultTypes;
-        if (Is(TokenKind.LParen))
-        {
-            var resultTypesResult = TryParseTypeListResult(TokenKind.LParen, TokenKind.RParen, stopAtOperationBoundary);
-            if (!resultTypesResult.IsSuccess)
-            {
-                return ParseResult<TypeSyntax>.Failure(resultTypesResult.Diagnostic!);
-            }
-
-            resultTypes = resultTypesResult.Value;
-        }
-        else
-        {
-            resultTypes = new DelimitedSyntaxList<TypeSyntax>(null, [], [], null);
-            var resultTypeResult = TryParseTypeSyntaxCoreResult(stopBefore, stopAtOperationBoundary);
-            if (!resultTypeResult.IsSuccess)
-            {
-                return ParseResult<TypeSyntax>.Failure(resultTypeResult.Diagnostic!);
-            }
-
-            resultType = resultTypeResult.Value;
-        }
-
-        return ParseResult<TypeSyntax>.Success(new FunctionTypeSyntax(inputsResult.Value, arrowToken, resultType, resultTypes));
-    }
-
-    /// <summary>
-    /// Attempts to parse a tuple type: <c>tuple&lt;type, ...&gt;</c>.
-    /// Returns <c>NoMatch</c> when the current token is not the <c>tuple</c> keyword.
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseTupleTypeSyntaxResult()
-    {
-        if (!IsKeyword("tuple"))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var keywordResult = ExpectKeywordResult("tuple", "Expected 'tuple'.");
-        if (!keywordResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
-        }
-
-        var elementsResult = TryParseRequiredCommaSeparatedDelimitedList(
-            TokenKind.LessThan,
-            TokenKind.GreaterThan,
-            () => TryParseTypeSyntaxResult(TokenKind.Comma, TokenKind.GreaterThan),
-            "Expected '<' after 'tuple'.",
-            "Expected '>' to close the tuple type.");
-        if (!elementsResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(elementsResult.Diagnostic!);
-        }
-
-        return ParseResult<TypeSyntax>.Success(new TupleTypeSyntax(keywordResult.Value, elementsResult.Value.OpenToken!.Value, elementsResult.Value.Items, elementsResult.Value.SeparatorTokens, elementsResult.Value.CloseToken!.Value));
-    }
-
-    /// <summary>
-    /// Attempts to parse a tensor type: <c>tensor&lt;dims×elementType, ...&gt;</c>.
-    /// Supports ranked and unranked (<c>*x</c>) forms.
-    /// Trailing comma-separated parameters after the element type are captured as raw text.
-    /// Returns <c>NoMatch</c> when the current token is not the <c>tensor</c> keyword.
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseTensorTypeSyntaxResult()
-    {
-        if (!IsKeyword("tensor"))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var keywordResult = ExpectKeywordResult("tensor", "Expected 'tensor'.");
-        if (!keywordResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
-        }
-
-        var lessThanResult = ExpectTokenResult(TokenKind.LessThan, "Expected '<' after 'tensor'.");
-        if (!lessThanResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
-        }
-
-        var prefixResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
-        if (!prefixResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
-        }
-
-        if (!TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: true, minimumDimensionCount: 0, out var dimensions, out var xTokens, out var unrankedToken, out var elementTypeText))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var elementTypeResult = TryParseNestedStandaloneTypeText(elementTypeText);
-        if (!elementTypeResult.IsSuccess)
-        {
-            return elementTypeResult;
-        }
-
-        var trailingCommaTokens = new List<Token>();
-        var trailingParameters = new List<RawSyntaxText>();
-        while (TryMatch(TokenKind.Comma, out var comma))
-        {
-            trailingCommaTokens.Add(comma);
-            var trailingResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
-            if (!trailingResult.IsSuccess)
-            {
-                return ParseResult<TypeSyntax>.Failure(trailingResult.Diagnostic!);
-            }
-
-            trailingParameters.Add(trailingResult.Value);
-        }
-
-        var greaterThanResult = ExpectTokenResult(TokenKind.GreaterThan, "Expected '>' to close the tensor type.");
-        if (!greaterThanResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
-        }
-
-        return ParseResult<TypeSyntax>.Success(new TensorTypeSyntax(keywordResult.Value, lessThanResult.Value, dimensions, xTokens, unrankedToken, elementTypeResult.Value, trailingCommaTokens, trailingParameters, greaterThanResult.Value));
-    }
-
-    /// <summary>
-    /// Attempts to parse a vector type: <c>vector&lt;dims×elementType&gt;</c>.
-    /// Requires at least one explicit dimension; unranked forms are not valid for vectors.
-    /// Returns <c>NoMatch</c> when the current token is not the <c>vector</c> keyword or when
-    /// the body does not parse as a valid shaped-type body.
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseVectorTypeSyntaxResult()
-    {
-        if (!IsKeyword("vector"))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var checkpoint = Mark();
-        var keywordResult = ExpectKeywordResult("vector", "Expected 'vector'.");
-        if (!keywordResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
-        }
-
-        var lessThanResult = ExpectTokenResult(TokenKind.LessThan, "Expected '<' after 'vector'.");
-        if (!lessThanResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
-        }
-
-        var prefixResult = TryParseRawUntilDelimiterResult(TokenKind.GreaterThan);
-        if (!prefixResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
-        }
-
-        if (!TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: false, minimumDimensionCount: 1, out var dimensions, out var xTokens, out _, out var elementTypeText))
-        {
-            Reset(checkpoint);
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var elementTypeParse = TryParseNestedStandaloneTypeText(elementTypeText);
-        if (!elementTypeParse.IsSuccess)
-        {
-            return elementTypeParse;
-        }
-
-        var greaterThanResult = ExpectTokenResult(TokenKind.GreaterThan, "Expected '>' to close the vector type.");
-        if (!greaterThanResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
-        }
-
-        return ParseResult<TypeSyntax>.Success(new VectorTypeSyntax(keywordResult.Value, lessThanResult.Value, dimensions, xTokens, elementTypeParse.Value, greaterThanResult.Value));
-    }
-
-    /// <summary>
-    /// Attempts to parse a memref type: <c>memref&lt;dims×elementType, ...&gt;</c>.
-    /// Supports ranked and unranked (<c>*x</c>) forms.
-    /// Trailing comma-separated parameters (affine maps, memory spaces) are captured as raw text.
-    /// Returns <c>NoMatch</c> when the current token is not the <c>memref</c> keyword.
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseMemRefTypeSyntaxResult()
-    {
-        if (!IsKeyword("memref"))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var keywordResult = ExpectKeywordResult("memref", "Expected 'memref'.");
-        if (!keywordResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(keywordResult.Diagnostic!);
-        }
-
-        var lessThanResult = ExpectTokenResult(TokenKind.LessThan, "Expected '<' after 'memref'.");
-        if (!lessThanResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(lessThanResult.Diagnostic!);
-        }
-
-        var prefixResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
-        if (!prefixResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(prefixResult.Diagnostic!);
-        }
-
-        if (!TryParseShapedTypeBody(prefixResult.Value.Text, allowUnranked: true, minimumDimensionCount: 0, out var dimensions, out var xTokens, out var unrankedToken, out var elementTypeText))
-        {
-            return ParseResult<TypeSyntax>.NoMatch();
-        }
-
-        var elementTypeParse = TryParseNestedStandaloneTypeText(elementTypeText);
-        if (!elementTypeParse.IsSuccess)
-        {
-            return elementTypeParse;
-        }
-
-        var trailingCommaTokens = new List<Token>();
-        var trailingParameters = new List<RawSyntaxText>();
-        while (TryMatch(TokenKind.Comma, out var comma))
-        {
-            trailingCommaTokens.Add(comma);
-            var trailingResult = TryParseRawUntilDelimiterResult(TokenKind.Comma, TokenKind.GreaterThan);
-            if (!trailingResult.IsSuccess)
-            {
-                return ParseResult<TypeSyntax>.Failure(trailingResult.Diagnostic!);
-            }
-
-            trailingParameters.Add(trailingResult.Value);
-        }
-
-        var greaterThanResult = ExpectTokenResult(TokenKind.GreaterThan, "Expected '>' to close the memref type.");
-        if (!greaterThanResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(greaterThanResult.Diagnostic!);
-        }
-
-        return ParseResult<TypeSyntax>.Success(new MemRefTypeSyntax(keywordResult.Value, lessThanResult.Value, dimensions, xTokens, unrankedToken, elementTypeParse.Value, trailingCommaTokens, trailingParameters, greaterThanResult.Value));
+        return result.IsError ? result : ParseResult<TypeSyntax>.NoMatch();
     }
 
     /// <summary>
@@ -675,7 +170,7 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Core type parsing dispatcher: tries built-in types, then registered dialect types, then
+    /// Core type parsing dispatcher: tries default builtin type formats, then registered dialect types, then
     /// reports an unrecognized type fragment.
     /// </summary>
     private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
@@ -686,18 +181,20 @@ public sealed partial class Parser
     /// <summary>
      /// Core type parsing dispatcher with both delimiter and keyword stop conditions.
      /// <list type="number">
-     ///   <item><description>Tries built-in type forms (function, tuple, tensor, vector, memref, primitive) via
-     ///     <see cref="TryParseBuiltinTypeSyntaxResult"/>.</description></item>
+     ///   <item><description>Tries the default builtin type assembly formats in order.</description></item>
      ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntaxResult"/>.</description></item>
     ///   <item><description>Reports a diagnostic describing the unrecognized type fragment.</description></item>
      /// </list>
      /// </summary>
     private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
     {
-        var builtinTypeResult = TryParseBuiltinTypeSyntaxResult(stopBefore, stopAtOperationBoundary);
-        if (!builtinTypeResult.IsNoMatch)
+        foreach (var assemblyFormat in DefaultTypeAssemblyFormats)
         {
-            return builtinTypeResult;
+            var builtinTypeResult = TryParseTypeAssemblyFormat(assemblyFormat, stopBefore, stopBeforeKeywords, stopAtOperationBoundary);
+            if (!builtinTypeResult.IsNoMatch)
+            {
+                return builtinTypeResult;
+            }
         }
 
         var customTypeResult = TryParseCustomTypeSyntaxResult();
@@ -739,6 +236,20 @@ public sealed partial class Parser
     internal ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundaryInternal()
     {
         return TryParseTypeSyntaxUntilOperationBoundaryResult();
+    }
+
+    /// <summary>Bridges ambient stop-condition type parsing for use by <see cref="TypeParsingContext"/>.</summary>
+    internal ParseResult<TypeSyntax> TryParseCurrentTypeSyntaxInternal(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
+    {
+        return TryParseTypeSyntaxCoreResult(stopBefore, stopBeforeKeywords, stopAtOperationBoundary);
+    }
+
+    /// <summary>Bridges standalone nested type fragment parsing for use by <see cref="TypeParsingContext"/>.</summary>
+    internal ParseResult<TypeSyntax> TryParseStandaloneTypeTextInternal(string text)
+    {
+        return TryParseType(text, dialectRegistry, out var type, out var diagnostic)
+            ? ParseResult<TypeSyntax>.Success(type!)
+            : ParseResult<TypeSyntax>.Failure(diagnostic!);
     }
 
     /// <summary>Bridges <see cref="ParseTypeSyntaxListUntilOperationBoundary"/> for use by <see cref="OperationParsingContext"/>.</summary>

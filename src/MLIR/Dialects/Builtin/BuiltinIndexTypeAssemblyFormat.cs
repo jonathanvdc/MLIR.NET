@@ -11,15 +11,19 @@ using MLIR.Transforms;
 /// Binds and rebuilds the builtin <c>index</c> type.
 /// </summary>
 /// <remarks>
-/// Parsing is handled by the core type parser; this format only provides binding and CST rebuild.
+/// This format owns the builtin <c>index</c> spelling as well as binding and CST rebuild.
 /// </remarks>
 public sealed class BuiltinIndexTypeAssemblyFormat : ITypeAssemblyFormat
 {
     /// <inheritdoc/>
     public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
     {
-        // Parsing is handled by the core type parser, not by dialect custom syntax.
-        return ParseResult<TypeSyntax>.NoMatch();
+        if (!context.TryMatch(TokenKind.Identifier, out var nameToken) || nameToken.Text != "index")
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        return ParseResult<TypeSyntax>.Success(new BuiltinIndexTypeSyntax(nameToken));
     }
 
     /// <inheritdoc/>

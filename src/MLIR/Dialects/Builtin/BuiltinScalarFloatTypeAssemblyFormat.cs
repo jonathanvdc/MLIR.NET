@@ -12,9 +12,6 @@ using MLIR.Transforms;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Parsing is handled by the core type parser; this format only provides binding and CST rebuild.
-/// </para>
-/// <para>
 /// Each generated scalar float <c>TypeDef</c> class supplies a constructor delegate so the shared
 /// <see cref="BuiltinScalarFloatTypeAssemblyFormat"/> can produce the correct concrete
 /// <see cref="TypeReference"/> subclass without knowing its type at compile time.
@@ -23,6 +20,43 @@ using MLIR.Transforms;
 public sealed class BuiltinScalarFloatTypeAssemblyFormat : ITypeAssemblyFormat
 {
     private readonly Func<BuiltinFloatTypeSyntax?, TypeReference> _create;
+
+    /// <summary>
+    /// Returns whether the supplied identifier is one of MLIR's canonical builtin float spellings.
+    /// </summary>
+    public static bool IsBuiltinFloatName(string text)
+    {
+        if (text is "bf16" or "tf32")
+        {
+            return true;
+        }
+
+        if (text.Length < 2 || text[0] != 'f' || !char.IsDigit(text[1]))
+        {
+            return false;
+        }
+
+        var index = 1;
+        while (index < text.Length && char.IsDigit(text[index]))
+        {
+            index++;
+        }
+
+        if (index == text.Length)
+        {
+            return true;
+        }
+
+        for (; index < text.Length; index++)
+        {
+            if (!char.IsLetterOrDigit(text[index]))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BuiltinScalarFloatTypeAssemblyFormat"/> class.
@@ -38,8 +72,14 @@ public sealed class BuiltinScalarFloatTypeAssemblyFormat : ITypeAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
     {
-        // Parsing is handled by the core type parser, not by dialect custom syntax.
-        return ParseResult<TypeSyntax>.NoMatch();
+        if (!context.TryMatch(TokenKind.Identifier, out var nameToken))
+        {
+            return ParseResult<TypeSyntax>.NoMatch();
+        }
+
+        return IsBuiltinFloatName(nameToken.Text)
+            ? ParseResult<TypeSyntax>.Success(new BuiltinFloatTypeSyntax(nameToken))
+            : ParseResult<TypeSyntax>.NoMatch();
     }
 
     /// <inheritdoc/>
