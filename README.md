@@ -145,6 +145,7 @@ src/
   TableGen/         TableGen parser/evaluator
 tools/
   TableGenDebug/    Debug utility for evaluating a TableGen file and printing records
+  TdToCSharp/       Utility for compiling .td files into generated C# dialect sources
 tests/
   DialectTests/             Analyzer-backed generated-dialect integration tests
   MLIR.Generators.Tests/    Importer and source-generation tests
@@ -197,12 +198,47 @@ dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- samples/Generat
 dotnet run --project tools/TableGenDebug/TableGenDebug.csproj -- samples/GeneratedDialectConsumer/Dialects/arith.td 'Arith_*'
 ```
 
+## TableGen-To-C# Utility
+
+Use `tools/TdToCSharp` when you want to inspect the generated C# for one or more standalone `.td` files without going through an SDK-style consumer project build.
+
+The tool reads `.td` inputs from disk, resolves local includes first and then the embedded MLIR prelude from `MLIR.Generators`, merges dialect fragments by dialect name using the same merge logic as the source generator, and emits one `.g.cs` file per merged dialect.
+
+Basic usage:
+
+```bash
+dotnet run --project tools/TdToCSharp/TdToCSharp.csproj -- <file.td> [more.td ...]
+```
+
+Useful options:
+
+- `--stdout`
+  Print generated sources to stdout instead of writing files.
+- `-o`, `--output <dir>`
+  Write generated files to the given directory.
+- `--dialect <name>`
+  Emit only the named dialect. Can be repeated.
+- `--include-prelude`
+  Also emit `PreludeDialectRegistration.g.cs`.
+
+Examples:
+
+```bash
+dotnet run --project tools/TdToCSharp/TdToCSharp.csproj -- tests/DialectTests/Dialects/arith.td --stdout
+dotnet run --project tools/TdToCSharp/TdToCSharp.csproj -- tests/DialectTests/Dialects/arith.td -o artifacts/generated/arith
+dotnet run --project tools/TdToCSharp/TdToCSharp.csproj -- a.td b.td --dialect mydialect --include-prelude
+```
+
+If you only need to inspect the records after TableGen evaluation, use `tools/TableGenDebug` instead. If you need the final emitted C# for a specific `.td` input, prefer `tools/TdToCSharp`.
+
 ## Where To Look Next
 
 - [samples/GeneratedDialectConsumer/Program.cs](/Users/jonathanvdc/Code/MLIR.NET/samples/GeneratedDialectConsumer/Program.cs)
   Small consumer project using generated dialect types.
 - [tools/TableGenDebug/Program.cs](/Users/jonathanvdc/Code/MLIR.NET/tools/TableGenDebug/Program.cs)
   Command-line utility for evaluating TableGen files and printing the resulting records.
+- [tools/TdToCSharp/Program.cs](/Users/jonathanvdc/Code/MLIR.NET/tools/TdToCSharp/Program.cs)
+  Command-line utility for compiling `.td` files into generated C# dialect sources.
 - [tests/DialectTests/Dialects/arith.td](/Users/jonathanvdc/Code/MLIR.NET/tests/DialectTests/Dialects/arith.td)
   Real ODS-style dialect fixture used by the analyzer-backed integration tests.
 - [AGENTS.md](/Users/jonathanvdc/Code/MLIR.NET/AGENTS.md)

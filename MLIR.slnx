@@ -12,6 +12,7 @@
   <Folder Name="/tools/">
     <Project Path="tools/TableGen.Benchmarks/TableGen.Benchmarks.csproj" />
     <Project Path="tools/TableGenDebug/TableGenDebug.csproj" />
+    <Project Path="tools/TdToCSharp/TdToCSharp.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DialectTests/DialectTests.csproj" />
