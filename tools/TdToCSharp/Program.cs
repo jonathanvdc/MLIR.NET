@@ -11,30 +11,27 @@ using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 var stdoutLog = TerminalLog.AcquireStandardOutput().WithDiagnostics("tdtocsharp");
 var stderrLog = TerminalLog.AcquireStandardError().WithDiagnostics("tdtocsharp");
 
-var helpFlag = FlagOption.CreateFlagOption(
-        OptionForm.Short("h"),
-        OptionForm.Long("help"))
+var helpFlag = Option.Flag("-h", "--help")
     .WithCategory("General")
-    .WithDescription(new Text("Show this help text."));
-var stdoutFlag = FlagOption.CreateFlagOption(OptionForm.Long("stdout"))
+    .WithDescription("Show this help text.");
+var stdoutFlag = Option.Flag("--stdout")
     .WithCategory("Output")
-    .WithDescription(new Text("Print generated sources to stdout instead of writing files."));
-var includePreludeFlag = FlagOption.CreateFlagOption(OptionForm.Long("include-prelude"))
+    .WithDescription("Print generated sources to stdout instead of writing files.");
+var includePreludeFlag = Option.Flag("--include-prelude")
     .WithCategory("Output")
-    .WithDescription(new Text("Also emit PreludeDialectRegistration.g.cs."));
-var outputOption = ValueOption.CreateStringOption(
-        new[] { OptionForm.Short("o"), OptionForm.Long("output") },
-        string.Empty)
+    .WithDescription("Also emit PreludeDialectRegistration.g.cs.");
+var outputOption = Option.String("-o", "--output")
     .WithCategory("Output")
-    .WithDescription(new Text("Output directory for generated .g.cs files."));
-var dialectOption = SequenceOption.CreateStringOption(OptionForm.Long("dialect"))
+    .WithDescription("Output directory for generated .g.cs files.");
+var dialectOption = Option.StringSequence("--dialect")
     .WithCategory("Filtering")
-    .WithDescription(new Text("Emit only the named dialect. Can be repeated."))
+    .WithDescription("Emit only the named dialect. Can be repeated.")
     .WithParameters(new SymbolicOptionParameter("name"));
 var inputOption = Option.StringSequence("--input")
     .WithCategory("Input")
-    .WithDescription(new Text("One or more TableGen input files to compile."))
+    .WithDescription("One or more TableGen input files to compile.")
     .WithParameters(new SymbolicOptionParameter("file", true));
+
 var options = new Option[] { helpFlag, stdoutFlag, includePreludeFlag, outputOption, dialectOption };
 
 var commandLine = new CommandLine(options, inputOption)
