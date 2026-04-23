@@ -1237,4 +1237,285 @@ public sealed class DialectImporterTests
             }
         }
     }
+
+    // ---------------------------------------------------------------------------
+    // Issue #152: Preserve attr/type trait metadata in ODS
+    // ---------------------------------------------------------------------------
+
+    [Fact]
+    public void TypeDefTraitsArePreservedOnTypeModel()
+    {
+        // TypeDef records that include traits should surface those traits on TypeModel.Traits.
+        const string source =
+            "def MyTrait_Dialect : Dialect {\n" +
+            "  let name = \"mytrait\";\n" +
+            "  let cppNamespace = \"::mlir::mytrait\";\n" +
+            "};\n" +
+            "class MyTrait_Type<string name, list<Trait> traits = []>\n" +
+            "    : TypeDef<MyTrait_Dialect, name, traits> {\n" +
+            "  let typeName = \"mytrait.\" # name;\n" +
+            "};\n" +
+            "def MySimpleTypeTrait : NativeTypeTrait<\"MyTypeTrait\">;\n" +
+            "def MyTrait_FooType : MyTrait_Type<\"foo\", [MySimpleTypeTrait]>;\n" +
+            "def MyTrait_BarType : MyTrait_Type<\"bar\">;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "mytrait");
+        var fooType = Assert.Single(dialect.Types, static t => t.RecordName == "MyTrait_FooType");
+        var barType = Assert.Single(dialect.Types, static t => t.RecordName == "MyTrait_BarType");
+
+        // FooType has one trait, BarType has none.
+        var fooTrait = Assert.Single(fooType.Traits);
+        Assert.Equal("MySimpleTypeTrait", fooTrait.RecordName);
+        Assert.Empty(barType.Traits);
+    }
+
+    [Fact]
+    public void AttrDefTraitsArePreservedOnAttributeModel()
+    {
+        // AttrDef records that include traits should surface those traits on AttributeModel.Traits.
+        const string source =
+            "def MyAttrT_Dialect : Dialect {\n" +
+            "  let name = \"myattrt\";\n" +
+            "  let cppNamespace = \"::mlir::myattrt\";\n" +
+            "};\n" +
+            "class MyAttrT_Attr<string name, list<Trait> traits = []>\n" +
+            "    : AttrDef<MyAttrT_Dialect, name, traits> {\n" +
+            "  let attrName = \"myattrt.\" # name;\n" +
+            "};\n" +
+            "def MySimpleAttrTrait : NativeAttrTrait<\"MyAttrTrait\">;\n" +
+            "def MyAttrT_FooAttr : MyAttrT_Attr<\"foo\", [MySimpleAttrTrait]>;\n" +
+            "def MyAttrT_BarAttr : MyAttrT_Attr<\"bar\">;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myattrt");
+        var fooAttr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyAttrT_FooAttr");
+        var barAttr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyAttrT_BarAttr");
+
+        var fooTrait = Assert.Single(fooAttr.Traits);
+        Assert.Equal("MySimpleAttrTrait", fooTrait.RecordName);
+        Assert.Empty(barAttr.Traits);
+    }
+
+    [Fact]
+    public void ShapedTypeInterfaceImportsAsTypeInterfaceTrait()
+    {
+        // ShapedTypeInterface in the builtin BuiltinTypes.td should import as an InterfaceTraitModel
+        // with Kind == Type, not as a NativeTraitModel or SimpleTraitModel.
+        const string source = "include \"mlir/IR/BuiltinTypes.td\"\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
+        var rankedTensor = Assert.Single(builtin.Types, static t => t.RecordName == "Builtin_RankedTensor");
+
+        var shapedTypeTrait = Assert.Single(
+            rankedTensor.Traits,
+            static t => t is InterfaceTraitModel itm && itm.CppInterfaceName == "ShapedType");
+
+        var interfaceTrait = Assert.IsType<InterfaceTraitModel>(shapedTypeTrait);
+        Assert.Equal(InterfaceKind.Type, interfaceTrait.Kind);
+        Assert.Equal("ShapedType", interfaceTrait.CppInterfaceName);
+        Assert.Equal("::mlir", interfaceTrait.CppNamespace);
+    }
+
+    [Fact]
+    public void CustomOpInterfaceImportsAsOpInterfaceTrait()
+    {
+        // A custom OpInterface referenced in an op's trait list should produce an
+        // InterfaceTraitModel with Kind == Op.
+        const string source =
+            "def MyIf_Dialect : Dialect {\n" +
+            "  let name = \"myif\";\n" +
+            "  let cppNamespace = \"::mlir::myif\";\n" +
+            "};\n" +
+            "class MyIf_Op<string mnemonic, list<Trait> traits = []>\n" +
+            "    : Op<MyIf_Dialect, mnemonic, traits>;\n" +
+            "def MyCustomOpInterface : OpInterface<\"MyCustomOpInterface\"> {\n" +
+            "  let cppNamespace = \"::mlir::myif\";\n" +
+            "};\n" +
+            "def MyIf_FooOp : MyIf_Op<\"foo\", [MyCustomOpInterface]>;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myif");
+        var fooOp = Assert.Single(dialect.Operations);
+        var trait = Assert.Single(fooOp.Traits);
+
+        var interfaceTrait = Assert.IsType<InterfaceTraitModel>(trait);
+        Assert.Equal(InterfaceKind.Op, interfaceTrait.Kind);
+        Assert.Equal("MyCustomOpInterface", interfaceTrait.CppInterfaceName);
+        Assert.Equal("::mlir::myif", interfaceTrait.CppNamespace);
+    }
+
+    [Fact]
+    public void DeclareOpInterfaceMethodsPreservesAlwaysOverriddenMethods()
+    {
+        // DeclareOpInterfaceMethods<Iface, ["foo"]> should produce an InterfaceTraitModel
+        // with DeclaresMethods=true and AlwaysOverriddenMethods=["foo"].
+        const string source =
+            "def MyDIM_Dialect : Dialect {\n" +
+            "  let name = \"mydim\";\n" +
+            "  let cppNamespace = \"::mlir::mydim\";\n" +
+            "};\n" +
+            "class MyDIM_Op<string mnemonic, list<Trait> traits = []>\n" +
+            "    : Op<MyDIM_Dialect, mnemonic, traits>;\n" +
+            "def MyMethodIface : OpInterface<\"MyMethodIface\"> {\n" +
+            "  let cppNamespace = \"::mlir::mydim\";\n" +
+            "  let methods = [\n" +
+            "    InterfaceMethod<\"do foo\", \"void\", \"foo\">,\n" +
+            "    InterfaceMethod<\"do bar\", \"void\", \"bar\">,\n" +
+            "  ];\n" +
+            "};\n" +
+            "def MyDIM_Op1 : MyDIM_Op<\"op1\",\n" +
+            "    [DeclareOpInterfaceMethods<MyMethodIface, [\"foo\"]>]>;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "mydim");
+        var op1 = Assert.Single(dialect.Operations);
+        var trait = Assert.Single(op1.Traits);
+
+        var interfaceTrait = Assert.IsType<InterfaceTraitModel>(trait);
+        Assert.Equal(InterfaceKind.Op, interfaceTrait.Kind);
+        Assert.Equal("MyMethodIface", interfaceTrait.CppInterfaceName);
+        Assert.True(interfaceTrait.DeclaresMethods);
+        Assert.Equal(["foo"], interfaceTrait.AlwaysOverriddenMethods.ToArray());
+    }
+
+    [Fact]
+    public void MinimalTypeInterfaceWithOneMethodImportsAsInterfaceModel()
+    {
+        // A locally-defined TypeInterface with one method should produce an InterfaceModel
+        // with the method's metadata preserved.
+        const string source =
+            "def MyIM_Dialect : Dialect {\n" +
+            "  let name = \"myim\";\n" +
+            "  let cppNamespace = \"::mlir::myim\";\n" +
+            "};\n" +
+            "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
+            "  let cppNamespace = \"::mlir::myim\";\n" +
+            "  let description = [{A custom type interface.}];\n" +
+            "  let methods = [\n" +
+            "    InterfaceMethod<\"get the rank\", \"int64_t\", \"getRank\">,\n" +
+            "  ];\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var myimDialect = Assert.Single(dialects, static d => d.Name == "myim");
+        var interfaceModel = Assert.Single(myimDialect.Interfaces, static i => i.RecordName == "MyTypeIface");
+
+        Assert.Equal(InterfaceKind.Type, interfaceModel.Kind);
+        Assert.Equal("MyTypeIface", interfaceModel.CppInterfaceName);
+        Assert.Equal("::mlir::myim", interfaceModel.CppNamespace);
+        Assert.Contains("custom type interface", interfaceModel.Description);
+
+        var method = Assert.Single(interfaceModel.Methods);
+        Assert.Equal("getRank", method.Name);
+        Assert.Equal("int64_t", method.ReturnType);
+        Assert.Equal("get the rank", method.Description);
+        Assert.Equal(InterfaceMethodKind.Regular, method.Kind);
+        Assert.Empty(method.Arguments);
+    }
+
+    [Fact]
+    public void InterfaceWithBaseInterfacesPreservesBaseInterfaceRecordNames()
+    {
+        // An interface that declares base interfaces should preserve those record names
+        // in InterfaceModel.BaseInterfaces.
+        const string source =
+            "def MyBase_Dialect : Dialect {\n" +
+            "  let name = \"mybase\";\n" +
+            "  let cppNamespace = \"::mlir::mybase\";\n" +
+            "};\n" +
+            "def MyBaseTypeIface : TypeInterface<\"MyBaseTypeIface\"> {\n" +
+            "  let cppNamespace = \"::mlir::mybase\";\n" +
+            "};\n" +
+            "def MyDerivedTypeIface : TypeInterface<\"MyDerivedTypeIface\", [MyBaseTypeIface]> {\n" +
+            "  let cppNamespace = \"::mlir::mybase\";\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "mybase");
+        var derived = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyDerivedTypeIface");
+
+        Assert.Equal(["MyBaseTypeIface"], derived.BaseInterfaces.ToArray());
+    }
+
+    [Fact]
+    public void ExistingNativeTraitsStillImportAsNativeTraitModels()
+    {
+        // Regression: non-interface NativeOpTrait subclasses such as Commutative must still
+        // produce NativeTraitModel, not InterfaceTraitModel.
+        const string source =
+            "class Regress_Op<string mnemonic, list<Trait> traits = []> :\n" +
+            "    Op<Regress_Dialect, mnemonic, traits>;\n" +
+            "\n" +
+            "def Regress_Dialect : Dialect {\n" +
+            "  let name = \"regress\";\n" +
+            "};\n" +
+            "\n" +
+            "def Regress_AddOp : Regress_Op<\"add\", [Commutative]>;\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "regress");
+        var op = Assert.Single(dialect.Operations);
+        var trait = Assert.Single(op.Traits);
+
+        // Commutative is a NativeOpTrait, not an interface.
+        var nativeTrait = Assert.IsType<NativeTraitModel>(trait);
+        Assert.Equal("IsCommutative", nativeTrait.Trait);
+    }
+
+    [Fact]
+    public void InterfaceMethodWithArgumentsPreservesArgumentMetadata()
+    {
+        // An interface method with arguments should have those arguments preserved.
+        const string source =
+            "def MyArgs_Dialect : Dialect {\n" +
+            "  let name = \"myargs\";\n" +
+            "  let cppNamespace = \"::mlir::myargs\";\n" +
+            "};\n" +
+            "def MyArgsTypeIface : TypeInterface<\"MyArgsTypeIface\"> {\n" +
+            "  let cppNamespace = \"::mlir::myargs\";\n" +
+            "  let methods = [\n" +
+            "    InterfaceMethod<\"get dim\", \"int64_t\", \"getDimSize\",\n" +
+            "      (ins \"unsigned\":$idx)>,\n" +
+            "  ];\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myargs");
+        var iface = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyArgsTypeIface");
+        var method = Assert.Single(iface.Methods);
+
+        Assert.Equal("getDimSize", method.Name);
+        Assert.Equal("int64_t", method.ReturnType);
+        var arg = Assert.Single(method.Arguments);
+        Assert.Equal("unsigned", arg.ArgType);
+        Assert.Equal("idx", arg.ArgName);
+    }
+
+    [Fact]
+    public void VectorElementTypeInterfaceImportsAsTypeInterfaceInPrelude()
+    {
+        // VectorElementTypeInterface from the builtin prelude should appear in the
+        // prelude or builtin dialect as a TypeInterface.
+        const string source = "include \"mlir/IR/BuiltinTypeInterfaces.td\"\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var allInterfaces = dialects.SelectMany(static d => d.Interfaces).ToList();
+        var vectorElemIface = Assert.Single(allInterfaces, static i => i.RecordName == "VectorElementTypeInterface");
+
+        Assert.Equal(InterfaceKind.Type, vectorElemIface.Kind);
+        Assert.Equal("VectorElementTypeInterface", vectorElemIface.CppInterfaceName);
+        Assert.Equal("::mlir", vectorElemIface.CppNamespace);
+    }
 }

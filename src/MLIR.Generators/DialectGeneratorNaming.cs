@@ -86,6 +86,28 @@ internal static class DialectGeneratorNaming
         return ToPascalCase(typeConstraint.RecordName.Replace('.', '_')) + "ConstraintTypeReference";
     }
 
+    /// <summary>
+    /// Returns the C# marker interface name for a <c>TypeInterface</c> record.
+    /// </summary>
+    /// <remarks>
+    /// The name is derived from <see cref="InterfaceModel.CppInterfaceName"/>:
+    /// <list type="bullet">
+    ///   <item>A trailing <c>Interface</c> suffix is stripped for cleaner names.</item>
+    ///   <item>The letter <c>I</c> is prepended.</item>
+    /// </list>
+    /// Examples: <c>ShapedType</c> → <c>IShapedType</c>;
+    ///           <c>VectorElementTypeInterface</c> → <c>IVectorElementType</c>.
+    /// </remarks>
+    public static string GetTypeInterfaceName(InterfaceModel interfaceModel)
+    {
+        const string suffix = "Interface";
+        var rawName = interfaceModel.CppInterfaceName;
+        var baseName = rawName.EndsWith(suffix, StringComparison.Ordinal) && rawName.Length > suffix.Length
+            ? rawName.Substring(0, rawName.Length - suffix.Length)
+            : rawName;
+        return "I" + baseName;
+    }
+
     public static string ToPascalCase(string value)
     {
         var builder = new StringBuilder(value.Length);
