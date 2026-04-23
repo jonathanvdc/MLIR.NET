@@ -148,6 +148,15 @@ internal sealed class OdsRecordIndex
     /// </summary>
     private Model.TraitModel? TryBuildTraitModel(Value item)
     {
+        // Anonymous record values arise from inline class instantiations such as
+        // DeclareOpInterfaceMethods<MyIface, ["foo"]>. These are not top-level defs so they
+        // have no record name in the index, but they carry full field and base-class information
+        // through the AnonymousRecordValue itself.
+        if (item is AnonymousRecordValue anon)
+        {
+            return TryBuildTraitModelFromAnonymous(anon);
+        }
+
         string? recordName = null;
         Record? traitRecord = null;
 
@@ -214,6 +223,56 @@ internal sealed class OdsRecordIndex
 
         // Fall back to a simple trait wrapper that preserves the record name for inspection.
         return new Model.SimpleTraitModel(recordName);
+    }
+
+    /// <summary>
+    /// Attempts to build a <see cref="Model.TraitModel"/> from an anonymously instantiated
+    /// class value (e.g., <c>DeclareOpInterfaceMethods&lt;MyIface, ["foo"]&gt;</c>).
+    /// The class name is used as the record name because anonymous instantiations are not
+    /// registered as named top-level defs.
+    /// </summary>
+    private Model.TraitModel? TryBuildTraitModelFromAnonymous(AnonymousRecordValue anon)
+    {
+        var className = anon.ClassName;
+
+        // InterfaceTrait check first — covers DeclareXxxInterfaceMethods and any inline
+        // interface-backed trait instantiation.
+        if (AnonHasBaseClass(anon, "InterfaceTrait"))
+        {
+            return BuildInterfaceTraitModelFromFields(className, anon.Fields, anon.BaseClasses);
+        }
+
+        if (AnonHasBaseClass(anon, "NativeTrait"))
+        {
+            var trait = GetStringFromValueDictionary(anon.Fields, "trait");
+            var cppNamespace = GetStringFromValueDictionary(anon.Fields, "cppNamespace");
+            return new Model.NativeTraitModel(className, trait, cppNamespace);
+        }
+
+        if (AnonHasBaseClass(anon, "GenInternalTrait"))
+        {
+            var trait = GetStringFromValueDictionary(anon.Fields, "trait");
+            return new Model.GenInternalTraitModel(className, trait);
+        }
+
+        return new Model.SimpleTraitModel(className);
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the anonymous record's base-class list includes a
+    /// class with the given name.
+    /// </summary>
+    private static bool AnonHasBaseClass(AnonymousRecordValue anon, string baseClassName)
+    {
+        foreach (var bc in anon.BaseClasses)
+        {
+            if (bc.Name == baseClassName)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public bool TryGetDialectName(Record record, out string dialectName)
@@ -1006,6 +1065,95 @@ internal sealed class OdsRecordIndex
             baseInterfaces,
             declaresMethods,
             alwaysOverriddenMethods);
+    }
+
+    /// <summary>
+    /// Builds an <see cref="Model.InterfaceTraitModel"/> from the fields and base-class list of
+    /// an anonymously instantiated record. Used for inline trait expressions such as
+    /// <c>DeclareOpInterfaceMethods&lt;MyIface, ["foo"]&gt;</c> that are not registered as
+    /// named top-level defs.
+    /// </summary>
+    private static Model.InterfaceTraitModel BuildInterfaceTraitModelFromFields(
+        string recordName,
+        IReadOnlyDictionary<string, Value> fields,
+        IReadOnlyList<TableGen.Evaluation.EvaluatedClass> baseClasses)
+    {
+        var kind = ClassifyInterfaceKindFromBaseClasses(baseClasses);
+        var cppInterfaceName = GetStringFromValueDictionary(fields, "cppInterfaceName");
+        var cppNamespace = GetStringFromValueDictionary(fields, "cppNamespace");
+        var baseInterfaces = GetStringListFromValueDictionary(fields, "baseInterfaces");
+        var declaresMethods = baseClasses.Any(static bc => bc.Name == "DeclareInterfaceMethods");
+        var alwaysOverriddenMethods = GetStringListFromValueDictionary(fields, "alwaysOverriddenMethods");
+
+        return new Model.InterfaceTraitModel(
+            recordName,
+            kind,
+            cppInterfaceName,
+            cppNamespace,
+            baseInterfaces,
+            declaresMethods,
+            alwaysOverriddenMethods);
+    }
+
+    /// <summary>
+    /// Classifies the <see cref="Model.InterfaceKind"/> from a list of base class names, used
+    /// when the full <see cref="Record"/> is not available (anonymous instantiation case).
+    /// </summary>
+    private static Model.InterfaceKind ClassifyInterfaceKindFromBaseClasses(
+        IReadOnlyList<TableGen.Evaluation.EvaluatedClass> baseClasses)
+    {
+        var hasDialect = false;
+        var hasOp = false;
+        var hasType = false;
+        var hasAttr = false;
+
+        foreach (var bc in baseClasses)
+        {
+            switch (bc.Name)
+            {
+                case "DialectInterface": hasDialect = true; break;
+                case "OpInterfaceTrait": hasOp = true; break;
+                case "TypeInterface": hasType = true; break;
+                case "AttrInterface": hasAttr = true; break;
+            }
+        }
+
+        if (hasDialect) return Model.InterfaceKind.Dialect;
+        if (hasOp) return Model.InterfaceKind.Op;
+        if (hasType) return Model.InterfaceKind.Type;
+        if (hasAttr) return Model.InterfaceKind.Attr;
+        return Model.InterfaceKind.Op;
+    }
+
+    /// <summary>
+    /// Extracts a list of strings from a list-valued field in the given field dictionary.
+    /// Returns an empty list when the field is absent or empty.
+    /// </summary>
+    private static IReadOnlyList<string> GetStringListFromValueDictionary(
+        IReadOnlyDictionary<string, Value> fields, string key)
+    {
+        if (!fields.TryGetValue(key, out var field) || field is not ListValue list)
+        {
+            return EmptyStrings;
+        }
+
+        var values = new List<string>(list.Items.Count);
+        foreach (var item in list.Items)
+        {
+            string? s = item switch
+            {
+                StringValue str when !string.IsNullOrEmpty(str.Value) => str.Value,
+                SymbolReferenceValue sym => sym.SymbolName,
+                RecordReferenceValue rec => rec.RecordName,
+                _ => null,
+            };
+            if (s != null)
+            {
+                values.Add(s);
+            }
+        }
+
+        return values.Count == 0 ? EmptyStrings : values;
     }
 
     /// <summary>
