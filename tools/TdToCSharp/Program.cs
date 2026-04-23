@@ -11,9 +11,6 @@ using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 var stdoutLog = TerminalLog.AcquireStandardOutput().WithDiagnostics("tdtocsharp");
 var stderrLog = TerminalLog.AcquireStandardError().WithDiagnostics("tdtocsharp");
 
-var helpFlag = Option.Flag("-h", "--help")
-    .WithCategory("General")
-    .WithDescription("Show this help text.");
 var stdoutFlag = Option.Flag("--stdout")
     .WithCategory("Output")
     .WithDescription("Print generated sources to stdout instead of writing files.");
@@ -32,7 +29,7 @@ var inputOption = Option.StringSequence("--input")
     .WithDescription("One or more TableGen input files to compile.")
     .WithParameters(new SymbolicOptionParameter("file", true));
 
-var options = new Option[] { helpFlag, stdoutFlag, includePreludeFlag, outputOption, dialectOption };
+var options = new Option[] { stdoutFlag, includePreludeFlag, outputOption, dialectOption };
 
 var commandLine = new CommandLine(options, inputOption)
     .WithHelp("Compile one or more TableGen dialect inputs into generated C# sources.", "tdtocsharp <file.td> [more.td ...] [options]");
