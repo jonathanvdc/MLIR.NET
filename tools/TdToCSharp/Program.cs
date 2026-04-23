@@ -86,7 +86,7 @@ try
 }
 catch (Exception exception)
 {
-    Console.Error.WriteLine(exception);
+    Console.Error.WriteLine("error: " + FormatExceptionMessage(exception));
     return 1;
 }
 
@@ -101,6 +101,22 @@ static string FormatDiagnostic(Diagnostic diagnostic)
         + diagnostic.Id
         + ": "
         + diagnostic.GetMessage();
+}
+
+static string FormatExceptionMessage(Exception exception)
+{
+    var parts = new List<string>();
+    for (var current = exception; current != null; current = current.InnerException)
+    {
+        if (!string.IsNullOrWhiteSpace(current.Message))
+        {
+            parts.Add(current.Message);
+        }
+    }
+
+    return parts.Count == 0
+        ? exception.GetType().FullName ?? exception.GetType().Name
+        : string.Join(" --> ", parts);
 }
 
 static void PrintUsage()
