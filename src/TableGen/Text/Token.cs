@@ -1,14 +1,14 @@
 namespace TableGen.Text;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents one token emitted by the lexer.
 /// </summary>
 /// <param name="kind">The token classification.</param>
 /// <param name="text">The token payload text after literal decoding where applicable.</param>
-/// <param name="position">The absolute character offset in the source text.</param>
-/// <param name="line">The 1-based source line number.</param>
-/// <param name="column">The 1-based source column number.</param>
-internal readonly struct Token(TokenKind kind, string text, int position, int line, int column)
+/// <param name="location">The source location of the token.</param>
+internal readonly struct Token(TokenKind kind, string text, SourceLocation location)
 {
     /// <summary>
     /// Gets the token classification.
@@ -21,17 +21,7 @@ internal readonly struct Token(TokenKind kind, string text, int position, int li
     public string Text { get; } = text;
 
     /// <summary>
-    /// Gets the absolute character offset in the source text.
+    /// Gets the source location of the token.
     /// </summary>
-    public int Position { get; } = position;
-
-    /// <summary>
-    /// Gets the 1-based source line number.
-    /// </summary>
-    public int Line { get; } = line;
-
-    /// <summary>
-    /// Gets the 1-based source column number.
-    /// </summary>
-    public int Column { get; } = column;
+    public SourceLocation Location { get; } = location;
 }

@@ -868,6 +868,6 @@ internal sealed class Parser
     private ParseException Error(string message)
     {
         var token = Current;
-        return new ParseException(new Diagnostic(message, token.Line, token.Column, sourceDocument.FileName));
+        return new ParseException(new Diagnostic(message, token.Location));
     }
 }

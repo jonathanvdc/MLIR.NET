@@ -1,5 +1,6 @@
 namespace TableGen.Tests;
 
+using MLIR.Text;
 using TableGen.Evaluation;
 using TableGen.Syntax;
 using TableGen.Text;

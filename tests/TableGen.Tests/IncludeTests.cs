@@ -7,7 +7,7 @@ using MLIR.Text;
 using TableGen.Evaluation;
 using TableGen.Syntax;
 using Xunit;
-using ParseException = TableGen.Text.ParseException;
+using ParseException = MLIR.Text.ParseException;
 
 public sealed class IncludeTests
 {
@@ -176,7 +176,7 @@ public sealed class IncludeTests
             () => Document.Load(new SourceDocument(mainSource, "main.td"), resolver));
 
         Assert.Contains("dep.td", exception.Message);
-        Assert.Equal("dep.td", exception.Diagnostic.SourceFilePath);
+        Assert.Equal("dep.td", exception.Diagnostic.FileName);
     }
 
     [Fact]

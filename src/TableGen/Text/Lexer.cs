@@ -80,15 +80,13 @@ internal static class Lexer
                 }
 
                 var tokenStart = position;
-                var tokenLine = line;
-                var tokenColumn = column;
                 var current = Current;
 
                 if (char.IsLetter(current) || current == '_')
                 {
                     // Identifiers and keywords share the same spelling rules; keyword classification happens after reading.
                     var text = ReadWhile(static c => char.IsLetterOrDigit(c) || c == '_');
-                    tokens.Add(new Token(GetKeywordKind(text), text, tokenStart, tokenLine, tokenColumn));
+                    AddToken(GetKeywordKind(text), text, tokenStart);
                     continue;
                 }
 
@@ -106,7 +104,7 @@ internal static class Lexer
                         }
                     }
 
-                    tokens.Add(new Token(kind, text, tokenStart, tokenLine, tokenColumn));
+                    AddToken(kind, text, tokenStart);
                     continue;
                 }
 
@@ -115,19 +113,19 @@ internal static class Lexer
                     // Negative integer literals are lexed as one token to keep the parser simple.
                     Advance();
                     var text = source.Substring(tokenStart, position - tokenStart) + ReadWhile(char.IsDigit);
-                    tokens.Add(new Token(TokenKind.Integer, text, tokenStart, tokenLine, tokenColumn));
+                    AddToken(TokenKind.Integer, text, tokenStart);
                     continue;
                 }
 
                 if (current == '"')
                 {
-                    tokens.Add(new Token(TokenKind.String, ReadStringLiteral(), tokenStart, tokenLine, tokenColumn));
+                    AddToken(TokenKind.String, ReadStringLiteral(), tokenStart);
                     continue;
                 }
 
                 if (current == '[' && Peek(1) == '{')
                 {
-                    tokens.Add(new Token(TokenKind.CodeBlock, ReadCodeBlockLiteral(), tokenStart, tokenLine, tokenColumn));
+                    AddToken(TokenKind.CodeBlock, ReadCodeBlockLiteral(), tokenStart);
                     continue;
                 }
 
@@ -140,16 +138,24 @@ internal static class Lexer
                         throw Error("Expected a bang operator name after '!'.");
                     }
 
-                    tokens.Add(new Token(TokenKind.BangKeyword, operatorName, tokenStart, tokenLine, tokenColumn));
+                    AddToken(TokenKind.BangKeyword, operatorName, tokenStart);
                     continue;
                 }
 
                 Advance();
-                tokens.Add(new Token(GetPunctuationKind(current), current.ToString(), tokenStart, tokenLine, tokenColumn));
+                AddToken(GetPunctuationKind(current), current.ToString(), tokenStart);
             }
 
-            tokens.Add(new Token(TokenKind.EndOfFile, string.Empty, position, line, column));
+            tokens.Add(new Token(TokenKind.EndOfFile, string.Empty, new SourceLocation(sourceDocument, position, 0)));
             return tokens;
+        }
+
+        /// <summary>
+        /// Adds a token whose span runs from <paramref name="tokenStart"/> to the current lexer position.
+        /// </summary>
+        private void AddToken(TokenKind kind, string text, int tokenStart)
+        {
+            tokens.Add(new Token(kind, text, new SourceLocation(sourceDocument, tokenStart, position - tokenStart)));
         }
 
         /// <summary>
@@ -416,7 +422,7 @@ internal static class Lexer
         /// <returns>The constructed parse exception.</returns>
         private ParseException Error(string message)
         {
-            return new ParseException(new Diagnostic(message, line, column, sourceDocument.FileName));
+            return new ParseException(new Diagnostic(message, new SourceLocation(sourceDocument, position, 1)));
         }
     }
 }
