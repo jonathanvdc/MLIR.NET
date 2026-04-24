@@ -1,6 +1,7 @@
 namespace TableGen.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a TableGen <c>class</c> declaration.
@@ -10,7 +11,8 @@ public sealed class ClassSyntax(
     IReadOnlyList<TemplateParameterSyntax> templateParameters,
     IReadOnlyList<BaseSyntax> bases,
     IReadOnlyList<LetSyntax> topLevelLets,
-    IReadOnlyList<BodyItemSyntax> bodyItems) : TopLevelSyntax
+    IReadOnlyList<BodyItemSyntax> bodyItems,
+    SourceLocation location = default) : TopLevelSyntax(location)
 {
     /// <summary>
     /// Gets the class name.

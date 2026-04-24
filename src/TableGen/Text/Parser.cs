@@ -67,7 +67,7 @@ internal sealed class Parser
                 [new IncludeDirectiveSyntax(token.Text, token.Location)]);
         }
 
-        if (TryMatch(TokenKind.LetKeyword))
+        if (TryMatch(TokenKind.LetKeyword, out var topLevelLet))
         {
             var name = ExpectName("Expected a field name after 'let'.");
             if (!name.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(name);
@@ -81,7 +81,7 @@ internal sealed class Parser
             var inKeyword = Expect(TokenKind.InKeyword, "Expected 'in' after the top-level let binding.");
             if (!inKeyword.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(inKeyword);
 
-            var nestedLets = topLevelLets.Concat([new LetSyntax(name.Value.Text, value.Value)]).ToArray();
+            var nestedLets = topLevelLets.Concat([new LetSyntax(name.Value.Text, value.Value, topLevelLet.Location)]).ToArray();
             var declarations = new List<TopLevelSyntax>();
             if (TryMatch(TokenKind.LBrace))
             {
@@ -102,17 +102,17 @@ internal sealed class Parser
             return ParseResult<IReadOnlyList<TopLevelSyntax>>.Success(declarations);
         }
 
-        if (TryMatch(TokenKind.ClassKeyword))
+        if (TryMatch(TokenKind.ClassKeyword, out var classKeyword))
         {
-            return ParseClass(topLevelLets).Map<IReadOnlyList<TopLevelSyntax>>(static item => [item]);
+            return ParseClass(topLevelLets, classKeyword.Location).Map<IReadOnlyList<TopLevelSyntax>>(static item => [item]);
         }
 
-        if (TryMatch(TokenKind.DefKeyword))
+        if (TryMatch(TokenKind.DefKeyword, out var defKeyword))
         {
-            return ParseDef(topLevelLets).Map<IReadOnlyList<TopLevelSyntax>>(static item => [item]);
+            return ParseDef(topLevelLets, defKeyword.Location).Map<IReadOnlyList<TopLevelSyntax>>(static item => [item]);
         }
 
-        if (TryMatch(TokenKind.DefVarKeyword))
+        if (TryMatch(TokenKind.DefVarKeyword, out var defVarKeyword))
         {
             var name = ExpectName("Expected a name after 'defvar'.");
             if (!name.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(name);
@@ -126,7 +126,7 @@ internal sealed class Parser
             var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
             if (!semicolon.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(semicolon);
 
-            return ParseResult<IReadOnlyList<TopLevelSyntax>>.Success([new DefVarSyntax(name.Value.Text, value.Value)]);
+            return ParseResult<IReadOnlyList<TopLevelSyntax>>.Success([new DefVarSyntax(name.Value.Text, value.Value, defVarKeyword.Location)]);
         }
 
         if (Is(TokenKind.Identifier) && Current.Text == "extends")
@@ -137,7 +137,7 @@ internal sealed class Parser
         return Error<IReadOnlyList<TopLevelSyntax>>("Expected 'class', 'def', 'defvar', 'let', or 'extends'.");
     }
 
-    private ParseResult<ClassSyntax> ParseClass(IReadOnlyList<LetSyntax> topLevelLets)
+    private ParseResult<ClassSyntax> ParseClass(IReadOnlyList<LetSyntax> topLevelLets, SourceLocation location)
     {
         var name = ExpectName("Expected a class name.");
         if (!name.IsSuccess) return Failure<ClassSyntax>(name);
@@ -158,10 +158,10 @@ internal sealed class Parser
         }
 
         return ParseResult<ClassSyntax>.Success(
-            new ClassSyntax(name.Value.Text, templateParameters.Value, bases.Value, topLevelLets, body.Value.Items));
+            new ClassSyntax(name.Value.Text, templateParameters.Value, bases.Value, topLevelLets, body.Value.Items, location));
     }
 
-    private ParseResult<DefSyntax> ParseDef(IReadOnlyList<LetSyntax> topLevelLets)
+    private ParseResult<DefSyntax> ParseDef(IReadOnlyList<LetSyntax> topLevelLets, SourceLocation location)
     {
         var name = ExpectName("Expected a definition name.");
         if (!name.IsSuccess) return Failure<DefSyntax>(name);
@@ -178,7 +178,7 @@ internal sealed class Parser
             if (!semicolon.IsSuccess) return Failure<DefSyntax>(semicolon);
         }
 
-        return ParseResult<DefSyntax>.Success(new DefSyntax(name.Value.Text, bases.Value, topLevelLets, body.Value.Items));
+        return ParseResult<DefSyntax>.Success(new DefSyntax(name.Value.Text, bases.Value, topLevelLets, body.Value.Items, location));
     }
 
     private ParseResult<ExtendsSyntax> ParseExtends(IReadOnlyList<LetSyntax> topLevelLets)
@@ -205,7 +205,7 @@ internal sealed class Parser
         }
 
         return ParseResult<ExtendsSyntax>.Success(
-            new ExtendsSyntax(targetName.Value.Text, bases.Value, topLevelLets, lets.Value.Items));
+            new ExtendsSyntax(targetName.Value.Text, bases.Value, topLevelLets, lets.Value.Items, extends.Value.Location));
     }
 
     private ParseResult<IReadOnlyList<TemplateParameterSyntax>> ParseOptionalTemplateParameters()
@@ -237,7 +237,7 @@ internal sealed class Parser
                 defaultValue = parsedDefault.Value;
             }
 
-            parameters.Add(new TemplateParameterSyntax(typeName.Value, name.Value.Text, defaultValue));
+            parameters.Add(new TemplateParameterSyntax(typeName.Value, name.Value.Text, defaultValue, name.Value.Location));
         }
         while (TryMatch(TokenKind.Comma) && !Is(TokenKind.GreaterThan));
 
@@ -263,7 +263,7 @@ internal sealed class Parser
             var args = ParseOptionalArgumentList();
             if (!args.IsSuccess) return Failure<IReadOnlyList<BaseSyntax>>(args);
 
-            bases.Add(new BaseSyntax(name.Value.Text, args.Value));
+            bases.Add(new BaseSyntax(name.Value.Text, args.Value, name.Value.Location));
         }
         while (TryMatch(TokenKind.Comma) && !Is(TokenKind.GreaterThan));
 
@@ -342,7 +342,7 @@ internal sealed class Parser
             var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
             if (!semicolon.IsSuccess) return Failure<LetBodyResult>(semicolon);
 
-            items.Add(new LetSyntax(name.Value.Text, value.Value));
+            items.Add(new LetSyntax(name.Value.Text, value.Value, name.Value.Location));
         }
 
         return ParseResult<LetBodyResult>.Success(new LetBodyResult(true, items));
@@ -359,7 +359,7 @@ internal sealed class Parser
             var args = ParseOptionalArgumentList();
             if (!args.IsSuccess) return Failure<IReadOnlyList<BaseSyntax>>(args);
 
-            bases.Add(new BaseSyntax(name.Value.Text, args.Value));
+            bases.Add(new BaseSyntax(name.Value.Text, args.Value, name.Value.Location));
         }
         while (TryMatch(TokenKind.Comma) && !Is(TokenKind.LBrace) && !Is(TokenKind.Semicolon));
 
@@ -382,7 +382,7 @@ internal sealed class Parser
             var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
             if (!semicolon.IsSuccess) return Failure<BodyItemSyntax>(semicolon);
 
-            return ParseResult<BodyItemSyntax>.Success(new LetSyntax(name.Value.Text, value.Value));
+            return ParseResult<BodyItemSyntax>.Success(new LetSyntax(name.Value.Text, value.Value, name.Value.Location));
         }
 
         if (TryMatch(TokenKind.DefVarKeyword))
@@ -399,7 +399,7 @@ internal sealed class Parser
             var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
             if (!semicolon.IsSuccess) return Failure<BodyItemSyntax>(semicolon);
 
-            return ParseResult<BodyItemSyntax>.Success(new LocalDefVarSyntax(name.Value.Text, value.Value));
+            return ParseResult<BodyItemSyntax>.Success(new LocalDefVarSyntax(name.Value.Text, value.Value, name.Value.Location));
         }
 
         if (TryMatch(TokenKind.AssertKeyword))
@@ -418,7 +418,7 @@ internal sealed class Parser
             var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the assert statement.");
             if (!semicolon.IsSuccess) return Failure<BodyItemSyntax>(semicolon);
 
-            return ParseResult<BodyItemSyntax>.Success(new AssertSyntax(condition.Value, message));
+            return ParseResult<BodyItemSyntax>.Success(new AssertSyntax(condition.Value, message, condition.Value.Location));
         }
 
         var typeName = ParseTypeName();
@@ -438,7 +438,7 @@ internal sealed class Parser
         var fieldSemicolon = Expect(TokenKind.Semicolon, "Expected ';' after the field declaration.");
         if (!fieldSemicolon.IsSuccess) return Failure<BodyItemSyntax>(fieldSemicolon);
 
-        return ParseResult<BodyItemSyntax>.Success(new FieldSyntax(typeName.Value, nameToken.Value.Text, initializer));
+        return ParseResult<BodyItemSyntax>.Success(new FieldSyntax(typeName.Value, nameToken.Value.Text, initializer, nameToken.Value.Location));
     }
 
     private ParseResult<string> ParseTypeName()
@@ -484,7 +484,7 @@ internal sealed class Parser
         {
             var right = ParsePrimaryExpression();
             if (!right.IsSuccess) return right;
-            expr = new ConcatSyntax(expr, right.Value);
+            expr = new ConcatSyntax(expr, right.Value, SourceLocation.Merge(expr.Location, right.Value.Location));
         }
 
         return ParseResult<ExpressionSyntax>.Success(expr);
@@ -492,24 +492,24 @@ internal sealed class Parser
 
     private ParseResult<ExpressionSyntax> ParsePrimaryExpression()
     {
-        if (TryMatch(TokenKind.QuestionMark))
+        if (TryMatch(TokenKind.QuestionMark, out var questionToken))
         {
-            return ApplyPostfixAccess(new UnsetSyntax());
+            return ApplyPostfixAccess(new UnsetSyntax(questionToken.Location));
         }
 
         if (TryMatch(TokenKind.Integer, out var integerToken))
         {
-            return ApplyPostfixAccess(new IntegerSyntax(int.Parse(integerToken.Text, CultureInfo.InvariantCulture)));
+            return ApplyPostfixAccess(new IntegerSyntax(int.Parse(integerToken.Text, CultureInfo.InvariantCulture), integerToken.Location));
         }
 
         if (TryMatch(TokenKind.String, out var stringToken))
         {
-            return ApplyPostfixAccess(ParseAdjacentStringLiterals(new StringSyntax(stringToken.Text)));
+            return ApplyPostfixAccess(ParseAdjacentStringLiterals(new StringSyntax(stringToken.Text, stringToken.Location)));
         }
 
         if (TryMatch(TokenKind.CodeBlock, out var codeBlockToken))
         {
-            return ApplyPostfixAccess(ParseAdjacentStringLiterals(new StringSyntax(codeBlockToken.Text)));
+            return ApplyPostfixAccess(ParseAdjacentStringLiterals(new StringSyntax(codeBlockToken.Text, codeBlockToken.Location)));
         }
 
         if (TryMatch(TokenKind.Identifier, out var identifierToken))
@@ -524,11 +524,11 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.BangKeyword, out var bangToken))
         {
-            var bang = ParseBangExpression(bangToken.Text);
+            var bang = ParseBangExpression(bangToken.Text, bangToken.Location);
             return bang.IsSuccess ? ApplyPostfixAccess(bang.Value) : bang;
         }
 
-        if (TryMatch(TokenKind.LBracket))
+        if (TryMatch(TokenKind.LBracket, out var listOpen))
         {
             var items = new List<ExpressionSyntax>();
             if (!TryMatch(TokenKind.RBracket))
@@ -545,10 +545,10 @@ internal sealed class Parser
                 if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
             }
 
-            return ApplyPostfixAccess(new ListSyntax(items));
+            return ApplyPostfixAccess(new ListSyntax(items, listOpen.Location));
         }
 
-        if (TryMatch(TokenKind.LParen))
+        if (TryMatch(TokenKind.LParen, out var dagOpen))
         {
             var operatorName = ExpectName("Expected a dag operator name.");
             if (!operatorName.IsSuccess) return Failure<ExpressionSyntax>(operatorName);
@@ -582,7 +582,7 @@ internal sealed class Parser
                 }
             }
 
-            return ApplyPostfixAccess(new DagSyntax(operatorName.Value.Text, arguments));
+            return ApplyPostfixAccess(new DagSyntax(operatorName.Value.Text, arguments, dagOpen.Location));
         }
 
         return Error<ExpressionSyntax>("Expected an expression.");
@@ -598,10 +598,10 @@ internal sealed class Parser
             var bodyLets = ParseOptionalExtendsBody();
             if (!bodyLets.IsSuccess) return Failure<ExpressionSyntax>(bodyLets);
 
-            return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(token.Text, arguments.Value, bodyLets.Value.Items));
+            return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(token.Text, arguments.Value, bodyLets.Value.Items, token.Location));
         }
 
-        return ApplyPostfixAccess(new IdentifierSyntax(token.Text));
+        return ApplyPostfixAccess(new IdentifierSyntax(token.Text, token.Location));
     }
 
     private ExpressionSyntax ParseAdjacentStringLiterals(ExpressionSyntax left)
@@ -610,13 +610,15 @@ internal sealed class Parser
         {
             if (TryMatch(TokenKind.String, out var stringToken))
             {
-                left = new ConcatSyntax(left, new StringSyntax(stringToken.Text));
+                var right = new StringSyntax(stringToken.Text, stringToken.Location);
+                left = new ConcatSyntax(left, right, SourceLocation.Merge(left.Location, right.Location));
                 continue;
             }
 
             if (TryMatch(TokenKind.CodeBlock, out var codeBlockToken))
             {
-                left = new ConcatSyntax(left, new StringSyntax(codeBlockToken.Text));
+                var right = new StringSyntax(codeBlockToken.Text, codeBlockToken.Location);
+                left = new ConcatSyntax(left, right, SourceLocation.Merge(left.Location, right.Location));
                 continue;
             }
 
@@ -632,7 +634,7 @@ internal sealed class Parser
             {
                 var field = Expect(TokenKind.Identifier, "Expected a field name after '.'.");
                 if (!field.IsSuccess) return Failure<ExpressionSyntax>(field);
-                expr = new FieldAccessSyntax(expr, field.Value.Text);
+                expr = new FieldAccessSyntax(expr, field.Value.Text, SourceLocation.Merge(expr.Location, field.Value.Location));
                 continue;
             }
 
@@ -644,7 +646,7 @@ internal sealed class Parser
                 var close = Expect(TokenKind.RBracket, "Expected ']' to close the subscript expression.");
                 if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
 
-                expr = new SubscriptSyntax(expr, index.Value);
+                expr = new SubscriptSyntax(expr, index.Value, SourceLocation.Merge(expr.Location, close.Value.Location));
                 continue;
             }
 
@@ -652,7 +654,7 @@ internal sealed class Parser
         }
     }
 
-    private ParseResult<ExpressionSyntax> ParseBangExpression(string operatorName)
+    private ParseResult<ExpressionSyntax> ParseBangExpression(string operatorName, SourceLocation location)
     {
         string? typeArgument = null;
         if (TryMatch(TokenKind.LessThan))
@@ -687,7 +689,7 @@ internal sealed class Parser
             if (!body.IsSuccess) return body;
             var close = Expect(TokenKind.RParen, "Expected ')' to close '!foldl'.");
             if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
-            return ParseResult<ExpressionSyntax>.Success(new FoldlSyntax(init.Value, list.Value, accVar.Value.Text, curVar.Value.Text, body.Value));
+            return ParseResult<ExpressionSyntax>.Success(new FoldlSyntax(init.Value, list.Value, accVar.Value.Text, curVar.Value.Text, body.Value, location));
         }
 
         if (operatorName == "foreach")
@@ -706,7 +708,7 @@ internal sealed class Parser
             if (!body.IsSuccess) return body;
             var close = Expect(TokenKind.RParen, "Expected ')' to close '!foreach'.");
             if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
-            return ParseResult<ExpressionSyntax>.Success(new ForeachSyntax(varName.Value.Text, list.Value, body.Value));
+            return ParseResult<ExpressionSyntax>.Success(new ForeachSyntax(varName.Value.Text, list.Value, body.Value, location));
         }
 
         if (operatorName == "filter")
@@ -725,7 +727,7 @@ internal sealed class Parser
             if (!predicate.IsSuccess) return predicate;
             var close = Expect(TokenKind.RParen, "Expected ')' to close '!filter'.");
             if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
-            return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax("filter", [new IdentifierSyntax(varName.Value.Text), list.Value, predicate.Value], typeArgument));
+            return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax("filter", [new IdentifierSyntax(varName.Value.Text, varName.Value.Location), list.Value, predicate.Value], typeArgument, location));
         }
 
         if (operatorName == "cond")
@@ -759,7 +761,7 @@ internal sealed class Parser
                 if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
             }
 
-            return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax("cond", condArgs));
+            return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax("cond", condArgs, location: location));
         }
 
         var genericOpen = Expect(TokenKind.LParen, $"Expected '(' after '!{operatorName}'.");
@@ -780,7 +782,7 @@ internal sealed class Parser
             if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
         }
 
-        return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax(operatorName, args, typeArgument));
+        return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax(operatorName, args, typeArgument, location));
     }
 
     private ParseResult<string> ParseTypeArgument()

@@ -78,7 +78,7 @@ public sealed class IncludeTests
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
         var document = Document.Load(mainSource, resolver).Value;
-        var record = document.Evaluate().Records.Single();
+        var record = document.Evaluate().Value.Records.Single();
 
         Assert.Equal("Example", record.Name);
         Assert.Equal("hello", Assert.IsType<StringValue>(record.GetField("Tag")).Value);
@@ -127,7 +127,7 @@ public sealed class IncludeTests
         var document = Document.Load(main, resolver).Value;
 
         // Declarations appear in include-expansion order: L2, L1, L0.
-        var names = document.Evaluate().Records.Select(static r => r.Name).ToArray();
+        var names = document.Evaluate().Value.Records.Select(static r => r.Name).ToArray();
         Assert.Equal(["L2", "L1", "L0"], names);
     }
 
@@ -190,7 +190,7 @@ public sealed class IncludeTests
         var document = Document.Load("include \"shared.td\"", composite).Value;
 
         // The first resolver wins.
-        var record = document.Evaluate().Records.Single();
+        var record = document.Evaluate().Value.Records.Single();
         Assert.Equal("FromFirst", record.Name);
         Assert.Equal(1L, Assert.IsType<IntegerValue>(record.GetField("X")).Value);
     }
@@ -208,7 +208,7 @@ public sealed class IncludeTests
         var composite = new CompositeIncludeResolver(first, second);
         var document = Document.Load("include \"only-in-second.td\"", composite).Value;
 
-        var record = document.Evaluate().Records.Single();
+        var record = document.Evaluate().Value.Records.Single();
         Assert.Equal("FromSecond", record.Name);
     }
 

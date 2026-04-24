@@ -1,5 +1,7 @@
 namespace TableGen.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a TableGen !foreach expression.
 /// Evaluates body for each element of list, binding the element to varName.
@@ -7,7 +9,8 @@ namespace TableGen.Syntax;
 public sealed class ForeachSyntax(
     string varName,
     ExpressionSyntax list,
-    ExpressionSyntax body) : ExpressionSyntax
+    ExpressionSyntax body,
+    SourceLocation location = default) : ExpressionSyntax(location)
 {
     /// <summary>
     /// Gets the name of the loop variable bound to each list element.

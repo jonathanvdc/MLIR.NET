@@ -54,7 +54,7 @@ public sealed class DialectImporterTests
             "  let assemblyFormat = \"$lhs `,` $rhs attr-dict `:` type($result)\";\n" +
             "};";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         Assert.Equal(2, dialects.Count);
         var prelude = dialects[0];
@@ -141,7 +141,7 @@ public sealed class DialectImporterTests
             "def MyTest_AllTraitsOp : MyTest_Op<\"alltraits\",\n" +
             "    [MySimpleTrait, MyNativeTrait, MyTraitList, MyGenInternal]>;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "mytest");
         var op = Assert.Single(dialect.Operations);
@@ -188,7 +188,7 @@ public sealed class DialectImporterTests
             "\n" +
             "def MyDialect_FooOp : MyDialect_Op<\"foo\">;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         Assert.Equal(2, dialects.Count);
         var dialect = dialects[1];
@@ -237,7 +237,7 @@ public sealed class DialectImporterTests
             "  let assemblyFormat = \"`<` $value `>`\";\n" +
             "};";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         Assert.Equal(2, dialects.Count);
         var prelude = dialects[0];
@@ -275,7 +275,7 @@ public sealed class DialectImporterTests
         const string source =
             "include \"mlir/IR/BuiltinTypes.td\"\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
         var integer = Assert.Single(builtin.Types, static typeModel => typeModel.RecordName == "Builtin_Integer");
@@ -308,7 +308,7 @@ public sealed class DialectImporterTests
         const string source =
             "include \"mlir/IR/BuiltinAttributes.td\"\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
 
@@ -377,7 +377,7 @@ public sealed class DialectImporterTests
     {
         var dialects = DialectImporter.Import(
             GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(
-                "def MiniArith_Dialect : Dialect { let name = \"miniarith\"; let cppNamespace = \"::mlir::miniarith\"; }\n").Evaluate());
+                "def MiniArith_Dialect : Dialect { let name = \"miniarith\"; let cppNamespace = \"::mlir::miniarith\"; }\n").Evaluate().Value);
 
         Assert.Equal(2, dialects.Count);
         var prelude = dialects[0];
@@ -418,7 +418,7 @@ public sealed class DialectImporterTests
     public void ImportsMlirNetAssemblyExtensionOverlayForUpstreamSelectOp()
     {
         var dialects = DialectImporter.Import(
-            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Arith/IR/ArithOps.td\"").Evaluate());
+            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Arith/IR/ArithOps.td\"").Evaluate().Value);
 
         var arith = Assert.Single(dialects, static dialect => dialect.Name == "arith");
         var select = Assert.Single(arith.Operations, static operation => operation.Name == "arith.select");
@@ -431,7 +431,7 @@ public sealed class DialectImporterTests
     public void ImportsUnnamedVariadicResultsFromUpstreamFuncCall()
     {
         var dialects = DialectImporter.Import(
-            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Func/IR/FuncOps.td\"").Evaluate());
+            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Func/IR/FuncOps.td\"").Evaluate().Value);
 
         var func = Assert.Single(dialects, static dialect => dialect.Name == "func");
         var call = Assert.Single(func.Operations, static operation => operation.Name == "func.call");
@@ -445,7 +445,7 @@ public sealed class DialectImporterTests
     public void ImportsMlirNetAssemblyExtensionOverlayForUpstreamFuncOp()
     {
         var dialects = DialectImporter.Import(
-            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Func/IR/FuncOps.td\"").Evaluate());
+            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/Dialect/Func/IR/FuncOps.td\"").Evaluate().Value);
 
         var func = Assert.Single(dialects, static dialect => dialect.Name == "func");
         var funcOp = Assert.Single(func.Operations, static operation => operation.Name == "func.func");
@@ -458,7 +458,7 @@ public sealed class DialectImporterTests
     public void ImportsBuiltinModuleOpFromPrelude()
     {
         var dialects = DialectImporter.Import(
-            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/IR/BuiltinOps.td\"").Evaluate());
+            GeneratorTestHelpers.LoadTableGenFromPrelude("include \"mlir/IR/BuiltinOps.td\"").Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "builtin");
         var moduleOp = Assert.Single(dialect.Operations, static op => op.Name == "builtin.module");
@@ -483,7 +483,7 @@ public sealed class DialectImporterTests
             "  let parameters = (ins \"unsigned\":$first, \"unsigned\":$second);\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_PairAttr");
@@ -515,7 +515,7 @@ public sealed class DialectImporterTests
             "  let parameters = (ins StringRefParameter<\"the name\">:$value);\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_NamedAttr");
@@ -544,7 +544,7 @@ public sealed class DialectImporterTests
             "};\n" +
             "def MyP_FooAttr : MyP_Attr<\"foo\">;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var prelude = Assert.Single(dialects, static d => d.Name == "prelude");
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
@@ -688,7 +688,7 @@ public sealed class DialectImporterTests
         const string source =
             "include \"mlir/IR/BuiltinAttributes.td\"\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
 
@@ -741,7 +741,7 @@ public sealed class DialectImporterTests
             "  let parameters = (ins \"unsigned\":$rank, StringRefParameter<\"element kind\">:$kind);\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var type = Assert.Single(dialect.Types, static t => t.RecordName == "MyP_VecType");
@@ -781,7 +781,7 @@ public sealed class DialectImporterTests
             "  let assemblyFormat = \"`<` $width `>`\";\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var type = Assert.Single(dialect.Types, static t => t.RecordName == "MyP_OpaqueType");
@@ -812,7 +812,7 @@ public sealed class DialectImporterTests
             "  let parameters = (ins StringRefParameter<\"label\", \"default\">:$label);\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_OptAttr");
@@ -847,7 +847,7 @@ public sealed class DialectImporterTests
             "  let parameters = (ins MyCustomIntParam<\"width\">:$width);\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_CustomAttr");
@@ -874,7 +874,7 @@ public sealed class DialectImporterTests
             "};\n" +
             "def MyP_UnitAttr : MyP_Attr<\"unit\">;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_UnitAttr");
@@ -899,7 +899,7 @@ public sealed class DialectImporterTests
             "  let assemblyFormat = \"`<` $value `>`\";\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_OpaqueAttr");
@@ -943,7 +943,7 @@ public sealed class DialectImporterTests
             "  let assemblyFormat = \"`<` $name `>`\";\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_IdAttr");
@@ -978,7 +978,7 @@ public sealed class DialectImporterTests
             "  let assemblyFormat = \"`<` $name `>`\";\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_IdAttr");
@@ -1010,7 +1010,7 @@ public sealed class DialectImporterTests
             "  let csharpParameters = (ins \"System.Numerics.BigInteger\":$value);\n" +
             "}\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_ValueAttr");
@@ -1047,7 +1047,7 @@ public sealed class DialectImporterTests
             "  let csharpParameters = (ins StringRefParameter<\"the label\">:$label);\n" +
             "}\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_LabelAttr");
@@ -1087,7 +1087,7 @@ public sealed class DialectImporterTests
             "  );\n" +
             "}\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_PairAttr");
@@ -1129,7 +1129,7 @@ public sealed class DialectImporterTests
             "  let csharpParameters = (ins \"int\":$second);\n" +
             "}\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myp");
         var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_TripleAttr");
@@ -1162,7 +1162,7 @@ public sealed class DialectImporterTests
         const string source =
             "include \"mlir/IR/BuiltinAttributes.td\"\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var prelude = dialects[0];
 
@@ -1196,7 +1196,7 @@ public sealed class DialectImporterTests
         const string source =
             "include \"mlir/IR/BuiltinAttributes.td\"\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
 
@@ -1259,7 +1259,7 @@ public sealed class DialectImporterTests
             "def MyTrait_FooType : MyTrait_Type<\"foo\", [MySimpleTypeTrait]>;\n" +
             "def MyTrait_BarType : MyTrait_Type<\"bar\">;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "mytrait");
         var fooType = Assert.Single(dialect.Types, static t => t.RecordName == "MyTrait_FooType");
@@ -1288,7 +1288,7 @@ public sealed class DialectImporterTests
             "def MyAttrT_FooAttr : MyAttrT_Attr<\"foo\", [MySimpleAttrTrait]>;\n" +
             "def MyAttrT_BarAttr : MyAttrT_Attr<\"bar\">;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myattrt");
         var fooAttr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyAttrT_FooAttr");
@@ -1306,7 +1306,7 @@ public sealed class DialectImporterTests
         // with Kind == Type, not as a NativeTraitModel or SimpleTraitModel.
         const string source = "include \"mlir/IR/BuiltinTypes.td\"\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var builtin = Assert.Single(dialects, static d => d.Name == "builtin");
         var rankedTensor = Assert.Single(builtin.Types, static t => t.RecordName == "Builtin_RankedTensor");
@@ -1338,7 +1338,7 @@ public sealed class DialectImporterTests
             "};\n" +
             "def MyIf_FooOp : MyIf_Op<\"foo\", [MyCustomOpInterface]>;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myif");
         var fooOp = Assert.Single(dialect.Operations);
@@ -1372,7 +1372,7 @@ public sealed class DialectImporterTests
             "def MyDIM_Op1 : MyDIM_Op<\"op1\",\n" +
             "    [DeclareOpInterfaceMethods<MyMethodIface, [\"foo\"]>]>;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "mydim");
         var op1 = Assert.Single(dialect.Operations);
@@ -1403,7 +1403,7 @@ public sealed class DialectImporterTests
             "  ];\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var myimDialect = Assert.Single(dialects, static d => d.Name == "myim");
         var interfaceModel = Assert.Single(myimDialect.Interfaces, static i => i.RecordName == "MyTypeIface");
@@ -1445,7 +1445,7 @@ public sealed class DialectImporterTests
             "  ];\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myimx");
         var iface = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyTypeIface");
@@ -1491,7 +1491,7 @@ public sealed class DialectImporterTests
             "  let csharpInterfaceImplementations = [NamedImplementation];\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "mynamed");
         var iface = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyTypeIface");
@@ -1526,7 +1526,7 @@ public sealed class DialectImporterTests
             "  let cppNamespace = \"::mlir::mybase\";\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "mybase");
         var derived = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyDerivedTypeIface");
@@ -1556,7 +1556,7 @@ public sealed class DialectImporterTests
             "  ];\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myimpl");
         var type = Assert.Single(dialect.Types, static t => t.RecordName == "MyImpl_FooType");
@@ -1582,7 +1582,7 @@ public sealed class DialectImporterTests
             "\n" +
             "def Regress_AddOp : Regress_Op<\"add\", [Commutative]>;\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "regress");
         var op = Assert.Single(dialect.Operations);
@@ -1610,7 +1610,7 @@ public sealed class DialectImporterTests
             "  ];\n" +
             "};\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var dialect = Assert.Single(dialects, static d => d.Name == "myargs");
         var iface = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyArgsTypeIface");
@@ -1630,7 +1630,7 @@ public sealed class DialectImporterTests
         // prelude or builtin dialect as a TypeInterface.
         const string source = "include \"mlir/IR/BuiltinTypeInterfaces.td\"\n";
 
-        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
 
         var allInterfaces = dialects.SelectMany(static d => d.Interfaces).ToList();
         var vectorElemIface = Assert.Single(allInterfaces, static i => i.RecordName == "VectorElementTypeInterface");

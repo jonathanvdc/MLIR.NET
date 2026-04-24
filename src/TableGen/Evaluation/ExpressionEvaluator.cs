@@ -1,5 +1,6 @@
 namespace TableGen.Evaluation;
 
+using MLIR.Text;
 using System;
 using System.Collections.Generic;
 
@@ -18,12 +19,12 @@ internal sealed class ExpressionEvaluator
     /// <summary>
     /// Instantiates classes so expression-time class calls can compute field values.
     /// </summary>
-    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, IReadOnlyList<LetSyntax>, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass;
+    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, IReadOnlyList<LetSyntax>, TryResolveValue?, ParseResult<AnonymousRecordValue>> instantiateClass;
 
     /// <summary>
     /// Builds top-level definitions on demand for record field access.
     /// </summary>
-    private readonly Func<DefSyntax, EvaluationResult<Record>> buildDefinition;
+    private readonly Func<DefSyntax, ParseResult<Record>> buildDefinition;
 
     /// <summary>
     /// Resolves identifiers and <c>!isa</c> queries using document-wide state.
@@ -40,7 +41,7 @@ internal sealed class ExpressionEvaluator
     /// </summary>
     /// <param name="name">The name to resolve.</param>
     /// <returns>The resolved value or a diagnostic.</returns>
-    internal delegate EvaluationResult<Value> TryResolveValue(string name);
+    internal delegate ParseResult<Value> TryResolveValue(string name);
 
     /// <summary>
     /// Initializes a new expression evaluator.
@@ -50,8 +51,8 @@ internal sealed class ExpressionEvaluator
     /// <param name="buildDefinition">Callback used for on-demand record building.</param>
     public ExpressionEvaluator(
         EvaluationContext context,
-        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, IReadOnlyList<LetSyntax>, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass,
-        Func<DefSyntax, EvaluationResult<Record>> buildDefinition)
+        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, IReadOnlyList<LetSyntax>, TryResolveValue?, ParseResult<AnonymousRecordValue>> instantiateClass,
+        Func<DefSyntax, ParseResult<Record>> buildDefinition)
     {
         this.context = context;
         this.instantiateClass = instantiateClass;
@@ -67,7 +68,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The evaluated value or a diagnostic.</returns>
-    public EvaluationResult<Value> TryEvaluate(
+    public ParseResult<Value> TryEvaluate(
         ExpressionSyntax expression,
         Scope scope,
         TryResolveValue? tryResolveValue = null)
@@ -103,29 +104,8 @@ internal sealed class ExpressionEvaluator
             case ClassInstantiationSyntax instantiation:
                 return EvaluateClassInstantiation(instantiation, scope, tryResolveValue);
             default:
-                return Failure(InvalidOperation("Unknown TableGen expression."));
+                return Failure(InvalidOperation("Unknown TableGen expression.", expression.Location));
         }
-    }
-
-    /// <summary>
-    /// Evaluates an expression and throws if evaluation fails.
-    /// </summary>
-    /// <param name="expression">The syntax node to evaluate.</param>
-    /// <param name="scope">The current lexical scope.</param>
-    /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
-    /// <returns>The evaluated value.</returns>
-    public Value Evaluate(
-        ExpressionSyntax expression,
-        Scope scope,
-        TryResolveValue? tryResolveValue = null)
-    {
-        var result = TryEvaluate(expression, scope, tryResolveValue);
-        if (!result.IsSuccess)
-        {
-            throw result.Diagnostic!.ToException();
-        }
-
-        return result.Value;
     }
 
     /// <summary>
@@ -135,7 +115,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The evaluated list value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateList(
+    private ParseResult<Value> TryEvaluateList(
         ListSyntax list,
         Scope scope,
         TryResolveValue? tryResolveValue)
@@ -162,7 +142,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The evaluated dag value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateDag(
+    private ParseResult<Value> TryEvaluateDag(
         DagSyntax dag,
         Scope scope,
         TryResolveValue? tryResolveValue)
@@ -189,7 +169,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The concatenated string value or a diagnostic.</returns>
-    private EvaluationResult<Value> EvaluateConcatenation(
+    private ParseResult<Value> EvaluateConcatenation(
         ConcatSyntax concat,
         Scope scope,
         TryResolveValue? tryResolveValue)
@@ -239,7 +219,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The final accumulator value or a diagnostic.</returns>
-    private EvaluationResult<Value> EvaluateFoldl(
+    private ParseResult<Value> EvaluateFoldl(
         FoldlSyntax foldl,
         Scope scope,
         TryResolveValue? tryResolveValue)
@@ -258,7 +238,7 @@ internal sealed class ExpressionEvaluator
 
         if (listValue.Value is not ListValue list)
         {
-            return Failure(InvalidCast("Expected a list value."));
+            return Failure(InvalidCast("Expected a list value.", foldl.List.Location));
         }
 
         var current = accValue.Value;
@@ -285,14 +265,14 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The requested field value or a diagnostic.</returns>
-    private EvaluationResult<Value> EvaluateClassInstantiation(
+    private ParseResult<Value> EvaluateClassInstantiation(
         ClassInstantiationSyntax instantiation,
         Scope scope,
         TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(instantiation.ClassName, out var classSyntax))
         {
-            return Failure(MissingKey($"Unknown TableGen class '{instantiation.ClassName}'."));
+            return Failure(MissingKey($"Unknown TableGen class '{instantiation.ClassName}'.", instantiation.Location));
         }
 
         var record = instantiateClass(classSyntax, instantiation.Arguments, scope, EmptyLets, tryResolveValue);
@@ -303,7 +283,7 @@ internal sealed class ExpressionEvaluator
 
         return record.Value.Fields.TryGetValue(instantiation.FieldName, out var fieldValue)
             ? Success(fieldValue)
-            : Failure(MissingKey($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'."));
+            : Failure(MissingKey($"Class '{instantiation.ClassName}' has no field '{instantiation.FieldName}'.", instantiation.Location));
     }
 
     /// <summary>
@@ -313,14 +293,14 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The anonymous record value or a diagnostic.</returns>
-    private EvaluationResult<Value> EvaluateAnonymousClassInstantiation(
+    private ParseResult<Value> EvaluateAnonymousClassInstantiation(
         AnonymousClassInstantiationSyntax inst,
         Scope scope,
         TryResolveValue? tryResolveValue)
     {
         if (!context.Classes.TryGetValue(inst.ClassName, out var classSyntax))
         {
-            return Failure(MissingKey($"Unknown TableGen class '{inst.ClassName}'."));
+            return Failure(MissingKey($"Unknown TableGen class '{inst.ClassName}'.", inst.Location));
         }
 
         var record = instantiateClass(classSyntax, inst.Arguments, scope, inst.BodyLets, tryResolveValue);
@@ -338,7 +318,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The field value when present, otherwise <see cref="UnsetValue"/>.</returns>
-    private EvaluationResult<Value> EvaluateFieldAccess(
+    private ParseResult<Value> EvaluateFieldAccess(
         FieldAccessSyntax fieldAccess,
         Scope scope,
         TryResolveValue? tryResolveValue)
@@ -375,7 +355,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The indexed value or a diagnostic.</returns>
-    private EvaluationResult<Value> EvaluateSubscript(
+    private ParseResult<Value> EvaluateSubscript(
         SubscriptSyntax subscript,
         Scope scope,
         TryResolveValue? tryResolveValue)
@@ -396,20 +376,20 @@ internal sealed class ExpressionEvaluator
         {
             case ListValue list:
             {
-                var normalized = ValueUtilities.TryNormalizeIndex(index.Value, list.Items.Count, "list subscript");
+                var normalized = ValueUtilities.TryNormalizeIndex(index.Value, list.Items.Count, "list subscript", subscript.Index.Location);
                 return normalized.IsSuccess
                     ? Success(list.Items[normalized.Value])
                     : Failure(normalized.Diagnostic!);
             }
             case StringValue str:
             {
-                var normalized = ValueUtilities.TryNormalizeIndex(index.Value, str.Value.Length, "string subscript");
+                var normalized = ValueUtilities.TryNormalizeIndex(index.Value, str.Value.Length, "string subscript", subscript.Index.Location);
                 return normalized.IsSuccess
                     ? Success(new StringValue(str.Value[normalized.Value].ToString()))
                     : Failure(normalized.Diagnostic!);
             }
             default:
-                return Failure(InvalidOperation($"Cannot subscript {target.Value.GetType().Name}."));
+                return Failure(InvalidOperation($"Cannot subscript {target.Value.GetType().Name}.", subscript.Location));
         }
     }
 
@@ -420,7 +400,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The resulting list value or a diagnostic.</returns>
-    private EvaluationResult<Value> EvaluateForeach(
+    private ParseResult<Value> EvaluateForeach(
         ForeachSyntax forEach,
         Scope scope,
         TryResolveValue? tryResolveValue)
@@ -433,7 +413,7 @@ internal sealed class ExpressionEvaluator
 
         if (listValue.Value is not ListValue list)
         {
-            return Failure(InvalidCast("Expected a list value."));
+            return Failure(InvalidCast("Expected a list value.", forEach.List.Location));
         }
 
         var results = new List<Value>(list.Items.Count);
@@ -460,7 +440,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
     /// <returns>The integer value or a diagnostic.</returns>
-    private EvaluationResult<int> TryEvaluateInteger(
+    private ParseResult<int> TryEvaluateInteger(
         ExpressionSyntax expression,
         Scope scope,
         TryResolveValue? tryResolveValue,
@@ -468,38 +448,41 @@ internal sealed class ExpressionEvaluator
     {
         var value = TryEvaluate(expression, scope, tryResolveValue);
         return !value.IsSuccess
-            ? EvaluationResult<int>.Failure(value.Diagnostic!)
-            : ValueUtilities.TryToInteger(value.Value, contextName);
+            ? ParseResult<int>.Failure(value.Diagnostic!)
+            : ValueUtilities.TryToInteger(value.Value, contextName, expression.Location);
     }
 
     /// <summary>
     /// Creates an invalid-operation diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic InvalidOperation(string message)
+    private static Diagnostic InvalidOperation(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
+        return new Diagnostic(message, location);
     }
 
     /// <summary>
     /// Creates a missing-key diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic MissingKey(string message)
+    private static Diagnostic MissingKey(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.MissingKey, message);
+        return new Diagnostic(message, location);
     }
 
     /// <summary>
     /// Creates an invalid-cast diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic InvalidCast(string message)
+    private static Diagnostic InvalidCast(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidCast, message);
+        return new Diagnostic(message, location);
     }
 
     /// <summary>
@@ -507,9 +490,9 @@ internal sealed class ExpressionEvaluator
     /// </summary>
     /// <param name="value">The computed value.</param>
     /// <returns>A successful evaluation result.</returns>
-    private static EvaluationResult<Value> Success(Value value)
+    private static ParseResult<Value> Success(Value value)
     {
-        return EvaluationResult<Value>.Success(value);
+        return ParseResult<Value>.Success(value);
     }
 
     /// <summary>
@@ -517,8 +500,8 @@ internal sealed class ExpressionEvaluator
     /// </summary>
     /// <param name="diagnostic">The diagnostic describing the failure.</param>
     /// <returns>A failed evaluation result.</returns>
-    private static EvaluationResult<Value> Failure(EvaluationDiagnostic diagnostic)
+    private static ParseResult<Value> Failure(Diagnostic diagnostic)
     {
-        return EvaluationResult<Value>.Failure(diagnostic);
+        return ParseResult<Value>.Failure(diagnostic);
     }
 }

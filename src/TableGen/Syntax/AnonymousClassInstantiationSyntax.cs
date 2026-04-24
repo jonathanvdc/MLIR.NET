@@ -1,6 +1,7 @@
 namespace TableGen.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a TableGen anonymous class instantiation expression, e.g. ClassName&lt;args&gt;.
@@ -9,7 +10,8 @@ using System.Collections.Generic;
 public sealed class AnonymousClassInstantiationSyntax(
     string className,
     IReadOnlyList<ExpressionSyntax> arguments,
-    IReadOnlyList<LetSyntax>? bodyLets = null) : ExpressionSyntax
+    IReadOnlyList<LetSyntax>? bodyLets = null,
+    SourceLocation location = default) : ExpressionSyntax(location)
 {
     /// <summary>
     /// Gets the class name to instantiate.

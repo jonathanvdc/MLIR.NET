@@ -10,12 +10,12 @@ internal static class TestHelpers
 {
     public static Record EvaluateSingleRecord(string source)
     {
-        return Document.Parse(source).Value.Evaluate().Records.Single();
+        return Document.Parse(source).Value.Evaluate().Value.Records.Single();
     }
 
     public static Record EvaluateSingleRecordWithPrelude(string source)
     {
-        return LoadWithPrelude(source).Evaluate().Records.Single();
+        return LoadWithPrelude(source).Evaluate().Value.Records.Single();
     }
 
     public static Document LoadWithPrelude(string source)

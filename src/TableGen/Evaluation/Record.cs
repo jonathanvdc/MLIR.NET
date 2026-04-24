@@ -1,5 +1,6 @@
 namespace TableGen.Evaluation;
 
+using MLIR.Text;
 using System.Collections.Generic;
 
 /// <summary>
@@ -58,17 +59,18 @@ public sealed class Record(string name, IReadOnlyList<EvaluatedClass> baseClasse
     /// <c>def</c> target.
     /// </summary>
     /// <param name="overlayFields">The field values to merge into the record.</param>
+    /// <param name="location">The source location to attach to any conflict diagnostic.</param>
     /// <returns>A success flag or a diagnostic when the overlay conflicts with an existing field.</returns>
-    internal EvaluationResult<bool> ApplyOverlayFields(IReadOnlyDictionary<string, Value> overlayFields)
+    internal ParseResult<bool> ApplyOverlayFields(IReadOnlyDictionary<string, Value> overlayFields, SourceLocation location)
     {
         foreach (var pair in overlayFields)
         {
             if (fieldValues.ContainsKey(pair.Key))
             {
-                return EvaluationResult<bool>.Failure(
-                    new EvaluationDiagnostic(
-                        EvaluationDiagnosticKind.InvalidOperation,
-                        $"Record '{Name}' already defines field '{pair.Key}'."));
+                return ParseResult<bool>.Failure(
+                    new Diagnostic(
+                        $"Record '{Name}' already defines field '{pair.Key}'.",
+                        location));
             }
         }
 
@@ -77,6 +79,6 @@ public sealed class Record(string name, IReadOnlyList<EvaluatedClass> baseClasse
             fieldValues[pair.Key] = pair.Value;
         }
 
-        return EvaluationResult<bool>.Success(true);
+        return ParseResult<bool>.Success(true);
     }
 }

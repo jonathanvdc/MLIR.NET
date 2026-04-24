@@ -370,7 +370,7 @@ internal static class BenchmarkCases
         return new BenchmarkCase(
             manifest.Name,
             manifest.Description,
-            () => context.Consume(document.Evaluate()));
+            () => context.Consume(EvaluateDocumentForBenchmark(document)));
     }
 
     private static BenchmarkCase CreateParseAndEvaluateCase(
@@ -385,8 +385,16 @@ internal static class BenchmarkCases
             () =>
             {
                 var document = ParseDocumentForBenchmark(sourceText, resolver);
-                context.Consume(document.Evaluate());
+                context.Consume(EvaluateDocumentForBenchmark(document));
             });
+    }
+
+    private static InterpretedDocument EvaluateDocumentForBenchmark(Document document)
+    {
+        var result = document.Evaluate();
+        return result.IsSuccess
+            ? result.Value
+            : throw new InvalidOperationException(result.Diagnostic!.ToString());
     }
 
     private static Document ParseDocumentForBenchmark(string sourceText, IncludeResolver? resolver)

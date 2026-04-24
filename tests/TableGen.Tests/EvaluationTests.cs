@@ -71,9 +71,10 @@ public sealed class EvaluationTests
             "  let csharpAsmFormatCode = \"second\";\n" +
             "}";
 
-        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Value.Evaluate());
+        var result = Document.Parse(source).Value.Evaluate();
 
-        Assert.Contains("already defines field 'csharpAsmFormatCode'", exception.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("already defines field 'csharpAsmFormatCode'", result.Diagnostic!.Message);
     }
 
     [Fact]
@@ -88,9 +89,10 @@ public sealed class EvaluationTests
             "  let notARealField = \"oops\";\n" +
             "}";
 
-        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Value.Evaluate());
+        var result = Document.Parse(source).Value.Evaluate();
 
-        Assert.Contains("not declared by any extension schema base", exception.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("not declared by any extension schema base", result.Diagnostic!.Message);
     }
 
     [Fact]
@@ -108,9 +110,10 @@ public sealed class EvaluationTests
             "  let common = \"value\";\n" +
             "}";
 
-        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Value.Evaluate());
+        var result = Document.Parse(source).Value.Evaluate();
 
-        Assert.Contains("defined by more than one base class", exception.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("defined by more than one base class", result.Diagnostic!.Message);
     }
 
     [Fact]
@@ -130,7 +133,7 @@ public sealed class EvaluationTests
             "  let csharpType = \"string\";\n" +
             "}";
 
-        var document = Document.Parse(source).Value.Evaluate();
+        var document = Document.Parse(source).Value.Evaluate().Value;
         var paramA = document.Records.Single(static r => r.Name == "ParamA");
         var paramB = document.Records.Single(static r => r.Name == "ParamB");
         var unrelated = document.Records.Single(static r => r.Name == "Unrelated");
@@ -175,7 +178,7 @@ public sealed class EvaluationTests
             "  let csharpType = \"default\";\n" +
             "}";
 
-        var document = Document.Parse(source).Value.Evaluate();
+        var document = Document.Parse(source).Value.Evaluate().Value;
         var explicit_ = document.Records.Single(static r => r.Name == "Explicit");
         var inherited = document.Records.Single(static r => r.Name == "Inherited");
 
@@ -268,7 +271,7 @@ public sealed class EvaluationTests
             "def Named : Base;\n" +
             "def Example : Holder;\n";
 
-        var document = Document.Parse(source).Value.Evaluate();
+        var document = Document.Parse(source).Value.Evaluate().Value;
         RecordLikeValue named = Assert.Single(document.Records, static record => record.Name == "Named");
         var example = Assert.Single(document.Records, static record => record.Name == "Example");
         var parameters = Assert.IsType<DagValue>(example.GetField("Params"));
@@ -372,7 +375,7 @@ public sealed class EvaluationTests
             "def First { int Width = 1; };\n" +
             "def Second { int Width = 2; };";
 
-        var document = Document.Parse(source).Value.Evaluate();
+        var document = Document.Parse(source).Value.Evaluate().Value;
 
         Assert.Equal(2, document.Records.Count);
         Assert.Equal(1, Assert.IsType<IntegerValue>(document.Records[0].GetField("Width")).Value);
@@ -406,7 +409,7 @@ public sealed class EvaluationTests
             "  let arguments = (ins I32:$lhs, I32:$rhs);\n" +
             "};";
 
-        var record = TestHelpers.LoadWithPrelude(source).Evaluate().Records.Single(static record => record.Name == "MiniArith_AddIOp");
+        var record = TestHelpers.LoadWithPrelude(source).Evaluate().Value.Records.Single(static record => record.Name == "MiniArith_AddIOp");
 
         Assert.Contains("MiniArith_Op", record.BaseClassNames);
         Assert.Contains("Op", record.BaseClassNames);
@@ -438,7 +441,7 @@ public sealed class EvaluationTests
             "  dag results = (outs I32:$out);\n" +
             "};";
 
-        var record = TestHelpers.LoadWithPrelude(source).Evaluate().Records.Single(static record => record.Name == "Example");
+        var record = TestHelpers.LoadWithPrelude(source).Evaluate().Value.Records.Single(static record => record.Name == "Example");
 
         var arguments = Assert.IsType<DagValue>(record.GetField("arguments"));
         var results = Assert.IsType<DagValue>(record.GetField("results"));
@@ -615,25 +618,32 @@ public sealed class EvaluationTests
             "def Example : Base<>;";
 
         var document = Document.Parse(source).Value;
-        var exception = Assert.Throws<InvalidOperationException>(() => document.Evaluate());
+        var result = document.Evaluate();
 
-        Assert.Contains("Missing value for template parameter 'width'", exception.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Missing value for template parameter 'width'", result.Diagnostic!.Message);
     }
 
     [Fact]
     public void ReportsUnknownBaseClasses()
     {
-        var exception = Assert.Throws<KeyNotFoundException>(() => Document.Parse("def Example : MissingBase;").Value.Evaluate());
+        var result = Document.Parse("def Example : MissingBase;").Value.Evaluate();
 
-        Assert.Contains("Unknown TableGen class 'MissingBase'.", exception.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Unknown TableGen class 'MissingBase'.", result.Diagnostic!.Message);
+        Assert.Equal(1, result.Diagnostic.Line);
+        Assert.Equal(15, result.Diagnostic.Column);
     }
 
     [Fact]
     public void ReportsTypeMismatchesForUnknownIdentifiersInTypedFields()
     {
-        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse("def Example { int Width = missing; };").Value.Evaluate());
+        var result = Document.Parse("def Example { int Width = missing; };").Value.Evaluate();
 
-        Assert.Contains("Expected an integer value", exception.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Expected an integer value", result.Diagnostic!.Message);
+        Assert.Equal(1, result.Diagnostic.Line);
+        Assert.Equal(27, result.Diagnostic.Column);
     }
 
     [Fact]
@@ -686,7 +696,7 @@ public sealed class EvaluationTests
             "  list<int> Result = [1, 2] # H.items;\n" +
             "};";
 
-        var evaluated = Document.Parse(source).Value.Evaluate();
+        var evaluated = Document.Parse(source).Value.Evaluate().Value;
         var record = evaluated.Records.Single(static r => r.Name == "Example");
         var result = Assert.IsType<ListValue>(record.GetField("Result"));
 
@@ -784,9 +794,12 @@ public sealed class EvaluationTests
             "  assert 0, \"boom\";\n" +
             "};";
 
-        var exception = Assert.Throws<InvalidOperationException>(() => Document.Parse(source).Value.Evaluate());
+        var result = Document.Parse(source).Value.Evaluate();
 
-        Assert.Contains("boom", exception.Message);
+        Assert.False(result.IsSuccess);
+        Assert.Contains("boom", result.Diagnostic!.Message);
+        Assert.Equal(2, result.Diagnostic.Line);
+        Assert.Equal(10, result.Diagnostic.Column);
     }
 
     [Fact]
@@ -897,7 +910,7 @@ public sealed class EvaluationTests
             "def TestEmpty  : firstCharToUpper<\"\">;\n" +
             "def TestUpper  : firstCharToUpper<\"World\">;";
 
-        var doc = Document.Parse(source).Value.Evaluate();
+        var doc = Document.Parse(source).Value.Evaluate().Value;
         var normal = doc.Records.Single(static r => r.Name == "TestNormal");
         var empty = doc.Records.Single(static r => r.Name == "TestEmpty");
         var upper = doc.Records.Single(static r => r.Name == "TestUpper");
@@ -938,7 +951,7 @@ public sealed class EvaluationTests
             "def TestOnce    : snakeCaseToCamelCase<\"snake_case\">;\n" +
             "def TestTwice   : snakeCaseToCamelCase<\"snake_case_example\">;";
 
-        var doc = Document.Parse(source).Value.Evaluate();
+        var doc = Document.Parse(source).Value.Evaluate().Value;
         var simple = doc.Records.Single(static r => r.Name == "TestSimple");
         var once = doc.Records.Single(static r => r.Name == "TestOnce");
         var twice = doc.Records.Single(static r => r.Name == "TestTwice");
@@ -1004,7 +1017,7 @@ def TestArgDef  : CArg<""void *"">;
 def TestCamel   : snakeCaseToCamelCase<""get_op_name"">;
 ";
 
-        var doc = Document.Parse(source).Value.Evaluate();
+        var doc = Document.Parse(source).Value.Evaluate().Value;
 
         var dep = doc.Records.Single(static r => r.Name == "TestDep");
         Assert.Equal("use something else", Assert.IsType<StringValue>(dep.GetField("odsDeprecated")).Value);

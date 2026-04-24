@@ -1,5 +1,6 @@
 namespace TableGen.Evaluation;
 
+using MLIR.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +25,7 @@ internal sealed class BangOperatorEvaluator
     /// <summary>
     /// Re-enters general expression evaluation for operator arguments and nested expressions.
     /// </summary>
-    private readonly Func<ExpressionSyntax, Scope, ExpressionEvaluator.TryResolveValue?, EvaluationResult<Value>> tryEvaluate;
+    private readonly Func<ExpressionSyntax, Scope, ExpressionEvaluator.TryResolveValue?, ParseResult<Value>> tryEvaluate;
 
     /// <summary>
     /// Initializes a bang-operator evaluator.
@@ -35,7 +36,7 @@ internal sealed class BangOperatorEvaluator
     public BangOperatorEvaluator(
         EvaluationContext context,
         IdentifierResolver identifierResolver,
-        Func<ExpressionSyntax, Scope, ExpressionEvaluator.TryResolveValue?, EvaluationResult<Value>> tryEvaluate)
+        Func<ExpressionSyntax, Scope, ExpressionEvaluator.TryResolveValue?, ParseResult<Value>> tryEvaluate)
     {
         this.context = context;
         this.identifierResolver = identifierResolver;
@@ -49,7 +50,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The evaluated value or a diagnostic.</returns>
-    public EvaluationResult<Value> Evaluate(
+    public ParseResult<Value> Evaluate(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -64,7 +65,7 @@ internal sealed class BangOperatorEvaluator
                     return Failure(cond.Diagnostic!);
                 }
 
-                var truthy = ValueUtilities.TryIsTruthy(cond.Value);
+                var truthy = ValueUtilities.TryIsTruthy(cond.Value, bangCall.Arguments[0].Location);
                 if (!truthy.IsSuccess)
                 {
                     return Failure(truthy.Diagnostic!);
@@ -103,7 +104,7 @@ internal sealed class BangOperatorEvaluator
                     return Failure(val.Diagnostic!);
                 }
 
-                var truthy = ValueUtilities.TryIsTruthy(val.Value);
+                var truthy = ValueUtilities.TryIsTruthy(val.Value, bangCall.Arguments[0].Location);
                 return truthy.IsSuccess
                     ? Success(new IntegerValue(truthy.Value ? 0 : 1))
                     : Failure(truthy.Diagnostic!);
@@ -120,7 +121,7 @@ internal sealed class BangOperatorEvaluator
                 {
                     StringValue str => Success(new IntegerValue(str.Value.Length)),
                     ListValue list => Success(new IntegerValue(list.Items.Count)),
-                    _ => Failure(InvalidOperation($"!size requires a string or list argument, got {val.Value.GetType().Name}.")),
+                    _ => Failure(InvalidOperation($"!size requires a string or list argument, got {val.Value.GetType().Name}.", bangCall.Arguments[0].Location)),
                 };
             }
             case "toupper":
@@ -163,7 +164,7 @@ internal sealed class BangOperatorEvaluator
             case "filter":
                 return TryEvaluateFilter(bangCall, scope, tryResolveValue);
             default:
-                return Failure(InvalidOperation($"Unknown bang operator '!{bangCall.OperatorName}'."));
+                return Failure(InvalidOperation($"Unknown bang operator '!{bangCall.OperatorName}'.", bangCall.Location));
         }
     }
 
@@ -175,7 +176,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <param name="predicate">The integer comparison to apply.</param>
     /// <returns>An integer-as-bool result or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateIntegerComparison(
+    private ParseResult<Value> TryEvaluateIntegerComparison(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue,
@@ -201,7 +202,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <param name="expectedEqual">Indicates whether the operator expects equality or inequality.</param>
     /// <returns>An integer-as-bool result or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateEquality(
+    private ParseResult<Value> TryEvaluateEquality(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue,
@@ -232,7 +233,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
     /// <param name="operation">The integer operation to apply.</param>
     /// <returns>The computed integer value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateIntegerBinary(
+    private ParseResult<Value> TryEvaluateIntegerBinary(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue,
@@ -260,7 +261,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
     /// <param name="operation">The string transformation to apply.</param>
     /// <returns>The transformed string value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateUnaryString(
+    private ParseResult<Value> TryEvaluateUnaryString(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue,
@@ -280,7 +281,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The substring result or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateSubstr(
+    private ParseResult<Value> TryEvaluateSubstr(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -320,7 +321,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The found index or <c>-1</c> if missing, wrapped as an integer value.</returns>
-    private EvaluationResult<Value> TryEvaluateFind(
+    private ParseResult<Value> TryEvaluateFind(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -339,7 +340,7 @@ internal sealed class BangOperatorEvaluator
 
         var startIndex = bangCall.Arguments.Count >= 3
             ? TryEvaluateInteger(bangCall.Arguments[2], scope, tryResolveValue, "!find")
-            : EvaluationResult<int>.Success(0);
+            : ParseResult<int>.Success(0);
         if (!startIndex.IsSuccess)
         {
             return Failure(startIndex.Diagnostic!);
@@ -355,7 +356,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The generated integer list or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateRange(
+    private ParseResult<Value> TryEvaluateRange(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -388,7 +389,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The concatenated list value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateListConcat(
+    private ParseResult<Value> TryEvaluateListConcat(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -407,7 +408,7 @@ internal sealed class BangOperatorEvaluator
 
         if (a.Value is not ListValue left || b.Value is not ListValue right)
         {
-            return Failure(InvalidCast("Expected list arguments."));
+            return Failure(InvalidCast("Expected list arguments.", bangCall.Location));
         }
 
         var items = new List<Value>(left.Items.Count + right.Items.Count);
@@ -423,7 +424,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The concatenated string value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateStrConcat(
+    private ParseResult<Value> TryEvaluateStrConcat(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -437,7 +438,7 @@ internal sealed class BangOperatorEvaluator
                 return Failure(value.Diagnostic!);
             }
 
-            var text = ValueUtilities.TryToString(value.Value, "!strconcat");
+            var text = ValueUtilities.TryToString(value.Value, "!strconcat", arg.Location);
             if (!text.IsSuccess)
             {
                 return Failure(text.Diagnostic!);
@@ -456,7 +457,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The selected branch value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateCond(
+    private ParseResult<Value> TryEvaluateCond(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -469,7 +470,7 @@ internal sealed class BangOperatorEvaluator
                 return Failure(condition.Diagnostic!);
             }
 
-            var truthy = ValueUtilities.TryIsTruthy(condition.Value);
+            var truthy = ValueUtilities.TryIsTruthy(condition.Value, bangCall.Arguments[i].Location);
             if (!truthy.IsSuccess)
             {
                 return Failure(truthy.Diagnostic!);
@@ -481,7 +482,7 @@ internal sealed class BangOperatorEvaluator
             }
         }
 
-        return Failure(InvalidOperation("!cond requires at least one true condition."));
+        return Failure(InvalidOperation("!cond requires at least one true condition.", bangCall.Location));
     }
 
     /// <summary>
@@ -491,7 +492,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The interleaved string result or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateInterleave(
+    private ParseResult<Value> TryEvaluateInterleave(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -510,7 +511,7 @@ internal sealed class BangOperatorEvaluator
 
         if (listVal.Value is not ListValue list)
         {
-            return Failure(InvalidCast("Expected a list value."));
+            return Failure(InvalidCast("Expected a list value.", bangCall.Arguments[0].Location));
         }
 
         var items = new List<string>(list.Items.Count);
@@ -535,7 +536,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The substituted string result or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateSubst(
+    private ParseResult<Value> TryEvaluateSubst(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -565,7 +566,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The first list element or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateHead(
+    private ParseResult<Value> TryEvaluateHead(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -578,11 +579,11 @@ internal sealed class BangOperatorEvaluator
 
         if (list.Value is not ListValue values)
         {
-            return Failure(InvalidCast("Expected a list value."));
+            return Failure(InvalidCast("Expected a list value.", bangCall.Arguments[0].Location));
         }
 
         return values.Items.Count == 0
-            ? Failure(InvalidOperation("!head requires a non-empty list."))
+            ? Failure(InvalidOperation("!head requires a non-empty list.", bangCall.Location))
             : Success(values.Items[0]);
     }
 
@@ -593,7 +594,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The tail list or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateTail(
+    private ParseResult<Value> TryEvaluateTail(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -606,11 +607,11 @@ internal sealed class BangOperatorEvaluator
 
         if (list.Value is not ListValue values)
         {
-            return Failure(InvalidCast("Expected a list value."));
+            return Failure(InvalidCast("Expected a list value.", bangCall.Arguments[0].Location));
         }
 
         return values.Items.Count == 0
-            ? Failure(InvalidOperation("!tail requires a non-empty list."))
+            ? Failure(InvalidOperation("!tail requires a non-empty list.", bangCall.Location))
             : Success(new ListValue(values.Items.Skip(1).ToList()));
     }
 
@@ -621,7 +622,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>An integer-as-bool result.</returns>
-    private EvaluationResult<Value> TryEvaluateEmpty(
+    private ParseResult<Value> TryEvaluateEmpty(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -648,7 +649,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <returns>The filtered list or a diagnostic.</returns>
-    private EvaluationResult<Value> TryEvaluateFilter(
+    private ParseResult<Value> TryEvaluateFilter(
         BangCallSyntax bangCall,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
@@ -662,7 +663,7 @@ internal sealed class BangOperatorEvaluator
 
         if (listValue.Value is not ListValue list)
         {
-            return Failure(InvalidCast("Expected a list value."));
+            return Failure(InvalidCast("Expected a list value.", bangCall.Arguments[1].Location));
         }
 
         var results = new List<Value>();
@@ -675,7 +676,7 @@ internal sealed class BangOperatorEvaluator
                 return Failure(condition.Diagnostic!);
             }
 
-            var truthy = ValueUtilities.TryIsTruthy(condition.Value);
+            var truthy = ValueUtilities.TryIsTruthy(condition.Value, bangCall.Arguments[2].Location);
             if (!truthy.IsSuccess)
             {
                 return Failure(truthy.Diagnostic!);
@@ -698,7 +699,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
     /// <returns>The integer value or a diagnostic.</returns>
-    private EvaluationResult<int> TryEvaluateInteger(
+    private ParseResult<int> TryEvaluateInteger(
         ExpressionSyntax expression,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue,
@@ -706,8 +707,8 @@ internal sealed class BangOperatorEvaluator
     {
         var value = tryEvaluate(expression, scope, tryResolveValue);
         return !value.IsSuccess
-            ? EvaluationResult<int>.Failure(value.Diagnostic!)
-            : ValueUtilities.TryToInteger(value.Value, contextName);
+            ? ParseResult<int>.Failure(value.Diagnostic!)
+            : ValueUtilities.TryToInteger(value.Value, contextName, expression.Location);
     }
 
     /// <summary>
@@ -718,7 +719,7 @@ internal sealed class BangOperatorEvaluator
     /// <param name="tryResolveValue">Optional deferred resolver for field references.</param>
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
     /// <returns>The string value or a diagnostic.</returns>
-    private EvaluationResult<string> TryEvaluateString(
+    private ParseResult<string> TryEvaluateString(
         ExpressionSyntax expression,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue,
@@ -726,28 +727,30 @@ internal sealed class BangOperatorEvaluator
     {
         var value = tryEvaluate(expression, scope, tryResolveValue);
         return !value.IsSuccess
-            ? EvaluationResult<string>.Failure(value.Diagnostic!)
-            : ValueUtilities.TryToString(value.Value, contextName);
+            ? ParseResult<string>.Failure(value.Diagnostic!)
+            : ValueUtilities.TryToString(value.Value, contextName, expression.Location);
     }
 
     /// <summary>
     /// Creates an invalid-operation diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic InvalidOperation(string message)
+    private static Diagnostic InvalidOperation(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
+        return new Diagnostic(message, location);
     }
 
     /// <summary>
     /// Creates an invalid-cast diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic InvalidCast(string message)
+    private static Diagnostic InvalidCast(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidCast, message);
+        return new Diagnostic(message, location);
     }
 
     /// <summary>
@@ -755,9 +758,9 @@ internal sealed class BangOperatorEvaluator
     /// </summary>
     /// <param name="value">The computed value.</param>
     /// <returns>A successful evaluation result.</returns>
-    private static EvaluationResult<Value> Success(Value value)
+    private static ParseResult<Value> Success(Value value)
     {
-        return EvaluationResult<Value>.Success(value);
+        return ParseResult<Value>.Success(value);
     }
 
     /// <summary>
@@ -765,8 +768,8 @@ internal sealed class BangOperatorEvaluator
     /// </summary>
     /// <param name="diagnostic">The diagnostic describing the failure.</param>
     /// <returns>A failed evaluation result.</returns>
-    private static EvaluationResult<Value> Failure(EvaluationDiagnostic diagnostic)
+    private static ParseResult<Value> Failure(Diagnostic diagnostic)
     {
-        return EvaluationResult<Value>.Failure(diagnostic);
+        return ParseResult<Value>.Failure(diagnostic);
     }
 }

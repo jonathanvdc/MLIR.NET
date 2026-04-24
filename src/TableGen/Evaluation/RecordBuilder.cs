@@ -1,5 +1,6 @@
 namespace TableGen.Evaluation;
 
+using MLIR.Text;
 using System;
 using System.Collections.Generic;
 using TableGen.Syntax;
@@ -53,7 +54,7 @@ internal sealed class RecordBuilder
     /// Evaluates the entire document into concrete records.
     /// </summary>
     /// <returns>The interpreted document on success, or a diagnostic on failure.</returns>
-    public EvaluationResult<InterpretedDocument> BuildDocument()
+    public ParseResult<InterpretedDocument> BuildDocument()
     {
         var emptyScope = Scope.Empty;
 
@@ -63,7 +64,7 @@ internal sealed class RecordBuilder
             var defvarValue = expressionEvaluator.TryEvaluate(defvar.Value, emptyScope);
             if (!defvarValue.IsSuccess)
             {
-                return EvaluationResult<InterpretedDocument>.Failure(defvarValue.Diagnostic!);
+                return ParseResult<InterpretedDocument>.Failure(defvarValue.Diagnostic!);
             }
 
             context.DefvarValues[defvar.Name] = defvarValue.Value;
@@ -75,7 +76,7 @@ internal sealed class RecordBuilder
             var record = BuildDefinition(definition);
             if (!record.IsSuccess)
             {
-                return EvaluationResult<InterpretedDocument>.Failure(record.Diagnostic!);
+                return ParseResult<InterpretedDocument>.Failure(record.Diagnostic!);
             }
 
             records.Add(record.Value);
@@ -86,11 +87,11 @@ internal sealed class RecordBuilder
             var applied = ApplyExtension(extension);
             if (!applied.IsSuccess)
             {
-                return EvaluationResult<InterpretedDocument>.Failure(applied.Diagnostic!);
+                return ParseResult<InterpretedDocument>.Failure(applied.Diagnostic!);
             }
         }
 
-        return EvaluationResult<InterpretedDocument>.Success(new InterpretedDocument(records));
+        return ParseResult<InterpretedDocument>.Success(new InterpretedDocument(records));
     }
 
     /// <summary>
@@ -98,11 +99,11 @@ internal sealed class RecordBuilder
     /// </summary>
     /// <param name="definition">The definition to evaluate.</param>
     /// <returns>The fully evaluated record or a diagnostic.</returns>
-    public EvaluationResult<Record> BuildDefinition(DefSyntax definition)
+    public ParseResult<Record> BuildDefinition(DefSyntax definition)
     {
         if (evaluatedDefinitions.TryGetValue(definition.Name, out var existingRecord))
         {
-            return EvaluationResult<Record>.Success(existingRecord);
+            return ParseResult<Record>.Success(existingRecord);
         }
 
         var scope = Scope.Empty;
@@ -114,7 +115,7 @@ internal sealed class RecordBuilder
         var bases = ApplyPendingBases(definition.Bases, scope, state);
         if (!bases.IsSuccess)
         {
-            return EvaluationResult<Record>.Failure(bases.Diagnostic!);
+            return ParseResult<Record>.Failure(bases.Diagnostic!);
         }
 
         ApplyTopLevelLets(definition.TopLevelLets, scope, state);
@@ -122,18 +123,18 @@ internal sealed class RecordBuilder
         var body = ApplyPendingBody(definition.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
-            return EvaluationResult<Record>.Failure(body.Diagnostic!);
+            return ParseResult<Record>.Failure(body.Diagnostic!);
         }
 
         var fields = ResolveFields(state);
         if (!fields.IsSuccess)
         {
-            return EvaluationResult<Record>.Failure(fields.Diagnostic!);
+            return ParseResult<Record>.Failure(fields.Diagnostic!);
         }
 
         var record = new Record(definition.Name, baseClasses, fields.Value);
         evaluatedDefinitions[definition.Name] = record;
-        return EvaluationResult<Record>.Success(record);
+        return ParseResult<Record>.Success(record);
     }
 
     /// <summary>
@@ -156,7 +157,7 @@ internal sealed class RecordBuilder
     /// </param>
     /// <param name="tryResolveValue">Optional deferred lookup for field references.</param>
     /// <returns>The anonymous record value or a diagnostic.</returns>
-    public EvaluationResult<AnonymousRecordValue> InstantiateClass(
+    public ParseResult<AnonymousRecordValue> InstantiateClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
         Scope outerScope,
@@ -176,7 +177,7 @@ internal sealed class RecordBuilder
                 var argumentValue = expressionEvaluator.TryEvaluate(arguments[i], outerScope, tryResolveValue);
                 if (!argumentValue.IsSuccess)
                 {
-                    return EvaluationResult<AnonymousRecordValue>.Failure(argumentValue.Diagnostic!);
+                    return ParseResult<AnonymousRecordValue>.Failure(argumentValue.Diagnostic!);
                 }
 
                 value = argumentValue.Value;
@@ -186,15 +187,15 @@ internal sealed class RecordBuilder
                 var defaultValue = expressionEvaluator.TryEvaluate(parameter.DefaultValue, scope, tryResolveValue);
                 if (!defaultValue.IsSuccess)
                 {
-                    return EvaluationResult<AnonymousRecordValue>.Failure(defaultValue.Diagnostic!);
+                    return ParseResult<AnonymousRecordValue>.Failure(defaultValue.Diagnostic!);
                 }
 
                 value = defaultValue.Value;
             }
             else
             {
-                return EvaluationResult<AnonymousRecordValue>.Failure(
-                    InvalidOperation($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
+                return ParseResult<AnonymousRecordValue>.Failure(
+                    InvalidOperation($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'.", parameter.Location));
             }
 
             scope = scope.With(parameter.Name, value);
@@ -217,7 +218,7 @@ internal sealed class RecordBuilder
         var cacheKey = (classSyntax.Name, ValueFingerprint.Create(boundArguments));
         if (bodyLets.Count == 0 && instantiatedClasses.TryGetValue(cacheKey, out var cachedFields))
         {
-            return EvaluationResult<AnonymousRecordValue>.Success(
+            return ParseResult<AnonymousRecordValue>.Success(
                 new AnonymousRecordValue(ownClass, CloneFields(cachedFields), inheritedBaseClasses));
         }
 
@@ -225,7 +226,7 @@ internal sealed class RecordBuilder
         var bases = ApplyPendingBases(classSyntax.Bases, scope, state);
         if (!bases.IsSuccess)
         {
-            return EvaluationResult<AnonymousRecordValue>.Failure(bases.Diagnostic!);
+            return ParseResult<AnonymousRecordValue>.Failure(bases.Diagnostic!);
         }
 
         ApplyTopLevelLets(classSyntax.TopLevelLets, scope, state);
@@ -233,7 +234,7 @@ internal sealed class RecordBuilder
         var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
-            return EvaluationResult<AnonymousRecordValue>.Failure(body.Diagnostic!);
+            return ParseResult<AnonymousRecordValue>.Failure(body.Diagnostic!);
         }
 
         foreach (var let in bodyLets)
@@ -244,7 +245,7 @@ internal sealed class RecordBuilder
         var resolvedFields = ResolveFields(state);
         if (!resolvedFields.IsSuccess)
         {
-            return EvaluationResult<AnonymousRecordValue>.Failure(resolvedFields.Diagnostic!);
+            return ParseResult<AnonymousRecordValue>.Failure(resolvedFields.Diagnostic!);
         }
 
         if (bodyLets.Count == 0)
@@ -252,7 +253,7 @@ internal sealed class RecordBuilder
             instantiatedClasses[cacheKey] = CloneFields(resolvedFields.Value);
         }
 
-        return EvaluationResult<AnonymousRecordValue>.Success(
+        return ParseResult<AnonymousRecordValue>.Success(
             new AnonymousRecordValue(ownClass, CloneFields(resolvedFields.Value), inheritedBaseClasses));
     }
 
@@ -270,7 +271,7 @@ internal sealed class RecordBuilder
     /// </summary>
     /// <param name="extension">The parsed overlay declaration.</param>
     /// <returns>A success flag or a diagnostic.</returns>
-    private EvaluationResult<bool> ApplyExtension(ExtendsSyntax extension)
+    private ParseResult<bool> ApplyExtension(ExtendsSyntax extension)
     {
         // Check for a class target first so that a class and a def with the same name
         // unambiguously resolves to the class when the target name matches a class.
@@ -281,42 +282,43 @@ internal sealed class RecordBuilder
 
         if (!context.DefinitionsByName.TryGetValue(extension.TargetName, out var targetDefinition))
         {
-            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen record or class '{extension.TargetName}'."));
+            return ParseResult<bool>.Failure(MissingKey($"Unknown TableGen record or class '{extension.TargetName}'.", extension.Location));
         }
 
         if (!evaluatedDefinitions.TryGetValue(targetDefinition.Name, out var targetRecord))
         {
-            return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen record '{extension.TargetName}'."));
+            return ParseResult<bool>.Failure(MissingKey($"Unknown TableGen record '{extension.TargetName}'.", extension.Location));
         }
 
         var schemaState = new PendingRecordState();
         var allowedFields = new HashSet<string>(StringComparer.Ordinal);
         if (extension.Bases.Count == 0)
         {
-            return EvaluationResult<bool>.Failure(
-                InvalidOperation($"Extension '{extension.TargetName}' must specify at least one schema base."));
+            return ParseResult<bool>.Failure(
+                InvalidOperation($"Extension '{extension.TargetName}' must specify at least one schema base.", extension.Location));
         }
 
         foreach (var baseSpec in extension.Bases)
         {
             if (!context.Classes.TryGetValue(baseSpec.Name, out var schemaClass))
             {
-                return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{baseSpec.Name}'."));
+                return ParseResult<bool>.Failure(MissingKey($"Unknown TableGen class '{baseSpec.Name}'.", baseSpec.Location));
             }
 
             var instantiatedSchema = InstantiatePendingClass(schemaClass, baseSpec.Arguments, Scope.Empty);
             if (!instantiatedSchema.IsSuccess)
             {
-                return EvaluationResult<bool>.Failure(instantiatedSchema.Diagnostic!);
+                return ParseResult<bool>.Failure(instantiatedSchema.Diagnostic!);
             }
 
             foreach (var pair in instantiatedSchema.Value.Fields)
             {
                 if (!allowedFields.Add(pair.Key))
                 {
-                    return EvaluationResult<bool>.Failure(
+                    return ParseResult<bool>.Failure(
                         InvalidOperation(
-                            $"Extension schema field '{pair.Key}' is defined by more than one base class."));
+                            $"Extension schema field '{pair.Key}' is defined by more than one base class.",
+                            baseSpec.Location));
                 }
             }
 
@@ -333,9 +335,10 @@ internal sealed class RecordBuilder
 
             if (!seenFields.Add(let.Name))
             {
-                return EvaluationResult<bool>.Failure(
+                return ParseResult<bool>.Failure(
                     InvalidOperation(
-                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once.",
+                        let.Location));
             }
 
             schemaState.ApplyTopLevelLet(let, Scope.Empty);
@@ -345,16 +348,18 @@ internal sealed class RecordBuilder
         {
             if (!allowedFields.Contains(let.Name))
             {
-                return EvaluationResult<bool>.Failure(
+                return ParseResult<bool>.Failure(
                     InvalidOperation(
-                        $"Field '{let.Name}' is not declared by any extension schema base."));
+                        $"Field '{let.Name}' is not declared by any extension schema base.",
+                        let.Location));
             }
 
             if (!seenFields.Add(let.Name))
             {
-                return EvaluationResult<bool>.Failure(
+                return ParseResult<bool>.Failure(
                     InvalidOperation(
-                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once.",
+                        let.Location));
             }
 
             schemaState.ApplyLet(let, Scope.Empty);
@@ -363,10 +368,10 @@ internal sealed class RecordBuilder
         var resolved = ResolveFields(schemaState);
         if (!resolved.IsSuccess)
         {
-            return EvaluationResult<bool>.Failure(resolved.Diagnostic!);
+            return ParseResult<bool>.Failure(resolved.Diagnostic!);
         }
 
-        return targetRecord.ApplyOverlayFields(resolved.Value);
+        return targetRecord.ApplyOverlayFields(resolved.Value, extension.Location);
     }
 
     /// <summary>
@@ -383,36 +388,37 @@ internal sealed class RecordBuilder
     /// <param name="extension">The parsed overlay declaration.</param>
     /// <param name="targetClass">The class syntax node that is the extension target.</param>
     /// <returns>A success flag or a diagnostic.</returns>
-    private EvaluationResult<bool> ApplyClassExtension(ExtendsSyntax extension, ClassSyntax targetClass)
+    private ParseResult<bool> ApplyClassExtension(ExtendsSyntax extension, ClassSyntax targetClass)
     {
         var schemaState = new PendingRecordState();
         var allowedFields = new HashSet<string>(StringComparer.Ordinal);
         if (extension.Bases.Count == 0)
         {
-            return EvaluationResult<bool>.Failure(
-                InvalidOperation($"Extension '{extension.TargetName}' must specify at least one schema base."));
+            return ParseResult<bool>.Failure(
+                InvalidOperation($"Extension '{extension.TargetName}' must specify at least one schema base.", extension.Location));
         }
 
         foreach (var baseSpec in extension.Bases)
         {
             if (!context.Classes.TryGetValue(baseSpec.Name, out var schemaClass))
             {
-                return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{baseSpec.Name}'."));
+                return ParseResult<bool>.Failure(MissingKey($"Unknown TableGen class '{baseSpec.Name}'.", baseSpec.Location));
             }
 
             var instantiatedSchema = InstantiatePendingClass(schemaClass, baseSpec.Arguments, Scope.Empty);
             if (!instantiatedSchema.IsSuccess)
             {
-                return EvaluationResult<bool>.Failure(instantiatedSchema.Diagnostic!);
+                return ParseResult<bool>.Failure(instantiatedSchema.Diagnostic!);
             }
 
             foreach (var pair in instantiatedSchema.Value.Fields)
             {
                 if (!allowedFields.Add(pair.Key))
                 {
-                    return EvaluationResult<bool>.Failure(
+                    return ParseResult<bool>.Failure(
                         InvalidOperation(
-                            $"Extension schema field '{pair.Key}' is defined by more than one base class."));
+                            $"Extension schema field '{pair.Key}' is defined by more than one base class.",
+                            baseSpec.Location));
                 }
             }
 
@@ -429,9 +435,10 @@ internal sealed class RecordBuilder
 
             if (!seenFields.Add(let.Name))
             {
-                return EvaluationResult<bool>.Failure(
+                return ParseResult<bool>.Failure(
                     InvalidOperation(
-                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once.",
+                        let.Location));
             }
 
             schemaState.ApplyTopLevelLet(let, Scope.Empty);
@@ -441,16 +448,18 @@ internal sealed class RecordBuilder
         {
             if (!allowedFields.Contains(let.Name))
             {
-                return EvaluationResult<bool>.Failure(
+                return ParseResult<bool>.Failure(
                     InvalidOperation(
-                        $"Field '{let.Name}' is not declared by any extension schema base."));
+                        $"Field '{let.Name}' is not declared by any extension schema base.",
+                        let.Location));
             }
 
             if (!seenFields.Add(let.Name))
             {
-                return EvaluationResult<bool>.Failure(
+                return ParseResult<bool>.Failure(
                     InvalidOperation(
-                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once."));
+                        $"Extension '{extension.TargetName}' assigns field '{let.Name}' more than once.",
+                        let.Location));
             }
 
             schemaState.ApplyLet(let, Scope.Empty);
@@ -459,7 +468,7 @@ internal sealed class RecordBuilder
         var resolved = ResolveFields(schemaState);
         if (!resolved.IsSuccess)
         {
-            return EvaluationResult<bool>.Failure(resolved.Diagnostic!);
+            return ParseResult<bool>.Failure(resolved.Diagnostic!);
         }
 
         // Attach the resolved field set to the shared EvaluatedClass object.
@@ -474,7 +483,7 @@ internal sealed class RecordBuilder
         }
 
         evaluatedClass.AddExtensionFields(resolved.Value);
-        return EvaluationResult<bool>.Success(true);
+        return ParseResult<bool>.Success(true);
     }
 
     /// <summary>
@@ -534,7 +543,7 @@ internal sealed class RecordBuilder
     /// <param name="scope">The lexical scope for evaluating base arguments.</param>
     /// <param name="state">The pending record state receiving inherited fields.</param>
     /// <returns>A success flag or a diagnostic.</returns>
-    private EvaluationResult<bool> ApplyPendingBases(
+    private ParseResult<bool> ApplyPendingBases(
         IReadOnlyList<BaseSyntax> bases,
         Scope scope,
         PendingRecordState state)
@@ -543,19 +552,19 @@ internal sealed class RecordBuilder
         {
             if (!context.Classes.TryGetValue(@base.Name, out var classSyntax))
             {
-                return EvaluationResult<bool>.Failure(MissingKey($"Unknown TableGen class '{@base.Name}'."));
+                return ParseResult<bool>.Failure(MissingKey($"Unknown TableGen class '{@base.Name}'.", @base.Location));
             }
 
             var classState = InstantiatePendingClass(classSyntax, @base.Arguments, scope);
             if (!classState.IsSuccess)
             {
-                return EvaluationResult<bool>.Failure(classState.Diagnostic!);
+                return ParseResult<bool>.Failure(classState.Diagnostic!);
             }
 
             state.Import(classState.Value);
         }
 
-        return EvaluationResult<bool>.Success(true);
+        return ParseResult<bool>.Success(true);
     }
 
     /// <summary>
@@ -565,7 +574,7 @@ internal sealed class RecordBuilder
     /// <param name="arguments">The supplied template arguments.</param>
     /// <param name="outerScope">The lexical scope in which the instantiation occurs.</param>
     /// <returns>The pending field state for the instantiation or a diagnostic.</returns>
-    private EvaluationResult<PendingRecordState> InstantiatePendingClass(
+    private ParseResult<PendingRecordState> InstantiatePendingClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
         Scope outerScope)
@@ -581,7 +590,7 @@ internal sealed class RecordBuilder
                 var argumentValue = expressionEvaluator.TryEvaluate(arguments[i], outerScope);
                 if (!argumentValue.IsSuccess)
                 {
-                    return EvaluationResult<PendingRecordState>.Failure(argumentValue.Diagnostic!);
+                    return ParseResult<PendingRecordState>.Failure(argumentValue.Diagnostic!);
                 }
 
                 value = argumentValue.Value;
@@ -591,15 +600,15 @@ internal sealed class RecordBuilder
                 var defaultValue = expressionEvaluator.TryEvaluate(parameter.DefaultValue, scope);
                 if (!defaultValue.IsSuccess)
                 {
-                    return EvaluationResult<PendingRecordState>.Failure(defaultValue.Diagnostic!);
+                    return ParseResult<PendingRecordState>.Failure(defaultValue.Diagnostic!);
                 }
 
                 value = defaultValue.Value;
             }
             else
             {
-                return EvaluationResult<PendingRecordState>.Failure(
-                    InvalidOperation($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'."));
+                return ParseResult<PendingRecordState>.Failure(
+                    InvalidOperation($"Missing value for template parameter '{parameter.Name}' on class '{classSyntax.Name}'.", parameter.Location));
             }
 
             scope = scope.With(parameter.Name, value);
@@ -609,7 +618,7 @@ internal sealed class RecordBuilder
         var bases = ApplyPendingBases(classSyntax.Bases, scope, state);
         if (!bases.IsSuccess)
         {
-            return EvaluationResult<PendingRecordState>.Failure(bases.Diagnostic!);
+            return ParseResult<PendingRecordState>.Failure(bases.Diagnostic!);
         }
 
         ApplyTopLevelLets(classSyntax.TopLevelLets, scope, state);
@@ -617,10 +626,10 @@ internal sealed class RecordBuilder
         var body = ApplyPendingBody(classSyntax.BodyItems, scope, state);
         if (!body.IsSuccess)
         {
-            return EvaluationResult<PendingRecordState>.Failure(body.Diagnostic!);
+            return ParseResult<PendingRecordState>.Failure(body.Diagnostic!);
         }
 
-        return EvaluationResult<PendingRecordState>.Success(state);
+        return ParseResult<PendingRecordState>.Success(state);
     }
 
     /// <summary>
@@ -663,7 +672,7 @@ internal sealed class RecordBuilder
     /// <param name="scope">The starting lexical scope.</param>
     /// <param name="state">The pending record state being updated.</param>
     /// <returns>A success flag or a diagnostic.</returns>
-    private EvaluationResult<bool> ApplyPendingBody(
+    private ParseResult<bool> ApplyPendingBody(
         IReadOnlyList<BodyItemSyntax> bodyItems,
         Scope scope,
         PendingRecordState state)
@@ -685,7 +694,7 @@ internal sealed class RecordBuilder
                     var value = expressionEvaluator.TryEvaluate(defVar.Value, currentScope, TryResolveField(state));
                     if (!value.IsSuccess)
                     {
-                        return EvaluationResult<bool>.Failure(value.Diagnostic!);
+                        return ParseResult<bool>.Failure(value.Diagnostic!);
                     }
 
                     currentScope = currentScope.With(defVar.Name, value.Value);
@@ -696,27 +705,27 @@ internal sealed class RecordBuilder
                     var condition = expressionEvaluator.TryEvaluate(assert.Condition, currentScope, TryResolveField(state));
                     if (!condition.IsSuccess)
                     {
-                        return EvaluationResult<bool>.Failure(condition.Diagnostic!);
+                        return ParseResult<bool>.Failure(condition.Diagnostic!);
                     }
 
-                    var truthy = ValueUtilities.TryIsTruthy(condition.Value);
+                    var truthy = ValueUtilities.TryIsTruthy(condition.Value, assert.Condition.Location);
                     if (!truthy.IsSuccess)
                     {
-                        return EvaluationResult<bool>.Failure(truthy.Diagnostic!);
+                        return ParseResult<bool>.Failure(truthy.Diagnostic!);
                     }
 
                     if (!truthy.Value)
                     {
-                        EvaluationDiagnostic? messageError = null;
+                        Diagnostic? messageError = null;
                         var message = assert.Message == null
                             ? "TableGen assertion failed."
                             : GetAssertionMessage(assert.Message, currentScope, state, out messageError);
                         if (messageError != null)
                         {
-                            return EvaluationResult<bool>.Failure(messageError);
+                            return ParseResult<bool>.Failure(messageError);
                         }
 
-                        return EvaluationResult<bool>.Failure(InvalidOperation(message));
+                        return ParseResult<bool>.Failure(InvalidOperation(message, assert.Location));
                     }
 
                     break;
@@ -724,7 +733,7 @@ internal sealed class RecordBuilder
             }
         }
 
-        return EvaluationResult<bool>.Success(true);
+        return ParseResult<bool>.Success(true);
     }
 
     /// <summary>
@@ -739,7 +748,7 @@ internal sealed class RecordBuilder
         ExpressionSyntax messageExpression,
         Scope scope,
         PendingRecordState state,
-        out EvaluationDiagnostic? error)
+        out Diagnostic? error)
     {
         var message = expressionEvaluator.TryEvaluate(messageExpression, scope, TryResolveField(state));
         if (!message.IsSuccess)
@@ -758,7 +767,7 @@ internal sealed class RecordBuilder
     /// </summary>
     /// <param name="state">The pending state whose fields should be forced.</param>
     /// <returns>The resolved field map or a diagnostic.</returns>
-    private EvaluationResult<Dictionary<string, Value>> ResolveFields(PendingRecordState state)
+    private ParseResult<Dictionary<string, Value>> ResolveFields(PendingRecordState state)
     {
         var fields = new Dictionary<string, Value>();
         foreach (var pair in state.Fields)
@@ -768,16 +777,16 @@ internal sealed class RecordBuilder
                 continue;
             }
 
-                var value = TryResolveFieldValue(state, pair.Key);
-                if (!value.IsSuccess)
-                {
-                    return EvaluationResult<Dictionary<string, Value>>.Failure(value.Diagnostic!);
-                }
+            var value = TryResolveFieldValue(state, pair.Key);
+            if (!value.IsSuccess)
+            {
+                return ParseResult<Dictionary<string, Value>>.Failure(value.Diagnostic!);
+            }
 
             fields[pair.Key] = value.Value;
         }
 
-        return EvaluationResult<Dictionary<string, Value>>.Success(fields);
+        return ParseResult<Dictionary<string, Value>>.Success(fields);
     }
 
     /// <summary>
@@ -796,21 +805,21 @@ internal sealed class RecordBuilder
     /// <param name="state">The pending state that owns the field.</param>
     /// <param name="name">The field name to resolve.</param>
     /// <returns>The resolved field value or a diagnostic.</returns>
-    private EvaluationResult<Value> TryResolveFieldValue(PendingRecordState state, string name)
+    private ParseResult<Value> TryResolveFieldValue(PendingRecordState state, string name)
     {
-            if (!state.TryGetField(name, out var field) || !field.HasExpression)
-            {
-            return EvaluationResult<Value>.Failure(MissingKey($"Unknown field '{name}'."));
-            }
+        if (!state.TryGetField(name, out var field) || !field.HasExpression)
+        {
+            return ParseResult<Value>.Failure(MissingKey($"Unknown field '{name}'.", field?.Expression?.Location ?? default));
+        }
 
         if (field.HasResolvedValue)
         {
-            return EvaluationResult<Value>.Success(field.ResolvedValue!);
+            return ParseResult<Value>.Success(field.ResolvedValue!);
         }
 
         if (field.IsResolving)
         {
-            return EvaluationResult<Value>.Failure(InvalidOperation($"Detected a cycle while resolving field '{name}'."));
+            return ParseResult<Value>.Failure(InvalidOperation($"Detected a cycle while resolving field '{name}'.", field.Expression?.Location ?? default));
         }
 
         field.IsResolving = true;
@@ -820,16 +829,16 @@ internal sealed class RecordBuilder
             var resolved = expressionEvaluator.TryEvaluate(field.Expression!, field.LexicalScope, TryResolveField(state));
             if (!resolved.IsSuccess)
             {
-                return EvaluationResult<Value>.Failure(resolved.Diagnostic!);
+                return ParseResult<Value>.Failure(resolved.Diagnostic!);
             }
 
             var finalValue = resolved.Value;
             if (field.DeclaredTypeName != null)
             {
-                var coerced = ValueUtilities.TryCoerceValue(field.DeclaredTypeName, finalValue);
+                var coerced = ValueUtilities.TryCoerceValue(field.DeclaredTypeName, finalValue, field.Expression?.Location ?? default);
                 if (!coerced.IsSuccess)
                 {
-                    return EvaluationResult<Value>.Failure(coerced.Diagnostic!);
+                    return ParseResult<Value>.Failure(coerced.Diagnostic!);
                 }
 
                 finalValue = coerced.Value;
@@ -837,7 +846,7 @@ internal sealed class RecordBuilder
 
             field.ResolvedValue = finalValue;
             field.HasResolvedValue = true;
-            return EvaluationResult<Value>.Success(finalValue);
+            return ParseResult<Value>.Success(finalValue);
         }
         finally
         {
@@ -849,19 +858,21 @@ internal sealed class RecordBuilder
     /// Creates an invalid-operation diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic InvalidOperation(string message)
+    private static Diagnostic InvalidOperation(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
+        return new Diagnostic(message, location);
     }
 
     /// <summary>
     /// Creates a missing-key diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic MissingKey(string message)
+    private static Diagnostic MissingKey(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.MissingKey, message);
+        return new Diagnostic(message, location);
     }
 }

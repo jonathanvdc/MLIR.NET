@@ -1,6 +1,7 @@
 namespace TableGen.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a TableGen <c>extends</c> overlay declaration.
@@ -9,7 +10,8 @@ public sealed class ExtendsSyntax(
     string targetName,
     IReadOnlyList<BaseSyntax> bases,
     IReadOnlyList<LetSyntax> topLevelLets,
-    IReadOnlyList<LetSyntax> bodyLets) : TopLevelSyntax
+    IReadOnlyList<LetSyntax> bodyLets,
+    SourceLocation location = default) : TopLevelSyntax(location)
 {
     /// <summary>
     /// Gets the target record name that receives the overlay fields.

@@ -1,9 +1,11 @@
 namespace TableGen.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a TableGen string concatenation expression using the '#' operator.
 /// </summary>
-public sealed class ConcatSyntax(ExpressionSyntax left, ExpressionSyntax right) : ExpressionSyntax
+public sealed class ConcatSyntax(ExpressionSyntax left, ExpressionSyntax right, SourceLocation location = default) : ExpressionSyntax(location)
 {
     /// <summary>
     /// Gets the left operand.

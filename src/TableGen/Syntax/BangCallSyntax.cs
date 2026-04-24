@@ -1,11 +1,12 @@
 namespace TableGen.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a TableGen bang operator call expression, e.g. !if(cond, a, b).
 /// </summary>
-public sealed class BangCallSyntax(string operatorName, IReadOnlyList<ExpressionSyntax> arguments, string? typeArgument = null) : ExpressionSyntax
+public sealed class BangCallSyntax(string operatorName, IReadOnlyList<ExpressionSyntax> arguments, string? typeArgument = null, SourceLocation location = default) : ExpressionSyntax(location)
 {
     /// <summary>
     /// Gets the bang operator name, e.g. "if", "gt", "size".

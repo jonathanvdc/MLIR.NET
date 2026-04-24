@@ -1,6 +1,7 @@
 namespace TableGen.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a TableGen <c>def</c> declaration.
@@ -9,7 +10,8 @@ public sealed class DefSyntax(
     string name,
     IReadOnlyList<BaseSyntax> bases,
     IReadOnlyList<LetSyntax> topLevelLets,
-    IReadOnlyList<BodyItemSyntax> bodyItems) : TopLevelSyntax
+    IReadOnlyList<BodyItemSyntax> bodyItems,
+    SourceLocation location = default) : TopLevelSyntax(location)
 {
     /// <summary>
     /// Gets the definition name.

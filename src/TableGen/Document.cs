@@ -78,8 +78,8 @@ public sealed class Document(DocumentSyntax syntax)
     /// <summary>
     /// Evaluates the document into expanded records.
     /// </summary>
-    /// <returns>The interpreted document.</returns>
-    public InterpretedDocument Evaluate()
+    /// <returns>The interpreted document or an evaluation diagnostic.</returns>
+    public ParseResult<InterpretedDocument> Evaluate()
     {
         return Interpreter.Evaluate(Syntax);
     }

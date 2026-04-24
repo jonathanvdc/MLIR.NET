@@ -267,7 +267,7 @@ public sealed class IncludeResolutionTests
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
         var doc = Document.Load(mainSource, resolver).Value;
-        var record = doc.Evaluate().Records.Single(static r => r.Name == "Example");
+        var record = doc.Evaluate().Value.Records.Single(static r => r.Name == "Example");
 
         Assert.Equal("hello",
             Assert.IsType<TableGen.Evaluation.StringValue>(record.GetField("Tag")).Value);
@@ -291,7 +291,7 @@ public sealed class IncludeResolutionTests
         var doc = Document.Load("include \"mlir/IR/OpBase.td\"", composite).Value;
 
         // Pure should be available as a record.
-        Assert.NotNull(doc.Evaluate().Records.Single(static r => r.Name == "Pure"));
+        Assert.NotNull(doc.Evaluate().Value.Records.Single(static r => r.Name == "Pure"));
     }
 
     // -----------------------------------------------------------------------
@@ -416,7 +416,7 @@ public sealed class IncludeResolutionTests
         const string source = "include \"mlir/Dialect/Arith/IR/ArithOps.td\"";
 
         var document = GeneratorTestHelpers.LoadTableGenFromPrelude(source);
-        var records = document.Evaluate().Records;
+        var records = document.Evaluate().Value.Records;
 
         Assert.Contains(records, static record => record.Name == "Arith_Dialect");
         Assert.Contains(records, static record => record.Name == "Arith_AddIOp");

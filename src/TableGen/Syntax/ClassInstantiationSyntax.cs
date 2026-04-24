@@ -1,6 +1,7 @@
 namespace TableGen.Syntax;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Represents a TableGen class instantiation used as an expression, e.g. ClassName&lt;args&gt;.fieldName.
@@ -10,7 +11,8 @@ using System.Collections.Generic;
 public sealed class ClassInstantiationSyntax(
     string className,
     IReadOnlyList<ExpressionSyntax> arguments,
-    string fieldName) : ExpressionSyntax
+    string fieldName,
+    SourceLocation location = default) : ExpressionSyntax(location)
 {
     /// <summary>
     /// Gets the class name to instantiate.

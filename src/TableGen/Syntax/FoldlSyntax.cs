@@ -1,5 +1,7 @@
 namespace TableGen.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a TableGen !foldl expression.
 /// Unlike other bang operators, !foldl binds two variable names (accVar and curVar)
@@ -10,7 +12,8 @@ public sealed class FoldlSyntax(
     ExpressionSyntax list,
     string accVar,
     string curVar,
-    ExpressionSyntax body) : ExpressionSyntax
+    ExpressionSyntax body,
+    SourceLocation location = default) : ExpressionSyntax(location)
 {
     /// <summary>
     /// Gets the initial accumulator value expression.

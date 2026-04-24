@@ -1,5 +1,6 @@
 namespace TableGen.Evaluation;
 
+using MLIR.Text;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -13,31 +14,16 @@ internal static class ValueUtilities
     /// Converts a runtime value into TableGen truthiness.
     /// </summary>
     /// <param name="value">The value to interpret as a condition.</param>
+    /// <param name="location">The source location to attach to any produced diagnostic.</param>
     /// <returns>The boolean interpretation or a diagnostic.</returns>
-    public static EvaluationResult<bool> TryIsTruthy(Value value)
+    public static ParseResult<bool> TryIsTruthy(Value value, SourceLocation location)
     {
         return value switch
         {
-            IntegerValue integer => EvaluationResult<bool>.Success(integer.Value != 0),
-            BitValue bit => EvaluationResult<bool>.Success(bit.Value),
-            _ => EvaluationResult<bool>.Failure(InvalidOperation($"Expected a boolean-like condition, got {value.GetType().Name}.")),
+            IntegerValue integer => ParseResult<bool>.Success(integer.Value != 0),
+            BitValue bit => ParseResult<bool>.Success(bit.Value),
+            _ => ParseResult<bool>.Failure(InvalidOperation($"Expected a boolean-like condition, got {value.GetType().Name}.", location)),
         };
-    }
-
-    /// <summary>
-    /// Converts a runtime value into TableGen truthiness and throws on failure.
-    /// </summary>
-    /// <param name="value">The value to interpret as a condition.</param>
-    /// <returns>The boolean interpretation.</returns>
-    public static bool IsTruthy(Value value)
-    {
-        var result = TryIsTruthy(value);
-        if (!result.IsSuccess)
-        {
-            throw result.Diagnostic!.ToException();
-        }
-
-        return result.Value;
     }
 
     /// <summary>
@@ -45,16 +31,16 @@ internal static class ValueUtilities
     /// </summary>
     /// <param name="value">The value to convert.</param>
     /// <returns>The converted string or a diagnostic.</returns>
-    public static EvaluationResult<string> TryValueToString(Value value)
+    public static ParseResult<string> TryValueToString(Value value)
     {
         switch (value)
         {
             case StringValue str:
-                return EvaluationResult<string>.Success(str.Value);
+                return ParseResult<string>.Success(str.Value);
             case IntegerValue integer:
-                return EvaluationResult<string>.Success(integer.Value.ToString(CultureInfo.InvariantCulture));
+                return ParseResult<string>.Success(integer.Value.ToString(CultureInfo.InvariantCulture));
             case BitValue bit:
-                return EvaluationResult<string>.Success(bit.Value ? "1" : "0");
+                return ParseResult<string>.Success(bit.Value ? "1" : "0");
             case ListValue list:
             {
                 var pieces = new List<string>(list.Items.Count);
@@ -63,41 +49,25 @@ internal static class ValueUtilities
                     var itemString = TryValueToString(item);
                     if (!itemString.IsSuccess)
                     {
-                        return EvaluationResult<string>.Failure(itemString.Diagnostic!);
+                        return ParseResult<string>.Failure(itemString.Diagnostic!);
                     }
 
                     pieces.Add(itemString.Value);
                 }
 
-                return EvaluationResult<string>.Success(string.Concat(pieces));
+                return ParseResult<string>.Success(string.Concat(pieces));
             }
             case SymbolReferenceValue symbol:
-                return EvaluationResult<string>.Success(symbol.SymbolName);
+                return ParseResult<string>.Success(symbol.SymbolName);
             case RecordReferenceValue record:
-                return EvaluationResult<string>.Success(record.RecordName);
+                return ParseResult<string>.Success(record.RecordName);
             case UnsetValue:
-                return EvaluationResult<string>.Success(string.Empty);
+                return ParseResult<string>.Success(string.Empty);
             case RecordLikeValue recordLike:
-                return EvaluationResult<string>.Success(recordLike.DisplayName);
+                return ParseResult<string>.Success(recordLike.DisplayName);
             default:
-                return EvaluationResult<string>.Failure(InvalidOperation($"Cannot convert {value.GetType().Name} to string for concatenation."));
+                return ParseResult<string>.Failure(InvalidOperation($"Cannot convert {value.GetType().Name} to string for concatenation.", SourceLocation.Unknown));
         }
-    }
-
-    /// <summary>
-    /// Converts a runtime value into the string form used by TableGen and throws on failure.
-    /// </summary>
-    /// <param name="value">The value to convert.</param>
-    /// <returns>The converted string.</returns>
-    public static string ValueToString(Value value)
-    {
-        var result = TryValueToString(value);
-        if (!result.IsSuccess)
-        {
-            throw result.Diagnostic!.ToException();
-        }
-
-        return result.Value;
     }
 
     /// <summary>
@@ -105,8 +75,9 @@ internal static class ValueUtilities
     /// </summary>
     /// <param name="typeName">The declared TableGen type name.</param>
     /// <param name="value">The runtime value to coerce.</param>
+    /// <param name="location">The source location to attach to any produced diagnostic.</param>
     /// <returns>The coerced value or a diagnostic.</returns>
-    public static EvaluationResult<Value> TryCoerceValue(string typeName, Value value)
+    public static ParseResult<Value> TryCoerceValue(string typeName, Value value, SourceLocation location)
     {
         if (value is UnsetValue)
         {
@@ -116,7 +87,7 @@ internal static class ValueUtilities
         switch (typeName)
         {
             case "int" when value is not IntegerValue:
-                return Failure(InvalidOperation($"Expected an integer value for '{typeName}'."));
+                return Failure(InvalidOperation($"Expected an integer value for '{typeName}'.", location));
             case "string" when value is not StringValue:
             {
                 var stringResult = TryValueToString(value);
@@ -131,29 +102,12 @@ internal static class ValueUtilities
             case "bit" when value is BitValue:
                 return Success(value);
             case "bit":
-                return Failure(InvalidOperation($"Expected a bit value for '{typeName}'."));
+                return Failure(InvalidOperation($"Expected a bit value for '{typeName}'.", location));
             case "dag" when value is not DagValue:
-                return Failure(InvalidOperation($"Expected a dag value for '{typeName}'."));
+                return Failure(InvalidOperation($"Expected a dag value for '{typeName}'.", location));
             default:
                 return Success(value);
         }
-    }
-
-    /// <summary>
-    /// Coerces a value to the declared TableGen field type and throws on failure.
-    /// </summary>
-    /// <param name="typeName">The declared TableGen type name.</param>
-    /// <param name="value">The runtime value to coerce.</param>
-    /// <returns>The coerced value.</returns>
-    public static Value CoerceValue(string typeName, Value value)
-    {
-        var result = TryCoerceValue(typeName, value);
-        if (!result.IsSuccess)
-        {
-            throw result.Diagnostic!.ToException();
-        }
-
-        return result.Value;
     }
 
     /// <summary>
@@ -162,7 +116,7 @@ internal static class ValueUtilities
     /// <param name="existingValue">The existing runtime value.</param>
     /// <param name="replacementValue">The replacement runtime value.</param>
     /// <returns>The adapted replacement value or a diagnostic.</returns>
-    public static EvaluationResult<Value> TryCoerceExistingValue(Value existingValue, Value replacementValue)
+    public static ParseResult<Value> TryCoerceExistingValue(Value existingValue, Value replacementValue)
     {
         return existingValue switch
         {
@@ -173,33 +127,17 @@ internal static class ValueUtilities
     }
 
     /// <summary>
-    /// Adapts a replacement value to the runtime shape of an existing value and throws on failure.
-    /// </summary>
-    /// <param name="existingValue">The existing runtime value.</param>
-    /// <param name="replacementValue">The replacement runtime value.</param>
-    /// <returns>The adapted replacement value.</returns>
-    public static Value CoerceExistingValue(Value existingValue, Value replacementValue)
-    {
-        var result = TryCoerceExistingValue(existingValue, replacementValue);
-        if (!result.IsSuccess)
-        {
-            throw result.Diagnostic!.ToException();
-        }
-
-        return result.Value;
-    }
-
-    /// <summary>
     /// Requires that a runtime value be an integer.
     /// </summary>
     /// <param name="value">The value to inspect.</param>
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <param name="location">The source location to attach to any produced diagnostic.</param>
     /// <returns>The integer value or a diagnostic.</returns>
-    public static EvaluationResult<int> TryToInteger(Value value, string contextName)
+    public static ParseResult<int> TryToInteger(Value value, string contextName, SourceLocation location)
     {
         return value is IntegerValue integer
-            ? EvaluationResult<int>.Success(integer.Value)
-            : EvaluationResult<int>.Failure(InvalidOperation($"{contextName} requires an integer argument, got {value.GetType().Name}."));
+            ? ParseResult<int>.Success(integer.Value)
+            : ParseResult<int>.Failure(InvalidOperation($"{contextName} requires an integer argument, got {value.GetType().Name}.", location));
     }
 
     /// <summary>
@@ -207,12 +145,13 @@ internal static class ValueUtilities
     /// </summary>
     /// <param name="value">The value to inspect.</param>
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <param name="location">The source location to attach to any produced diagnostic.</param>
     /// <returns>The string value or a diagnostic.</returns>
-    public static EvaluationResult<string> TryToString(Value value, string contextName)
+    public static ParseResult<string> TryToString(Value value, string contextName, SourceLocation location)
     {
         return value is StringValue str
-            ? EvaluationResult<string>.Success(str.Value)
-            : EvaluationResult<string>.Failure(InvalidOperation($"{contextName} requires a string argument, got {value.GetType().Name}."));
+            ? ParseResult<string>.Success(str.Value)
+            : ParseResult<string>.Failure(InvalidOperation($"{contextName} requires a string argument, got {value.GetType().Name}.", location));
     }
 
     /// <summary>
@@ -221,13 +160,14 @@ internal static class ValueUtilities
     /// <param name="index">The raw index written in source.</param>
     /// <param name="length">The collection length.</param>
     /// <param name="contextName">A human-readable operator name for diagnostics.</param>
+    /// <param name="location">The source location to attach to any produced diagnostic.</param>
     /// <returns>The normalized index or a diagnostic.</returns>
-    public static EvaluationResult<int> TryNormalizeIndex(int index, int length, string contextName)
+    public static ParseResult<int> TryNormalizeIndex(int index, int length, string contextName, SourceLocation location)
     {
         var normalized = index < 0 ? length + index : index;
         return normalized < 0 || normalized >= length
-            ? EvaluationResult<int>.Failure(InvalidOperation($"{contextName} index {index} is out of range."))
-            : EvaluationResult<int>.Success(normalized);
+            ? ParseResult<int>.Failure(InvalidOperation($"{contextName} index {index} is out of range.", location))
+            : ParseResult<int>.Success(normalized);
     }
 
     /// <summary>
@@ -251,10 +191,11 @@ internal static class ValueUtilities
     /// Creates an invalid-operation diagnostic with a consistent helper call site.
     /// </summary>
     /// <param name="message">The diagnostic message.</param>
+    /// <param name="location">The source location to attach to the diagnostic.</param>
     /// <returns>The constructed diagnostic.</returns>
-    private static EvaluationDiagnostic InvalidOperation(string message)
+    private static Diagnostic InvalidOperation(string message, SourceLocation location)
     {
-        return new EvaluationDiagnostic(EvaluationDiagnosticKind.InvalidOperation, message);
+        return new Diagnostic(message, location);
     }
 
     /// <summary>
@@ -262,9 +203,9 @@ internal static class ValueUtilities
     /// </summary>
     /// <param name="value">The computed value.</param>
     /// <returns>A successful evaluation result.</returns>
-    private static EvaluationResult<Value> Success(Value value)
+    private static ParseResult<Value> Success(Value value)
     {
-        return EvaluationResult<Value>.Success(value);
+        return ParseResult<Value>.Success(value);
     }
 
     /// <summary>
@@ -272,8 +213,8 @@ internal static class ValueUtilities
     /// </summary>
     /// <param name="diagnostic">The diagnostic describing the failure.</param>
     /// <returns>A failed evaluation result.</returns>
-    private static EvaluationResult<Value> Failure(EvaluationDiagnostic diagnostic)
+    private static ParseResult<Value> Failure(Diagnostic diagnostic)
     {
-        return EvaluationResult<Value>.Failure(diagnostic);
+        return ParseResult<Value>.Failure(diagnostic);
     }
 }

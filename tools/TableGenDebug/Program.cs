@@ -71,7 +71,14 @@ try
         return 1;
     }
 
-    var records = documentResult.Value.Evaluate().Records
+    var evaluated = documentResult.Value.Evaluate();
+    if (!evaluated.IsSuccess)
+    {
+        LogError(stderrLog, evaluated.Diagnostic!.ToString());
+        return 1;
+    }
+
+    var records = evaluated.Value.Records
         .Where(record => MatchesPattern(record.Name, recordPattern))
         .ToArray();
 

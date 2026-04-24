@@ -1,9 +1,11 @@
 namespace TableGen.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a top-level TableGen defvar declaration, e.g. defvar Name = expr;
 /// </summary>
-public sealed class DefVarSyntax(string name, ExpressionSyntax value) : TopLevelSyntax
+public sealed class DefVarSyntax(string name, ExpressionSyntax value, SourceLocation location = default) : TopLevelSyntax(location)
 {
     /// <summary>
     /// Gets the name of the constant.

@@ -1,5 +1,6 @@
 namespace TableGen.Evaluation;
 
+using MLIR.Text;
 using System.Linq;
 
 using TableGen.Syntax;
@@ -16,14 +17,14 @@ internal sealed class IdentifierResolver(EvaluationContext context)
     /// <param name="scope">The current lexical scope.</param>
     /// <param name="tryResolveValue">An optional callback for lazy field resolution.</param>
     /// <returns>The resolved value or a symbolic/reference value when no concrete binding exists.</returns>
-    public EvaluationResult<Value> ResolveIdentifier(
+    public ParseResult<Value> ResolveIdentifier(
         string name,
         Scope scope,
         ExpressionEvaluator.TryResolveValue? tryResolveValue)
     {
         if (scope.TryGetValue(name, out var value))
         {
-            return EvaluationResult<Value>.Success(value);
+            return ParseResult<Value>.Success(value);
         }
 
         if (tryResolveValue != null)
@@ -37,25 +38,25 @@ internal sealed class IdentifierResolver(EvaluationContext context)
 
         if (context.DefvarValues.TryGetValue(name, out value))
         {
-            return EvaluationResult<Value>.Success(value);
+            return ParseResult<Value>.Success(value);
         }
 
         if (name == "true")
         {
-            return EvaluationResult<Value>.Success(new BitValue(true));
+            return ParseResult<Value>.Success(new BitValue(true));
         }
 
         if (name == "false")
         {
-            return EvaluationResult<Value>.Success(new BitValue(false));
+            return ParseResult<Value>.Success(new BitValue(false));
         }
 
         if (context.DefinitionsByName.ContainsKey(name))
         {
-            return EvaluationResult<Value>.Success(new RecordReferenceValue(name));
+            return ParseResult<Value>.Success(new RecordReferenceValue(name));
         }
 
-        return EvaluationResult<Value>.Success(new SymbolReferenceValue(name));
+        return ParseResult<Value>.Success(new SymbolReferenceValue(name));
     }
 
     /// <summary>
