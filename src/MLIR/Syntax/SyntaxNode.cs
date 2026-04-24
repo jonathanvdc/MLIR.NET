@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Base class for all MLIR concrete syntax tree nodes.
 /// Provides a uniform <see cref="WriteTo(Text.SyntaxWriter)"/> entry point used by

@@ -1,5 +1,7 @@
 namespace MLIR.Syntax.Attributes.Primitives;
 
+using MLIR.Text;
+
 using MLIR.Semantics;
 using MLIR.Syntax;
 

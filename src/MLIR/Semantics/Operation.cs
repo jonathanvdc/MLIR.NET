@@ -1,5 +1,7 @@
 namespace MLIR.Semantics;
 
+using MLIR.Text;
+
 using System;
 using System.Collections.Generic;
 using MLIR;

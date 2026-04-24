@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Interface for syntax nodes that have a well-defined source location.
 /// This is used to provide a common API for retrieving source locations from syntax nodes.

@@ -1,4 +1,4 @@
-namespace MLIR.Syntax;
+namespace MLIR.Text;
 
 using System.Collections.Generic;
 
@@ -8,9 +8,9 @@ using System.Collections.Generic;
 /// <remarks>
 /// <para>
 /// <see cref="SourceDocument"/> is the single owner of the original source text for a parse.
-/// All <see cref="MLIR.Semantics.SourceLocation"/> values derived from a parse point back to
-/// their owning document so that line/column can be recomputed on demand rather than stored
-/// directly in every token.
+/// All <see cref="SourceLocation"/> values derived from a parse point back to their owning
+/// document so that line/column can be recomputed on demand rather than stored directly in
+/// every token.
 /// </para>
 /// <para>
 /// The line-start table is built once during construction (O(n) in source length) and stored in

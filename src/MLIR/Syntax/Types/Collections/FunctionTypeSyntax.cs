@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax.Types.Collections;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a builtin function type such as <c>(i32) -> i64</c>.
 /// </summary>

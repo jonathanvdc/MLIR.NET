@@ -1,10 +1,9 @@
-namespace MLIR.Semantics;
+namespace MLIR.Text;
 
-using MLIR.Syntax;
+using System;
 
 /// <summary>
-/// Represents a source span associated with semantic data, backed by a document-relative
-/// character offset and length rather than storing line/column directly.
+/// Represents a source span backed by a document-relative character offset and length.
 /// </summary>
 /// <remarks>
 /// <para>

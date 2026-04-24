@@ -1,5 +1,7 @@
 namespace MLIR.Semantics;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a semantic verification diagnostic.
 /// </summary>

@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax.Types.Collections;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a dynamic dimension marker (<c>?</c>) in a shaped type.
 /// </summary>

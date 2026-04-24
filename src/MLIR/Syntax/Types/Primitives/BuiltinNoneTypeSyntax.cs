@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax.Types.Primitives;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents the builtin <c>none</c> type.
 /// </summary>

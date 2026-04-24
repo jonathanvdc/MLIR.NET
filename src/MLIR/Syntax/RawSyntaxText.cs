@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax;
 
+using MLIR.Text;
+
 /// <summary>
 /// Stores a fragment of MLIR syntax that is preserved as raw text.
 /// </summary>

@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax.Types.Collections;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a static integer dimension in a shaped type.
 /// </summary>

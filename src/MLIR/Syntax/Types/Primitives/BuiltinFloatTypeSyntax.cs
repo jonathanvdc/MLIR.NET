@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax.Types.Primitives;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a builtin floating-point type such as <c>f32</c> or <c>bf16</c>.
 /// </summary>

@@ -3,6 +3,8 @@ using MLIR.Semantics.Types.Primitives;
 
 namespace MLIR.Syntax.Types.Primitives;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a builtin integer type such as <c>i32</c>, <c>si64</c>, or <c>ui8</c>.
 /// </summary>

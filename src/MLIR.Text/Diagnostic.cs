@@ -1,5 +1,3 @@
-using MLIR.Semantics;
-
 namespace MLIR.Text;
 
 /// <summary>

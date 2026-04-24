@@ -1,5 +1,7 @@
 namespace MLIR.Text;
 
+using MLIR.Text;
+
 using System.Collections.Generic;
 using MLIR.Syntax;
 using MLIR.Dialects;
@@ -463,7 +465,7 @@ public sealed partial class Parser
     /// </summary>
     private static ParseResult<Parser> TryCreateParser(string source, DialectRegistry? dialectRegistry)
     {
-        var document = new MLIR.Syntax.SourceDocument(source);
+        var document = new SourceDocument(source);
         var lexResult = Lexer.TryLexCore(source, document);
         if (!lexResult.IsSuccess)
         {

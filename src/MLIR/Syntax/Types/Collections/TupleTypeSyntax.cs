@@ -2,6 +2,8 @@ using MLIR.Semantics;
 
 namespace MLIR.Syntax.Types.Collections;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a tuple type such as <c>tuple&lt;i32, f32&gt;</c>.
 /// </summary>

@@ -1,5 +1,7 @@
 namespace MLIR.Semantics;
 
+using MLIR.Text;
+
 /// <summary>
 /// Represents a diagnostic reported while interpreting dialect-specific assembly.
 /// </summary>
