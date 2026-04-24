@@ -77,6 +77,14 @@ public sealed class SourceLocationTests
         Assert.Equal(text.Length, doc.Length);
     }
 
+    [Fact]
+    public void SourceDocument_FileName_IsAvailableWhenProvided()
+    {
+        var doc = new SourceDocument("hello", "example.mlir");
+
+        Assert.Equal("example.mlir", doc.FileName);
+    }
+
     // -----------------------------------------------------------------------
     // SourceLocation – document-relative, computed line/column
     // -----------------------------------------------------------------------
@@ -132,6 +140,24 @@ public sealed class SourceLocationTests
         var loc = new SourceLocation(doc, 6, 5); // "world" at line 2, col 1
 
         Assert.Equal("2:1", loc.ToString());
+    }
+
+    [Fact]
+    public void SourceLocation_FileName_ComesFromDocument()
+    {
+        var doc = new SourceDocument("hello", "example.mlir");
+        var loc = new SourceLocation(doc, 0, 5);
+
+        Assert.Equal("example.mlir", loc.FileName);
+    }
+
+    [Fact]
+    public void Diagnostic_ToString_IncludesFileNameWhenKnown()
+    {
+        var doc = new SourceDocument("hello\nworld", "example.mlir");
+        var diagnostic = new Diagnostic("Something happened.", new SourceLocation(doc, 6, 5));
+
+        Assert.Equal("example.mlir(2,1): Something happened.", diagnostic.ToString());
     }
 
     [Fact]

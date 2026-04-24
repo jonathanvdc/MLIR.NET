@@ -9,8 +9,8 @@ using System.Collections.Generic;
 /// <para>
 /// <see cref="SourceDocument"/> is the single owner of the original source text for a parse.
 /// All <see cref="SourceLocation"/> values derived from a parse point back to their owning
-/// document so that line/column can be recomputed on demand rather than stored directly in
-/// every token.
+/// document so that line/column and logical file identity can be recomputed on demand rather
+/// than being stored directly in every token.
 /// </para>
 /// <para>
 /// The line-start table is built once during construction (O(n) in source length) and stored in
@@ -25,9 +25,11 @@ public sealed class SourceDocument
     /// Initializes a new instance of the <see cref="SourceDocument"/> class for the given source text.
     /// </summary>
     /// <param name="text">The full source text. A <see langword="null"/> value is treated as an empty string.</param>
-    public SourceDocument(string text)
+    /// <param name="fileName">The logical file name or path associated with the source text, if known.</param>
+    public SourceDocument(string text, string? fileName = null)
     {
         Text = text ?? string.Empty;
+        FileName = fileName;
         lineStarts = ComputeLineStarts(Text);
     }
 
@@ -35,6 +37,11 @@ public sealed class SourceDocument
     /// Gets the full source text.
     /// </summary>
     public string Text { get; }
+
+    /// <summary>
+    /// Gets the logical file name or path associated with the source text, if known.
+    /// </summary>
+    public string? FileName { get; }
 
     /// <summary>
     /// Gets the length of the source text in characters.

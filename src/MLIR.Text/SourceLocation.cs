@@ -7,7 +7,7 @@ using System;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Line and column numbers are derived on demand through the owning <see cref="SourceDocument"/>
+/// Line, column, and file name are derived on demand through the owning <see cref="SourceDocument"/>
 /// rather than being stored in every instance. This centralises the line-mapping logic and
 /// makes it easy to translate any offset back to a human-readable location at diagnostic time.
 /// </para>
@@ -63,6 +63,11 @@ public readonly struct SourceLocation
     /// Gets the 1-based source column of the span start, or zero when the location is unknown.
     /// </summary>
     public int Column => Document?.GetLineColumn(Start).Column ?? 0;
+
+    /// <summary>
+    /// Gets the logical file name or path for this location, if known.
+    /// </summary>
+    public string? FileName => Document?.FileName;
 
     /// <summary>
     /// Gets a value indicating whether the location is known (i.e., backed by a source document).

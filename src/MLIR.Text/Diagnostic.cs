@@ -21,6 +21,11 @@ public sealed class Diagnostic(string message, SourceLocation location)
     public SourceLocation Location { get; } = location;
 
     /// <summary>
+    /// Gets the logical source file name or path, if known.
+    /// </summary>
+    public string? FileName => Location.FileName;
+
+    /// <summary>
     /// Gets the 1-based source line.
     /// </summary>
     public int Line => Location.Line;
@@ -36,6 +41,8 @@ public sealed class Diagnostic(string message, SourceLocation location)
     /// <returns>The formatted diagnostic text.</returns>
     public override string ToString()
     {
-        return $"({Line},{Column}): {Message}";
+        return FileName is { Length: > 0 }
+            ? $"{FileName}({Line},{Column}): {Message}"
+            : $"({Line},{Column}): {Message}";
     }
 }
