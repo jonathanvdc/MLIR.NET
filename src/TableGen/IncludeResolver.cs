@@ -1,5 +1,7 @@
 namespace TableGen;
 
+using MLIR.Text;
+
 /// <summary>
 /// Abstract base class for resolving TableGen include directives.
 /// </summary>
@@ -10,11 +12,11 @@ public abstract class IncludeResolver
     /// </summary>
     /// <param name="includePath">The include path as written in the source file.</param>
     /// <param name="includingFile">
-    /// The source file that contains the include directive, or <see langword="null"/> if
+    /// The source document that contains the include directive, or <see langword="null"/> if
     /// resolving from the root document.
     /// </param>
-    /// <param name="resolvedInclude">
-    /// When this method returns <see langword="true"/>, contains the resolved include.
+    /// <param name="resolvedDocument">
+    /// When this method returns <see langword="true"/>, contains the resolved source document.
     /// </param>
     /// <returns>
     /// <see langword="true"/> if the include was successfully resolved; otherwise
@@ -22,6 +24,6 @@ public abstract class IncludeResolver
     /// </returns>
     public abstract bool TryResolveInclude(
         string includePath,
-        SourceFile? includingFile,
-        out ResolvedInclude resolvedInclude);
+        SourceDocument? includingFile,
+        out SourceDocument resolvedDocument);
 }

@@ -2,6 +2,7 @@ namespace MLIR.Generators;
 
 using System.IO;
 using System.Reflection;
+using MLIR.Text;
 using TableGen;
 
 /// <summary>
@@ -23,13 +24,13 @@ internal sealed class EmbeddedPreludeResolver : IncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        SourceFile? includingFile,
-        out ResolvedInclude resolvedInclude)
+        SourceDocument? includingFile,
+        out SourceDocument resolvedDocument)
     {
         var resourceStream = OpenPreludeResource(includePath);
         if (resourceStream == null)
         {
-            resolvedInclude = null!;
+            resolvedDocument = null!;
             return false;
         }
 
@@ -39,7 +40,7 @@ internal sealed class EmbeddedPreludeResolver : IncludeResolver
             text = reader.ReadToEnd();
         }
 
-        resolvedInclude = new ResolvedInclude(includePath, text);
+        resolvedDocument = new SourceDocument(text, includePath);
         return true;
     }
 

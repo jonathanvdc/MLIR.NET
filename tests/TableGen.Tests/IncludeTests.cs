@@ -3,10 +3,11 @@ namespace TableGen.Tests;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MLIR.Text;
 using TableGen.Evaluation;
 using TableGen.Syntax;
-using TableGen.Text;
 using Xunit;
+using ParseException = TableGen.Text.ParseException;
 
 public sealed class IncludeTests
 {
@@ -153,10 +154,10 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
 
-        var sourceFile = new SourceFile("my_ops.td");
+        var sourceDocument = new SourceDocument(mainSource, "my_ops.td");
 
         var exception = Assert.Throws<InvalidOperationException>(
-            () => Document.Load(mainSource, resolver, sourceFile));
+            () => Document.Load(sourceDocument, resolver));
 
         Assert.Contains("missing.td", exception.Message);
         Assert.Contains("my_ops.td", exception.Message);
@@ -172,7 +173,7 @@ public sealed class IncludeTests
             new Dictionary<string, string> { ["dep.td"] = dependencySource });
 
         var exception = Assert.Throws<ParseException>(
-            () => Document.Load(mainSource, resolver, new SourceFile("main.td")));
+            () => Document.Load(new SourceDocument(mainSource, "main.td"), resolver));
 
         Assert.Contains("dep.td", exception.Message);
         Assert.Equal("dep.td", exception.Diagnostic.SourceFilePath);
@@ -222,11 +223,12 @@ public sealed class IncludeTests
             "dep.td",
             "def Dep { int X = 1; };");
 
-        var mainFile = new SourceFile("main.td");
-        Document.Load("include \"dep.td\"", trackingResolver, mainFile);
+        var mainSource = "include \"dep.td\"";
+        var mainDocument = new SourceDocument(mainSource, "main.td");
+        Document.Load(mainDocument, trackingResolver);
 
         Assert.NotNull(trackingResolver.CapturedIncludingFile);
-        Assert.Equal("main.td", trackingResolver.CapturedIncludingFile!.LogicalPath);
+        Assert.Equal("main.td", trackingResolver.CapturedIncludingFile!.FileName);
     }
 
     // -----------------------------------------------------------------------
@@ -355,21 +357,21 @@ public sealed class IncludeTests
             this.resolvedText = resolvedText;
         }
 
-        public SourceFile? CapturedIncludingFile { get; private set; }
+        public SourceDocument? CapturedIncludingFile { get; private set; }
 
         public override bool TryResolveInclude(
             string includePath,
-            SourceFile? includingFile,
-            out ResolvedInclude resolvedInclude)
+            SourceDocument? includingFile,
+            out SourceDocument resolvedDocument)
         {
             if (includePath == expectedPath)
             {
                 CapturedIncludingFile = includingFile;
-                resolvedInclude = new ResolvedInclude(includePath, resolvedText);
+                resolvedDocument = new SourceDocument(resolvedText, includePath);
                 return true;
             }
 
-            resolvedInclude = null!;
+            resolvedDocument = null!;
             return false;
         }
     }

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using MLIR.ODS;
 using MLIR.ODS.Model;
+using MLIR.Text;
 using TableGen;
 
 internal static class DialectGeneratorInput
@@ -37,10 +38,10 @@ internal static class DialectGeneratorInput
     {
         try
         {
-            var sourceFile = new SourceFile(path);
+            var sourceDocument = new SourceDocument(sourceText, path);
             var document = resolver != null
-                ? Document.Load(sourceText, resolver, sourceFile)
-                : Document.Parse(sourceText);
+                ? Document.Load(sourceDocument, resolver)
+                : Document.Parse(sourceDocument);
             var dialects = DialectImporter.Import(document.Evaluate());
             return new ParsedDialectFile(path, dialects, null);
         }

@@ -2,6 +2,7 @@ namespace TableGen;
 
 using System;
 using System.Collections.Generic;
+using MLIR.Text;
 using TableGen.Evaluation;
 using TableGen.Syntax;
 using TableGen.Text;
@@ -20,24 +21,23 @@ public sealed class Document(DocumentSyntax syntax)
     /// Parses a TableGen document from source text.
     /// Include directives present in the source are represented as
     /// <see cref="IncludeDirectiveSyntax"/> nodes but are not expanded.
-    /// Use <see cref="Load"/> to parse a document with include expansion.
+    /// Use <see cref="Load(string, IncludeResolver)"/> to parse a document with include expansion.
     /// </summary>
     /// <param name="source">The source text to parse.</param>
     /// <returns>The parsed document.</returns>
     public static Document Parse(string source)
     {
-        return new Document(Parser.ParseDocument(source));
+        return Parse(new SourceDocument(source));
     }
 
     /// <summary>
-    /// Parses a TableGen document from source text with optional source-file context for diagnostics.
+    /// Parses a TableGen document from source text with source-document context for diagnostics.
     /// </summary>
-    /// <param name="source">The source text to parse.</param>
-    /// <param name="sourceFile">The logical source file used in diagnostics, if known.</param>
+    /// <param name="sourceDocument">The source document to parse.</param>
     /// <returns>The parsed document.</returns>
-    public static Document Parse(string source, SourceFile? sourceFile)
+    public static Document Parse(SourceDocument sourceDocument)
     {
-        return new Document(Parser.ParseDocument(source, sourceFile?.LogicalPath));
+        return new Document(Parser.ParseDocument(sourceDocument));
     }
 
     /// <summary>
@@ -45,13 +45,7 @@ public sealed class Document(DocumentSyntax syntax)
     /// using the provided <paramref name="resolver"/>.
     /// </summary>
     /// <param name="source">The root source text to parse.</param>
-    /// <param name="resolver">
-    /// The include resolver used to look up the source text for each include directive.
-    /// </param>
-    /// <param name="sourceFile">
-    /// The source file context for the root document (used for relative include resolution
-    /// and diagnostics), or <see langword="null"/> if not applicable.
-    /// </param>
+    /// <param name="resolver">The include resolver used to look up the source text for each include directive.</param>
     /// <returns>
     /// A document whose declarations contain all top-level items from the root source and all
     /// transitively included files, with include directives replaced by the included content.
@@ -59,14 +53,29 @@ public sealed class Document(DocumentSyntax syntax)
     /// <exception cref="InvalidOperationException">
     /// Thrown when an include directive cannot be resolved by <paramref name="resolver"/>.
     /// </exception>
-    public static Document Load(
-        string source,
-        IncludeResolver resolver,
-        SourceFile? sourceFile = null)
+    public static Document Load(string source, IncludeResolver resolver)
+    {
+        return Load(new SourceDocument(source), resolver);
+    }
+
+    /// <summary>
+    /// Loads a TableGen document from a source document, recursively expanding all include directives
+    /// using the provided <paramref name="resolver"/>.
+    /// </summary>
+    /// <param name="sourceDocument">The root source document to parse.</param>
+    /// <param name="resolver">The include resolver used to look up the source text for each include directive.</param>
+    /// <returns>
+    /// A document whose declarations contain all top-level items from the root source and all
+    /// transitively included files, with include directives replaced by the included content.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when an include directive cannot be resolved by <paramref name="resolver"/>.
+    /// </exception>
+    public static Document Load(SourceDocument sourceDocument, IncludeResolver resolver)
     {
         var defines = new HashSet<string>(StringComparer.Ordinal);
         var declarations = new List<TopLevelSyntax>();
-        ExpandIncludes(source, sourceFile, resolver, defines, declarations);
+        ExpandIncludes(sourceDocument, resolver, defines, declarations);
         return new Document(new DocumentSyntax(declarations));
     }
 
@@ -82,36 +91,33 @@ public sealed class Document(DocumentSyntax syntax)
     /// <summary>
     /// Recursively preprocesses, parses, and expands include directives into a flat declaration list.
     /// </summary>
-    /// <param name="source">The source text of the current file.</param>
-    /// <param name="sourceFile">The logical file currently being expanded.</param>
+    /// <param name="sourceDocument">The source document currently being expanded.</param>
     /// <param name="resolver">The include resolver used for nested includes.</param>
     /// <param name="defines">The shared preprocessor symbol set.</param>
     /// <param name="output">The accumulated flattened declaration list.</param>
     private static void ExpandIncludes(
-        string source,
-        SourceFile? sourceFile,
+        SourceDocument sourceDocument,
         IncludeResolver resolver,
         HashSet<string> defines,
         List<TopLevelSyntax> output)
     {
-        var preprocessed = Preprocessor.Process(source, defines);
-        var syntax = Parser.ParseDocument(preprocessed, sourceFile?.LogicalPath);
+        var preprocessed = Preprocessor.Process(sourceDocument.Text, defines);
+        var syntax = Parser.ParseDocument(new SourceDocument(preprocessed, sourceDocument.FileName));
         foreach (var declaration in syntax.Declarations)
         {
             if (declaration is IncludeDirectiveSyntax include)
             {
-                if (!resolver.TryResolveInclude(include.Path, sourceFile, out var resolved))
+                if (!resolver.TryResolveInclude(include.Path, sourceDocument, out var resolved))
                 {
-                    var location = sourceFile != null
-                        ? $" from '{sourceFile.LogicalPath}'"
+                    var location = sourceDocument.FileName != null
+                        ? $" from '{sourceDocument.FileName}'"
                         : string.Empty;
                     throw new InvalidOperationException(
                         $"Could not resolve include '{include.Path}'{location}.");
                 }
 
-                var includedFile = new SourceFile(resolved.LogicalPath);
                 // Includes are expanded eagerly so later stages can operate on one flat declaration stream.
-                ExpandIncludes(resolved.SourceText, includedFile, resolver, defines, output);
+                ExpandIncludes(resolved, resolver, defines, output);
             }
             else
             {

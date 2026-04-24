@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.CodeAnalysis;
+using MLIR.Text;
 using TableGen;
 
 /// <summary>
@@ -45,20 +46,20 @@ internal sealed class ConsumerFileResolver : IncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        SourceFile? includingFile,
-        out ResolvedInclude resolvedInclude)
+        SourceDocument? includingFile,
+        out SourceDocument resolvedDocument)
     {
         // 1. Exact path match.
         if (filesByPath.TryGetValue(includePath, out var text))
         {
-            resolvedInclude = new ResolvedInclude(includePath, text);
+            resolvedDocument = new SourceDocument(text, includePath);
             return true;
         }
 
         // 2. Relative-to-including-file resolution.
         if (includingFile != null)
         {
-            var dir = Path.GetDirectoryName(includingFile.LogicalPath);
+            var dir = Path.GetDirectoryName(includingFile.FileName);
             if (dir != null)
             {
                 var combined = Path.Combine(dir, includePath);
@@ -66,20 +67,20 @@ internal sealed class ConsumerFileResolver : IncludeResolver
                 var normalized = combined.Replace('\\', '/');
                 if (filesByPath.TryGetValue(normalized, out var relativeText))
                 {
-                    resolvedInclude = new ResolvedInclude(normalized, relativeText);
+                    resolvedDocument = new SourceDocument(relativeText, normalized);
                     return true;
                 }
 
                 // Also try with OS-native separators.
                 if (filesByPath.TryGetValue(combined, out relativeText))
                 {
-                    resolvedInclude = new ResolvedInclude(combined, relativeText);
+                    resolvedDocument = new SourceDocument(relativeText, combined);
                     return true;
                 }
             }
         }
 
-        resolvedInclude = null!;
+        resolvedDocument = null!;
         return false;
     }
 }

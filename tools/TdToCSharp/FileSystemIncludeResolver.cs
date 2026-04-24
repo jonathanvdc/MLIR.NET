@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using MLIR.Text;
 using TableGen;
 
 /// <summary>
@@ -11,23 +12,23 @@ internal sealed class FileSystemIncludeResolver : IncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        SourceFile? includingFile,
-        out ResolvedInclude resolvedInclude)
+        SourceDocument? includingFile,
+        out SourceDocument resolvedDocument)
     {
         foreach (var candidatePath in GetCandidatePaths(includePath, includingFile))
         {
             if (File.Exists(candidatePath))
             {
-                resolvedInclude = new ResolvedInclude(candidatePath, File.ReadAllText(candidatePath));
+                resolvedDocument = new SourceDocument(File.ReadAllText(candidatePath), candidatePath);
                 return true;
             }
         }
 
-        resolvedInclude = null!;
+        resolvedDocument = null!;
         return false;
     }
 
-    private static IEnumerable<string> GetCandidatePaths(string includePath, SourceFile? includingFile)
+    private static IEnumerable<string> GetCandidatePaths(string includePath, SourceDocument? includingFile)
     {
         var candidates = new List<string>();
         if (Path.IsPathRooted(includePath))
@@ -40,7 +41,7 @@ internal sealed class FileSystemIncludeResolver : IncludeResolver
 
             if (includingFile != null)
             {
-                var includingDirectory = Path.GetDirectoryName(includingFile.LogicalPath);
+                var includingDirectory = Path.GetDirectoryName(includingFile.FileName);
                 if (includingDirectory != null)
                 {
                     candidates.Add(Path.GetFullPath(Path.Combine(includingDirectory, includePath)));

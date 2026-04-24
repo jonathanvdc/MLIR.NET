@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using MLIR.Generators;
+using MLIR.Text;
 using Pixie;
 using Pixie.Markup;
 using Pixie.Options;
@@ -58,12 +59,12 @@ var recordPattern = positionalArguments.Length >= 2 ? positionalArguments[1] : "
 try
 {
     var sourceText = File.ReadAllText(inputPath);
-    var sourceFile = new SourceFile(Path.GetFullPath(inputPath));
+    var sourceDocument = new SourceDocument(sourceText, Path.GetFullPath(inputPath));
     var resolver = new CompositeIncludeResolver(
         new FileSystemIncludeResolver(),
         PreludeIncludeResolvers.CreateEmbeddedPreludeResolver());
 
-    var document = Document.Load(sourceText, resolver, sourceFile);
+    var document = Document.Load(sourceDocument, resolver);
     var records = document.Evaluate().Records
         .Where(record => MatchesPattern(record.Name, recordPattern))
         .ToArray();

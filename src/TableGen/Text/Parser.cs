@@ -3,6 +3,7 @@ namespace TableGen.Text;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using MLIR.Text;
 using TableGen.Syntax;
 
 /// <summary>
@@ -16,9 +17,9 @@ internal sealed class Parser
     private readonly IReadOnlyList<Token> tokens;
 
     /// <summary>
-    /// Stores the logical source path used when reporting parse errors.
+    /// Stores the source document used when reporting parse errors.
     /// </summary>
-    private readonly string? sourceFilePath;
+    private readonly SourceDocument sourceDocument;
 
     /// <summary>
     /// Tracks the current token position.
@@ -28,23 +29,31 @@ internal sealed class Parser
     /// <summary>
     /// Initializes a parser for a source string.
     /// </summary>
-    /// <param name="source">The source text to parse.</param>
-    /// <param name="sourceFilePath">An optional logical source path for diagnostics.</param>
-    private Parser(string source, string? sourceFilePath)
+    /// <param name="sourceDocument">The source document to parse.</param>
+    private Parser(SourceDocument sourceDocument)
     {
-        tokens = Lexer.Lex(source, sourceFilePath);
-        this.sourceFilePath = sourceFilePath;
+        tokens = Lexer.Lex(sourceDocument);
+        this.sourceDocument = sourceDocument;
+    }
+
+    /// <summary>
+    /// Parses a complete TableGen document.
+    /// </summary>
+    /// <param name="sourceDocument">The source document to parse.</param>
+    /// <returns>The parsed syntax tree.</returns>
+    public static DocumentSyntax ParseDocument(SourceDocument sourceDocument)
+    {
+        return new Parser(sourceDocument).ParseDocumentCore();
     }
 
     /// <summary>
     /// Parses a complete TableGen document.
     /// </summary>
     /// <param name="source">The source text to parse.</param>
-    /// <param name="sourceFilePath">An optional logical source path for diagnostics.</param>
     /// <returns>The parsed syntax tree.</returns>
-    public static DocumentSyntax ParseDocument(string source, string? sourceFilePath = null)
+    public static DocumentSyntax ParseDocument(string source)
     {
-        return new Parser(source, sourceFilePath).ParseDocumentCore();
+        return ParseDocument(new SourceDocument(source));
     }
 
     /// <summary>
@@ -859,6 +868,6 @@ internal sealed class Parser
     private ParseException Error(string message)
     {
         var token = Current;
-        return new ParseException(new Diagnostic(message, token.Line, token.Column, sourceFilePath));
+        return new ParseException(new Diagnostic(message, token.Line, token.Column, sourceDocument.FileName));
     }
 }

@@ -2,6 +2,7 @@ namespace TableGen.Text;
 
 using System.Collections.Generic;
 using System.Text;
+using MLIR.Text;
 
 /// <summary>
 /// Converts raw TableGen source text into a stream of tokens for the parser.
@@ -11,12 +12,11 @@ internal static class Lexer
     /// <summary>
     /// Lexes a TableGen source string.
     /// </summary>
-    /// <param name="source">The source text to tokenize.</param>
-    /// <param name="sourceFilePath">An optional logical path used only for diagnostics.</param>
+    /// <param name="sourceDocument">The source document to tokenize.</param>
     /// <returns>The token sequence, including a trailing end-of-file token.</returns>
-    public static IReadOnlyList<Token> Lex(string source, string? sourceFilePath = null)
+    public static IReadOnlyList<Token> Lex(SourceDocument sourceDocument)
     {
-        var lexer = new LexerImpl(source, sourceFilePath);
+        var lexer = new LexerImpl(sourceDocument);
         return lexer.Lex();
     }
 
@@ -26,14 +26,14 @@ internal static class Lexer
     private sealed class LexerImpl
     {
         /// <summary>
+        /// Stores the source document being tokenized.
+        /// </summary>
+        private readonly SourceDocument sourceDocument;
+
+        /// <summary>
         /// Stores the source text being tokenized.
         /// </summary>
         private readonly string source;
-
-        /// <summary>
-        /// Stores the logical source path used in diagnostics.
-        /// </summary>
-        private readonly string? sourceFilePath;
 
         /// <summary>
         /// Accumulates the emitted tokens.
@@ -58,12 +58,11 @@ internal static class Lexer
         /// <summary>
         /// Initializes the lexer implementation.
         /// </summary>
-        /// <param name="source">The source text to tokenize.</param>
-        /// <param name="sourceFilePath">An optional logical path used in diagnostics.</param>
-        public LexerImpl(string source, string? sourceFilePath)
+        /// <param name="sourceDocument">The source document to tokenize.</param>
+        public LexerImpl(SourceDocument sourceDocument)
         {
-            this.source = source;
-            this.sourceFilePath = sourceFilePath;
+            this.sourceDocument = sourceDocument;
+            source = sourceDocument.Text;
         }
 
         /// <summary>
@@ -417,7 +416,7 @@ internal static class Lexer
         /// <returns>The constructed parse exception.</returns>
         private ParseException Error(string message)
         {
-            return new ParseException(new Diagnostic(message, line, column, sourceFilePath));
+            return new ParseException(new Diagnostic(message, line, column, sourceDocument.FileName));
         }
     }
 }

@@ -1,6 +1,7 @@
 namespace TableGen;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// Combines multiple <see cref="IncludeResolver"/> instances, trying each in order.
@@ -22,18 +23,18 @@ public sealed class CompositeIncludeResolver : IncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        SourceFile? includingFile,
-        out ResolvedInclude resolvedInclude)
+        SourceDocument? includingFile,
+        out SourceDocument resolvedDocument)
     {
         foreach (var resolver in resolvers)
         {
-            if (resolver.TryResolveInclude(includePath, includingFile, out resolvedInclude))
+            if (resolver.TryResolveInclude(includePath, includingFile, out resolvedDocument))
             {
                 return true;
             }
         }
 
-        resolvedInclude = null!;
+        resolvedDocument = null!;
         return false;
     }
 }

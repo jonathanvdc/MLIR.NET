@@ -1,6 +1,7 @@
 namespace TableGen;
 
 using System.Collections.Generic;
+using MLIR.Text;
 
 /// <summary>
 /// A simple include resolver that serves includes from an in-memory dictionary.
@@ -24,16 +25,16 @@ public sealed class DictionaryIncludeResolver : IncludeResolver
     /// <inheritdoc/>
     public override bool TryResolveInclude(
         string includePath,
-        SourceFile? includingFile,
-        out ResolvedInclude resolvedInclude)
+        SourceDocument? includingFile,
+        out SourceDocument resolvedDocument)
     {
         if (files.TryGetValue(includePath, out var sourceText))
         {
-            resolvedInclude = new ResolvedInclude(includePath, sourceText);
+            resolvedDocument = new SourceDocument(sourceText, includePath);
             return true;
         }
 
-        resolvedInclude = null!;
+        resolvedDocument = null!;
         return false;
     }
 }
