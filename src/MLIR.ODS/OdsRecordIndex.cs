@@ -8,6 +8,32 @@ using MLIR.ODS.Model;
 
 internal sealed class OdsRecordIndex
 {
+    /// <summary>
+    /// Normalizes importer inputs that may come from either an inline anonymous class
+    /// instantiation or a named top-level <c>def</c> reference. ODS mostly cares about the
+    /// shared record-like surface (fields, base classes, and a stable logical name), so this
+    /// keeps the anonymous-vs-named split localized to one resolver.
+    /// </summary>
+    private readonly struct ResolvedRecordLike
+    {
+        public ResolvedRecordLike(string logicalName, RecordLikeValue value, Record? namedRecord = null)
+        {
+            LogicalName = logicalName;
+            Value = value;
+            NamedRecord = namedRecord;
+        }
+
+        public string LogicalName { get; }
+
+        public RecordLikeValue Value { get; }
+
+        public Record? NamedRecord { get; }
+
+        public IReadOnlyDictionary<string, Value> Fields => Value.Fields;
+
+        public bool HasBaseClass(string baseClassName) => Value.HasBaseClass(baseClassName);
+    }
+
     private readonly IReadOnlyList<Record> records;
     private readonly Dictionary<string, Record> recordsByName;
     private readonly Dictionary<string, IReadOnlyList<Record>> recordsByBaseClass;
@@ -123,7 +149,19 @@ internal sealed class OdsRecordIndex
     /// </summary>
     public IReadOnlyList<Model.TraitModel> GetTraitListField(Record record, string fieldName)
     {
-        if (!record.Fields.TryGetValue(fieldName, out var field) || field is not ListValue list)
+        return GetTraitListField(record.Fields, fieldName);
+    }
+
+    /// <summary>
+    /// Extracts a trait list from an evaluated field dictionary. This is shared by both named
+    /// records and anonymous class instantiations so higher ODS layers do not have to branch on
+    /// the concrete value shape.
+    /// </summary>
+    private IReadOnlyList<Model.TraitModel> GetTraitListField(
+        IReadOnlyDictionary<string, Value> fields,
+        string fieldName)
+    {
+        if (!fields.TryGetValue(fieldName, out var field) || field is not ListValue list)
         {
             return EmptyTraitModels;
         }
@@ -148,131 +186,48 @@ internal sealed class OdsRecordIndex
     /// </summary>
     private Model.TraitModel? TryBuildTraitModel(Value item)
     {
-        // Anonymous record values arise from inline class instantiations such as
-        // DeclareOpInterfaceMethods<MyIface, ["foo"]>. These are not top-level defs so they
-        // have no record name in the index, but they carry full field and base-class information
-        // through the AnonymousRecordValue itself.
-        if (item is AnonymousRecordValue anon)
+        if (!TryResolveRecordLike(item, out var resolved))
         {
-            return TryBuildTraitModelFromAnonymous(anon);
+            return TryGetRecordLikeReferenceName(item, out var unresolvedName)
+                ? new Model.SimpleTraitModel(unresolvedName)
+                : null;
         }
 
-        string? recordName = null;
-        Record? traitRecord = null;
-
-        switch (item)
+        // InterfaceTrait (and its subclasses OpInterfaceTrait, and concrete interfaces such as
+        // OpInterface, TypeInterface, AttrInterface, DialectInterface) must be recognized
+        // before the generic NativeTrait check because InterfaceTrait extends NativeTrait.
+        // This includes DeclareXxxInterfaceMethods wrappers, which also extend InterfaceTrait.
+        if (resolved.HasBaseClass("InterfaceTrait"))
         {
-            case RecordReferenceValue recordRef:
-                recordName = recordRef.RecordName;
-                TryGetRecord(recordName, out traitRecord);
-                break;
-            case SymbolReferenceValue symbol:
-                recordName = symbol.SymbolName;
-                TryGetRecord(recordName, out traitRecord);
-                break;
-            default:
-                // Plain strings or other value kinds are not expected in a trait list.
-                return null;
+            return BuildInterfaceTraitModel(resolved);
         }
 
-        if (recordName == null)
+        // NativeTrait (and its subclass NativeOpTrait) carries a C++ trait name and namespace.
+        // Check this before GenInternalTrait because NativeTrait is more specific in the class
+        // hierarchy.
+        if (resolved.HasBaseClass("NativeTrait"))
         {
-            return null;
+            var trait = GetStringFromValueDictionary(resolved.Fields, "trait");
+            var cppNamespace = GetStringFromValueDictionary(resolved.Fields, "cppNamespace");
+            return new Model.NativeTraitModel(resolved.LogicalName, trait, cppNamespace);
         }
 
-        if (traitRecord != null)
+        // TraitList groups multiple traits under a single name (e.g., Pure).
+        if (resolved.HasBaseClass("TraitList"))
         {
-            // InterfaceTrait (and its subclasses OpInterfaceTrait, and concrete interfaces such as
-            // OpInterface, TypeInterface, AttrInterface, DialectInterface) must be recognized
-            // before the generic NativeTrait check because InterfaceTrait extends NativeTrait.
-            // This includes DeclareXxxInterfaceMethods wrappers, which also extend InterfaceTrait.
-            if (traitRecord.HasBaseClass("InterfaceTrait"))
-            {
-                return BuildInterfaceTraitModel(recordName, traitRecord);
-            }
+            var innerTraits = GetTraitListField(resolved.Fields, "traits");
+            return new Model.TraitListModel(resolved.LogicalName, innerTraits);
+        }
 
-            // NativeTrait (and its subclass NativeOpTrait) carries a C++ trait name and
-            // namespace. Check this before GenInternalTrait because NativeTrait is more
-            // specific in the class hierarchy.
-            if (traitRecord.HasBaseClass("NativeTrait"))
-            {
-                TryGetStringField(traitRecord, "trait", out var trait);
-                var cppNamespace = GetOptionalStringField(traitRecord, "cppNamespace");
-                return new Model.NativeTraitModel(
-                    recordName,
-                    string.IsNullOrEmpty(trait) ? null : trait,
-                    cppNamespace);
-            }
-
-            // TraitList groups multiple traits under a single name (e.g., Pure).
-            if (traitRecord.HasBaseClass("TraitList"))
-            {
-                var innerTraits = GetTraitListField(traitRecord, "traits");
-                return new Model.TraitListModel(recordName, innerTraits);
-            }
-
-            // GenInternalTrait affects code generation rather than mapping to a C++ trait.
-            if (traitRecord.HasBaseClass("GenInternalTrait"))
-            {
-                TryGetStringField(traitRecord, "trait", out var trait);
-                return new Model.GenInternalTraitModel(
-                    recordName,
-                    string.IsNullOrEmpty(trait) ? null : trait);
-            }
+        // GenInternalTrait affects code generation rather than mapping to a C++ trait.
+        if (resolved.HasBaseClass("GenInternalTrait"))
+        {
+            var trait = GetStringFromValueDictionary(resolved.Fields, "trait");
+            return new Model.GenInternalTraitModel(resolved.LogicalName, trait);
         }
 
         // Fall back to a simple trait wrapper that preserves the record name for inspection.
-        return new Model.SimpleTraitModel(recordName);
-    }
-
-    /// <summary>
-    /// Attempts to build a <see cref="Model.TraitModel"/> from an anonymously instantiated
-    /// class value (e.g., <c>DeclareOpInterfaceMethods&lt;MyIface, ["foo"]&gt;</c>).
-    /// The class name is used as the record name because anonymous instantiations are not
-    /// registered as named top-level defs.
-    /// </summary>
-    private Model.TraitModel? TryBuildTraitModelFromAnonymous(AnonymousRecordValue anon)
-    {
-        var className = anon.ClassName;
-
-        // InterfaceTrait check first — covers DeclareXxxInterfaceMethods and any inline
-        // interface-backed trait instantiation.
-        if (AnonHasBaseClass(anon, "InterfaceTrait"))
-        {
-            return BuildInterfaceTraitModelFromFields(className, anon.Fields, anon.BaseClasses);
-        }
-
-        if (AnonHasBaseClass(anon, "NativeTrait"))
-        {
-            var trait = GetStringFromValueDictionary(anon.Fields, "trait");
-            var cppNamespace = GetStringFromValueDictionary(anon.Fields, "cppNamespace");
-            return new Model.NativeTraitModel(className, trait, cppNamespace);
-        }
-
-        if (AnonHasBaseClass(anon, "GenInternalTrait"))
-        {
-            var trait = GetStringFromValueDictionary(anon.Fields, "trait");
-            return new Model.GenInternalTraitModel(className, trait);
-        }
-
-        return new Model.SimpleTraitModel(className);
-    }
-
-    /// <summary>
-    /// Returns <see langword="true"/> when the anonymous record's base-class list includes a
-    /// class with the given name.
-    /// </summary>
-    private static bool AnonHasBaseClass(AnonymousRecordValue anon, string baseClassName)
-    {
-        foreach (var bc in anon.BaseClasses)
-        {
-            if (bc.Name == baseClassName)
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return new Model.SimpleTraitModel(resolved.LogicalName);
     }
 
     public bool TryGetDialectName(Record record, out string dialectName)
@@ -612,23 +567,13 @@ internal sealed class OdsRecordIndex
 
     private bool TryReadEnumCase(Value item, out Model.EnumCaseModel? caseModel)
     {
-        IReadOnlyDictionary<string, Value>? caseFields = null;
-
-        if (item is AnonymousRecordValue anon)
-        {
-            caseFields = anon.Fields;
-        }
-        else if (item is RecordReferenceValue recordRef && recordsByName.TryGetValue(recordRef.RecordName, out var caseRecord))
-        {
-            caseFields = caseRecord.Fields;
-        }
-
-        if (caseFields == null)
+        if (!TryResolveRecordLike(item, out var resolved))
         {
             caseModel = null;
             return false;
         }
 
+        var caseFields = resolved.Fields;
         if (!caseFields.TryGetValue("symbol", out var symField) || symField is not StringValue symStr)
         {
             caseModel = null;
@@ -685,9 +630,9 @@ internal sealed class OdsRecordIndex
             SymbolReferenceValue symbol => symbol.SymbolName,
             RecordReferenceValue record => record.RecordName,
             StringValue str => str.Value,
-            AnonymousRecordValue anonymous when anonymous.Fields.TryGetValue("baseAttr", out var baseAttr) => GetConstraintName(baseAttr),
-            AnonymousRecordValue anonymous when anonymous.Fields.TryGetValue("baseType", out var baseType) => GetConstraintName(baseType),
-            AnonymousRecordValue anonymous => anonymous.ClassName,
+            RecordLikeValue recordLike when recordLike.Fields.TryGetValue("baseAttr", out var baseAttr) => GetConstraintName(baseAttr),
+            RecordLikeValue recordLike when recordLike.Fields.TryGetValue("baseType", out var baseType) => GetConstraintName(baseType),
+            RecordLikeValue recordLike => recordLike.DisplayName,
             _ => null,
         };
     }
@@ -700,10 +645,10 @@ internal sealed class OdsRecordIndex
     /// </summary>
     private static bool IsVariadicValue(Value value)
     {
-        // Both Variadic<T> and VariadicOfVariadic<T,…> are AnonymousRecordValues whose
-        // class name starts with "Variadic".
-        return value is AnonymousRecordValue anon &&
-               anon.ClassName.StartsWith("Variadic", StringComparison.Ordinal);
+        // Variadic constraints typically appear as inline anonymous instantiations, but the
+        // importer only cares about the record-like display name.
+        return value is RecordLikeValue recordLike
+            && recordLike.DisplayName.StartsWith("Variadic", StringComparison.Ordinal);
     }
 
     private bool IsAttributeConstraint(string constraintName)
@@ -940,36 +885,25 @@ internal sealed class OdsRecordIndex
                 }
 
                 return new Model.AttrOrTypeParameterModel(name, null, str.Value);
-
-            case AnonymousRecordValue anonymous:
-                return TryBuildAttrOrTypeParameterModelFromAnonymousRecord(name, anonymous);
-
-            case RecordReferenceValue recordRef:
-                // A named record reference in a parameters dag can point either to an
-                // AttrOrTypeParameter subclass or to a constraint/type record that still
-                // carries a cppType field (for example, Builtin_VectorTypeElementType).
-                if (TryGetRecord(recordRef.RecordName, out var referencedRecord)
-                    && (referencedRecord.HasBaseClass("AttrOrTypeParameter")
-                        || referencedRecord.Fields.ContainsKey("cppType")))
-                {
-                    return TryBuildAttrOrTypeParameterModelFromFields(name, recordRef.RecordName, referencedRecord.Fields);
-                }
-
-                return null;
-
-            default:
-                return null;
         }
-    }
 
-    /// <summary>
-    /// Builds a parameter model from an anonymously instantiated <c>AttrOrTypeParameter</c> subclass
-    /// (e.g., <c>StringRefParameter&lt;"desc"&gt;</c>).
-    /// </summary>
-    private Model.AttrOrTypeParameterModel? TryBuildAttrOrTypeParameterModelFromAnonymousRecord(
-        string name, AnonymousRecordValue anonymous)
-    {
-        return TryBuildAttrOrTypeParameterModelFromFields(name, anonymous.ClassName, anonymous.Fields);
+        if (!TryResolveRecordLike(value, out var resolved))
+        {
+            return null;
+        }
+
+        // A named record reference in a parameters dag can point either to an
+        // AttrOrTypeParameter subclass or to a constraint/type record that still carries a
+        // cppType field (for example, Builtin_VectorTypeElementType). Anonymous instantiations
+        // already carry the merged field dictionary directly, so they can use the common path.
+        if (resolved.NamedRecord != null
+            && !resolved.HasBaseClass("AttrOrTypeParameter")
+            && !resolved.Fields.ContainsKey("cppType"))
+        {
+            return null;
+        }
+
+        return TryBuildAttrOrTypeParameterModelFromFields(name, resolved.LogicalName, resolved.Fields);
     }
 
     /// <summary>
@@ -1066,81 +1000,23 @@ internal sealed class OdsRecordIndex
     /// Builds an <see cref="Model.InterfaceTraitModel"/> from a record known to extend
     /// <c>InterfaceTrait</c>. Classifies the kind and extracts interface metadata.
     /// </summary>
-    private Model.InterfaceTraitModel BuildInterfaceTraitModel(string recordName, Record traitRecord)
+    private static Model.InterfaceTraitModel BuildInterfaceTraitModel(ResolvedRecordLike traitRecord)
     {
-        var kind = ClassifyInterfaceKind(traitRecord);
-        var cppInterfaceName = GetOptionalStringField(traitRecord, "cppInterfaceName");
-        var cppNamespace = GetOptionalStringField(traitRecord, "cppNamespace");
-        var baseInterfaces = GetStringListField(traitRecord, "baseInterfaces");
+        var kind = ClassifyInterfaceKind(traitRecord.Value);
+        var cppInterfaceName = GetStringFromValueDictionary(traitRecord.Fields, "cppInterfaceName");
+        var cppNamespace = GetStringFromValueDictionary(traitRecord.Fields, "cppNamespace");
+        var baseInterfaces = GetStringListFromValueDictionary(traitRecord.Fields, "baseInterfaces");
         var declaresMethods = traitRecord.HasBaseClass("DeclareInterfaceMethods");
-        var alwaysOverriddenMethods = GetStringListField(traitRecord, "alwaysOverriddenMethods");
+        var alwaysOverriddenMethods = GetStringListFromValueDictionary(traitRecord.Fields, "alwaysOverriddenMethods");
 
         return new Model.InterfaceTraitModel(
-            recordName,
+            traitRecord.LogicalName,
             kind,
             cppInterfaceName,
             cppNamespace,
             baseInterfaces,
             declaresMethods,
             alwaysOverriddenMethods);
-    }
-
-    /// <summary>
-    /// Builds an <see cref="Model.InterfaceTraitModel"/> from the fields and base-class list of
-    /// an anonymously instantiated record. Used for inline trait expressions such as
-    /// <c>DeclareOpInterfaceMethods&lt;MyIface, ["foo"]&gt;</c> that are not registered as
-    /// named top-level defs.
-    /// </summary>
-    private static Model.InterfaceTraitModel BuildInterfaceTraitModelFromFields(
-        string recordName,
-        IReadOnlyDictionary<string, Value> fields,
-        IReadOnlyList<TableGen.Evaluation.EvaluatedClass> baseClasses)
-    {
-        var kind = ClassifyInterfaceKindFromBaseClasses(baseClasses);
-        var cppInterfaceName = GetStringFromValueDictionary(fields, "cppInterfaceName");
-        var cppNamespace = GetStringFromValueDictionary(fields, "cppNamespace");
-        var baseInterfaces = GetStringListFromValueDictionary(fields, "baseInterfaces");
-        var declaresMethods = baseClasses.Any(static bc => bc.Name == "DeclareInterfaceMethods");
-        var alwaysOverriddenMethods = GetStringListFromValueDictionary(fields, "alwaysOverriddenMethods");
-
-        return new Model.InterfaceTraitModel(
-            recordName,
-            kind,
-            cppInterfaceName,
-            cppNamespace,
-            baseInterfaces,
-            declaresMethods,
-            alwaysOverriddenMethods);
-    }
-
-    /// <summary>
-    /// Classifies the <see cref="Model.InterfaceKind"/> from a list of base class names, used
-    /// when the full <see cref="Record"/> is not available (anonymous instantiation case).
-    /// </summary>
-    private static Model.InterfaceKind ClassifyInterfaceKindFromBaseClasses(
-        IReadOnlyList<TableGen.Evaluation.EvaluatedClass> baseClasses)
-    {
-        var hasDialect = false;
-        var hasOp = false;
-        var hasType = false;
-        var hasAttr = false;
-
-        foreach (var bc in baseClasses)
-        {
-            switch (bc.Name)
-            {
-                case "DialectInterface": hasDialect = true; break;
-                case "OpInterfaceTrait": hasOp = true; break;
-                case "TypeInterface": hasType = true; break;
-                case "AttrInterface": hasAttr = true; break;
-            }
-        }
-
-        if (hasDialect) return Model.InterfaceKind.Dialect;
-        if (hasOp) return Model.InterfaceKind.Op;
-        if (hasType) return Model.InterfaceKind.Type;
-        if (hasAttr) return Model.InterfaceKind.Attr;
-        return Model.InterfaceKind.Op;
     }
 
     /// <summary>
@@ -1178,7 +1054,7 @@ internal sealed class OdsRecordIndex
     /// Classifies the <see cref="Model.InterfaceKind"/> for a record that extends
     /// <c>InterfaceTrait</c>.
     /// </summary>
-    private static Model.InterfaceKind ClassifyInterfaceKind(Record record)
+    private static Model.InterfaceKind ClassifyInterfaceKind(RecordLikeValue record)
     {
         // DialectInterface extends OpInterfaceTrait, so check it before OpInterfaceTrait to
         // distinguish dialect interfaces from ordinary op interfaces.
@@ -1327,54 +1203,22 @@ internal sealed class OdsRecordIndex
     /// </summary>
     private Model.InterfaceMethodModel? TryBuildInterfaceMethodModel(Value item)
     {
-        IReadOnlyDictionary<string, Value>? fields = null;
-        string className = "InterfaceMethod";
-
-        switch (item)
-        {
-            case AnonymousRecordValue anon:
-                fields = anon.Fields;
-                className = anon.ClassName;
-                break;
-            case RecordReferenceValue recordRef:
-                if (TryGetRecord(recordRef.RecordName, out var referencedRecord))
-                {
-                    fields = referencedRecord.Fields;
-                    className = recordRef.RecordName;
-                    // Determine method kind from base classes of the referenced record.
-                    return TryBuildInterfaceMethodModelFromRecord(referencedRecord);
-                }
-                return null;
-            default:
-                return null;
-        }
-
-        if (fields == null)
+        if (!TryResolveRecordLike(item, out var resolved))
         {
             return null;
         }
 
-        return TryBuildInterfaceMethodModelFromFields(className, fields);
+        var kind = ClassifyInterfaceMethodKind(resolved.Value);
+        return TryBuildInterfaceMethodModelFromFields(resolved.Fields, kind);
     }
 
     /// <summary>
-    /// Builds an interface method model from a concrete <c>InterfaceMethod</c> record,
-    /// using base class information to determine the method kind.
-    /// </summary>
-    private Model.InterfaceMethodModel? TryBuildInterfaceMethodModelFromRecord(Record record)
-    {
-        var kind = ClassifyInterfaceMethodKind(record);
-        return TryBuildInterfaceMethodModelFromFields(record.Name, record.Fields, kind);
-    }
-
-    /// <summary>
-    /// Builds an interface method model from a field dictionary, optionally with a known
-    /// method kind (when the record is available).
+    /// Builds an interface method model from a field dictionary and the already-classified
+    /// method kind of the underlying record-like value.
     /// </summary>
     private static Model.InterfaceMethodModel? TryBuildInterfaceMethodModelFromFields(
-        string className,
         IReadOnlyDictionary<string, Value> fields,
-        Model.InterfaceMethodKind? kindOverride = null)
+        Model.InterfaceMethodKind kind)
     {
         var name = GetStringFromValueDictionary(fields, "name");
         var returnType = GetStringFromValueDictionary(fields, "returnType");
@@ -1384,7 +1228,6 @@ internal sealed class OdsRecordIndex
             return null;
         }
 
-        var kind = kindOverride ?? ClassifyInterfaceMethodKindFromClassName(className);
         var description = GetStringFromValueDictionary(fields, "description");
         var arguments = ExtractMethodArguments(fields);
         var body = GetStringFromValueDictionary(fields, "body");
@@ -1396,7 +1239,7 @@ internal sealed class OdsRecordIndex
     /// <summary>
     /// Classifies an interface method kind from the base classes of a concrete record.
     /// </summary>
-    private static Model.InterfaceMethodKind ClassifyInterfaceMethodKind(Record record)
+    private static Model.InterfaceMethodKind ClassifyInterfaceMethodKind(RecordLikeValue record)
     {
         if (record.HasBaseClass("StaticInterfaceMethod"))
         {
@@ -1416,68 +1259,28 @@ internal sealed class OdsRecordIndex
         return Model.InterfaceMethodKind.Regular;
     }
 
-    /// <summary>
-    /// Classifies an interface method kind based on the TableGen class name of an
-    /// anonymous record (when no concrete record is available for base-class inspection).
-    /// </summary>
-    private static Model.InterfaceMethodKind ClassifyInterfaceMethodKindFromClassName(string className)
-    {
-        if (className.StartsWith("Static", StringComparison.Ordinal))
-        {
-            return Model.InterfaceMethodKind.Static;
-        }
-
-        if (className.StartsWith("PureVirtual", StringComparison.Ordinal))
-        {
-            return Model.InterfaceMethodKind.PureVirtual;
-        }
-
-        if (className.EndsWith("Declaration", StringComparison.Ordinal))
-        {
-            return Model.InterfaceMethodKind.Declaration;
-        }
-
-        return Model.InterfaceMethodKind.Regular;
-    }
-
     private Model.InterfaceCSharpMemberModel? TryBuildInterfaceCSharpMemberModel(Value item)
     {
-        IReadOnlyDictionary<string, Value>? fields = null;
-        string className = "MLIRNet_InterfaceProperty";
-
-        switch (item)
-        {
-            case AnonymousRecordValue anonymous:
-                fields = anonymous.Fields;
-                className = anonymous.ClassName;
-                break;
-            case RecordReferenceValue recordRef:
-                if (TryGetRecord(recordRef.RecordName, out var referencedRecord))
-                {
-                    fields = referencedRecord.Fields;
-                    className = recordRef.RecordName;
-                }
-                break;
-        }
-
-        if (fields == null)
+        if (!TryResolveRecordLike(item, out var resolved))
         {
             return null;
         }
 
-        var upstreamName = GetStringFromValueDictionary(fields, "upstreamName");
-        var csharpType = GetStringFromValueDictionary(fields, "csharpType");
-        var csharpName = GetStringFromValueDictionary(fields, "csharpName");
-        var csharpSummary = GetStringFromValueDictionary(fields, "csharpSummary");
-        var csharpDescription = GetStringFromValueDictionary(fields, "csharpDescription");
+        var upstreamName = GetStringFromValueDictionary(resolved.Fields, "upstreamName");
+        var csharpType = GetStringFromValueDictionary(resolved.Fields, "csharpType");
+        var csharpName = GetStringFromValueDictionary(resolved.Fields, "csharpName");
+        var csharpSummary = GetStringFromValueDictionary(resolved.Fields, "csharpSummary");
+        var csharpDescription = GetStringFromValueDictionary(resolved.Fields, "csharpDescription");
         if (string.IsNullOrEmpty(upstreamName) || string.IsNullOrEmpty(csharpType) || string.IsNullOrEmpty(csharpName))
         {
             return null;
         }
 
-        var kind = className switch
+        var kind = resolved.HasBaseClass("MLIRNet_InterfaceProperty")
+            || string.Equals(resolved.LogicalName, "MLIRNet_InterfaceProperty", StringComparison.Ordinal)
+            ? Model.InterfaceCSharpMemberKind.Property
+            : resolved.LogicalName switch
         {
-            "MLIRNet_InterfaceProperty" => Model.InterfaceCSharpMemberKind.Property,
             _ => Model.InterfaceCSharpMemberKind.Property,
         };
 
@@ -1492,29 +1295,14 @@ internal sealed class OdsRecordIndex
 
     private Model.InterfaceMemberImplementationModel? TryBuildInterfaceMemberImplementationModel(Value item)
     {
-        IReadOnlyDictionary<string, Value>? fields = null;
-
-        switch (item)
-        {
-            case AnonymousRecordValue anonymous:
-                fields = anonymous.Fields;
-                break;
-            case RecordReferenceValue recordRef:
-                if (TryGetRecord(recordRef.RecordName, out var referencedRecord))
-                {
-                    fields = referencedRecord.Fields;
-                }
-                break;
-        }
-
-        if (fields == null)
+        if (!TryResolveRecordLike(item, out var resolved))
         {
             return null;
         }
 
-        var interfaceRecordName = GetRecordNameFromValueDictionary(fields, "interfaceDef");
-        var csharpMemberName = GetStringFromValueDictionary(fields, "csharpMemberName");
-        var csharpExpression = GetStringFromValueDictionary(fields, "csharpExpression");
+        var interfaceRecordName = GetRecordNameFromValueDictionary(resolved.Fields, "interfaceDef");
+        var csharpMemberName = GetStringFromValueDictionary(resolved.Fields, "csharpMemberName");
+        var csharpExpression = GetStringFromValueDictionary(resolved.Fields, "csharpExpression");
         if (string.IsNullOrEmpty(interfaceRecordName)
             || string.IsNullOrEmpty(csharpMemberName)
             || string.IsNullOrEmpty(csharpExpression))
@@ -1559,6 +1347,52 @@ internal sealed class OdsRecordIndex
         }
 
         return args.Count == 0 ? EmptyMethodArguments : args;
+    }
+
+    /// <summary>
+    /// Resolves a value that denotes a record-like object into a normalized importer view. The
+    /// helper accepts both inline anonymous instantiations and named references that must be
+    /// looked up in the index.
+    /// </summary>
+    private bool TryResolveRecordLike(Value value, out ResolvedRecordLike resolved)
+    {
+        switch (value)
+        {
+            case AnonymousRecordValue anonymous:
+                resolved = new ResolvedRecordLike(anonymous.ClassName, anonymous);
+                return true;
+
+            case RecordReferenceValue recordReference when TryGetRecord(recordReference.RecordName, out var record):
+                resolved = new ResolvedRecordLike(recordReference.RecordName, record, record);
+                return true;
+
+            case SymbolReferenceValue symbolReference when TryGetRecord(symbolReference.SymbolName, out var symbolRecord):
+                resolved = new ResolvedRecordLike(symbolReference.SymbolName, symbolRecord, symbolRecord);
+                return true;
+
+            default:
+                resolved = default;
+                return false;
+        }
+    }
+
+    private static bool TryGetRecordLikeReferenceName(Value value, out string name)
+    {
+        switch (value)
+        {
+            case AnonymousRecordValue anonymous:
+                name = anonymous.ClassName;
+                return true;
+            case RecordReferenceValue recordReference:
+                name = recordReference.RecordName;
+                return true;
+            case SymbolReferenceValue symbolReference:
+                name = symbolReference.SymbolName;
+                return true;
+            default:
+                name = string.Empty;
+                return false;
+        }
     }
 
     private static readonly IReadOnlyList<string> EmptyStrings = new string[0];
