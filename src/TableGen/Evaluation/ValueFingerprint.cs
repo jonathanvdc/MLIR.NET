@@ -25,6 +25,7 @@ internal static class ValueFingerprint
             UnsetValue => "u:",
             ListValue list => $"l:[{string.Join(",", list.Items.Select(Create))}]",
             DagValue dag => $"d:{dag.OperatorName}({string.Join(",", dag.Arguments.Select(CreateDagArgument))})",
+            Record record => $"n:{record.Name}{{{string.Join(",", record.Fields.OrderBy(static kv => kv.Key).Select(static kv => $"{kv.Key}={Create(kv.Value)}"))}}}",
             AnonymousRecordValue record => $"a:{record.ClassName}{{{string.Join(",", record.Fields.OrderBy(static kv => kv.Key).Select(static kv => $"{kv.Key}={Create(kv.Value)}"))}}}",
             _ => value.GetType().Name,
         };

@@ -77,8 +77,8 @@ internal static class ValueUtilities
                 return EvaluationResult<string>.Success(record.RecordName);
             case UnsetValue:
                 return EvaluationResult<string>.Success(string.Empty);
-            case AnonymousRecordValue rec:
-                return EvaluationResult<string>.Success(rec.ClassName);
+            case RecordLikeValue recordLike:
+                return EvaluationResult<string>.Success(recordLike.DisplayName);
             default:
                 return EvaluationResult<string>.Failure(InvalidOperation($"Cannot convert {value.GetType().Name} to string for concatenation."));
         }

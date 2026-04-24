@@ -74,7 +74,7 @@ internal sealed class IdentifierResolver(EvaluationContext context)
         var nonNullTypeName = typeName!;
         return value switch
         {
-            AnonymousRecordValue record => ClassIsA(record.ClassName, nonNullTypeName),
+            RecordLikeValue record => record.HasBaseClass(nonNullTypeName),
             RecordReferenceValue recordReference => context.DefinitionsByName.TryGetValue(recordReference.RecordName, out var definition)
                 && definition.Bases.Any(@base => ClassIsA(@base.Name, nonNullTypeName)),
             _ => false,

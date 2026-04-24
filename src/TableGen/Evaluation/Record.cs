@@ -5,7 +5,7 @@ using System.Collections.Generic;
 /// <summary>
 /// Represents an expanded TableGen record.
 /// </summary>
-public sealed class Record(string name, IReadOnlyList<EvaluatedClass> baseClasses, IReadOnlyDictionary<string, Value> fields)
+public sealed class Record(string name, IReadOnlyList<EvaluatedClass> baseClasses, IReadOnlyDictionary<string, Value> fields) : RecordLikeValue
 {
     /// <summary>
     /// Stores the record-local evaluated field values built during instantiation.
@@ -34,51 +34,24 @@ public sealed class Record(string name, IReadOnlyList<EvaluatedClass> baseClasse
     public string Name { get; } = name;
 
     /// <summary>
+    /// Gets the name used when this record participates in string-oriented TableGen contexts.
+    /// </summary>
+    public override string DisplayName => Name;
+
+    /// <summary>
     /// Gets a unified view of all fields visible on this record: record-local fields first,
     /// followed by any fields contributed by class-level <c>extends</c> overlays on the
     /// record's base classes. Record-local fields always shadow extension fields with the
     /// same name.
     /// </summary>
-    public IReadOnlyDictionary<string, Value> Fields => new ExtensionAwareFieldView(fieldValues, BaseClasses);
+    public override IReadOnlyDictionary<string, Value> Fields => new ExtensionAwareFieldView(fieldValues, BaseClasses);
 
     /// <summary>
     /// Gets the transitive base-class objects applied to the record, in first-seen order.
     /// Each object carries any class-level extension field sets attached via <c>extends</c>,
     /// which are surfaced through the <see cref="Fields"/> view without mutating the record.
     /// </summary>
-    public IReadOnlyList<EvaluatedClass> BaseClasses { get; } = baseClasses;
-
-    /// <summary>
-    /// Gets the transitive base-class names in first-seen order. Convenience shorthand for
-    /// <c>BaseClasses.Select(c => c.Name)</c>.
-    /// </summary>
-    public IEnumerable<string> BaseClassNames => BaseClasses.Select(static c => c.Name);
-
-    /// <summary>
-    /// Gets a field by name, including any extension fields contributed by base-class overlays.
-    /// </summary>
-    /// <param name="name">The field name.</param>
-    /// <returns>The field value.</returns>
-    public Value GetField(string name)
-    {
-        return Fields[name];
-    }
-
-    /// <summary>
-    /// Determines whether the record derives from a base class with the given name.
-    /// </summary>
-    public bool HasBaseClass(string name)
-    {
-        for (var i = 0; i < BaseClasses.Count; i++)
-        {
-            if (BaseClasses[i].Name == name)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    public override IReadOnlyList<EvaluatedClass> BaseClasses { get; } = baseClasses;
 
     /// <summary>
     /// Applies a field overlay to this record, used when processing <c>extends</c> on a

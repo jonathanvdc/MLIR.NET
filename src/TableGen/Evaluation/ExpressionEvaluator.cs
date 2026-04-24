@@ -349,7 +349,7 @@ internal sealed class ExpressionEvaluator
             return Failure(obj.Diagnostic!);
         }
 
-        if (obj.Value is AnonymousRecordValue rec)
+        if (obj.Value is RecordLikeValue rec)
         {
             return Success(rec.Fields.TryGetValue(fieldAccess.FieldName, out var fv) ? fv : new UnsetValue());
         }

@@ -256,6 +256,33 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void NamedAndAnonymousRecordsShareRecordLikeHelpers()
+    {
+        const string source =
+            "class Base {\n" +
+            "  string Marker = \"x\";\n" +
+            "};\n" +
+            "class Holder {\n" +
+            "  dag Params = (ins Base<>:$p);\n" +
+            "};\n" +
+            "def Named : Base;\n" +
+            "def Example : Holder;\n";
+
+        var document = Document.Parse(source).Evaluate();
+        RecordLikeValue named = Assert.Single(document.Records, static record => record.Name == "Named");
+        var example = Assert.Single(document.Records, static record => record.Name == "Example");
+        var parameters = Assert.IsType<DagValue>(example.GetField("Params"));
+        RecordLikeValue anonymous = Assert.IsType<AnonymousRecordValue>(parameters.Arguments[0].Value);
+
+        Assert.True(named.HasBaseClass("Base"));
+        Assert.True(anonymous.HasBaseClass("Base"));
+        Assert.Equal("x", Assert.IsType<StringValue>(named.GetField("Marker")).Value);
+        Assert.Equal("x", Assert.IsType<StringValue>(anonymous.GetField("Marker")).Value);
+        Assert.Equal("Named", named.DisplayName);
+        Assert.Equal("Base", anonymous.DisplayName);
+    }
+
+    [Fact]
     public void EvaluatesListsAndNestedTemplateInstantiation()
     {
         const string source =

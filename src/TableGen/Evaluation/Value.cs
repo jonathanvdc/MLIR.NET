@@ -125,7 +125,7 @@ public sealed class UnsetValue : Value
 /// that class-level <c>extends</c> overlays targeting that class are always found, regardless
 /// of whether the class also appears in any top-level <c>def</c> base-class chain.
 /// </remarks>
-public sealed class AnonymousRecordValue : Value
+public sealed class AnonymousRecordValue : RecordLikeValue
 {
     private readonly IReadOnlyDictionary<string, Value> localFields;
 
@@ -170,15 +170,20 @@ public sealed class AnonymousRecordValue : Value
     public string ClassName => OwnClass.Name;
 
     /// <summary>
+    /// Gets the name used when this anonymous record participates in string-oriented TableGen contexts.
+    /// </summary>
+    public override string DisplayName => ClassName;
+
+    /// <summary>
     /// Gets the combined list of base classes: the instantiated class itself followed by its
     /// transitive inherited bases, in first-seen order.
     /// </summary>
-    public IReadOnlyList<EvaluatedClass> BaseClasses { get; }
+    public override IReadOnlyList<EvaluatedClass> BaseClasses { get; }
 
     /// <summary>
     /// Gets a unified view of all fields: locally instantiated fields first, followed by any
     /// fields contributed by class-level <c>extends</c> overlays on <see cref="OwnClass"/> or
     /// its inherited base classes.
     /// </summary>
-    public IReadOnlyDictionary<string, Value> Fields => new ExtensionAwareFieldView(localFields, BaseClasses);
+    public override IReadOnlyDictionary<string, Value> Fields => new ExtensionAwareFieldView(localFields, BaseClasses);
 }
