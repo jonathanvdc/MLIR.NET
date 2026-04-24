@@ -1463,6 +1463,53 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
+    public void NamedRecordReferencesImportInterfaceOverlayMembersAndImplementations()
+    {
+        const string source =
+            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "def MyNamed_Dialect : Dialect {\n" +
+            "  let name = \"mynamed\";\n" +
+            "  let cppNamespace = \"::mlir::mynamed\";\n" +
+            "};\n" +
+            "def NamedMethod : StaticInterfaceMethod<\"named method\", \"int\", \"getValue\">;\n" +
+            "def NamedMember : MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
+            "  let csharpSummary = \"Named property summary.\";\n" +
+            "};\n" +
+            "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
+            "  let cppNamespace = \"::mlir::mynamed\";\n" +
+            "  let methods = [NamedMethod];\n" +
+            "};\n" +
+            "extends MyTypeIface : MLIRNet_InterfaceExtension {\n" +
+            "  let csharpMembers = [NamedMember];\n" +
+            "};\n" +
+            "def NamedImplementation : MLIRNet_InterfacePropertyImplementation<MyTypeIface, \"Value\", \"42\">;\n" +
+            "class MyNamed_Type<string name, list<Trait> traits = []> : TypeDef<MyNamed_Dialect, name, traits> {\n" +
+            "  let typeName = \"mynamed.\" # name;\n" +
+            "};\n" +
+            "def MyNamed_FooType : MyNamed_Type<\"foo\", [MyTypeIface]>;\n" +
+            "extends MyNamed_FooType : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "  let csharpInterfaceImplementations = [NamedImplementation];\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate());
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "mynamed");
+        var iface = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyTypeIface");
+        var method = Assert.Single(iface.Methods);
+        var member = Assert.Single(iface.CsharpMembers);
+        var type = Assert.Single(dialect.Types, static t => t.RecordName == "MyNamed_FooType");
+        var implementation = Assert.Single(type.InterfaceMemberImplementations);
+
+        Assert.Equal("getValue", method.Name);
+        Assert.Equal(InterfaceMethodKind.Static, method.Kind);
+        Assert.Equal("Value", member.CsharpName);
+        Assert.Equal("Named property summary.", member.CsharpSummary);
+        Assert.Equal("MyTypeIface", implementation.InterfaceRecordName);
+        Assert.Equal("Value", implementation.CsharpMemberName);
+        Assert.Equal("42", implementation.CsharpExpression);
+    }
+
+    [Fact]
     public void InterfaceWithBaseInterfacesPreservesBaseInterfaceRecordNames()
     {
         // An interface that declares base interfaces should preserve those record names
