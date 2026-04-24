@@ -232,6 +232,30 @@ public sealed class EvaluationTests
     }
 
     [Fact]
+    public void AnonymousRecordInstantiationInListCanApplyInlineBodyLets()
+    {
+        const string source =
+            "class Member<string name> {\n" +
+            "  string Name = name;\n" +
+            "  string Summary = ?;\n" +
+            "};\n" +
+            "def Example {\n" +
+            "  list<Member> Members = [\n" +
+            "    Member<\"value\"> {\n" +
+            "      let Summary = \"doc\";\n" +
+            "    }\n" +
+            "  ];\n" +
+            "};";
+
+        var record = TestHelpers.EvaluateSingleRecord(source);
+        var members = Assert.IsType<ListValue>(record.GetField("Members"));
+        var member = Assert.IsType<AnonymousRecordValue>(Assert.Single(members.Items));
+
+        Assert.Equal("value", Assert.IsType<StringValue>(member.Fields["Name"]).Value);
+        Assert.Equal("doc", Assert.IsType<StringValue>(member.Fields["Summary"]).Value);
+    }
+
+    [Fact]
     public void EvaluatesListsAndNestedTemplateInstantiation()
     {
         const string source =

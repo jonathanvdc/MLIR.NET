@@ -1433,16 +1433,15 @@ public sealed class DialectImporterTests
             "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
             "  let cppNamespace = \"::mlir::myimx\";\n" +
             "};\n" +
-            "def MyProjectedValueMember : MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
-            "  let csharpSummary = \"Projected property summary.\";\n" +
-            "  let csharpDescription = [{Projected property remarks.}];\n" +
-            "};\n" +
             "extends MyTypeIface : MLIRNet_InterfaceExtension {\n" +
             "  let csharpName = \"IMyProjectedType\";\n" +
             "  let csharpSummary = \"Projected summary.\";\n" +
             "  let csharpDescription = [{Projected interface remarks.}];\n" +
             "  let csharpMembers = [\n" +
-            "    MyProjectedValueMember,\n" +
+            "    MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
+            "      let csharpSummary = \"Projected property summary.\";\n" +
+            "      let csharpDescription = [{Projected property remarks.}];\n" +
+            "    },\n" +
             "  ];\n" +
             "};\n";
 

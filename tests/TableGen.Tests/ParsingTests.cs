@@ -304,6 +304,28 @@ public sealed class ParsingTests
     }
 
     [Fact]
+    public void ParsesAnonymousClassInstantiationWithInlineBodyInsideListLiteral()
+    {
+        const string source =
+            "class Member<string name>;\n" +
+            "def Example {\n" +
+            "  list<Member> Members = [Member<\"value\"> { let summary = \"doc\"; }];\n" +
+            "};";
+
+        var document = Document.Parse(source);
+        var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[1]);
+        var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
+        var list = Assert.IsType<ListSyntax>(field.Initializer);
+        var item = Assert.IsType<AnonymousClassInstantiationSyntax>(Assert.Single(list.Items));
+
+        Assert.Equal("Member", item.ClassName);
+        Assert.Single(item.Arguments);
+        var bodyLet = Assert.Single(item.BodyLets);
+        Assert.Equal("summary", bodyLet.Name);
+        Assert.IsType<StringSyntax>(bodyLet.Value);
+    }
+
+    [Fact]
     public void ReportsMissingTemplateParameterNames()
     {
         var exception = Assert.Throws<ParseException>(() => Document.Parse("class Base<int>;"));

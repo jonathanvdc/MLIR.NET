@@ -465,7 +465,8 @@ internal sealed class Parser
             if (Is(TokenKind.LessThan))
             {
                 var arguments = ParseOptionalArgumentList();
-                return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(identifierToken.Text, arguments));
+                var (_, bodyLets) = ParseOptionalExtendsBody();
+                return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(identifierToken.Text, arguments, bodyLets));
             }
 
             return ApplyPostfixAccess(new IdentifierSyntax(identifierToken.Text));
@@ -476,7 +477,8 @@ internal sealed class Parser
             if (Is(TokenKind.LessThan))
             {
                 var arguments = ParseOptionalArgumentList();
-                return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(nameToken.Text, arguments));
+                var (_, bodyLets) = ParseOptionalExtendsBody();
+                return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(nameToken.Text, arguments, bodyLets));
             }
 
             return ApplyPostfixAccess(new IdentifierSyntax(nameToken.Text));

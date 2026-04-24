@@ -45,7 +45,7 @@ internal sealed class RecordBuilder
         this.context = context;
         expressionEvaluator = new ExpressionEvaluator(
             context,
-            (classSyntax, arguments, outerScope, tryResolveValue) => InstantiateClass(classSyntax, arguments, outerScope, tryResolveValue),
+            (classSyntax, arguments, outerScope, bodyLets, tryResolveValue) => InstantiateClass(classSyntax, arguments, outerScope, bodyLets, tryResolveValue),
             definition => BuildDefinition(definition));
     }
 
@@ -149,14 +149,21 @@ internal sealed class RecordBuilder
     /// <param name="classSyntax">The class declaration to instantiate.</param>
     /// <param name="arguments">The supplied template arguments.</param>
     /// <param name="outerScope">The lexical scope in which the instantiation appears.</param>
+    /// <param name="bodyLets">
+    /// Optional inline <c>let</c> overrides attached directly to the anonymous instantiation
+    /// expression. These are applied after the class body has been materialized but before the
+    /// resulting fields are resolved.
+    /// </param>
     /// <param name="tryResolveValue">Optional deferred lookup for field references.</param>
     /// <returns>The anonymous record value or a diagnostic.</returns>
     public EvaluationResult<AnonymousRecordValue> InstantiateClass(
         ClassSyntax classSyntax,
         IReadOnlyList<ExpressionSyntax> arguments,
         Scope outerScope,
+        IReadOnlyList<LetSyntax>? bodyLets = null,
         ExpressionEvaluator.TryResolveValue? tryResolveValue = null)
     {
+        bodyLets ??= EmptyLets;
         var boundArguments = new List<Value>(classSyntax.TemplateParameters.Count);
         var scope = Scope.Empty;
 
@@ -208,7 +215,7 @@ internal sealed class RecordBuilder
         var inheritedBaseClasses = CollectBaseClassesForClass(classSyntax);
 
         var cacheKey = (classSyntax.Name, ValueFingerprint.Create(boundArguments));
-        if (instantiatedClasses.TryGetValue(cacheKey, out var cachedFields))
+        if (bodyLets.Count == 0 && instantiatedClasses.TryGetValue(cacheKey, out var cachedFields))
         {
             return EvaluationResult<AnonymousRecordValue>.Success(
                 new AnonymousRecordValue(ownClass, CloneFields(cachedFields), inheritedBaseClasses));
@@ -229,16 +236,27 @@ internal sealed class RecordBuilder
             return EvaluationResult<AnonymousRecordValue>.Failure(body.Diagnostic!);
         }
 
+        foreach (var let in bodyLets)
+        {
+            state.ApplyLet(let, outerScope);
+        }
+
         var resolvedFields = ResolveFields(state);
         if (!resolvedFields.IsSuccess)
         {
             return EvaluationResult<AnonymousRecordValue>.Failure(resolvedFields.Diagnostic!);
         }
 
-        instantiatedClasses[cacheKey] = CloneFields(resolvedFields.Value);
+        if (bodyLets.Count == 0)
+        {
+            instantiatedClasses[cacheKey] = CloneFields(resolvedFields.Value);
+        }
+
         return EvaluationResult<AnonymousRecordValue>.Success(
             new AnonymousRecordValue(ownClass, CloneFields(resolvedFields.Value), inheritedBaseClasses));
     }
+
+    private static readonly IReadOnlyList<LetSyntax> EmptyLets = new LetSyntax[0];
 
     /// <summary>
     /// Applies an <c>extends</c> overlay to the target record or class after both the target and overlay schema

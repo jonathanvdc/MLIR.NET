@@ -18,7 +18,7 @@ internal sealed class ExpressionEvaluator
     /// <summary>
     /// Instantiates classes so expression-time class calls can compute field values.
     /// </summary>
-    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass;
+    private readonly Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, IReadOnlyList<LetSyntax>, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass;
 
     /// <summary>
     /// Builds top-level definitions on demand for record field access.
@@ -50,7 +50,7 @@ internal sealed class ExpressionEvaluator
     /// <param name="buildDefinition">Callback used for on-demand record building.</param>
     public ExpressionEvaluator(
         EvaluationContext context,
-        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass,
+        Func<ClassSyntax, IReadOnlyList<ExpressionSyntax>, Scope, IReadOnlyList<LetSyntax>, TryResolveValue?, EvaluationResult<AnonymousRecordValue>> instantiateClass,
         Func<DefSyntax, EvaluationResult<Record>> buildDefinition)
     {
         this.context = context;
@@ -295,7 +295,7 @@ internal sealed class ExpressionEvaluator
             return Failure(MissingKey($"Unknown TableGen class '{instantiation.ClassName}'."));
         }
 
-        var record = instantiateClass(classSyntax, instantiation.Arguments, scope, tryResolveValue);
+        var record = instantiateClass(classSyntax, instantiation.Arguments, scope, EmptyLets, tryResolveValue);
         if (!record.IsSuccess)
         {
             return Failure(record.Diagnostic!);
@@ -323,11 +323,13 @@ internal sealed class ExpressionEvaluator
             return Failure(MissingKey($"Unknown TableGen class '{inst.ClassName}'."));
         }
 
-        var record = instantiateClass(classSyntax, inst.Arguments, scope, tryResolveValue);
+        var record = instantiateClass(classSyntax, inst.Arguments, scope, inst.BodyLets, tryResolveValue);
         return record.IsSuccess
             ? Success(record.Value)
             : Failure(record.Diagnostic!);
     }
+
+    private static readonly IReadOnlyList<LetSyntax> EmptyLets = new LetSyntax[0];
 
     /// <summary>
     /// Evaluates a field access on either an anonymous record value or a top-level record reference.
