@@ -366,9 +366,7 @@ internal static class BenchmarkCases
         string sourceText,
         IncludeResolver? resolver)
     {
-        var document = resolver == null
-            ? Document.Parse(sourceText)
-            : Document.Load(sourceText, resolver);
+        var document = ParseDocumentForBenchmark(sourceText, resolver);
         return new BenchmarkCase(
             manifest.Name,
             manifest.Description,
@@ -386,11 +384,20 @@ internal static class BenchmarkCases
             manifest.Description,
             () =>
             {
-                var document = resolver == null
-                    ? Document.Parse(sourceText)
-                    : Document.Load(sourceText, resolver);
+                var document = ParseDocumentForBenchmark(sourceText, resolver);
                 context.Consume(document.Evaluate());
             });
+    }
+
+    private static Document ParseDocumentForBenchmark(string sourceText, IncludeResolver? resolver)
+    {
+        var result = resolver == null
+            ? Document.Parse(sourceText)
+            : Document.Load(sourceText, resolver);
+
+        return result.IsSuccess
+            ? result.Value
+            : throw new InvalidOperationException(result.Diagnostic!.ToString());
     }
 
     private static BenchmarkManifest LoadManifest(BenchmarkContext context, string manifestPath)

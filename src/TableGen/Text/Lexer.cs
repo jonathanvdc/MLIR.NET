@@ -16,15 +16,7 @@ internal static class Lexer
     /// <returns>The lexing result, including a trailing end-of-file token on success.</returns>
     public static ParseResult<IReadOnlyList<Token>> Lex(SourceDocument sourceDocument)
     {
-        var lexer = new LexerImpl(sourceDocument);
-        try
-        {
-            return ParseResult<IReadOnlyList<Token>>.Success(lexer.Lex());
-        }
-        catch (ParseException exception)
-        {
-            return ParseResult<IReadOnlyList<Token>>.Failure(exception.Diagnostic);
-        }
+        return new LexerImpl(sourceDocument).Lex();
     }
 
     /// <summary>
@@ -66,11 +58,16 @@ internal static class Lexer
         /// Tokenizes the entire source string.
         /// </summary>
         /// <returns>The emitted token sequence, including a trailing end-of-file token.</returns>
-        public IReadOnlyList<Token> Lex()
+        public ParseResult<IReadOnlyList<Token>> Lex()
         {
             while (!IsAtEnd)
             {
-                SkipTrivia();
+                var triviaDiagnostic = SkipTrivia();
+                if (triviaDiagnostic is not null)
+                {
+                    return ParseResult<IReadOnlyList<Token>>.Failure(triviaDiagnostic);
+                }
+
                 if (IsAtEnd)
                 {
                     break;
@@ -116,13 +113,25 @@ internal static class Lexer
 
                 if (current == '"')
                 {
-                    AddToken(TokenKind.String, ReadStringLiteral(), tokenStart);
+                    var literal = ReadStringLiteral();
+                    if (!literal.IsSuccess)
+                    {
+                        return ParseResult<IReadOnlyList<Token>>.Failure(literal.Diagnostic!);
+                    }
+
+                    AddToken(TokenKind.String, literal.Value, tokenStart);
                     continue;
                 }
 
                 if (current == '[' && Peek(1) == '{')
                 {
-                    AddToken(TokenKind.CodeBlock, ReadCodeBlockLiteral(), tokenStart);
+                    var literal = ReadCodeBlockLiteral();
+                    if (!literal.IsSuccess)
+                    {
+                        return ParseResult<IReadOnlyList<Token>>.Failure(literal.Diagnostic!);
+                    }
+
+                    AddToken(TokenKind.CodeBlock, literal.Value, tokenStart);
                     continue;
                 }
 
@@ -132,19 +141,25 @@ internal static class Lexer
                     var operatorName = ReadWhile(static c => char.IsLetterOrDigit(c) || c == '_');
                     if (operatorName.Length == 0)
                     {
-                        throw Error("Expected a bang operator name after '!'.");
+                        return Error<IReadOnlyList<Token>>("Expected a bang operator name after '!'.");
                     }
 
                     AddToken(TokenKind.BangKeyword, operatorName, tokenStart);
                     continue;
                 }
 
+                var punctuation = GetPunctuationKind(current);
+                if (!punctuation.IsSuccess)
+                {
+                    return ParseResult<IReadOnlyList<Token>>.Failure(punctuation.Diagnostic!);
+                }
+
                 Advance();
-                AddToken(GetPunctuationKind(current), current.ToString(), tokenStart);
+                AddToken(punctuation.Value, current.ToString(), tokenStart);
             }
 
             tokens.Add(new Token(TokenKind.EndOfFile, string.Empty, new SourceLocation(sourceDocument, position, 0)));
-            return tokens;
+            return ParseResult<IReadOnlyList<Token>>.Success(tokens);
         }
 
         /// <summary>
@@ -187,7 +202,7 @@ internal static class Lexer
         /// <summary>
         /// Skips whitespace, comments, and preprocessor directive lines that the parser should not see.
         /// </summary>
-        private void SkipTrivia()
+        private Diagnostic? SkipTrivia()
         {
             while (!IsAtEnd)
             {
@@ -218,7 +233,7 @@ internal static class Lexer
 
                     if (IsAtEnd)
                     {
-                        throw Error("Unterminated block comment.");
+                        return ErrorDiagnostic("Unterminated block comment.");
                     }
 
                     Advance();
@@ -242,6 +257,8 @@ internal static class Lexer
 
                 break;
             }
+
+            return null;
         }
 
         /// <summary>
@@ -286,7 +303,7 @@ internal static class Lexer
         /// Reads a quoted string literal and decodes the small escape set supported by the lexer.
         /// </summary>
         /// <returns>The decoded string contents.</returns>
-        private string ReadStringLiteral()
+        private ParseResult<string> ReadStringLiteral()
         {
             var builder = new StringBuilder();
             Advance();
@@ -298,7 +315,7 @@ internal static class Lexer
                     Advance();
                     if (IsAtEnd)
                     {
-                        throw Error("Unterminated string literal.");
+                        return Error<string>("Unterminated string literal.");
                     }
 
                     builder.Append(Current switch
@@ -320,18 +337,18 @@ internal static class Lexer
 
             if (IsAtEnd)
             {
-                throw Error("Unterminated string literal.");
+                return Error<string>("Unterminated string literal.");
             }
 
             Advance();
-            return builder.ToString();
+            return ParseResult<string>.Success(builder.ToString());
         }
 
         /// <summary>
         /// Reads a <c>[{ ... }]</c> code block literal, preserving its contents exactly.
         /// </summary>
         /// <returns>The raw code block contents without the wrapping delimiters.</returns>
-        private string ReadCodeBlockLiteral()
+        private ParseResult<string> ReadCodeBlockLiteral()
         {
             var builder = new StringBuilder();
             Advance();
@@ -343,14 +360,14 @@ internal static class Lexer
                 {
                     Advance();
                     Advance();
-                    return builder.ToString();
+                    return ParseResult<string>.Success(builder.ToString());
                 }
 
                 builder.Append(Current);
                 Advance();
             }
 
-            throw Error("Unterminated code block literal.");
+            return Error<string>("Unterminated code block literal.");
         }
 
         /// <summary>
@@ -378,9 +395,9 @@ internal static class Lexer
         /// </summary>
         /// <param name="c">The punctuation character.</param>
         /// <returns>The corresponding token kind.</returns>
-        private TokenKind GetPunctuationKind(char c)
+        private ParseResult<TokenKind> GetPunctuationKind(char c)
         {
-            return c switch
+            var kind = c switch
             {
                 ':' => TokenKind.Colon,
                 ';' => TokenKind.Semicolon,
@@ -398,18 +415,32 @@ internal static class Lexer
                 '#' => TokenKind.Hash,
                 '.' => TokenKind.Dot,
                 '?' => TokenKind.QuestionMark,
-                _ => throw Error($"Unexpected character '{c}'."),
+                _ => (TokenKind?)null,
             };
+
+            return kind.HasValue
+                ? ParseResult<TokenKind>.Success(kind.Value)
+                : Error<TokenKind>($"Unexpected character '{c}'.");
         }
 
         /// <summary>
-        /// Creates a parse exception at the lexer's current source position.
+        /// Creates a parse failure at the lexer's current source position.
         /// </summary>
         /// <param name="message">The diagnostic message.</param>
-        /// <returns>The constructed parse exception.</returns>
-        private ParseException Error(string message)
+        /// <returns>The parse result containing the diagnostic.</returns>
+        private ParseResult<T> Error<T>(string message)
         {
-            return new ParseException(new Diagnostic(message, new SourceLocation(sourceDocument, position, 1)));
+            return ParseResult<T>.Failure(ErrorDiagnostic(message));
+        }
+
+        /// <summary>
+        /// Creates a diagnostic at the lexer's current source position.
+        /// </summary>
+        /// <param name="message">The diagnostic message.</param>
+        /// <returns>The constructed diagnostic.</returns>
+        private Diagnostic ErrorDiagnostic(string message)
+        {
+            return new Diagnostic(message, new SourceLocation(sourceDocument, position, 1));
         }
     }
 }

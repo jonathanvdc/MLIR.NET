@@ -11,20 +11,9 @@ using TableGen.Syntax;
 /// </summary>
 internal sealed class Parser
 {
-    /// <summary>
-    /// Stores the token stream being parsed.
-    /// </summary>
     private readonly IReadOnlyList<Token> tokens;
-
-    /// <summary>
-    /// Tracks the current token position.
-    /// </summary>
     private int position;
 
-    /// <summary>
-    /// Initializes a parser for a token stream.
-    /// </summary>
-    /// <param name="tokens">The token stream to parse.</param>
     private Parser(IReadOnlyList<Token> tokens)
     {
         this.tokens = tokens;
@@ -33,8 +22,6 @@ internal sealed class Parser
     /// <summary>
     /// Parses a complete TableGen document.
     /// </summary>
-    /// <param name="sourceDocument">The source document to parse.</param>
-    /// <returns>The parse result.</returns>
     public static ParseResult<DocumentSyntax> ParseDocument(SourceDocument sourceDocument)
     {
         var lexResult = Lexer.Lex(sourceDocument);
@@ -43,376 +30,428 @@ internal sealed class Parser
             return ParseResult<DocumentSyntax>.Failure(lexResult.Diagnostic!);
         }
 
-        try
-        {
-            var parser = new Parser(lexResult.Value);
-            return ParseResult<DocumentSyntax>.Success(parser.ParseDocumentCore());
-        }
-        catch (ParseException exception)
-        {
-            return ParseResult<DocumentSyntax>.Failure(exception.Diagnostic);
-        }
+        return new Parser(lexResult.Value).ParseDocumentCore();
     }
 
     /// <summary>
     /// Parses a complete TableGen document.
     /// </summary>
-    /// <param name="source">The source text to parse.</param>
-    /// <returns>The parse result.</returns>
     public static ParseResult<DocumentSyntax> ParseDocument(string source)
     {
         return ParseDocument(new SourceDocument(source));
     }
 
-    /// <summary>
-    /// Parses a complete TableGen document from the current token stream.
-    /// </summary>
-    /// <returns>The parsed syntax tree.</returns>
-    private DocumentSyntax ParseDocumentCore()
+    private ParseResult<DocumentSyntax> ParseDocumentCore()
     {
         var declarations = new List<TopLevelSyntax>();
         while (!Is(TokenKind.EndOfFile))
         {
-            declarations.AddRange(ParseTopLevelItems([]));
+            var items = ParseTopLevelItems([]);
+            if (!items.IsSuccess)
+            {
+                return ParseResult<DocumentSyntax>.Failure(items.Diagnostic!);
+            }
+
+            declarations.AddRange(items.Value);
         }
 
-        return new DocumentSyntax(declarations);
+        return ParseResult<DocumentSyntax>.Success(new DocumentSyntax(declarations));
     }
 
-    /// <summary>
-    /// Parses one or more top-level declarations, threading any outer <c>let ... in</c> bindings into nested declarations.
-    /// </summary>
-    /// <param name="topLevelLets">The top-level lets currently in scope.</param>
-    /// <returns>The parsed top-level declarations.</returns>
-    private IReadOnlyList<TopLevelSyntax> ParseTopLevelItems(IReadOnlyList<LetSyntax> topLevelLets)
+    private ParseResult<IReadOnlyList<TopLevelSyntax>> ParseTopLevelItems(IReadOnlyList<LetSyntax> topLevelLets)
     {
         if (TryMatch(TokenKind.IncludeKeyword))
         {
             var path = Expect(TokenKind.String, "Expected a string literal after 'include'.");
-            return [new IncludeDirectiveSyntax(path.Text, path.Location)];
+            return path.Map<IReadOnlyList<TopLevelSyntax>>(static token =>
+                [new IncludeDirectiveSyntax(token.Text, token.Location)]);
         }
 
         if (TryMatch(TokenKind.LetKeyword))
         {
-            var name = ExpectName("Expected a field name after 'let'.").Text;
-            Expect(TokenKind.Equal, "Expected '=' after the field name.");
-            var value = ParseExpression();
-            Expect(TokenKind.InKeyword, "Expected 'in' after the top-level let binding.");
+            var name = ExpectName("Expected a field name after 'let'.");
+            if (!name.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(name);
 
-            var nestedLets = topLevelLets.Concat([new LetSyntax(name, value)]).ToArray();
+            var equal = Expect(TokenKind.Equal, "Expected '=' after the field name.");
+            if (!equal.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(equal);
+
+            var value = ParseExpression();
+            if (!value.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(value);
+
+            var inKeyword = Expect(TokenKind.InKeyword, "Expected 'in' after the top-level let binding.");
+            if (!inKeyword.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(inKeyword);
+
+            var nestedLets = topLevelLets.Concat([new LetSyntax(name.Value.Text, value.Value)]).ToArray();
             var declarations = new List<TopLevelSyntax>();
             if (TryMatch(TokenKind.LBrace))
             {
-                // `let ... in { ... }` applies to every nested declaration until the matching brace.
                 while (!TryMatch(TokenKind.RBrace))
                 {
-                    declarations.AddRange(ParseTopLevelItems(nestedLets));
+                    var nested = ParseTopLevelItems(nestedLets);
+                    if (!nested.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(nested);
+                    declarations.AddRange(nested.Value);
                 }
             }
             else
             {
-                declarations.AddRange(ParseTopLevelItems(nestedLets));
+                var nested = ParseTopLevelItems(nestedLets);
+                if (!nested.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(nested);
+                declarations.AddRange(nested.Value);
             }
 
-            return declarations;
+            return ParseResult<IReadOnlyList<TopLevelSyntax>>.Success(declarations);
         }
 
         if (TryMatch(TokenKind.ClassKeyword))
         {
-            return [ParseClass(topLevelLets)];
+            return ParseClass(topLevelLets).Map<IReadOnlyList<TopLevelSyntax>>(static item => [item]);
         }
 
         if (TryMatch(TokenKind.DefKeyword))
         {
-            return [ParseDef(topLevelLets)];
+            return ParseDef(topLevelLets).Map<IReadOnlyList<TopLevelSyntax>>(static item => [item]);
         }
 
         if (TryMatch(TokenKind.DefVarKeyword))
         {
-            var name = ExpectName("Expected a name after 'defvar'.").Text;
-            Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
+            var name = ExpectName("Expected a name after 'defvar'.");
+            if (!name.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(name);
+
+            var equal = Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
+            if (!equal.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(equal);
+
             var value = ParseExpression();
-            Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
-            return [new DefVarSyntax(name, value)];
+            if (!value.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(value);
+
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
+            if (!semicolon.IsSuccess) return Failure<IReadOnlyList<TopLevelSyntax>>(semicolon);
+
+            return ParseResult<IReadOnlyList<TopLevelSyntax>>.Success([new DefVarSyntax(name.Value.Text, value.Value)]);
         }
 
         if (Is(TokenKind.Identifier) && Current.Text == "extends")
         {
-            return [ParseExtends(topLevelLets)];
+            return ParseExtends(topLevelLets).Map<IReadOnlyList<TopLevelSyntax>>(static item => [item]);
         }
 
-        throw Error("Expected 'class', 'def', 'defvar', 'let', or 'extends'.");
+        return Error<IReadOnlyList<TopLevelSyntax>>("Expected 'class', 'def', 'defvar', 'let', or 'extends'.");
     }
 
-    /// <summary>
-    /// Parses a <c>class</c> declaration.
-    /// </summary>
-    /// <param name="topLevelLets">The top-level lets captured for this declaration.</param>
-    /// <returns>The parsed class syntax node.</returns>
-    private ClassSyntax ParseClass(IReadOnlyList<LetSyntax> topLevelLets)
+    private ParseResult<ClassSyntax> ParseClass(IReadOnlyList<LetSyntax> topLevelLets)
     {
-        var name = ExpectName("Expected a class name.").Text;
+        var name = ExpectName("Expected a class name.");
+        if (!name.IsSuccess) return Failure<ClassSyntax>(name);
+
         var templateParameters = ParseOptionalTemplateParameters();
+        if (!templateParameters.IsSuccess) return Failure<ClassSyntax>(templateParameters);
+
         var bases = ParseOptionalBases();
-        var (hadBraces, bodyItems) = ParseOptionalBody();
-        if (!hadBraces || Is(TokenKind.Semicolon))
+        if (!bases.IsSuccess) return Failure<ClassSyntax>(bases);
+
+        var body = ParseOptionalBody();
+        if (!body.IsSuccess) return Failure<ClassSyntax>(body);
+
+        if (!body.Value.HadBraces || Is(TokenKind.Semicolon))
         {
-            Expect(TokenKind.Semicolon, "Expected ';' after the class declaration.");
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the class declaration.");
+            if (!semicolon.IsSuccess) return Failure<ClassSyntax>(semicolon);
         }
 
-        return new ClassSyntax(name, templateParameters, bases, topLevelLets, bodyItems);
+        return ParseResult<ClassSyntax>.Success(
+            new ClassSyntax(name.Value.Text, templateParameters.Value, bases.Value, topLevelLets, body.Value.Items));
     }
 
-    /// <summary>
-    /// Parses a <c>def</c> declaration.
-    /// </summary>
-    /// <param name="topLevelLets">The top-level lets captured for this declaration.</param>
-    /// <returns>The parsed definition syntax node.</returns>
-    private DefSyntax ParseDef(IReadOnlyList<LetSyntax> topLevelLets)
+    private ParseResult<DefSyntax> ParseDef(IReadOnlyList<LetSyntax> topLevelLets)
     {
-        var name = ExpectName("Expected a definition name.").Text;
+        var name = ExpectName("Expected a definition name.");
+        if (!name.IsSuccess) return Failure<DefSyntax>(name);
+
         var bases = ParseOptionalBases();
-        var (hadBraces, bodyItems) = ParseOptionalBody();
-        if (!hadBraces || Is(TokenKind.Semicolon))
+        if (!bases.IsSuccess) return Failure<DefSyntax>(bases);
+
+        var body = ParseOptionalBody();
+        if (!body.IsSuccess) return Failure<DefSyntax>(body);
+
+        if (!body.Value.HadBraces || Is(TokenKind.Semicolon))
         {
-            Expect(TokenKind.Semicolon, "Expected ';' after the definition.");
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the definition.");
+            if (!semicolon.IsSuccess) return Failure<DefSyntax>(semicolon);
         }
 
-        return new DefSyntax(name, bases, topLevelLets, bodyItems);
+        return ParseResult<DefSyntax>.Success(new DefSyntax(name.Value.Text, bases.Value, topLevelLets, body.Value.Items));
     }
 
-    /// <summary>
-    /// Parses an <c>extends</c> overlay declaration.
-    /// </summary>
-    /// <param name="topLevelLets">The top-level lets captured for this declaration.</param>
-    /// <returns>The parsed extends syntax node.</returns>
-    private ExtendsSyntax ParseExtends(IReadOnlyList<LetSyntax> topLevelLets)
+    private ParseResult<ExtendsSyntax> ParseExtends(IReadOnlyList<LetSyntax> topLevelLets)
     {
-        Expect(TokenKind.Identifier, "Expected 'extends'.");
-        var targetName = ExpectName("Expected a target record name after 'extends'.").Text;
-        Expect(TokenKind.Colon, "Expected ':' after the target record name.");
+        var extends = Expect(TokenKind.Identifier, "Expected 'extends'.");
+        if (!extends.IsSuccess) return Failure<ExtendsSyntax>(extends);
+
+        var targetName = ExpectName("Expected a target record name after 'extends'.");
+        if (!targetName.IsSuccess) return Failure<ExtendsSyntax>(targetName);
+
+        var colon = Expect(TokenKind.Colon, "Expected ':' after the target record name.");
+        if (!colon.IsSuccess) return Failure<ExtendsSyntax>(colon);
+
         var bases = ParseExtendsBases();
+        if (!bases.IsSuccess) return Failure<ExtendsSyntax>(bases);
+
         var lets = ParseOptionalExtendsBody();
-        if (!lets.hadBraces || Is(TokenKind.Semicolon))
+        if (!lets.IsSuccess) return Failure<ExtendsSyntax>(lets);
+
+        if (!lets.Value.HadBraces || Is(TokenKind.Semicolon))
         {
-            Expect(TokenKind.Semicolon, "Expected ';' after the extends declaration.");
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the extends declaration.");
+            if (!semicolon.IsSuccess) return Failure<ExtendsSyntax>(semicolon);
         }
 
-        return new ExtendsSyntax(targetName, bases, topLevelLets, lets.items);
+        return ParseResult<ExtendsSyntax>.Success(
+            new ExtendsSyntax(targetName.Value.Text, bases.Value, topLevelLets, lets.Value.Items));
     }
 
-    /// <summary>
-    /// Parses an optional template parameter list such as <c>&lt;string name, int n = 0&gt;</c>.
-    /// </summary>
-    /// <returns>The parsed template parameters, or an empty list when no parameter list is present.</returns>
-    private IReadOnlyList<TemplateParameterSyntax> ParseOptionalTemplateParameters()
+    private ParseResult<IReadOnlyList<TemplateParameterSyntax>> ParseOptionalTemplateParameters()
     {
         var parameters = new List<TemplateParameterSyntax>();
         if (!TryMatch(TokenKind.LessThan))
         {
-            return parameters;
+            return ParseResult<IReadOnlyList<TemplateParameterSyntax>>.Success(parameters);
         }
 
         if (TryMatch(TokenKind.GreaterThan))
         {
-            return parameters;
+            return ParseResult<IReadOnlyList<TemplateParameterSyntax>>.Success(parameters);
         }
 
         do
         {
             var typeName = ParseTypeName();
-            var name = ExpectName("Expected a template parameter name.").Text;
+            if (!typeName.IsSuccess) return Failure<IReadOnlyList<TemplateParameterSyntax>>(typeName);
+
+            var name = ExpectName("Expected a template parameter name.");
+            if (!name.IsSuccess) return Failure<IReadOnlyList<TemplateParameterSyntax>>(name);
+
             ExpressionSyntax? defaultValue = null;
             if (TryMatch(TokenKind.Equal))
             {
-                defaultValue = ParseExpression();
+                var parsedDefault = ParseExpression();
+                if (!parsedDefault.IsSuccess) return Failure<IReadOnlyList<TemplateParameterSyntax>>(parsedDefault);
+                defaultValue = parsedDefault.Value;
             }
 
-            parameters.Add(new TemplateParameterSyntax(typeName, name, defaultValue));
+            parameters.Add(new TemplateParameterSyntax(typeName.Value, name.Value.Text, defaultValue));
         }
         while (TryMatch(TokenKind.Comma) && !Is(TokenKind.GreaterThan));
 
-        Expect(TokenKind.GreaterThan, "Expected '>' to close the template parameter list.");
-        return parameters;
+        var close = Expect(TokenKind.GreaterThan, "Expected '>' to close the template parameter list.");
+        return close.IsSuccess
+            ? ParseResult<IReadOnlyList<TemplateParameterSyntax>>.Success(parameters)
+            : Failure<IReadOnlyList<TemplateParameterSyntax>>(close);
     }
 
-    /// <summary>
-    /// Parses an optional base-class list following a colon.
-    /// </summary>
-    /// <returns>The parsed base list, or an empty list when no bases are present.</returns>
-    private IReadOnlyList<BaseSyntax> ParseOptionalBases()
+    private ParseResult<IReadOnlyList<BaseSyntax>> ParseOptionalBases()
     {
         var bases = new List<BaseSyntax>();
         if (!TryMatch(TokenKind.Colon))
         {
-            return bases;
+            return ParseResult<IReadOnlyList<BaseSyntax>>.Success(bases);
         }
 
         do
         {
-            var name = ExpectName("Expected a base-class name.").Text;
-            bases.Add(new BaseSyntax(name, ParseOptionalArgumentList()));
+            var name = ExpectName("Expected a base-class name.");
+            if (!name.IsSuccess) return Failure<IReadOnlyList<BaseSyntax>>(name);
+
+            var args = ParseOptionalArgumentList();
+            if (!args.IsSuccess) return Failure<IReadOnlyList<BaseSyntax>>(args);
+
+            bases.Add(new BaseSyntax(name.Value.Text, args.Value));
         }
         while (TryMatch(TokenKind.Comma) && !Is(TokenKind.GreaterThan));
 
-        return bases;
+        return ParseResult<IReadOnlyList<BaseSyntax>>.Success(bases);
     }
 
-    /// <summary>
-    /// Parses an optional angle-bracketed argument list.
-    /// </summary>
-    /// <returns>The parsed arguments, or an empty list when no argument list is present.</returns>
-    private IReadOnlyList<ExpressionSyntax> ParseOptionalArgumentList()
+    private ParseResult<IReadOnlyList<ExpressionSyntax>> ParseOptionalArgumentList()
     {
         var arguments = new List<ExpressionSyntax>();
         if (!TryMatch(TokenKind.LessThan))
         {
-            return arguments;
+            return ParseResult<IReadOnlyList<ExpressionSyntax>>.Success(arguments);
         }
 
         if (TryMatch(TokenKind.GreaterThan))
         {
-            return arguments;
+            return ParseResult<IReadOnlyList<ExpressionSyntax>>.Success(arguments);
         }
 
         do
         {
-            arguments.Add(ParseExpression());
+            var arg = ParseExpression();
+            if (!arg.IsSuccess) return Failure<IReadOnlyList<ExpressionSyntax>>(arg);
+            arguments.Add(arg.Value);
         }
         while (TryMatch(TokenKind.Comma));
 
-        Expect(TokenKind.GreaterThan, "Expected '>' to close the argument list.");
-        return arguments;
+        var close = Expect(TokenKind.GreaterThan, "Expected '>' to close the argument list.");
+        return close.IsSuccess
+            ? ParseResult<IReadOnlyList<ExpressionSyntax>>.Success(arguments)
+            : Failure<IReadOnlyList<ExpressionSyntax>>(close);
     }
 
-    /// <summary>
-    /// Parses an optional braced body block.
-    /// </summary>
-    /// <returns>A tuple indicating whether braces were present and the parsed body items.</returns>
-    private (bool hadBraces, IReadOnlyList<BodyItemSyntax> items) ParseOptionalBody()
+    private ParseResult<BodyResult> ParseOptionalBody()
     {
         var items = new List<BodyItemSyntax>();
         if (!TryMatch(TokenKind.LBrace))
         {
-            return (false, items);
+            return ParseResult<BodyResult>.Success(new BodyResult(false, items));
         }
 
         while (!TryMatch(TokenKind.RBrace))
         {
-            items.Add(ParseBodyItem());
+            var item = ParseBodyItem();
+            if (!item.IsSuccess) return Failure<BodyResult>(item);
+            items.Add(item.Value);
         }
 
-        return (true, items);
+        return ParseResult<BodyResult>.Success(new BodyResult(true, items));
     }
 
-    /// <summary>
-    /// Parses the body of an <c>extends</c> declaration, which only accepts <c>let</c> assignments.
-    /// </summary>
-    /// <returns>A tuple indicating whether braces were present and the parsed let bindings.</returns>
-    private (bool hadBraces, IReadOnlyList<LetSyntax> items) ParseOptionalExtendsBody()
+    private ParseResult<LetBodyResult> ParseOptionalExtendsBody()
     {
         var items = new List<LetSyntax>();
         if (!TryMatch(TokenKind.LBrace))
         {
-            return (false, items);
+            return ParseResult<LetBodyResult>.Success(new LetBodyResult(false, items));
         }
 
         while (!TryMatch(TokenKind.RBrace))
         {
             if (!TryMatch(TokenKind.LetKeyword))
             {
-                throw Error("Expected 'let' or '}' in an 'extends' body.");
+                return Error<LetBodyResult>("Expected 'let' or '}' in an 'extends' body.");
             }
 
-            var name = ExpectName("Expected a field name after 'let'.").Text;
-            Expect(TokenKind.Equal, "Expected '=' after the field name.");
+            var name = ExpectName("Expected a field name after 'let'.");
+            if (!name.IsSuccess) return Failure<LetBodyResult>(name);
+
+            var equal = Expect(TokenKind.Equal, "Expected '=' after the field name.");
+            if (!equal.IsSuccess) return Failure<LetBodyResult>(equal);
+
             var value = ParseExpression();
-            Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
-            items.Add(new LetSyntax(name, value));
+            if (!value.IsSuccess) return Failure<LetBodyResult>(value);
+
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
+            if (!semicolon.IsSuccess) return Failure<LetBodyResult>(semicolon);
+
+            items.Add(new LetSyntax(name.Value.Text, value.Value));
         }
 
-        return (true, items);
+        return ParseResult<LetBodyResult>.Success(new LetBodyResult(true, items));
     }
 
-    /// <summary>
-    /// Parses the schema base list after the colon in an <c>extends</c> declaration.
-    /// </summary>
-    /// <returns>The parsed schema bases.</returns>
-    private IReadOnlyList<BaseSyntax> ParseExtendsBases()
+    private ParseResult<IReadOnlyList<BaseSyntax>> ParseExtendsBases()
     {
         var bases = new List<BaseSyntax>();
         do
         {
-            var name = ExpectName("Expected a schema class name after ':'.").Text;
-            bases.Add(new BaseSyntax(name, ParseOptionalArgumentList()));
+            var name = ExpectName("Expected a schema class name after ':'.");
+            if (!name.IsSuccess) return Failure<IReadOnlyList<BaseSyntax>>(name);
+
+            var args = ParseOptionalArgumentList();
+            if (!args.IsSuccess) return Failure<IReadOnlyList<BaseSyntax>>(args);
+
+            bases.Add(new BaseSyntax(name.Value.Text, args.Value));
         }
         while (TryMatch(TokenKind.Comma) && !Is(TokenKind.LBrace) && !Is(TokenKind.Semicolon));
 
-        return bases;
+        return ParseResult<IReadOnlyList<BaseSyntax>>.Success(bases);
     }
 
-    /// <summary>
-    /// Parses one item inside a class or definition body.
-    /// </summary>
-    /// <returns>The parsed body item.</returns>
-    private BodyItemSyntax ParseBodyItem()
+    private ParseResult<BodyItemSyntax> ParseBodyItem()
     {
         if (TryMatch(TokenKind.LetKeyword))
         {
-            var name = ExpectName("Expected a field name after 'let'.").Text;
-            Expect(TokenKind.Equal, "Expected '=' after the field name.");
+            var name = ExpectName("Expected a field name after 'let'.");
+            if (!name.IsSuccess) return Failure<BodyItemSyntax>(name);
+
+            var equal = Expect(TokenKind.Equal, "Expected '=' after the field name.");
+            if (!equal.IsSuccess) return Failure<BodyItemSyntax>(equal);
+
             var value = ParseExpression();
-            Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
-            return new LetSyntax(name, value);
+            if (!value.IsSuccess) return Failure<BodyItemSyntax>(value);
+
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the let override.");
+            if (!semicolon.IsSuccess) return Failure<BodyItemSyntax>(semicolon);
+
+            return ParseResult<BodyItemSyntax>.Success(new LetSyntax(name.Value.Text, value.Value));
         }
 
         if (TryMatch(TokenKind.DefVarKeyword))
         {
-            var name = ExpectName("Expected a name after 'defvar'.").Text;
-            Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
+            var name = ExpectName("Expected a name after 'defvar'.");
+            if (!name.IsSuccess) return Failure<BodyItemSyntax>(name);
+
+            var equal = Expect(TokenKind.Equal, "Expected '=' after the defvar name.");
+            if (!equal.IsSuccess) return Failure<BodyItemSyntax>(equal);
+
             var value = ParseExpression();
-            Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
-            return new LocalDefVarSyntax(name, value);
+            if (!value.IsSuccess) return Failure<BodyItemSyntax>(value);
+
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the defvar declaration.");
+            if (!semicolon.IsSuccess) return Failure<BodyItemSyntax>(semicolon);
+
+            return ParseResult<BodyItemSyntax>.Success(new LocalDefVarSyntax(name.Value.Text, value.Value));
         }
 
         if (TryMatch(TokenKind.AssertKeyword))
         {
             var condition = ParseExpression();
+            if (!condition.IsSuccess) return Failure<BodyItemSyntax>(condition);
+
             ExpressionSyntax? message = null;
             if (TryMatch(TokenKind.Comma))
             {
-                message = ParseExpression();
+                var parsedMessage = ParseExpression();
+                if (!parsedMessage.IsSuccess) return Failure<BodyItemSyntax>(parsedMessage);
+                message = parsedMessage.Value;
             }
 
-            Expect(TokenKind.Semicolon, "Expected ';' after the assert statement.");
-            return new AssertSyntax(condition, message);
+            var semicolon = Expect(TokenKind.Semicolon, "Expected ';' after the assert statement.");
+            if (!semicolon.IsSuccess) return Failure<BodyItemSyntax>(semicolon);
+
+            return ParseResult<BodyItemSyntax>.Success(new AssertSyntax(condition.Value, message));
         }
 
         var typeName = ParseTypeName();
+        if (!typeName.IsSuccess) return Failure<BodyItemSyntax>(typeName);
+
         var nameToken = ExpectName("Expected a field name.");
+        if (!nameToken.IsSuccess) return Failure<BodyItemSyntax>(nameToken);
+
         ExpressionSyntax? initializer = null;
         if (TryMatch(TokenKind.Equal))
         {
-            initializer = ParseExpression();
+            var parsedInitializer = ParseExpression();
+            if (!parsedInitializer.IsSuccess) return Failure<BodyItemSyntax>(parsedInitializer);
+            initializer = parsedInitializer.Value;
         }
 
-        Expect(TokenKind.Semicolon, "Expected ';' after the field declaration.");
-        return new FieldSyntax(typeName, nameToken.Text, initializer);
+        var fieldSemicolon = Expect(TokenKind.Semicolon, "Expected ';' after the field declaration.");
+        if (!fieldSemicolon.IsSuccess) return Failure<BodyItemSyntax>(fieldSemicolon);
+
+        return ParseResult<BodyItemSyntax>.Success(new FieldSyntax(typeName.Value, nameToken.Value.Text, initializer));
     }
 
-    /// <summary>
-    /// Parses a type name, preserving any nested angle-bracketed suffix as raw text.
-    /// </summary>
-    /// <returns>The parsed type name text.</returns>
-    private string ParseTypeName()
+    private ParseResult<string> ParseTypeName()
     {
-        var name = ExpectName("Expected a type name.").Text;
+        var name = ExpectName("Expected a type name.");
+        if (!name.IsSuccess) return Failure<string>(name);
+
         if (!TryMatch(TokenKind.LessThan))
         {
-            return name;
+            return ParseResult<string>.Success(name.Value.Text);
         }
 
-        var parts = new List<string> { name, "<" };
+        var parts = new List<string> { name.Value.Text, "<" };
         var depth = 1;
         while (depth > 0)
         {
@@ -426,36 +465,32 @@ internal sealed class Parser
                     depth--;
                     break;
                 case TokenKind.EndOfFile:
-                    throw Error("Unexpected end of file while parsing a type argument list.");
+                    return Error<string>("Unexpected end of file while parsing a type argument list.");
             }
 
             parts.Add(token.Kind == TokenKind.String ? "\"" + token.Text + "\"" : token.Text);
         }
 
-        return string.Concat(parts);
+        return ParseResult<string>.Success(string.Concat(parts));
     }
 
-    /// <summary>
-    /// Parses an expression, currently treating <c>#</c> concatenation as the only infix operator.
-    /// </summary>
-    /// <returns>The parsed expression syntax node.</returns>
-    private ExpressionSyntax ParseExpression()
+    private ParseResult<ExpressionSyntax> ParseExpression()
     {
         var left = ParsePrimaryExpression();
+        if (!left.IsSuccess) return left;
+
+        var expr = left.Value;
         while (TryMatch(TokenKind.Hash))
         {
             var right = ParsePrimaryExpression();
-            left = new ConcatSyntax(left, right);
+            if (!right.IsSuccess) return right;
+            expr = new ConcatSyntax(expr, right.Value);
         }
 
-        return left;
+        return ParseResult<ExpressionSyntax>.Success(expr);
     }
 
-    /// <summary>
-    /// Parses a primary expression before postfix field access and subscripts are applied.
-    /// </summary>
-    /// <returns>The parsed expression syntax node.</returns>
-    private ExpressionSyntax ParsePrimaryExpression()
+    private ParseResult<ExpressionSyntax> ParsePrimaryExpression()
     {
         if (TryMatch(TokenKind.QuestionMark))
         {
@@ -479,31 +514,18 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.Identifier, out var identifierToken))
         {
-            if (Is(TokenKind.LessThan))
-            {
-                var arguments = ParseOptionalArgumentList();
-                var (_, bodyLets) = ParseOptionalExtendsBody();
-                return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(identifierToken.Text, arguments, bodyLets));
-            }
-
-            return ApplyPostfixAccess(new IdentifierSyntax(identifierToken.Text));
+            return ParseIdentifierLikePrimary(identifierToken);
         }
 
         if (TryMatchName(out var nameToken))
         {
-            if (Is(TokenKind.LessThan))
-            {
-                var arguments = ParseOptionalArgumentList();
-                var (_, bodyLets) = ParseOptionalExtendsBody();
-                return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(nameToken.Text, arguments, bodyLets));
-            }
-
-            return ApplyPostfixAccess(new IdentifierSyntax(nameToken.Text));
+            return ParseIdentifierLikePrimary(nameToken);
         }
 
         if (TryMatch(TokenKind.BangKeyword, out var bangToken))
         {
-            return ApplyPostfixAccess(ParseBangExpression(bangToken.Text));
+            var bang = ParseBangExpression(bangToken.Text);
+            return bang.IsSuccess ? ApplyPostfixAccess(bang.Value) : bang;
         }
 
         if (TryMatch(TokenKind.LBracket))
@@ -513,11 +535,14 @@ internal sealed class Parser
             {
                 do
                 {
-                    items.Add(ParseExpression());
+                    var item = ParseExpression();
+                    if (!item.IsSuccess) return item;
+                    items.Add(item.Value);
                 }
                 while (TryMatch(TokenKind.Comma) && !Is(TokenKind.RBracket));
 
-                Expect(TokenKind.RBracket, "Expected ']' to close the list literal.");
+                var close = Expect(TokenKind.RBracket, "Expected ']' to close the list literal.");
+                if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
             }
 
             return ApplyPostfixAccess(new ListSyntax(items));
@@ -525,42 +550,60 @@ internal sealed class Parser
 
         if (TryMatch(TokenKind.LParen))
         {
-            var operatorName = ExpectName("Expected a dag operator name.").Text;
+            var operatorName = ExpectName("Expected a dag operator name.");
+            if (!operatorName.IsSuccess) return Failure<ExpressionSyntax>(operatorName);
+
             var arguments = new List<DagArgumentSyntax>();
             while (!TryMatch(TokenKind.RParen))
             {
                 var value = ParseExpression();
+                if (!value.IsSuccess) return value;
+
                 string? name = null;
                 if (TryMatch(TokenKind.Colon))
                 {
                     TryMatch(TokenKind.Dollar);
-                    name = ExpectName("Expected a dag argument name.").Text;
+                    var argName = ExpectName("Expected a dag argument name.");
+                    if (!argName.IsSuccess) return Failure<ExpressionSyntax>(argName);
+                    name = argName.Value.Text;
                 }
 
-                arguments.Add(new DagArgumentSyntax(value, name));
+                arguments.Add(new DagArgumentSyntax(value.Value, name));
                 if (TryMatch(TokenKind.RParen))
                 {
                     break;
                 }
 
-                Expect(TokenKind.Comma, "Expected ',' or ')' in the dag argument list.");
+                var comma = Expect(TokenKind.Comma, "Expected ',' or ')' in the dag argument list.");
+                if (!comma.IsSuccess) return Failure<ExpressionSyntax>(comma);
                 if (TryMatch(TokenKind.RParen))
                 {
                     break;
                 }
             }
 
-            return ApplyPostfixAccess(new DagSyntax(operatorName, arguments));
+            return ApplyPostfixAccess(new DagSyntax(operatorName.Value.Text, arguments));
         }
 
-        throw Error("Expected an expression.");
+        return Error<ExpressionSyntax>("Expected an expression.");
     }
 
-    /// <summary>
-    /// Parses immediately adjacent string or code-block literals as chained TableGen concatenations.
-    /// </summary>
-    /// <param name="left">The already-parsed leftmost literal expression.</param>
-    /// <returns>The combined concatenation expression.</returns>
+    private ParseResult<ExpressionSyntax> ParseIdentifierLikePrimary(Token token)
+    {
+        if (Is(TokenKind.LessThan))
+        {
+            var arguments = ParseOptionalArgumentList();
+            if (!arguments.IsSuccess) return Failure<ExpressionSyntax>(arguments);
+
+            var bodyLets = ParseOptionalExtendsBody();
+            if (!bodyLets.IsSuccess) return Failure<ExpressionSyntax>(bodyLets);
+
+            return ApplyPostfixAccess(new AnonymousClassInstantiationSyntax(token.Text, arguments.Value, bodyLets.Value.Items));
+        }
+
+        return ApplyPostfixAccess(new IdentifierSyntax(token.Text));
+    }
+
     private ExpressionSyntax ParseAdjacentStringLiterals(ExpressionSyntax left)
     {
         while (true)
@@ -581,146 +624,166 @@ internal sealed class Parser
         }
     }
 
-    /// <summary>
-    /// Applies postfix field access and subscript operators to an already-parsed primary expression.
-    /// </summary>
-    /// <param name="expr">The base expression.</param>
-    /// <returns>The expression with any postfix operators applied.</returns>
-    private ExpressionSyntax ApplyPostfixAccess(ExpressionSyntax expr)
+    private ParseResult<ExpressionSyntax> ApplyPostfixAccess(ExpressionSyntax expr)
     {
         while (true)
         {
             if (TryMatch(TokenKind.Dot))
             {
                 var field = Expect(TokenKind.Identifier, "Expected a field name after '.'.");
-                expr = new FieldAccessSyntax(expr, field.Text);
+                if (!field.IsSuccess) return Failure<ExpressionSyntax>(field);
+                expr = new FieldAccessSyntax(expr, field.Value.Text);
                 continue;
             }
 
             if (TryMatch(TokenKind.LBracket))
             {
                 var index = ParseExpression();
-                Expect(TokenKind.RBracket, "Expected ']' to close the subscript expression.");
-                expr = new SubscriptSyntax(expr, index);
+                if (!index.IsSuccess) return index;
+
+                var close = Expect(TokenKind.RBracket, "Expected ']' to close the subscript expression.");
+                if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
+
+                expr = new SubscriptSyntax(expr, index.Value);
                 continue;
             }
 
-            return expr;
+            return ParseResult<ExpressionSyntax>.Success(expr);
         }
     }
 
-    /// <summary>
-    /// Parses a bang operator expression, including the special syntactic forms for operators like <c>!foldl</c> and <c>!cond</c>.
-    /// </summary>
-    /// <param name="operatorName">The operator name without the leading <c>!</c>.</param>
-    /// <returns>The parsed bang expression syntax node.</returns>
-    private ExpressionSyntax ParseBangExpression(string operatorName)
+    private ParseResult<ExpressionSyntax> ParseBangExpression(string operatorName)
     {
         string? typeArgument = null;
         if (TryMatch(TokenKind.LessThan))
         {
-            typeArgument = ParseTypeArgument();
+            var parsedTypeArgument = ParseTypeArgument();
+            if (!parsedTypeArgument.IsSuccess) return Failure<ExpressionSyntax>(parsedTypeArgument);
+            typeArgument = parsedTypeArgument.Value;
         }
 
         if (operatorName == "foldl")
         {
-            Expect(TokenKind.LParen, "Expected '(' after '!foldl'.");
+            var open = Expect(TokenKind.LParen, "Expected '(' after '!foldl'.");
+            if (!open.IsSuccess) return Failure<ExpressionSyntax>(open);
+
             var init = ParseExpression();
-            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            if (!init.IsSuccess) return init;
+            var comma1 = Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            if (!comma1.IsSuccess) return Failure<ExpressionSyntax>(comma1);
             var list = ParseExpression();
-            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
-            var accVar = ExpectName("Expected an accumulator variable name in '!foldl'.").Text;
-            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
-            var curVar = ExpectName("Expected a current-element variable name in '!foldl'.").Text;
-            Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            if (!list.IsSuccess) return list;
+            var comma2 = Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            if (!comma2.IsSuccess) return Failure<ExpressionSyntax>(comma2);
+            var accVar = ExpectName("Expected an accumulator variable name in '!foldl'.");
+            if (!accVar.IsSuccess) return Failure<ExpressionSyntax>(accVar);
+            var comma3 = Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            if (!comma3.IsSuccess) return Failure<ExpressionSyntax>(comma3);
+            var curVar = ExpectName("Expected a current-element variable name in '!foldl'.");
+            if (!curVar.IsSuccess) return Failure<ExpressionSyntax>(curVar);
+            var comma4 = Expect(TokenKind.Comma, "Expected ',' in '!foldl'.");
+            if (!comma4.IsSuccess) return Failure<ExpressionSyntax>(comma4);
             var body = ParseExpression();
-            Expect(TokenKind.RParen, "Expected ')' to close '!foldl'.");
-            return new FoldlSyntax(init, list, accVar, curVar, body);
+            if (!body.IsSuccess) return body;
+            var close = Expect(TokenKind.RParen, "Expected ')' to close '!foldl'.");
+            if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
+            return ParseResult<ExpressionSyntax>.Success(new FoldlSyntax(init.Value, list.Value, accVar.Value.Text, curVar.Value.Text, body.Value));
         }
 
         if (operatorName == "foreach")
         {
-            Expect(TokenKind.LParen, "Expected '(' after '!foreach'.");
-            var varName = ExpectName("Expected variable name in '!foreach'.").Text;
-            Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
+            var open = Expect(TokenKind.LParen, "Expected '(' after '!foreach'.");
+            if (!open.IsSuccess) return Failure<ExpressionSyntax>(open);
+            var varName = ExpectName("Expected variable name in '!foreach'.");
+            if (!varName.IsSuccess) return Failure<ExpressionSyntax>(varName);
+            var comma1 = Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
+            if (!comma1.IsSuccess) return Failure<ExpressionSyntax>(comma1);
             var list = ParseExpression();
-            Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
+            if (!list.IsSuccess) return list;
+            var comma2 = Expect(TokenKind.Comma, "Expected ',' in '!foreach'.");
+            if (!comma2.IsSuccess) return Failure<ExpressionSyntax>(comma2);
             var body = ParseExpression();
-            Expect(TokenKind.RParen, "Expected ')' to close '!foreach'.");
-            return new ForeachSyntax(varName, list, body);
+            if (!body.IsSuccess) return body;
+            var close = Expect(TokenKind.RParen, "Expected ')' to close '!foreach'.");
+            if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
+            return ParseResult<ExpressionSyntax>.Success(new ForeachSyntax(varName.Value.Text, list.Value, body.Value));
         }
 
         if (operatorName == "filter")
         {
-            Expect(TokenKind.LParen, "Expected '(' after '!filter'.");
-            var varName = ExpectName("Expected variable name in '!filter'.").Text;
-            Expect(TokenKind.Comma, "Expected ',' in '!filter'.");
+            var open = Expect(TokenKind.LParen, "Expected '(' after '!filter'.");
+            if (!open.IsSuccess) return Failure<ExpressionSyntax>(open);
+            var varName = ExpectName("Expected variable name in '!filter'.");
+            if (!varName.IsSuccess) return Failure<ExpressionSyntax>(varName);
+            var comma1 = Expect(TokenKind.Comma, "Expected ',' in '!filter'.");
+            if (!comma1.IsSuccess) return Failure<ExpressionSyntax>(comma1);
             var list = ParseExpression();
-            Expect(TokenKind.Comma, "Expected ',' in '!filter'.");
+            if (!list.IsSuccess) return list;
+            var comma2 = Expect(TokenKind.Comma, "Expected ',' in '!filter'.");
+            if (!comma2.IsSuccess) return Failure<ExpressionSyntax>(comma2);
             var predicate = ParseExpression();
-            Expect(TokenKind.RParen, "Expected ')' to close '!filter'.");
-            return new BangCallSyntax("filter", [new IdentifierSyntax(varName), list, predicate], typeArgument);
+            if (!predicate.IsSuccess) return predicate;
+            var close = Expect(TokenKind.RParen, "Expected ')' to close '!filter'.");
+            if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
+            return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax("filter", [new IdentifierSyntax(varName.Value.Text), list.Value, predicate.Value], typeArgument));
         }
 
         if (operatorName == "cond")
         {
-            Expect(TokenKind.LParen, "Expected '(' after '!cond'.");
+            var open = Expect(TokenKind.LParen, "Expected '(' after '!cond'.");
+            if (!open.IsSuccess) return Failure<ExpressionSyntax>(open);
+
             var condArgs = new List<ExpressionSyntax>();
             if (!TryMatch(TokenKind.RParen))
             {
                 while (true)
                 {
-                    condArgs.Add(ParseExpression());
-                    Expect(TokenKind.Colon, "Expected ':' between a '!cond' condition and value.");
-                    condArgs.Add(ParseExpression());
-                    if (!TryMatch(TokenKind.Comma))
-                    {
-                        break;
-                    }
+                    var condition = ParseExpression();
+                    if (!condition.IsSuccess) return condition;
+                    condArgs.Add(condition.Value);
 
-                    if (Is(TokenKind.RParen))
+                    var colon = Expect(TokenKind.Colon, "Expected ':' between a '!cond' condition and value.");
+                    if (!colon.IsSuccess) return Failure<ExpressionSyntax>(colon);
+
+                    var value = ParseExpression();
+                    if (!value.IsSuccess) return value;
+                    condArgs.Add(value.Value);
+
+                    if (!TryMatch(TokenKind.Comma) || Is(TokenKind.RParen))
                     {
                         break;
                     }
                 }
 
-                Expect(TokenKind.RParen, "Expected ')' to close '!cond'.");
+                var close = Expect(TokenKind.RParen, "Expected ')' to close '!cond'.");
+                if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
             }
 
-            return new BangCallSyntax("cond", condArgs);
+            return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax("cond", condArgs));
         }
 
-        Expect(TokenKind.LParen, $"Expected '(' after '!{operatorName}'.");
+        var genericOpen = Expect(TokenKind.LParen, $"Expected '(' after '!{operatorName}'.");
+        if (!genericOpen.IsSuccess) return Failure<ExpressionSyntax>(genericOpen);
+
         var args = new List<ExpressionSyntax>();
         if (!TryMatch(TokenKind.RParen))
         {
             do
             {
-                args.Add(ParseExpression());
+                var arg = ParseExpression();
+                if (!arg.IsSuccess) return arg;
+                args.Add(arg.Value);
             }
             while (TryMatch(TokenKind.Comma) && !Is(TokenKind.RParen));
 
-            Expect(TokenKind.RParen, $"Expected ')' to close '!{operatorName}'.");
+            var close = Expect(TokenKind.RParen, $"Expected ')' to close '!{operatorName}'.");
+            if (!close.IsSuccess) return Failure<ExpressionSyntax>(close);
         }
 
-        return new BangCallSyntax(operatorName, args, typeArgument);
+        return ParseResult<ExpressionSyntax>.Success(new BangCallSyntax(operatorName, args, typeArgument));
     }
 
-    /// <summary>
-    /// Checks whether the current token has the requested kind.
-    /// </summary>
-    /// <param name="kind">The token kind to test.</param>
-    /// <returns><see langword="true"/> when the current token matches; otherwise <see langword="false"/>.</returns>
-    private bool Is(TokenKind kind)
-    {
-        return Current.Kind == kind;
-    }
-
-    /// <summary>
-    /// Parses the raw type argument text inside a bang operator type argument list.
-    /// </summary>
-    /// <returns>The parsed type argument text.</returns>
-    private string ParseTypeArgument()
+    private ParseResult<string> ParseTypeArgument()
     {
         var parts = new List<string>();
         var depth = 1;
@@ -742,7 +805,7 @@ internal sealed class Parser
 
                     break;
                 case TokenKind.EndOfFile:
-                    throw Error("Unexpected end of file while parsing a bang operator type argument.");
+                    return Error<string>("Unexpected end of file while parsing a bang operator type argument.");
                 case TokenKind.String:
                     parts.Add("\"" + token.Text + "\"");
                     break;
@@ -752,19 +815,16 @@ internal sealed class Parser
             }
         }
 
-        return string.Concat(parts);
+        return ParseResult<string>.Success(string.Concat(parts));
     }
 
-    /// <summary>
-    /// Gets the current token, or the final end-of-file token when the parser has advanced past the end.
-    /// </summary>
+    private bool Is(TokenKind kind)
+    {
+        return Current.Kind == kind;
+    }
+
     private Token Current => position < tokens.Count ? tokens[position] : tokens[tokens.Count - 1];
 
-    /// <summary>
-    /// Consumes the current token if it matches the requested kind.
-    /// </summary>
-    /// <param name="kind">The token kind to match.</param>
-    /// <returns><see langword="true"/> when a token was consumed; otherwise <see langword="false"/>.</returns>
     private bool TryMatch(TokenKind kind)
     {
         if (!Is(kind))
@@ -776,12 +836,6 @@ internal sealed class Parser
         return true;
     }
 
-    /// <summary>
-    /// Consumes the current token if it matches the requested kind and returns it.
-    /// </summary>
-    /// <param name="kind">The token kind to match.</param>
-    /// <param name="token">Receives the consumed token.</param>
-    /// <returns><see langword="true"/> when a token was consumed; otherwise <see langword="false"/>.</returns>
     private bool TryMatch(TokenKind kind, out Token token)
     {
         if (!Is(kind))
@@ -794,42 +848,20 @@ internal sealed class Parser
         return true;
     }
 
-    /// <summary>
-    /// Requires that the current token have the requested kind.
-    /// </summary>
-    /// <param name="kind">The required token kind.</param>
-    /// <param name="message">The parse error to throw if the token does not match.</param>
-    /// <returns>The consumed token.</returns>
-    private Token Expect(TokenKind kind, string message)
+    private ParseResult<Token> Expect(TokenKind kind, string message)
     {
-        if (!Is(kind))
-        {
-            throw Error(message);
-        }
-
-        return tokens[position++];
+        return Is(kind)
+            ? ParseResult<Token>.Success(tokens[position++])
+            : Error<Token>(message);
     }
 
-    /// <summary>
-    /// Requires that the current token be usable as a TableGen name.
-    /// </summary>
-    /// <param name="message">The parse error to throw if no name token is present.</param>
-    /// <returns>The consumed name token.</returns>
-    private Token ExpectName(string message)
+    private ParseResult<Token> ExpectName(string message)
     {
-        if (TryMatchName(out var token))
-        {
-            return token;
-        }
-
-        throw Error(message);
+        return TryMatchName(out var token)
+            ? ParseResult<Token>.Success(token)
+            : Error<Token>(message);
     }
 
-    /// <summary>
-    /// Consumes the current token when it is one of the token kinds allowed to act as a TableGen name.
-    /// </summary>
-    /// <param name="token">Receives the consumed token.</param>
-    /// <returns><see langword="true"/> when a name token was consumed; otherwise <see langword="false"/>.</returns>
     private bool TryMatchName(out Token token)
     {
         if (IsNameTokenKind(Current.Kind))
@@ -842,11 +874,6 @@ internal sealed class Parser
         return false;
     }
 
-    /// <summary>
-    /// Determines whether a token kind is accepted in name positions.
-    /// </summary>
-    /// <param name="kind">The token kind to classify.</param>
-    /// <returns><see langword="true"/> when the token kind can act as a name; otherwise <see langword="false"/>.</returns>
     private static bool IsNameTokenKind(TokenKind kind)
     {
         return kind is TokenKind.Identifier
@@ -859,23 +886,30 @@ internal sealed class Parser
             or TokenKind.DefVarKeyword;
     }
 
-    /// <summary>
-    /// Consumes the current token without validating its kind.
-    /// </summary>
-    /// <returns>The consumed token.</returns>
     private Token Consume()
     {
         return position < tokens.Count ? tokens[position++] : tokens[tokens.Count - 1];
     }
 
-    /// <summary>
-    /// Creates a parse exception anchored at the current token.
-    /// </summary>
-    /// <param name="message">The parse error message.</param>
-    /// <returns>The constructed parse exception.</returns>
-    private ParseException Error(string message)
+    private ParseResult<T> Error<T>(string message)
     {
-        var token = Current;
-        return new ParseException(new Diagnostic(message, token.Location));
+        return ParseResult<T>.Failure(new Diagnostic(message, Current.Location));
+    }
+
+    private static ParseResult<T> Failure<T>(IParseResult result)
+    {
+        return ParseResult<T>.Failure(result.Diagnostic!);
+    }
+
+    private readonly struct BodyResult(bool hadBraces, IReadOnlyList<BodyItemSyntax> items)
+    {
+        public bool HadBraces { get; } = hadBraces;
+        public IReadOnlyList<BodyItemSyntax> Items { get; } = items;
+    }
+
+    private readonly struct LetBodyResult(bool hadBraces, IReadOnlyList<LetSyntax> items)
+    {
+        public bool HadBraces { get; } = hadBraces;
+        public IReadOnlyList<LetSyntax> Items { get; } = items;
     }
 }

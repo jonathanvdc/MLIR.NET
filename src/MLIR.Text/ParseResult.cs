@@ -24,10 +24,26 @@ public enum ParseOutcome
 }
 
 /// <summary>
+/// Exposes the common outcome and diagnostic data shared by all typed parse results.
+/// </summary>
+public interface IParseResult
+{
+    /// <summary>
+    /// Gets the parse outcome.
+    /// </summary>
+    ParseOutcome Outcome { get; }
+
+    /// <summary>
+    /// Gets the diagnostic when the outcome is <see cref="ParseOutcome.Error"/>.
+    /// </summary>
+    Diagnostic? Diagnostic { get; }
+}
+
+/// <summary>
 /// Represents the outcome of a parsing step that may either succeed, fail to match, or report a diagnostic.
 /// </summary>
 /// <typeparam name="T">The parsed value type.</typeparam>
-public readonly struct ParseResult<T>
+public readonly struct ParseResult<T> : IParseResult
 {
     private ParseResult(ParseOutcome outcome, T value, Diagnostic? diagnostic)
     {
