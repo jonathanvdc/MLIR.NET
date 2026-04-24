@@ -53,7 +53,7 @@ public sealed class LexingTests
     {
         const string source = "def Example { string Value = \"a\" # \"b\"; };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
 
@@ -75,7 +75,7 @@ public sealed class LexingTests
     {
         const string source = "def Example { string Value = !toupper(\"hello\"); };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var bang = Assert.IsType<BangCallSyntax>(field.Initializer);
@@ -86,40 +86,40 @@ public sealed class LexingTests
     [Fact]
     public void ReportsUnterminatedStrings()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("def Bad { string Name = \"oops; };"));
+        var diagnostic = TestHelpers.ParseFailure("def Bad { string Name = \"oops; };");
 
-        Assert.Contains("Unterminated string literal", exception.Message);
+        Assert.Contains("Unterminated string literal", diagnostic.Message);
     }
 
     [Fact]
     public void ReportsUnterminatedBlockComments()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("/* unterminated"));
+        var diagnostic = TestHelpers.ParseFailure("/* unterminated");
 
-        Assert.Contains("Unterminated block comment.", exception.Message);
+        Assert.Contains("Unterminated block comment.", diagnostic.Message);
     }
 
     [Fact]
     public void ReportsUnexpectedCharacters()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("@"));
+        var diagnostic = TestHelpers.ParseFailure("@");
 
-        Assert.Contains("Unexpected character '@'.", exception.Message);
+        Assert.Contains("Unexpected character '@'.", diagnostic.Message);
     }
 
     [Fact]
     public void ReportsDanglingSlashThatIsNotAComment()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("/"));
+        var diagnostic = TestHelpers.ParseFailure("/");
 
-        Assert.Contains("Unexpected character '/'.", exception.Message);
+        Assert.Contains("Unexpected character '/'.", diagnostic.Message);
     }
 
     [Fact]
     public void ReportsBangWithoutIdentifier()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("def Bad { string V = !(; };"));
+        var diagnostic = TestHelpers.ParseFailure("def Bad { string V = !(; };");
 
-        Assert.Contains("Expected a bang operator name after '!'.", exception.Message);
+        Assert.Contains("Expected a bang operator name after '!'.", diagnostic.Message);
     }
 }

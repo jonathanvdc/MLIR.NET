@@ -266,7 +266,7 @@ public sealed class IncludeResolutionTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
-        var doc = Document.Load(mainSource, resolver);
+        var doc = Document.Load(mainSource, resolver).Value;
         var record = doc.Evaluate().Records.Single(static r => r.Name == "Example");
 
         Assert.Equal("hello",
@@ -288,7 +288,7 @@ public sealed class IncludeResolutionTests
             });
 
         var composite = new CompositeIncludeResolver(consumerResolver, preludeResolver);
-        var doc = Document.Load("include \"mlir/IR/OpBase.td\"", composite);
+        var doc = Document.Load("include \"mlir/IR/OpBase.td\"", composite).Value;
 
         // Pure should be available as a record.
         Assert.NotNull(doc.Evaluate().Records.Single(static r => r.Name == "Pure"));

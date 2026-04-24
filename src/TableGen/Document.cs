@@ -24,8 +24,8 @@ public sealed class Document(DocumentSyntax syntax)
     /// Use <see cref="Load(string, IncludeResolver)"/> to parse a document with include expansion.
     /// </summary>
     /// <param name="source">The source text to parse.</param>
-    /// <returns>The parsed document.</returns>
-    public static Document Parse(string source)
+    /// <returns>The parse result.</returns>
+    public static ParseResult<Document> Parse(string source)
     {
         return Parse(new SourceDocument(source));
     }
@@ -34,10 +34,10 @@ public sealed class Document(DocumentSyntax syntax)
     /// Parses a TableGen document from source text with source-document context for diagnostics.
     /// </summary>
     /// <param name="sourceDocument">The source document to parse.</param>
-    /// <returns>The parsed document.</returns>
-    public static Document Parse(SourceDocument sourceDocument)
+    /// <returns>The parse result.</returns>
+    public static ParseResult<Document> Parse(SourceDocument sourceDocument)
     {
-        return new Document(Parser.ParseDocument(sourceDocument));
+        return Parser.ParseDocument(sourceDocument).Map(static syntax => new Document(syntax));
     }
 
     /// <summary>
@@ -50,10 +50,7 @@ public sealed class Document(DocumentSyntax syntax)
     /// A document whose declarations contain all top-level items from the root source and all
     /// transitively included files, with include directives replaced by the included content.
     /// </returns>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when an include directive cannot be resolved by <paramref name="resolver"/>.
-    /// </exception>
-    public static Document Load(string source, IncludeResolver resolver)
+    public static ParseResult<Document> Load(string source, IncludeResolver resolver)
     {
         return Load(new SourceDocument(source), resolver);
     }
@@ -68,15 +65,14 @@ public sealed class Document(DocumentSyntax syntax)
     /// A document whose declarations contain all top-level items from the root source and all
     /// transitively included files, with include directives replaced by the included content.
     /// </returns>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when an include directive cannot be resolved by <paramref name="resolver"/>.
-    /// </exception>
-    public static Document Load(SourceDocument sourceDocument, IncludeResolver resolver)
+    public static ParseResult<Document> Load(SourceDocument sourceDocument, IncludeResolver resolver)
     {
         var defines = new HashSet<string>(StringComparer.Ordinal);
         var declarations = new List<TopLevelSyntax>();
-        ExpandIncludes(sourceDocument, resolver, defines, declarations);
-        return new Document(new DocumentSyntax(declarations));
+        var result = ExpandIncludes(sourceDocument, resolver, defines, declarations);
+        return result.IsSuccess
+            ? ParseResult<Document>.Success(new Document(new DocumentSyntax(declarations)))
+            : ParseResult<Document>.Failure(result.Diagnostic!);
     }
 
     /// <summary>
@@ -95,34 +91,45 @@ public sealed class Document(DocumentSyntax syntax)
     /// <param name="resolver">The include resolver used for nested includes.</param>
     /// <param name="defines">The shared preprocessor symbol set.</param>
     /// <param name="output">The accumulated flattened declaration list.</param>
-    private static void ExpandIncludes(
+    private static ParseResult<bool> ExpandIncludes(
         SourceDocument sourceDocument,
         IncludeResolver resolver,
         HashSet<string> defines,
         List<TopLevelSyntax> output)
     {
         var preprocessed = Preprocessor.Process(sourceDocument.Text, defines);
-        var syntax = Parser.ParseDocument(new SourceDocument(preprocessed, sourceDocument.FileName));
+        var syntaxResult = Parser.ParseDocument(new SourceDocument(preprocessed, sourceDocument.FileName));
+        if (!syntaxResult.IsSuccess)
+        {
+            return ParseResult<bool>.Failure(syntaxResult.Diagnostic!);
+        }
+
+        var syntax = syntaxResult.Value;
         foreach (var declaration in syntax.Declarations)
         {
             if (declaration is IncludeDirectiveSyntax include)
             {
                 if (!resolver.TryResolveInclude(include.Path, sourceDocument, out var resolved))
                 {
-                    var location = sourceDocument.FileName != null
-                        ? $" from '{sourceDocument.FileName}'"
-                        : string.Empty;
-                    throw new InvalidOperationException(
-                        $"Could not resolve include '{include.Path}'{location}.");
+                    return ParseResult<bool>.Failure(
+                        new Diagnostic(
+                            $"Could not resolve include '{include.Path}'.",
+                            include.Location));
                 }
 
                 // Includes are expanded eagerly so later stages can operate on one flat declaration stream.
-                ExpandIncludes(resolved, resolver, defines, output);
+                var includeResult = ExpandIncludes(resolved, resolver, defines, output);
+                if (!includeResult.IsSuccess)
+                {
+                    return includeResult;
+                }
             }
             else
             {
                 output.Add(declaration);
             }
         }
+
+        return ParseResult<bool>.Success(true);
     }
 }

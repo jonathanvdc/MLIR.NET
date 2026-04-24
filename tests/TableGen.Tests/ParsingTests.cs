@@ -20,7 +20,7 @@ public sealed class ParsingTests
             "};\n" +
             "def Example : Derived<\"foo\">;";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
 
         Assert.Equal(3, document.Syntax.Declarations.Count);
         var @class = Assert.IsType<ClassSyntax>(document.Syntax.Declarations[0]);
@@ -44,7 +44,7 @@ public sealed class ParsingTests
             "  let csharpAsmFormatCode = Prefix # \".select\";\n" +
             "}";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var extends = Assert.IsType<ExtendsSyntax>(document.Syntax.Declarations[0]);
 
         Assert.Equal("Arith_SelectOp", extends.TargetName);
@@ -66,7 +66,7 @@ public sealed class ParsingTests
             "};\n" +
             "def Example : Holder<[[1], [2, 3]]>;";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var @class = Assert.IsType<ClassSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(@class.BodyItems[0]);
 
@@ -83,7 +83,7 @@ public sealed class ParsingTests
             "};\n" +
             "def Example : Base<>;";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var @class = Assert.IsType<ClassSyntax>(document.Syntax.Declarations[0]);
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[1]);
 
@@ -102,7 +102,7 @@ public sealed class ParsingTests
             "}];\n" +
             "};";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var value = Assert.IsType<StringSyntax>(field.Initializer);
@@ -119,7 +119,7 @@ public sealed class ParsingTests
             "  dag Arguments = (ins I32:$lhs, I32:$rhs);\n" +
             "};";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var dag = Assert.IsType<DagSyntax>(field.Initializer);
@@ -139,7 +139,7 @@ public sealed class ParsingTests
             "  int Last = Values[-1];\n" +
             "};";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var valuesField = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var list = Assert.IsType<ListSyntax>(valuesField.Initializer);
@@ -154,11 +154,11 @@ public sealed class ParsingTests
     [Fact]
     public void ReportsUnexpectedTopLevelTokens()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("int Width = 1;"));
+        var diagnostic = TestHelpers.ParseFailure("int Width = 1;");
 
-        Assert.Contains("Expected 'class', 'def', 'defvar', 'let', or 'extends'.", exception.Message);
-        Assert.Equal(1, exception.Diagnostic.Line);
-        Assert.Equal(1, exception.Diagnostic.Column);
+        Assert.Contains("Expected 'class', 'def', 'defvar', 'let', or 'extends'.", diagnostic.Message);
+        Assert.Equal(1, diagnostic.Line);
+        Assert.Equal(1, diagnostic.Column);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class ParsingTests
     {
         const string source = "def extends { int Width = 1; };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
 
         Assert.Equal("extends", def.Name);
@@ -177,7 +177,7 @@ public sealed class ParsingTests
     {
         const string source = "def Example { string Value = \"hello\" # \" \" # \"world\"; };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var outer = Assert.IsType<ConcatSyntax>(field.Initializer);
@@ -193,7 +193,7 @@ public sealed class ParsingTests
     {
         const string source = "def Example { string Value = \"hello\" \" \" \"world\"; };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var outer = Assert.IsType<ConcatSyntax>(field.Initializer);
@@ -214,7 +214,7 @@ public sealed class ParsingTests
             "  int S = !add(2, 3);\n" +
             "};";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
 
         var sizeField = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
@@ -237,7 +237,7 @@ public sealed class ParsingTests
     {
         const string source = "def Example { string V = !if(!gt(1, 0), \"yes\", \"no\"); };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var ifExpr = Assert.IsType<BangCallSyntax>(field.Initializer);
@@ -258,7 +258,7 @@ public sealed class ParsingTests
             "  string V = !cond(!eq(x, 0): \"zero\", true: \"positive\",);\n" +
             "};";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         Assert.IsType<LocalDefVarSyntax>(def.BodyItems[0]);
         Assert.IsType<AssertSyntax>(def.BodyItems[1]);
@@ -274,7 +274,7 @@ public sealed class ParsingTests
     {
         const string source = "def Example { string V = !foldl(\"\", [\"a\", \"b\"], acc, cur, acc # cur); };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var foldl = Assert.IsType<FoldlSyntax>(field.Initializer);
@@ -293,7 +293,7 @@ public sealed class ParsingTests
             "class StrUpper<string s> { string result = !toupper(s); };\n" +
             "def Example { string V = StrUpper<\"hello\">.result; };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[1]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var access = Assert.IsType<FieldAccessSyntax>(field.Initializer);
@@ -313,7 +313,7 @@ public sealed class ParsingTests
             "  list<Member> Members = [Member<\"value\"> { let summary = \"doc\"; }];\n" +
             "};";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
         var def = Assert.IsType<DefSyntax>(document.Syntax.Declarations[1]);
         var field = Assert.IsType<FieldSyntax>(def.BodyItems[0]);
         var list = Assert.IsType<ListSyntax>(field.Initializer);
@@ -329,17 +329,17 @@ public sealed class ParsingTests
     [Fact]
     public void ReportsMissingTemplateParameterNames()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("class Base<int>;"));
+        var diagnostic = TestHelpers.ParseFailure("class Base<int>;");
 
-        Assert.Contains("Expected a template parameter name.", exception.Message);
+        Assert.Contains("Expected a template parameter name.", diagnostic.Message);
     }
 
     [Fact]
     public void ReportsMissingArgumentListTerminators()
     {
-        var exception = Assert.Throws<ParseException>(() => Document.Parse("def Example : Base<1;"));
+        var diagnostic = TestHelpers.ParseFailure("def Example : Base<1;");
 
-        Assert.Contains("Expected '>' to close the argument list.", exception.Message);
+        Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
     }
 
     [Fact]
@@ -347,9 +347,9 @@ public sealed class ParsingTests
     {
         const string source = "def Example { list<int> Values = [1, 2; };";
 
-        var exception = Assert.Throws<ParseException>(() => Document.Parse(source));
+        var diagnostic = TestHelpers.ParseFailure(source);
 
-        Assert.Contains("Expected ']' to close the list literal.", exception.Message);
+        Assert.Contains("Expected ']' to close the list literal.", diagnostic.Message);
     }
 
     [Fact]
@@ -357,8 +357,8 @@ public sealed class ParsingTests
     {
         const string source = "class Base { list<int Value; };";
 
-        var exception = Assert.Throws<ParseException>(() => Document.Parse(source));
+        var diagnostic = TestHelpers.ParseFailure(source);
 
-        Assert.Contains("Unexpected end of file while parsing a type argument list.", exception.Message);
+        Assert.Contains("Unexpected end of file while parsing a type argument list.", diagnostic.Message);
     }
 }

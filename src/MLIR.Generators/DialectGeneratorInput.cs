@@ -39,10 +39,15 @@ internal static class DialectGeneratorInput
         try
         {
             var sourceDocument = new SourceDocument(sourceText, path);
-            var document = resolver != null
+            var documentResult = resolver != null
                 ? Document.Load(sourceDocument, resolver)
                 : Document.Parse(sourceDocument);
-            var dialects = DialectImporter.Import(document.Evaluate());
+            if (!documentResult.IsSuccess)
+            {
+                return new ParsedDialectFile(path, EmptyDialects, documentResult.Diagnostic!.ToString());
+            }
+
+            var dialects = DialectImporter.Import(documentResult.Value.Evaluate());
             return new ParsedDialectFile(path, dialects, null);
         }
         catch (Exception exception)

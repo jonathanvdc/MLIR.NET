@@ -7,7 +7,6 @@ using MLIR.Text;
 using TableGen.Evaluation;
 using TableGen.Syntax;
 using Xunit;
-using ParseException = MLIR.Text.ParseException;
 
 public sealed class IncludeTests
 {
@@ -15,7 +14,7 @@ public sealed class IncludeTests
     public void LexerRecognizesIncludeKeyword()
     {
         // include is parsed as an IncludeDirectiveSyntax, not as an identifier.
-        var document = Document.Parse("include \"foo.td\"");
+        var document = Document.Parse("include \"foo.td\"").Value;
 
         Assert.Single(document.Syntax.Declarations);
         var include = Assert.IsType<IncludeDirectiveSyntax>(document.Syntax.Declarations[0]);
@@ -27,7 +26,7 @@ public sealed class IncludeTests
     {
         const string source = "include \"mlir/IR/OpBase.td\"";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
 
         Assert.Single(document.Syntax.Declarations);
         var include = Assert.IsType<IncludeDirectiveSyntax>(document.Syntax.Declarations[0]);
@@ -41,7 +40,7 @@ public sealed class IncludeTests
             "include \"base.td\"\n" +
             "def Example { int Width = 4; };";
 
-        var document = Document.Parse(source);
+        var document = Document.Parse(source).Value;
 
         Assert.Equal(2, document.Syntax.Declarations.Count);
         Assert.IsType<IncludeDirectiveSyntax>(document.Syntax.Declarations[0]);
@@ -59,7 +58,7 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
-        var document = Document.Load(mainSource, resolver);
+        var document = Document.Load(mainSource, resolver).Value;
 
         Assert.Equal(2, document.Syntax.Declarations.Count);
         Assert.IsType<DefSyntax>(document.Syntax.Declarations[0]); // from base.td
@@ -78,7 +77,7 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["base.td"] = baseSource });
 
-        var document = Document.Load(mainSource, resolver);
+        var document = Document.Load(mainSource, resolver).Value;
         var record = document.Evaluate().Records.Single();
 
         Assert.Equal("Example", record.Name);
@@ -102,7 +101,7 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["shared.td"] = sharedSource });
 
-        var document = Document.Load(mainSource, resolver);
+        var document = Document.Load(mainSource, resolver).Value;
 
         // The def must appear exactly once despite the double include.
         Assert.Single(document.Syntax.Declarations);
@@ -125,7 +124,7 @@ public sealed class IncludeTests
             ["level2.td"] = level2,
         });
 
-        var document = Document.Load(main, resolver);
+        var document = Document.Load(main, resolver).Value;
 
         // Declarations appear in include-expansion order: L2, L1, L0.
         var names = document.Evaluate().Records.Select(static r => r.Name).ToArray();
@@ -140,10 +139,9 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => Document.Load(mainSource, resolver));
+        var diagnostic = TestHelpers.LoadFailure(mainSource, resolver);
 
-        Assert.Contains("missing.td", exception.Message);
+        Assert.Contains("missing.td", diagnostic.Message);
     }
 
     [Fact]
@@ -156,11 +154,10 @@ public sealed class IncludeTests
 
         var sourceDocument = new SourceDocument(mainSource, "my_ops.td");
 
-        var exception = Assert.Throws<InvalidOperationException>(
-            () => Document.Load(sourceDocument, resolver));
+        var diagnostic = TestHelpers.LoadFailure(sourceDocument, resolver);
 
-        Assert.Contains("missing.td", exception.Message);
-        Assert.Contains("my_ops.td", exception.Message);
+        Assert.Contains("missing.td", diagnostic.Message);
+        Assert.Equal("my_ops.td", diagnostic.FileName);
     }
 
     [Fact]
@@ -172,11 +169,10 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["dep.td"] = dependencySource });
 
-        var exception = Assert.Throws<ParseException>(
-            () => Document.Load(new SourceDocument(mainSource, "main.td"), resolver));
+        var diagnostic = TestHelpers.LoadFailure(new SourceDocument(mainSource, "main.td"), resolver);
 
-        Assert.Contains("dep.td", exception.Message);
-        Assert.Equal("dep.td", exception.Diagnostic.FileName);
+        Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
+        Assert.Equal("dep.td", diagnostic.FileName);
     }
 
     [Fact]
@@ -191,7 +187,7 @@ public sealed class IncludeTests
             new Dictionary<string, string> { ["shared.td"] = secondSource });
 
         var composite = new CompositeIncludeResolver(first, second);
-        var document = Document.Load("include \"shared.td\"", composite);
+        var document = Document.Load("include \"shared.td\"", composite).Value;
 
         // The first resolver wins.
         var record = document.Evaluate().Records.Single();
@@ -210,7 +206,7 @@ public sealed class IncludeTests
             new Dictionary<string, string> { ["only-in-second.td"] = secondSource });
 
         var composite = new CompositeIncludeResolver(first, second);
-        var document = Document.Load("include \"only-in-second.td\"", composite);
+        var document = Document.Load("include \"only-in-second.td\"", composite).Value;
 
         var record = document.Evaluate().Records.Single();
         Assert.Equal("FromSecond", record.Name);
@@ -225,8 +221,9 @@ public sealed class IncludeTests
 
         var mainSource = "include \"dep.td\"";
         var mainDocument = new SourceDocument(mainSource, "main.td");
-        Document.Load(mainDocument, trackingResolver);
+        var result = Document.Load(mainDocument, trackingResolver);
 
+        Assert.True(result.IsSuccess);
         Assert.NotNull(trackingResolver.CapturedIncludingFile);
         Assert.Equal("main.td", trackingResolver.CapturedIncludingFile!.FileName);
     }
@@ -324,7 +321,7 @@ public sealed class IncludeTests
                 ["guarded.td"] = guardedSource,
             });
 
-        var doc = Document.Load(mainSource, resolver);
+        var doc = Document.Load(mainSource, resolver).Value;
 
         // GuardedDef must appear exactly once.
         Assert.Single(doc.Syntax.Declarations);

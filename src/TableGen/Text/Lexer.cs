@@ -13,11 +13,18 @@ internal static class Lexer
     /// Lexes a TableGen source string.
     /// </summary>
     /// <param name="sourceDocument">The source document to tokenize.</param>
-    /// <returns>The token sequence, including a trailing end-of-file token.</returns>
-    public static IReadOnlyList<Token> Lex(SourceDocument sourceDocument)
+    /// <returns>The lexing result, including a trailing end-of-file token on success.</returns>
+    public static ParseResult<IReadOnlyList<Token>> Lex(SourceDocument sourceDocument)
     {
         var lexer = new LexerImpl(sourceDocument);
-        return lexer.Lex();
+        try
+        {
+            return ParseResult<IReadOnlyList<Token>>.Success(lexer.Lex());
+        }
+        catch (ParseException exception)
+        {
+            return ParseResult<IReadOnlyList<Token>>.Failure(exception.Diagnostic);
+        }
     }
 
     /// <summary>
@@ -44,16 +51,6 @@ internal static class Lexer
         /// Tracks the current character offset.
         /// </summary>
         private int position;
-
-        /// <summary>
-        /// Tracks the current 1-based source line number.
-        /// </summary>
-        private int line = 1;
-
-        /// <summary>
-        /// Tracks the current 1-based source column number.
-        /// </summary>
-        private int column = 1;
 
         /// <summary>
         /// Initializes the lexer implementation.
@@ -180,20 +177,10 @@ internal static class Lexer
         }
 
         /// <summary>
-        /// Advances the lexer by one character while updating line and column counters.
+        /// Advances the lexer by one character.
         /// </summary>
         private void Advance()
         {
-            if (source[position] == '\n')
-            {
-                line++;
-                column = 1;
-            }
-            else
-            {
-                column++;
-            }
-
             position++;
         }
 

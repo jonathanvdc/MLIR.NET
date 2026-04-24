@@ -64,8 +64,14 @@ try
         new FileSystemIncludeResolver(),
         PreludeIncludeResolvers.CreateEmbeddedPreludeResolver());
 
-    var document = Document.Load(sourceDocument, resolver);
-    var records = document.Evaluate().Records
+    var documentResult = Document.Load(sourceDocument, resolver);
+    if (!documentResult.IsSuccess)
+    {
+        LogError(stderrLog, documentResult.Diagnostic!.ToString());
+        return 1;
+    }
+
+    var records = documentResult.Value.Evaluate().Records
         .Where(record => MatchesPattern(record.Name, recordPattern))
         .ToArray();
 

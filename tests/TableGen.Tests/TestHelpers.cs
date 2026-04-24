@@ -3,13 +3,14 @@ namespace TableGen.Tests;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MLIR.Text;
 using TableGen.Evaluation;
 
 internal static class TestHelpers
 {
     public static Record EvaluateSingleRecord(string source)
     {
-        return Document.Parse(source).Evaluate().Records.Single();
+        return Document.Parse(source).Value.Evaluate().Records.Single();
     }
 
     public static Record EvaluateSingleRecordWithPrelude(string source)
@@ -19,7 +20,28 @@ internal static class TestHelpers
 
     public static Document LoadWithPrelude(string source)
     {
-        return Document.Load(source, new DictionaryIncludeResolver(PreludeFiles));
+        return Document.Load(source, new DictionaryIncludeResolver(PreludeFiles)).Value;
+    }
+
+    public static Diagnostic ParseFailure(string source)
+    {
+        var result = Document.Parse(source);
+        Xunit.Assert.False(result.IsSuccess);
+        return result.Diagnostic!;
+    }
+
+    public static Diagnostic LoadFailure(string source, IncludeResolver resolver)
+    {
+        var result = Document.Load(source, resolver);
+        Xunit.Assert.False(result.IsSuccess);
+        return result.Diagnostic!;
+    }
+
+    public static Diagnostic LoadFailure(SourceDocument sourceDocument, IncludeResolver resolver)
+    {
+        var result = Document.Load(sourceDocument, resolver);
+        Xunit.Assert.False(result.IsSuccess);
+        return result.Diagnostic!;
     }
 
     private static readonly IReadOnlyDictionary<string, string> PreludeFiles = BuildPreludeFiles();

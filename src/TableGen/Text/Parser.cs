@@ -17,41 +17,49 @@ internal sealed class Parser
     private readonly IReadOnlyList<Token> tokens;
 
     /// <summary>
-    /// Stores the source document used when reporting parse errors.
-    /// </summary>
-    private readonly SourceDocument sourceDocument;
-
-    /// <summary>
     /// Tracks the current token position.
     /// </summary>
     private int position;
 
     /// <summary>
-    /// Initializes a parser for a source string.
+    /// Initializes a parser for a token stream.
     /// </summary>
-    /// <param name="sourceDocument">The source document to parse.</param>
-    private Parser(SourceDocument sourceDocument)
+    /// <param name="tokens">The token stream to parse.</param>
+    private Parser(IReadOnlyList<Token> tokens)
     {
-        tokens = Lexer.Lex(sourceDocument);
-        this.sourceDocument = sourceDocument;
+        this.tokens = tokens;
     }
 
     /// <summary>
     /// Parses a complete TableGen document.
     /// </summary>
     /// <param name="sourceDocument">The source document to parse.</param>
-    /// <returns>The parsed syntax tree.</returns>
-    public static DocumentSyntax ParseDocument(SourceDocument sourceDocument)
+    /// <returns>The parse result.</returns>
+    public static ParseResult<DocumentSyntax> ParseDocument(SourceDocument sourceDocument)
     {
-        return new Parser(sourceDocument).ParseDocumentCore();
+        var lexResult = Lexer.Lex(sourceDocument);
+        if (!lexResult.IsSuccess)
+        {
+            return ParseResult<DocumentSyntax>.Failure(lexResult.Diagnostic!);
+        }
+
+        try
+        {
+            var parser = new Parser(lexResult.Value);
+            return ParseResult<DocumentSyntax>.Success(parser.ParseDocumentCore());
+        }
+        catch (ParseException exception)
+        {
+            return ParseResult<DocumentSyntax>.Failure(exception.Diagnostic);
+        }
     }
 
     /// <summary>
     /// Parses a complete TableGen document.
     /// </summary>
     /// <param name="source">The source text to parse.</param>
-    /// <returns>The parsed syntax tree.</returns>
-    public static DocumentSyntax ParseDocument(string source)
+    /// <returns>The parse result.</returns>
+    public static ParseResult<DocumentSyntax> ParseDocument(string source)
     {
         return ParseDocument(new SourceDocument(source));
     }
@@ -81,7 +89,7 @@ internal sealed class Parser
         if (TryMatch(TokenKind.IncludeKeyword))
         {
             var path = Expect(TokenKind.String, "Expected a string literal after 'include'.");
-            return [new IncludeDirectiveSyntax(path.Text)];
+            return [new IncludeDirectiveSyntax(path.Text, path.Location)];
         }
 
         if (TryMatch(TokenKind.LetKeyword))
