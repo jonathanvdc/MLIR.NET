@@ -27,6 +27,8 @@ public sealed class InterfaceModel
         IReadOnlyList<string>? baseInterfaces = null,
         IReadOnlyList<InterfaceMethodModel>? methods = null,
         string? csharpName = null,
+        string? csharpSummary = null,
+        string? csharpDescription = null,
         IReadOnlyList<InterfaceCSharpMemberModel>? csharpMembers = null)
     {
         RecordName = recordName;
@@ -37,6 +39,8 @@ public sealed class InterfaceModel
         BaseInterfaces = baseInterfaces ?? EmptyStrings;
         Methods = methods ?? EmptyMethods;
         CsharpName = csharpName;
+        CsharpSummary = csharpSummary;
+        CsharpDescription = csharpDescription;
         CsharpMembers = csharpMembers ?? EmptyCsharpMembers;
     }
 
@@ -82,6 +86,17 @@ public sealed class InterfaceModel
     /// Gets the optional C# interface name override supplied by MLIR.NET overlay metadata.
     /// </summary>
     public string? CsharpName { get; }
+
+    /// <summary>
+    /// Gets the optional C# XML documentation summary override supplied by MLIR.NET overlay metadata.
+    /// </summary>
+    public string? CsharpSummary { get; }
+
+    /// <summary>
+    /// Gets the optional C# XML documentation description override supplied by MLIR.NET overlay metadata.
+    /// When absent, the upstream <see cref="Description"/> remains the default remarks source.
+    /// </summary>
+    public string? CsharpDescription { get; }
 
     /// <summary>
     /// Gets the explicit C# members that should be emitted for this interface.

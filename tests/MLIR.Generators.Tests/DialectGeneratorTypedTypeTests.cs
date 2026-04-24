@@ -337,6 +337,128 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     }
 
     [Fact]
+    public void TypeInterfaceProjectionEmitsXmlDocsFromUpstreamInterfaceAndMethodDescriptions()
+    {
+        var generatedSources = GeneratorTestHelpers.RunGenerator(
+            new DialectGenerator(),
+            ("shaped-docs.td", ComposeSource(
+            [
+                "include \"mlir/IR/BuiltinTypeInterfaces.td\"",
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def ShapedDocs_Dialect : Dialect {",
+                "  let name = \"shapeddocs\";",
+                "  let cppNamespace = \"::mlir::shapeddocs\";",
+                "};",
+                string.Empty,
+                "class ShapedDocs_Type<string name, list<Trait> traits = []> : TypeDef<ShapedDocs_Dialect, name, traits> {",
+                "  let typeName = \"shapeddocs.\" # name;",
+                "};",
+                string.Empty,
+                "def ShapedDocs_Shaped : ShapedDocs_Type<\"shaped\", [ShapedTypeInterface]> {",
+                "  let parameters = (ins \"ArrayRef<int64_t>\":$shape, \"Type\":$elementType);",
+                "};",
+                string.Empty,
+                "extends ShapedDocs_Shaped : MLIRNet_AttrOrTypeDefExtension {",
+                "  let csharpParameters = (ins",
+                "    \"global::System.Collections.Generic.IReadOnlyList<long>\":$shape,",
+                "    \"global::MLIR.Semantics.TypeReference\":$elementType",
+                "  );",
+                "  let csharpInterfaceImplementations = [",
+                "    MLIRNet_InterfacePropertyImplementation<ShapedTypeInterface, \"HasRank\", \"true\">",
+                "  ];",
+                "};",
+            ])));
+        var source = string.Join("\n", generatedSources.Select(static result => result.SourceText.ToString()));
+
+        AssertContainsAll(
+            source,
+            "/// <remarks>",
+            "/// This interface provides a common API for interacting with multi-dimensional",
+            "public partial interface IShapedType",
+            "/// Returns the element type of this shaped type.",
+            "global::MLIR.Semantics.TypeReference ElementType { get; }",
+            "/// Returns if this type is ranked, i.e. it has a known number of dimensions.",
+            "bool HasRank { get; }",
+            "/// Returns the shape of this type if it is ranked, otherwise asserts.",
+            "global::System.Collections.Generic.IReadOnlyList<long> Shape { get; }",
+            "public sealed partial class shapedType : TypeReference, MLIR.Dialects.Prelude.IShapedType",
+            "public global::MLIR.Semantics.TypeReference ElementType { get; }",
+            "public bool HasRank => true;");
+    }
+
+    [Fact]
+    public void TypeInterfaceProjectionOverlayDocsOverrideGeneratedDefaults()
+    {
+        var result = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: true,
+            ("documented-iface.td", ComposeSource(
+            [
+                "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"",
+                "include \"mlir/IR/Interfaces.td\"",
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "def MyDialect_Dialect : Dialect {",
+                "  let name = \"mydialect\";",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "};",
+                string.Empty,
+                "def MyDialect_DocumentedIface : TypeInterface<\"DocumentedIface\"> {",
+                "  let cppNamespace = \"::mlir::mydialect\";",
+                "  let description = [{Upstream interface remarks.}];",
+                "  let methods = [",
+                "    InterfaceMethod<[{" ,
+                "      Upstream method remarks.",
+                "    }], \"int\", \"getValue\">,",
+                "  ];",
+                "};",
+                string.Empty,
+                "def MyDialect_DocumentedValueMember : MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\"> {",
+                "  let csharpSummary = \"Projected property summary.\";",
+                "  let csharpDescription = [{Projected property remarks.}];",
+                "};",
+                string.Empty,
+                "extends MyDialect_DocumentedIface : MLIRNet_InterfaceExtension {",
+                "  let csharpSummary = \"Projected interface summary.\";",
+                "  let csharpDescription = [{Projected interface remarks.}];",
+                "  let csharpMembers = [",
+                "    MyDialect_DocumentedValueMember",
+                "  ];",
+                "};",
+                string.Empty,
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_DocType : MyDialect_Type<\"doc\", [MyDialect_DocumentedIface]> {",
+                "  let parameters = (ins \"int\":$value);",
+                "};",
+                string.Empty,
+                "extends MyDialect_DocType : MLIRNet_AttrOrTypeDefExtension {",
+                "  let csharpParameters = (ins \"int\":$value);",
+                "};",
+            ])));
+        Assert.Empty(result.Diagnostics);
+        var source = string.Join("\n", result.Results.Single().GeneratedSources.Select(static generated => generated.SourceText.ToString()));
+
+        AssertContainsAll(
+            source,
+            "/// <summary>Projected interface summary.</summary>",
+            "/// Projected interface remarks.",
+            "public partial interface IDocumentedIface",
+            "/// <summary>Projected property summary.</summary>",
+            "/// Projected property remarks.",
+            "int Value { get; }",
+            "public sealed partial class docType : TypeReference, MLIR.Dialects.Mydialect.IDocumentedIface",
+            "public int Value { get; }");
+        AssertDoesNotContainAny(
+            source,
+            "Upstream interface remarks.",
+            "Upstream method remarks.");
+    }
+
+    [Fact]
     public void TypeDefWithNoTypeInterfaceHasNoMarkerInterfaces()
     {
         // A type that has no type-interface traits should keep the plain TypeReference base class.

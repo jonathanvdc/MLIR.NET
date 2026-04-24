@@ -53,7 +53,7 @@ internal static class TypeEmitter
         EmitTypeConstructor(builder, className, parameters);
         builder.AppendLine();
 
-        EmitTypeParameterProperties(builder, parameters);
+        EmitTypeParameterProperties(builder, parameters, interfaces);
         if (interfaces.Any(static resolved => resolved.InterfaceModel.CsharpMembers.Count > 0))
         {
             builder.AppendLine();
@@ -112,12 +112,24 @@ internal static class TypeEmitter
         builder.AppendLine("    }");
     }
 
-    private static void EmitTypeParameterProperties(StringBuilder builder, IReadOnlyList<AttrOrTypeParameterModel> parameters)
+    private static void EmitTypeParameterProperties(
+        StringBuilder builder,
+        IReadOnlyList<AttrOrTypeParameterModel> parameters,
+        IReadOnlyList<ResolvedTypeInterfaceModel> interfaces)
     {
         foreach (var param in parameters)
         {
             var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
+            if (TryFindMappedInterfaceMember(interfaces, propertyName, csharpType, out var mappedMember, out var upstreamMethod))
+            {
+                EmitterHelpers.AppendXmlDocComment(
+                    builder,
+                    mappedMember!.CsharpSummary,
+                    mappedMember.CsharpDescription ?? upstreamMethod?.Description,
+                    "    ");
+            }
+
             builder.AppendLine("    public " + csharpType + " " + propertyName + " { get; }");
         }
     }
@@ -196,6 +208,35 @@ internal static class TypeEmitter
         return csharpType.StartsWith(prefix, System.StringComparison.Ordinal) && csharpType.EndsWith(">", System.StringComparison.Ordinal)
             ? csharpType.Substring(prefix.Length, csharpType.Length - prefix.Length - 1)
             : null;
+    }
+
+    private static bool TryFindMappedInterfaceMember(
+        IReadOnlyList<ResolvedTypeInterfaceModel> interfaces,
+        string propertyName,
+        string csharpType,
+        out InterfaceCSharpMemberModel? mappedMember,
+        out InterfaceMethodModel? upstreamMethod)
+    {
+        foreach (var resolvedInterface in interfaces)
+        {
+            foreach (var member in resolvedInterface.InterfaceModel.CsharpMembers)
+            {
+                if (!string.Equals(member.CsharpName, propertyName, System.StringComparison.Ordinal)
+                    || !string.Equals(member.CsharpType, csharpType, System.StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                mappedMember = member;
+                upstreamMethod = resolvedInterface.InterfaceModel.Methods.FirstOrDefault(
+                    method => string.Equals(method.Name, member.UpstreamName, System.StringComparison.Ordinal));
+                return true;
+            }
+        }
+
+        mappedMember = null;
+        upstreamMethod = null;
+        return false;
     }
 
 }

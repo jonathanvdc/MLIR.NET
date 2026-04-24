@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using MLIR.Generators.Emitters.AssemblyFormat;
+using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
 internal static class TypeInterfaceImplementationEmitter
@@ -39,6 +40,12 @@ internal static class TypeInterfaceImplementationEmitter
                 expressionTemplate?.RequireOnly();
                 var renderedExpression = expressionTemplate?.Render(new Dictionary<string, string>()) ?? implementation.CsharpExpression;
 
+                var upstreamMethod = FindUpstreamMethod(resolvedInterface.InterfaceModel, member.UpstreamName);
+                EmitterHelpers.AppendXmlDocComment(
+                    builder,
+                    member.CsharpSummary,
+                    member.CsharpDescription ?? upstreamMethod?.Description,
+                    "    ");
                 builder.AppendLine("    public " + member.CsharpType + " " + member.CsharpName + " => " + renderedExpression + ";");
             }
         }
@@ -85,5 +92,18 @@ internal static class TypeInterfaceImplementationEmitter
 
         implementation = null;
         return false;
+    }
+
+    private static InterfaceMethodModel? FindUpstreamMethod(InterfaceModel interfaceModel, string upstreamName)
+    {
+        foreach (var method in interfaceModel.Methods)
+        {
+            if (string.Equals(method.Name, upstreamName, StringComparison.Ordinal))
+            {
+                return method;
+            }
+        }
+
+        return null;
     }
 }

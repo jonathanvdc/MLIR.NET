@@ -1231,6 +1231,8 @@ internal sealed class OdsRecordIndex
         var baseInterfaces = GetStringListField(record, "baseInterfaces");
         var methods = BuildInterfaceMethods(record);
         var csharpName = GetOptionalStringField(record, "csharpName");
+        var csharpSummary = GetOptionalStringField(record, "csharpSummary");
+        var csharpDescription = GetOptionalStringField(record, "csharpDescription");
         var csharpMembers = BuildInterfaceCSharpMembers(record);
 
         return new Model.InterfaceModel(
@@ -1242,6 +1244,8 @@ internal sealed class OdsRecordIndex
             baseInterfaces,
             methods,
             csharpName,
+            csharpSummary,
+            csharpDescription,
             csharpMembers);
     }
 
@@ -1464,6 +1468,8 @@ internal sealed class OdsRecordIndex
         var upstreamName = GetStringFromValueDictionary(fields, "upstreamName");
         var csharpType = GetStringFromValueDictionary(fields, "csharpType");
         var csharpName = GetStringFromValueDictionary(fields, "csharpName");
+        var csharpSummary = GetStringFromValueDictionary(fields, "csharpSummary");
+        var csharpDescription = GetStringFromValueDictionary(fields, "csharpDescription");
         if (string.IsNullOrEmpty(upstreamName) || string.IsNullOrEmpty(csharpType) || string.IsNullOrEmpty(csharpName))
         {
             return null;
@@ -1475,7 +1481,13 @@ internal sealed class OdsRecordIndex
             _ => Model.InterfaceCSharpMemberKind.Property,
         };
 
-        return new Model.InterfaceCSharpMemberModel(kind, upstreamName!, csharpType!, csharpName!);
+        return new Model.InterfaceCSharpMemberModel(
+            kind,
+            upstreamName!,
+            csharpType!,
+            csharpName!,
+            csharpSummary,
+            csharpDescription);
     }
 
     private Model.InterfaceMemberImplementationModel? TryBuildInterfaceMemberImplementationModel(Value item)

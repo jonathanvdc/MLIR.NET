@@ -7,7 +7,9 @@ public sealed class InterfaceCSharpMemberModel(
     InterfaceCSharpMemberKind kind,
     string upstreamName,
     string csharpType,
-    string csharpName)
+    string csharpName,
+    string? csharpSummary = null,
+    string? csharpDescription = null)
 {
     /// <summary>
     /// Gets the kind of C# member to emit.
@@ -28,4 +30,15 @@ public sealed class InterfaceCSharpMemberModel(
     /// Gets the C# member name to emit.
     /// </summary>
     public string CsharpName { get; } = csharpName;
+
+    /// <summary>
+    /// Gets the optional C# XML documentation summary override supplied by MLIR.NET overlay metadata.
+    /// </summary>
+    public string? CsharpSummary { get; } = csharpSummary;
+
+    /// <summary>
+    /// Gets the optional C# XML documentation description override supplied by MLIR.NET overlay metadata.
+    /// When absent, the mapped upstream interface method description remains the default remarks source.
+    /// </summary>
+    public string? CsharpDescription { get; } = csharpDescription;
 }

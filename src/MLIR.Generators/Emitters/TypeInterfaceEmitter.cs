@@ -1,6 +1,7 @@
 namespace MLIR.Generators.Emitters;
 
 using System.Text;
+using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
 /// <summary>
@@ -19,6 +20,10 @@ internal static class TypeInterfaceEmitter
     public static void Emit(StringBuilder builder, InterfaceModel interfaceModel)
     {
         var interfaceName = DialectGeneratorNaming.GetTypeInterfaceName(interfaceModel);
+        EmitterHelpers.AppendXmlDocComment(
+            builder,
+            interfaceModel.CsharpSummary,
+            interfaceModel.CsharpDescription ?? interfaceModel.Description);
         builder.AppendLine("public partial interface " + interfaceName);
         builder.AppendLine("{");
         foreach (var member in interfaceModel.CsharpMembers)
@@ -30,8 +35,27 @@ internal static class TypeInterfaceEmitter
                     + interfaceModel.RecordName + "'.");
             }
 
+            var upstreamMethod = FindUpstreamMethod(interfaceModel, member.UpstreamName);
+            EmitterHelpers.AppendXmlDocComment(
+                builder,
+                member.CsharpSummary,
+                member.CsharpDescription ?? upstreamMethod?.Description,
+                "    ");
             builder.AppendLine("    " + member.CsharpType + " " + member.CsharpName + " { get; }");
         }
         builder.AppendLine("}");
+    }
+
+    private static InterfaceMethodModel? FindUpstreamMethod(InterfaceModel interfaceModel, string upstreamName)
+    {
+        foreach (var method in interfaceModel.Methods)
+        {
+            if (string.Equals(method.Name, upstreamName, System.StringComparison.Ordinal))
+            {
+                return method;
+            }
+        }
+
+        return null;
     }
 }

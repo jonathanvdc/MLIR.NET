@@ -1433,10 +1433,16 @@ public sealed class DialectImporterTests
             "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
             "  let cppNamespace = \"::mlir::myimx\";\n" +
             "};\n" +
+            "def MyProjectedValueMember : MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
+            "  let csharpSummary = \"Projected property summary.\";\n" +
+            "  let csharpDescription = [{Projected property remarks.}];\n" +
+            "};\n" +
             "extends MyTypeIface : MLIRNet_InterfaceExtension {\n" +
             "  let csharpName = \"IMyProjectedType\";\n" +
+            "  let csharpSummary = \"Projected summary.\";\n" +
+            "  let csharpDescription = [{Projected interface remarks.}];\n" +
             "  let csharpMembers = [\n" +
-            "    MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\">,\n" +
+            "    MyProjectedValueMember,\n" +
             "  ];\n" +
             "};\n";
 
@@ -1446,11 +1452,15 @@ public sealed class DialectImporterTests
         var iface = Assert.Single(dialect.Interfaces, static i => i.RecordName == "MyTypeIface");
 
         Assert.Equal("IMyProjectedType", iface.CsharpName);
+        Assert.Equal("Projected summary.", iface.CsharpSummary);
+        Assert.Contains("Projected interface remarks", iface.CsharpDescription);
         var member = Assert.Single(iface.CsharpMembers);
         Assert.Equal(InterfaceCSharpMemberKind.Property, member.Kind);
         Assert.Equal("getValue", member.UpstreamName);
         Assert.Equal("int", member.CsharpType);
         Assert.Equal("Value", member.CsharpName);
+        Assert.Equal("Projected property summary.", member.CsharpSummary);
+        Assert.Contains("Projected property remarks", member.CsharpDescription);
     }
 
     [Fact]

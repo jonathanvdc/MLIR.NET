@@ -250,16 +250,16 @@ internal static class EmitterHelpers
     /// blocks, ATX headings, inline code, and inline links are all translated to their
     /// XML doc equivalents.
     /// </remarks>
-    public static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description)
+    public static void AppendXmlDocComment(StringBuilder builder, string? summary, string? description, string indent = "")
     {
         if (!string.IsNullOrWhiteSpace(summary))
         {
-            builder.AppendLine("/// <summary>" + EscapeXmlText(summary!.Trim()) + "</summary>");
+            builder.AppendLine(indent + "/// <summary>" + EscapeXmlText(summary!.Trim()) + "</summary>");
         }
 
         if (!string.IsNullOrWhiteSpace(description))
         {
-            builder.AppendLine("/// <remarks>");
+            builder.AppendLine(indent + "/// <remarks>");
             // Pass the raw description to ConvertToRemarksLines, which handles dedenting
             // and blank-line normalization internally.  Calling Trim() here would strip
             // the leading whitespace only from the first line, which breaks the dedent
@@ -269,10 +269,10 @@ internal static class EmitterHelpers
             {
                 // Emit a bare `///` for blank lines so that empty XML doc lines do not
                 // include a trailing space (consistent with standard C# doc comment style).
-                builder.AppendLine(string.IsNullOrEmpty(line) ? "///" : "/// " + line);
+                builder.AppendLine(string.IsNullOrEmpty(line) ? indent + "///" : indent + "/// " + line);
             }
 
-            builder.AppendLine("/// </remarks>");
+            builder.AppendLine(indent + "/// </remarks>");
         }
     }
 

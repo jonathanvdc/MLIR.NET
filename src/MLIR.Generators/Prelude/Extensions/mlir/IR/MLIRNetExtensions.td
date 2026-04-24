@@ -17,6 +17,10 @@ class MLIRNet_InterfaceExtension {
   // Optional C# interface name override. When absent, the generator derives a
   // marker-style name from cppInterfaceName.
   string csharpName = ?;
+  // Optional C# XML documentation summary override for the generated interface.
+  string csharpSummary = ?;
+  // Optional C# XML documentation remarks/description override for the generated interface.
+  string csharpDescription = ?;
   // Explicit member projections for the generated C# interface surface.
   list<MLIRNet_InterfaceMember> csharpMembers = [];
 }
@@ -25,6 +29,8 @@ class MLIRNet_InterfaceMember<string upstreamNameValue, string csharpTypeValue, 
   string upstreamName = upstreamNameValue;
   string csharpType = csharpTypeValue;
   string csharpName = csharpNameValue;
+  string csharpSummary = ?;
+  string csharpDescription = ?;
 }
 
 class MLIRNet_InterfaceProperty<string upstreamName, string csharpType, string csharpName>
