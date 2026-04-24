@@ -264,4 +264,49 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
             "var inputs = inputsResult.Value;");
         Assert.DoesNotContain("context.ParseSsaTokenList()", registrationSource);
     }
+
+    [Fact]
+    public void BuildCustomAssemblySyntaxUsesSemanticFunctionTypeSlicesForVariadicTypeDirective()
+    {
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_VariadicTypedOp : MyDialect_Op<\"variadic_typed\", []> {",
+                "  let arguments = (ins I32:$lhs, Variadic<I32>:$rest);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs `,` $rest attr-dict `:` type($rest) `->` type($result)\";",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            ".Inputs.Skip(1).Take(op.Rest.Count).Select(context.BuildTypeSyntax).ToList()",
+            ".Results.Count > (0) ? context.BuildTypeSyntax(");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "functionType.InputTypes.Items.ToList()",
+            "context.BuildTypeSyntax(op.TypeSignatureReference) is global::MLIR.Syntax.Types.Collections.FunctionTypeSyntax");
+    }
+
+    [Fact]
+    public void BindSynthesizesFunctionTypeForVariadicOperandTypeDirective()
+    {
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "def MyDialect_VariadicTypedOp : MyDialect_Op<\"variadic_typed\", []> {",
+                "  let arguments = (ins I32:$lhs, Variadic<I32>:$rest);",
+                "  let results = (outs I32:$result);",
+                "  let assemblyFormat = \"$lhs `,` $rest attr-dict `:` type($rest) `->` type($result)\";",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            "new global::MLIR.Dialects.Builtin.FunctionType(",
+            "body.RestType.Select(binder.BindTypeReference).ToArray()",
+            "new[] { binder.BindTypeReference(body.ResultType) }.ToArray()");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "return \"null\"",
+            "operation.Results.Count == 0");
+    }
 }

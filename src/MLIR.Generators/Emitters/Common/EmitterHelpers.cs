@@ -508,7 +508,14 @@ internal static class EmitterHelpers
             }
 
             case TypeDirectiveChunk typeDir:
-                AppendTypeField(usedNames, GetTypeBaseName(typeDir.Operand), GetDirectiveOperandName(typeDir.Operand), operation, metadata, nullable);
+                AppendTypeField(
+                    usedNames,
+                    GetTypeBaseName(typeDir.Operand),
+                    GetDirectiveOperandName(typeDir.Operand),
+                    operation,
+                    metadata,
+                    nullable,
+                    BodyComponentKind.TypeDirective);
                 break;
 
             case SuccessorsDirectiveChunk _:
@@ -534,15 +541,36 @@ internal static class EmitterHelpers
             case QualifiedDirectiveChunk qualified:
                 // qualified(...) does not change parsing behaviour, so represent the inner
                 // type as a plain TypeSyntax field just like TypeDirectiveChunk does.
-                AppendTypeField(usedNames, GetQualifiedTypeBaseName(qualified.Operand), GetDirectiveOperandName(qualified.Operand), operation, metadata, nullable);
+                AppendTypeField(
+                    usedNames,
+                    GetQualifiedTypeBaseName(qualified.Operand),
+                    GetDirectiveOperandName(qualified.Operand),
+                    operation,
+                    metadata,
+                    nullable,
+                    BodyComponentKind.TypeDirective);
                 break;
 
             case ResultsDirectiveChunk _:
-                AppendTypeField(usedNames, "ResultsType", "Results", operation, metadata, nullable);
+                AppendTypeField(
+                    usedNames,
+                    "ResultsType",
+                    "Results",
+                    operation,
+                    metadata,
+                    nullable,
+                    BodyComponentKind.ResultsDirective);
                 break;
 
             case FunctionalTypeDirectiveChunk _:
-                AppendTypeField(usedNames, "FunctionalType", "Type", operation, metadata, nullable);
+                AppendTypeField(
+                    usedNames,
+                    "FunctionalType",
+                    "Type",
+                    operation,
+                    metadata,
+                    nullable,
+                    BodyComponentKind.FunctionalTypeDirective);
                 break;
 
             case OptionalGroup optionalGroup:
@@ -598,7 +626,14 @@ internal static class EmitterHelpers
                 break;
 
             case OilistTypeDirectiveElement typeDir:
-                AppendTypeField(usedNames, GetTypeBaseName(typeDir.Operand), GetDirectiveOperandName(typeDir.Operand), operation, metadata, nullable: true);
+                AppendTypeField(
+                    usedNames,
+                    GetTypeBaseName(typeDir.Operand),
+                    GetDirectiveOperandName(typeDir.Operand),
+                    operation,
+                    metadata,
+                    nullable: true,
+                    BodyComponentKind.TypeDirective);
                 break;
 
             case OilistLiteralElement literal:
@@ -736,6 +771,19 @@ internal static class EmitterHelpers
         return false;
     }
 
+    private static bool IsVariadicResult(OperationModel operation, string variableName)
+    {
+        foreach (var result in operation.Results)
+        {
+            if (string.Equals(result.Name, variableName, StringComparison.Ordinal))
+            {
+                return result.IsVariadic;
+            }
+        }
+
+        return false;
+    }
+
     private static bool IsVariadicRegion(OperationModel operation, string variableName)
     {
         foreach (var region in operation.Regions)
@@ -749,12 +797,19 @@ internal static class EmitterHelpers
         return false;
     }
 
-    private static void AppendTypeField(HashSet<string> usedNames, string baseName, string operandName, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
+    private static void AppendTypeField(
+        HashSet<string> usedNames,
+        string baseName,
+        string operandName,
+        OperationModel operation,
+        OperationBodySyntaxMetadata metadata,
+        bool nullable,
+        BodyComponentKind componentKind)
     {
         var name = MakeUnique(baseName, usedNames);
         string csType;
         string writeStmt;
-        if (IsVariadicOperand(operation, operandName))
+        if (IsVariadicOperand(operation, operandName) || IsVariadicResult(operation, operandName))
         {
             csType = "IReadOnlyList<TypeSyntax>";
             writeStmt =
@@ -778,7 +833,7 @@ internal static class EmitterHelpers
 
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
-        metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Type, operandName, field.Name));
+        metadata.AddComponentField(new BodyComponentField(componentKind, operandName, field.Name));
     }
 
     private static string GetTypeBaseName(DirectiveOperand operand)

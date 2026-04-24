@@ -509,15 +509,155 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
     private string BuildTypeExpression(BodySyntaxField field)
     {
-        if (field.CsType == "IReadOnlyList<TypeSyntax>")
+        var component = GetTypeComponentField(field.Name);
+        if (component == null)
         {
-            // Use context.BuildTypeSyntax to synthesize the function type syntax so that
-            // TypeSignatureReferences with null Syntax (programmatically constructed) still work.
-            return "op.TypeSignatureReference != null && context.BuildTypeSyntax(op.TypeSignatureReference) is global::MLIR.Syntax.Types.Collections.FunctionTypeSyntax functionType ? " +
-                "(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>)functionType.InputTypes.Items.ToList() : global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
+            return BuildOverallTypeExpression();
         }
 
+        return component.Kind switch
+        {
+            BodyComponentKind.FunctionalTypeDirective => BuildOverallTypeExpression(),
+            BodyComponentKind.ResultsDirective => BuildResultsTypeExpression(field),
+            BodyComponentKind.TypeDirective => BuildNamedTypeDirectiveExpression(component.ComponentName, field),
+            _ => BuildOverallTypeExpression(),
+        };
+    }
+
+    private string BuildNamedTypeDirectiveExpression(string componentName, BodySyntaxField field)
+    {
+        if (EmitterHelpers.ContainsName(operation.Operands, componentName, static operand => operand.Name))
+        {
+            return field.CsType == "IReadOnlyList<TypeSyntax>"
+                ? BuildFunctionSideTypeListExpression(inputs: true, componentName, field.Name)
+                : BuildFunctionSideTypeExpression(inputs: true, componentName, field.Name);
+        }
+
+        if (EmitterHelpers.ContainsName(operation.Results, componentName, static result => result.Name))
+        {
+            return field.CsType == "IReadOnlyList<TypeSyntax>"
+                ? BuildFunctionSideTypeListExpression(inputs: false, componentName, field.Name)
+                : BuildFunctionSideTypeExpression(inputs: false, componentName, field.Name);
+        }
+
+        return BuildOverallTypeExpression();
+    }
+
+    private string BuildResultsTypeExpression(BodySyntaxField field)
+    {
+        var functionTypeVar = "functionType" + field.Name;
+        if (field.CsType == "IReadOnlyList<TypeSyntax>")
+        {
+            return "op.TypeSignatureReference is global::MLIR.Dialects.Builtin.FunctionType " + functionTypeVar + " ? " +
+                "(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>)" + functionTypeVar + ".Results.Select(context.BuildTypeSyntax).ToList() : " +
+                "op.TypeSignatureReference != null ? new[] { context.BuildTypeSyntax(op.TypeSignatureReference) } : global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
+        }
+
+        return "op.TypeSignatureReference is global::MLIR.Dialects.Builtin.FunctionType " + functionTypeVar + " && " + functionTypeVar + ".Results.Count == 1 ? " +
+            "context.BuildTypeSyntax(" + functionTypeVar + ".Results[0]) : " + BuildOverallTypeExpression();
+    }
+
+    private string BuildFunctionSideTypeExpression(bool inputs, string componentName, string fieldName)
+    {
+        var side = inputs ? "Inputs" : "Results";
+        var indexExpr = BuildMemberTypeStartExpression(inputs, componentName);
+        var functionTypeVar = "functionType" + fieldName;
+        return "op.TypeSignatureReference is global::MLIR.Dialects.Builtin.FunctionType " + functionTypeVar + " ? " +
+            functionTypeVar + "." + side + ".Count > (" + indexExpr + ") ? context.BuildTypeSyntax(" + functionTypeVar + "." + side + "[" + indexExpr + "]) : " +
+            "throw new global::System.InvalidOperationException(" + EmitterHelpers.ToCSharpStringLiteral(
+                "Operation type signature does not provide a type for '" + componentName + "'.") + ") : " +
+            BuildOverallTypeExpression();
+    }
+
+    private string BuildFunctionSideTypeListExpression(bool inputs, string componentName, string fieldName)
+    {
+        var side = inputs ? "Inputs" : "Results";
+        var startExpr = BuildMemberTypeStartExpression(inputs, componentName);
+        var countExpr = BuildMemberTypeCountExpression(inputs, componentName);
+        var functionTypeVar = "functionType" + fieldName;
+        return "op.TypeSignatureReference is global::MLIR.Dialects.Builtin.FunctionType " + functionTypeVar + " ? " +
+            "(global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.TypeSyntax>)" + functionTypeVar + "." + side +
+            ".Skip(" + startExpr + ").Take(" + countExpr + ").Select(context.BuildTypeSyntax).ToList() : " +
+            "op.TypeSignatureReference != null ? new[] { context.BuildTypeSyntax(op.TypeSignatureReference) } : " +
+            "global::System.Array.Empty<global::MLIR.Syntax.TypeSyntax>()";
+    }
+
+    private string BuildMemberTypeStartExpression(bool inputs, string componentName)
+    {
+        var parts = new List<string>();
+        if (inputs)
+        {
+            foreach (var member in operation.Operands)
+            {
+                if (string.Equals(member.Name, componentName, StringComparison.Ordinal))
+                {
+                    break;
+                }
+
+                parts.Add(member.IsVariadic ? "op." + GetOperationPropertyName(member.Name) + ".Count" : "1");
+            }
+        }
+        else
+        {
+            foreach (var member in operation.Results)
+            {
+                if (string.Equals(member.Name, componentName, StringComparison.Ordinal))
+                {
+                    break;
+                }
+
+                parts.Add(member.IsVariadic ? "op." + GetOperationPropertyName(member.Name) + ".Count" : "1");
+            }
+        }
+
+        return parts.Count == 0 ? "0" : string.Join(" + ", parts);
+    }
+
+    private string BuildMemberTypeCountExpression(bool inputs, string componentName)
+    {
+        if (inputs)
+        {
+            foreach (var member in operation.Operands)
+            {
+                if (string.Equals(member.Name, componentName, StringComparison.Ordinal))
+                {
+                    return member.IsVariadic ? "op." + GetOperationPropertyName(member.Name) + ".Count" : "1";
+                }
+            }
+        }
+        else
+        {
+            foreach (var member in operation.Results)
+            {
+                if (string.Equals(member.Name, componentName, StringComparison.Ordinal))
+                {
+                    return member.IsVariadic ? "op." + GetOperationPropertyName(member.Name) + ".Count" : "1";
+                }
+            }
+        }
+
+        return "0";
+    }
+
+    private string BuildOverallTypeExpression()
+    {
         return "context.BuildTypeSyntax(op.TypeSignatureReference ?? throw new global::System.InvalidOperationException(\"Operation requires a type signature to rebuild custom assembly syntax.\"))";
+    }
+
+    private BodyComponentField? GetTypeComponentField(string fieldName)
+    {
+        foreach (var component in metadata.ComponentFields)
+        {
+            if (component.FieldName == fieldName
+                && (component.Kind == BodyComponentKind.TypeDirective
+                    || component.Kind == BodyComponentKind.ResultsDirective
+                    || component.Kind == BodyComponentKind.FunctionalTypeDirective))
+            {
+                return component;
+            }
+        }
+
+        return null;
     }
 
     private static string GetFieldDefaultExpression(string csType)

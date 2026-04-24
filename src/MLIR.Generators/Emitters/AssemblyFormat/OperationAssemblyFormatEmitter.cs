@@ -171,35 +171,152 @@ internal static class OperationAssemblyFormatEmitter
         OperationBodySyntaxConstructionPlan plan,
         OperationBodySyntaxMetadata metadata)
     {
-        if (plan.TypeField == null)
+        if (plan.TypeFields.Count == 0)
         {
             return "null";
         }
 
-        if (GetFieldCsType(metadata, plan.TypeField) == "IReadOnlyList<TypeSyntax>")
+        var functionalTypeField = plan.TypeFields.FirstOrDefault(
+            static field => field.Kind == BodyComponentKind.FunctionalTypeDirective);
+        if (functionalTypeField != null)
         {
-            // A trailing variadic type list models the operand types for generic operation
-            // syntax. When the operation has no results, that list is the input side of a
-            // function type signature and can be reconstructed as such.
-            if (operation.Results.Count == 0)
+            return GetDirectTypeBindExpression(metadata, functionalTypeField.FieldName);
+        }
+
+        if (plan.TypeFields.Count == 1)
+        {
+            var singleField = plan.TypeFields[0];
+            var singleFieldType = GetFieldCsType(metadata, singleField.FieldName);
+            if (singleFieldType == "IReadOnlyList<TypeSyntax>")
             {
-                var access = "body." + plan.TypeField;
-                return access + ".Count > 0 ? new global::MLIR.Dialects.Builtin.FunctionType(" +
-                    access + ".Select(binder.BindTypeReference).ToArray(), global::System.Array.Empty<global::MLIR.Semantics.TypeReference>()) : null";
+                var access = "body." + singleField.FieldName;
+                if (singleField.Kind == BodyComponentKind.TypeDirective && operation.Results.Count == 0)
+                {
+                    return access + ".Count > 0 ? new global::MLIR.Dialects.Builtin.FunctionType(" +
+                        access + ".Select(binder.BindTypeReference).ToArray(), global::System.Array.Empty<global::MLIR.Semantics.TypeReference>()) : null";
+                }
+
+                if (singleField.Kind == BodyComponentKind.ResultsDirective && operation.Operands.Count == 0)
+                {
+                    return access + ".Count > 0 ? new global::MLIR.Dialects.Builtin.FunctionType(" +
+                        "global::System.Array.Empty<global::MLIR.Semantics.TypeReference>(), " +
+                        access + ".Select(binder.BindTypeReference).ToArray()) : null";
+                }
+            }
+        }
+
+        if (ShouldSynthesizeFunctionType(operation, plan, metadata))
+        {
+            var operandTypes = BuildTypeSequenceBindExpression(operation.Operands, plan, metadata);
+            var resultTypes = BuildTypeSequenceBindExpression(operation.Results, plan, metadata, resultsDirectiveName: "Results");
+            return "new global::MLIR.Dialects.Builtin.FunctionType(" + operandTypes + ", " + resultTypes + ")";
+        }
+
+        return GetDirectTypeBindExpression(metadata, plan.TypeFields[0].FieldName);
+    }
+
+    private static bool ShouldSynthesizeFunctionType(
+        OperationModel operation,
+        OperationBodySyntaxConstructionPlan plan,
+        OperationBodySyntaxMetadata metadata)
+    {
+        if (plan.TypeFields.Count == 0)
+        {
+            return false;
+        }
+
+        var operandTypeFieldCount = 0;
+        var resultTypeFieldCount = 0;
+        foreach (var field in plan.TypeFields)
+        {
+            var csType = GetFieldCsType(metadata, field.FieldName);
+            if (csType == "IReadOnlyList<TypeSyntax>")
+            {
+                return true;
             }
 
-            return "null";
+            if (field.Kind == BodyComponentKind.ResultsDirective
+                || operation.Results.Any(result => string.Equals(result.Name, field.ComponentName, StringComparison.Ordinal)))
+            {
+                resultTypeFieldCount++;
+            }
+            else
+            {
+                operandTypeFieldCount++;
+            }
         }
 
-        // When the type field is nullable (e.g. inside an optional group), emit a conditional
-        // expression that produces null when the type syntax is absent rather than passing
-        // null directly to binder.BindTypeReference which requires a non-null argument.
-        if (IsNullableField(metadata, plan.TypeField))
+        return operandTypeFieldCount > 1
+            || resultTypeFieldCount > 1
+            || (operandTypeFieldCount > 0 && resultTypeFieldCount > 0);
+    }
+
+    private static string BuildTypeSequenceBindExpression(
+        IReadOnlyList<OperationMemberModel> members,
+        OperationBodySyntaxConstructionPlan plan,
+        OperationBodySyntaxMetadata metadata,
+        string? resultsDirectiveName = null)
+    {
+        var parts = new List<string>();
+        for (var i = 0; i < members.Count; i++)
         {
-            return "body." + plan.TypeField + " is not null ? (TypeReference?)binder.BindTypeReference(body." + plan.TypeField + "!) : null";
+            var member = members[i];
+            var field = plan.TypeFields.FirstOrDefault(static f => false);
+            foreach (var candidate in plan.TypeFields)
+            {
+                if (string.Equals(candidate.ComponentName, member.Name, StringComparison.Ordinal))
+                {
+                    field = candidate;
+                    break;
+                }
+            }
+
+            if (field == null)
+            {
+                continue;
+            }
+
+            var access = "body." + field.FieldName;
+            var csType = GetFieldCsType(metadata, field.FieldName);
+            parts.Add(csType == "IReadOnlyList<TypeSyntax>"
+                ? access + ".Select(binder.BindTypeReference)"
+                : "new[] { binder.BindTypeReference(" + SafeFieldAccess(metadata, field.FieldName) + ") }");
         }
 
-        return "binder.BindTypeReference(body." + plan.TypeField + ")";
+        if (resultsDirectiveName != null)
+        {
+            foreach (var field in plan.TypeFields)
+            {
+                if (!string.Equals(field.ComponentName, resultsDirectiveName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var access = "body." + field.FieldName;
+                var csType = GetFieldCsType(metadata, field.FieldName);
+                parts.Add(csType == "IReadOnlyList<TypeSyntax>"
+                    ? access + ".Select(binder.BindTypeReference)"
+                    : "new[] { binder.BindTypeReference(" + SafeFieldAccess(metadata, field.FieldName) + ") }");
+            }
+        }
+
+        return parts.Count switch
+        {
+            0 => "global::System.Array.Empty<global::MLIR.Semantics.TypeReference>()",
+            1 => parts[0] + ".ToArray()",
+            _ => "new global::System.Collections.Generic.IEnumerable<global::MLIR.Semantics.TypeReference>[] { " +
+                string.Join(", ", parts) + " }.SelectMany(static sequence => sequence).ToArray()",
+        };
+    }
+
+    private static string GetDirectTypeBindExpression(OperationBodySyntaxMetadata metadata, string fieldName)
+    {
+        if (IsNullableField(metadata, fieldName))
+        {
+            return "body." + fieldName + " is not null ? (TypeReference?)binder.BindTypeReference(body." + fieldName + "!) : null";
+        }
+
+        return "binder.BindTypeReference(" + SafeFieldAccess(metadata, fieldName) + ")";
     }
 
     private static string GetRegionBindExpression(OperationBodySyntaxMetadata metadata, string fieldName, bool isVariadic)

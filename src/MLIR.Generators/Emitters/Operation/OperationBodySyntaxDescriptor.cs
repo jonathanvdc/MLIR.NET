@@ -17,6 +17,22 @@ using MLIR.ODS.Model;
 /// </remarks>
 internal sealed class OperationBodySyntaxConstructionPlan
 {
+    internal sealed class TypeComponentPlan
+    {
+        public TypeComponentPlan(BodyComponentKind kind, string componentName, string fieldName)
+        {
+            Kind = kind;
+            ComponentName = componentName;
+            FieldName = fieldName;
+        }
+
+        public BodyComponentKind Kind { get; }
+
+        public string ComponentName { get; }
+
+        public string FieldName { get; }
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="OperationBodySyntaxConstructionPlan"/> class.
     /// </summary>
@@ -41,8 +57,8 @@ internal sealed class OperationBodySyntaxConstructionPlan
     /// <param name="resultFields">
     /// A mapping from logical result names to the generated field names that store them.
     /// </param>
-    /// <param name="typeField">
-    /// The generated field name for the trailing type component, if one is present.
+    /// <param name="typeFields">
+    /// The generated fields that store directive-specific type components, in metadata order.
     /// </param>
     /// <param name="successorsField">
     /// The generated field name for the successor list component, if one is present.
@@ -58,7 +74,7 @@ internal sealed class OperationBodySyntaxConstructionPlan
         string? propDictField,
         IReadOnlyDictionary<string, string> operandFields,
         IReadOnlyDictionary<string, string> resultFields,
-        string? typeField,
+        IReadOnlyList<TypeComponentPlan> typeFields,
         string? successorsField,
         string? operandsField)
     {
@@ -69,7 +85,7 @@ internal sealed class OperationBodySyntaxConstructionPlan
         PropDictField = propDictField;
         OperandFields = operandFields;
         ResultFields = resultFields;
-        TypeField = typeField;
+        TypeFields = typeFields;
         SuccessorsField = successorsField;
         OperandsField = operandsField;
     }
@@ -110,9 +126,9 @@ internal sealed class OperationBodySyntaxConstructionPlan
     public IReadOnlyDictionary<string, string> ResultFields { get; }
 
     /// <summary>
-    /// Gets the generated field name for the trailing type component, if present.
+    /// Gets the generated fields that store directive-specific type components.
     /// </summary>
-    public string? TypeField { get; }
+    public IReadOnlyList<TypeComponentPlan> TypeFields { get; }
 
     /// <summary>
     /// Gets the generated field name for the successor list component, if present.
@@ -162,7 +178,7 @@ internal static class OperationBodySyntaxDescriptor
         string? propDictField = null;
         string? successorsField = null;
         string? operandsField = null;
-        string? typeField = null;
+        var typeFields = new List<OperationBodySyntaxConstructionPlan.TypeComponentPlan>();
 
         foreach (var component in metadata.ComponentFields)
         {
@@ -204,9 +220,13 @@ internal static class OperationBodySyntaxDescriptor
                     // Keep only the first aggregate operands field, if any.
                     operandsField ??= component.FieldName;
                     break;
-                case BodyComponentKind.Type:
-                    // Keep only the first trailing type field, if any.
-                    typeField ??= component.FieldName;
+                case BodyComponentKind.TypeDirective:
+                case BodyComponentKind.ResultsDirective:
+                case BodyComponentKind.FunctionalTypeDirective:
+                    typeFields.Add(new OperationBodySyntaxConstructionPlan.TypeComponentPlan(
+                        component.Kind,
+                        component.ComponentName,
+                        component.FieldName));
                     break;
             }
         }
@@ -219,7 +239,7 @@ internal static class OperationBodySyntaxDescriptor
             propDictField,
             operandFields,
             resultFields,
-            typeField,
+            typeFields,
             successorsField,
             operandsField);
     }

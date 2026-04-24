@@ -40,7 +40,9 @@ internal enum BodyComponentKind
     AttrDictWithKeyword,
     PropDict,
     Regions,
-    Type,
+    TypeDirective,
+    ResultsDirective,
+    FunctionalTypeDirective,
     Successors,
     Operands,
     Unknown
