@@ -7,7 +7,7 @@ using Xunit;
 
 /// <summary>
 /// Tests for the offset-based source location model: <see cref="SourceDocument"/>,
-/// <see cref="OriginalSourceDocument"/>, <see cref="MappedSourceDocument"/>,
+/// <see cref="OriginalSourceDocument"/>, <see cref="SourceDocumentView"/>,
 /// <see cref="SourceLocation"/>, and the updated <see cref="Token"/> API.
 /// </summary>
 public sealed class SourceLocationTests
@@ -102,25 +102,25 @@ public sealed class SourceLocationTests
     }
 
     [Fact]
-    public void MappedSourceDocument_GetLineColumn_UsesPrimaryOriginalSpan()
+    public void SourceDocumentView_GetLineColumn_UsesPrimaryOriginalSpan()
     {
         var original = new OriginalSourceDocument("first\nsecond\nthird", "source.td");
-        var mapped = new MappedSourceDocument("derived", new FixedSourceSpanMapper(new OriginalSourceSpan(original, 6, 6)));
+        var view = new FixedSourceDocumentView("derived", new OriginalSourceSpan(original, 6, 6));
 
-        var position = mapped.GetLineColumn(0);
+        var position = view.GetLineColumn(0);
 
         AssertPosition(position, "source.td", 2, 1);
     }
 
     [Fact]
-    public void MappedSourceDocument_CanResolveMultipleOriginalSpans()
+    public void SourceDocumentView_CanResolveMultipleOriginalSpans()
     {
         var first = new OriginalSourceDocument("one\ntwo", "first.td");
         var second = new OriginalSourceDocument("three\nfour", "second.td");
         var primary = new OriginalSourceSpan(first, 4, 3);
         var secondary = new OriginalSourceSpan(second, 6, 4);
-        var mapped = new MappedSourceDocument("derived", new FixedSourceSpanMapper(primary, secondary));
-        var location = new SourceLocation(mapped, 0, mapped.Length);
+        var view = new FixedSourceDocumentView("derived", primary, secondary);
+        var location = new SourceLocation(view, 0, view.Length);
 
         var resolved = location.Resolve();
 
@@ -520,12 +520,13 @@ public sealed class SourceLocationTests
         Assert.Equal(column, position.Column);
     }
 
-    private sealed class FixedSourceSpanMapper : ISourceSpanMapper
+    private sealed class FixedSourceDocumentView : SourceDocumentView
     {
         private readonly OriginalSourceSpan primarySpan;
         private readonly OriginalSourceSpan[] originSpans;
 
-        public FixedSourceSpanMapper(OriginalSourceSpan primarySpan, params OriginalSourceSpan[] additionalSpans)
+        public FixedSourceDocumentView(string text, OriginalSourceSpan primarySpan, params OriginalSourceSpan[] additionalSpans)
+            : base(text)
         {
             this.primarySpan = primarySpan;
             originSpans = new OriginalSourceSpan[additionalSpans.Length + 1];
@@ -536,7 +537,7 @@ public sealed class SourceLocationTests
             }
         }
 
-        public ResolvedSourceSpan Resolve(SourceDocument document, int start, int length)
+        public override ResolvedSourceSpan ResolveSpan(int start, int length)
         {
             return new ResolvedSourceSpan(primarySpan, originSpans);
         }
