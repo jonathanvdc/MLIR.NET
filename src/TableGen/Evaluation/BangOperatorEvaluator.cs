@@ -517,7 +517,7 @@ internal sealed class BangOperatorEvaluator
         var items = new List<string>(list.Items.Count);
         foreach (var item in list.Items)
         {
-            var itemString = ValueUtilities.TryValueToString(item);
+            var itemString = ValueUtilities.TryValueToString(item, bangCall.Arguments[0].Location);
             if (!itemString.IsSuccess)
             {
                 return Failure(itemString.Diagnostic!);

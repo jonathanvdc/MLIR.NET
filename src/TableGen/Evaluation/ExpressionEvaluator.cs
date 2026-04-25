@@ -197,13 +197,13 @@ internal sealed class ExpressionEvaluator
             return Success(new ListValue(merged));
         }
 
-        var leftString = ValueUtilities.TryValueToString(left.Value);
+        var leftString = ValueUtilities.TryValueToString(left.Value, concat.Left.Location);
         if (!leftString.IsSuccess)
         {
             return Failure(leftString.Diagnostic!);
         }
 
-        var rightString = ValueUtilities.TryValueToString(right.Value);
+        var rightString = ValueUtilities.TryValueToString(right.Value, concat.Right.Location);
         if (!rightString.IsSuccess)
         {
             return Failure(rightString.Diagnostic!);

@@ -757,7 +757,7 @@ internal sealed class RecordBuilder
             return string.Empty;
         }
 
-        var text = ValueUtilities.TryValueToString(message.Value);
+        var text = ValueUtilities.TryValueToString(message.Value, SourceLocation.Unknown);
         error = text.Diagnostic;
         return text.IsSuccess ? text.Value : string.Empty;
     }

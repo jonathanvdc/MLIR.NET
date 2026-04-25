@@ -30,8 +30,9 @@ internal static class ValueUtilities
     /// Converts a runtime value into the string form used by TableGen concatenation and string-oriented builtins.
     /// </summary>
     /// <param name="value">The value to convert.</param>
+    /// <param name="location">The source location to attach to any produced diagnostic.</param>
     /// <returns>The converted string or a diagnostic.</returns>
-    public static ParseResult<string> TryValueToString(Value value)
+    public static ParseResult<string> TryValueToString(Value value, SourceLocation location)
     {
         switch (value)
         {
@@ -46,7 +47,7 @@ internal static class ValueUtilities
                 var pieces = new List<string>(list.Items.Count);
                 foreach (var item in list.Items)
                 {
-                    var itemString = TryValueToString(item);
+                    var itemString = TryValueToString(item, location);
                     if (!itemString.IsSuccess)
                     {
                         return ParseResult<string>.Failure(itemString.Diagnostic!);
@@ -66,7 +67,7 @@ internal static class ValueUtilities
             case RecordLikeValue recordLike:
                 return ParseResult<string>.Success(recordLike.DisplayName);
             default:
-                return ParseResult<string>.Failure(InvalidOperation($"Cannot convert {value.GetType().Name} to string for concatenation.", SourceLocation.Unknown));
+                return ParseResult<string>.Failure(InvalidOperation($"Cannot convert {value.GetType().Name} to string for concatenation.", location));
         }
     }
 
@@ -90,7 +91,7 @@ internal static class ValueUtilities
                 return Failure(InvalidOperation($"Expected an integer value for '{typeName}'.", location));
             case "string" when value is not StringValue:
             {
-                var stringResult = TryValueToString(value);
+                var stringResult = TryValueToString(value, location);
                 return stringResult.IsSuccess
                     ? Success(new StringValue(stringResult.Value))
                     : Failure(stringResult.Diagnostic!);
