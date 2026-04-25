@@ -191,7 +191,7 @@ internal sealed class ExpressionEvaluator
         // are handled before falling back to string concatenation.
         if (left.Value is ListValue leftList && right.Value is ListValue rightList)
         {
-            var merged = new System.Collections.Generic.List<Value>(leftList.Items.Count + rightList.Items.Count);
+            var merged = new List<Value>(leftList.Items.Count + rightList.Items.Count);
             merged.AddRange(leftList.Items);
             merged.AddRange(rightList.Items);
             return Success(new ListValue(merged));
