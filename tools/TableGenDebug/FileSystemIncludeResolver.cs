@@ -20,7 +20,7 @@ internal sealed class FileSystemIncludeResolver : IncludeResolver
         {
             if (File.Exists(candidatePath))
             {
-                resolvedDocument = new SourceDocument(File.ReadAllText(candidatePath), candidatePath);
+                resolvedDocument = new OriginalSourceDocument(File.ReadAllText(candidatePath), candidatePath);
                 return true;
             }
         }

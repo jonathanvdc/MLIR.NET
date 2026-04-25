@@ -38,7 +38,7 @@ internal static class DialectGeneratorInput
     {
         try
         {
-            var sourceDocument = new SourceDocument(sourceText, path);
+            var sourceDocument = new OriginalSourceDocument(sourceText, path);
             var documentResult = resolver != null
                 ? Document.Load(sourceDocument, resolver)
                 : Document.Parse(sourceDocument);

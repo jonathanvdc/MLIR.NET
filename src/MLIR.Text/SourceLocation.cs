@@ -7,9 +7,14 @@ using System;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Line, column, and file name are derived on demand through the owning <see cref="SourceDocument"/>
-/// rather than being stored in every instance. This centralises the line-mapping logic and
-/// makes it easy to translate any offset back to a human-readable location at diagnostic time.
+/// <see cref="Start"/> and <see cref="Length"/> are relative to the owning
+/// <see cref="SourceDocument"/>'s text. The owning document may be original source text or a
+/// derived source view such as preprocessed text.
+/// </para>
+/// <para>
+/// Line, column, file name, and original source spans are resolved on demand through the owning
+/// document. This keeps tokens compact while allowing mapped documents to report diagnostics
+/// against user-authored source.
 /// </para>
 /// <para>
 /// An <em>unknown</em> location is represented by the <see langword="default"/> value (i.e., a
@@ -55,24 +60,41 @@ public readonly struct SourceLocation
     public int End => Start + Length;
 
     /// <summary>
+    /// Gets the diagnostic display position of the span start, or <see cref="SourcePosition.Unknown"/>
+    /// when the location is unknown.
+    /// </summary>
+    public SourcePosition Position => Document?.GetLineColumn(Start) ?? SourcePosition.Unknown;
+
+    /// <summary>
     /// Gets the 1-based source line of the span start, or zero when the location is unknown.
     /// </summary>
-    public int Line => Document?.GetLineColumn(Start).Line ?? 0;
+    public int Line => Position.Line;
 
     /// <summary>
     /// Gets the 1-based source column of the span start, or zero when the location is unknown.
     /// </summary>
-    public int Column => Document?.GetLineColumn(Start).Column ?? 0;
+    public int Column => Position.Column;
 
     /// <summary>
     /// Gets the logical file name or path for this location, if known.
     /// </summary>
-    public string? FileName => Document?.FileName;
+    public string? FileName => Position.FileName;
 
     /// <summary>
     /// Gets a value indicating whether the location is known (i.e., backed by a source document).
     /// </summary>
     public bool IsKnown => Document != null;
+
+    /// <summary>
+    /// Resolves this document-relative location to original source spans.
+    /// </summary>
+    /// <returns>
+    /// The resolved original-source coverage, or <see langword="null"/> when the location is unknown.
+    /// </returns>
+    public ResolvedSourceSpan? Resolve()
+    {
+        return Document?.ResolveSpan(Start, Length);
+    }
 
     /// <summary>
     /// Returns the source location as a human-readable <c>line:column</c> string,

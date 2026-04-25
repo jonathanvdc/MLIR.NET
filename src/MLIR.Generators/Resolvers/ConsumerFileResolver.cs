@@ -52,7 +52,7 @@ internal sealed class ConsumerFileResolver : IncludeResolver
         // 1. Exact path match.
         if (filesByPath.TryGetValue(includePath, out var text))
         {
-            resolvedDocument = new SourceDocument(text, includePath);
+            resolvedDocument = new OriginalSourceDocument(text, includePath);
             return true;
         }
 
@@ -67,14 +67,14 @@ internal sealed class ConsumerFileResolver : IncludeResolver
                 var normalized = combined.Replace('\\', '/');
                 if (filesByPath.TryGetValue(normalized, out var relativeText))
                 {
-                    resolvedDocument = new SourceDocument(relativeText, normalized);
+                    resolvedDocument = new OriginalSourceDocument(relativeText, normalized);
                     return true;
                 }
 
                 // Also try with OS-native separators.
                 if (filesByPath.TryGetValue(combined, out relativeText))
                 {
-                    resolvedDocument = new SourceDocument(relativeText, combined);
+                    resolvedDocument = new OriginalSourceDocument(relativeText, combined);
                     return true;
                 }
             }

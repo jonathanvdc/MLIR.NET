@@ -30,7 +30,7 @@ public sealed class DictionaryIncludeResolver : IncludeResolver
     {
         if (files.TryGetValue(includePath, out var sourceText))
         {
-            resolvedDocument = new SourceDocument(sourceText, includePath);
+            resolvedDocument = new OriginalSourceDocument(sourceText, includePath);
             return true;
         }
 

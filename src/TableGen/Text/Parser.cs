@@ -38,7 +38,7 @@ internal sealed class Parser
     /// </summary>
     public static ParseResult<DocumentSyntax> ParseDocument(string source)
     {
-        return ParseDocument(new SourceDocument(source));
+        return ParseDocument(new OriginalSourceDocument(source));
     }
 
     private ParseResult<DocumentSyntax> ParseDocumentCore()

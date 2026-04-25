@@ -59,7 +59,7 @@ var recordPattern = positionalArguments.Length >= 2 ? positionalArguments[1] : "
 try
 {
     var sourceText = File.ReadAllText(inputPath);
-    var sourceDocument = new SourceDocument(sourceText, Path.GetFullPath(inputPath));
+    var sourceDocument = new OriginalSourceDocument(sourceText, Path.GetFullPath(inputPath));
     var resolver = new CompositeIncludeResolver(
         new FileSystemIncludeResolver(),
         PreludeIncludeResolvers.CreateEmbeddedPreludeResolver());

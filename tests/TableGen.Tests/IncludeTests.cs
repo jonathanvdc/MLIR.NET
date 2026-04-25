@@ -152,7 +152,7 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
 
-        var sourceDocument = new SourceDocument(mainSource, "my_ops.td");
+        var sourceDocument = new OriginalSourceDocument(mainSource, "my_ops.td");
 
         var diagnostic = TestHelpers.LoadFailure(sourceDocument, resolver);
 
@@ -169,7 +169,7 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["dep.td"] = dependencySource });
 
-        var diagnostic = TestHelpers.LoadFailure(new SourceDocument(mainSource, "main.td"), resolver);
+        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(mainSource, "main.td"), resolver);
 
         Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
         Assert.Equal("dep.td", diagnostic.FileName);
@@ -220,7 +220,7 @@ public sealed class IncludeTests
             "def Dep { int X = 1; };");
 
         var mainSource = "include \"dep.td\"";
-        var mainDocument = new SourceDocument(mainSource, "main.td");
+        var mainDocument = new OriginalSourceDocument(mainSource, "main.td");
         var result = Document.Load(mainDocument, trackingResolver);
 
         Assert.True(result.IsSuccess);
@@ -364,7 +364,7 @@ public sealed class IncludeTests
             if (includePath == expectedPath)
             {
                 CapturedIncludingFile = includingFile;
-                resolvedDocument = new SourceDocument(resolvedText, includePath);
+                resolvedDocument = new OriginalSourceDocument(resolvedText, includePath);
                 return true;
             }
 

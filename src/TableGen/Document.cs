@@ -27,7 +27,7 @@ public sealed class Document(DocumentSyntax syntax)
     /// <returns>The parse result.</returns>
     public static ParseResult<Document> Parse(string source)
     {
-        return Parse(new SourceDocument(source));
+        return Parse(new OriginalSourceDocument(source));
     }
 
     /// <summary>
@@ -52,7 +52,7 @@ public sealed class Document(DocumentSyntax syntax)
     /// </returns>
     public static ParseResult<Document> Load(string source, IncludeResolver resolver)
     {
-        return Load(new SourceDocument(source), resolver);
+        return Load(new OriginalSourceDocument(source), resolver);
     }
 
     /// <summary>
@@ -98,7 +98,7 @@ public sealed class Document(DocumentSyntax syntax)
         List<TopLevelSyntax> output)
     {
         var preprocessed = Preprocessor.Process(sourceDocument.Text, defines);
-        var syntaxResult = Parser.ParseDocument(new SourceDocument(preprocessed, sourceDocument.FileName));
+        var syntaxResult = Parser.ParseDocument(new OriginalSourceDocument(preprocessed, sourceDocument.FileName));
         if (!syntaxResult.IsSuccess)
         {
             return ParseResult<bool>.Failure(syntaxResult.Diagnostic!);
