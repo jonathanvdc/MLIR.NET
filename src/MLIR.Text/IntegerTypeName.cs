@@ -3,7 +3,7 @@ namespace MLIR.Text;
 /// <summary>
 /// Shared helpers for canonical builtin integer type names such as <c>i32</c>, <c>si64</c>, and <c>ui8</c>.
 /// </summary>
-public static class BuiltinIntegerTypeName
+public static class IntegerTypeName
 {
     /// <summary>
     /// Identifies the signedness encoded in a builtin integer type name.

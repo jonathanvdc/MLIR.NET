@@ -652,22 +652,22 @@ public sealed partial class SemanticTests
         public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
         {
             if (!context.TryMatch(TokenKind.Identifier, out var nameToken) ||
-                !BuiltinIntegerTypeName.TryParse(nameToken.Text, out var signedness, out var width))
+                !IntegerTypeName.TryParse(nameToken.Text, out var signedness, out var width))
             {
                 return ParseResult<TypeSyntax>.NoMatch();
             }
 
-            return ParseResult<TypeSyntax>.Success(new global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax(nameToken, signedness switch
+            return ParseResult<TypeSyntax>.Success(new Syntax.Types.Primitives.BuiltinIntegerTypeSyntax(nameToken, signedness switch
             {
-                BuiltinIntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
-                BuiltinIntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
+                IntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
+                IntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
                 _ => IntegerTypeSignedness.Signless,
             }, width));
         }
 
         public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
         {
-            if (syntax is not global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax integerSyntax)
+            if (syntax is not Syntax.Types.Primitives.BuiltinIntegerTypeSyntax integerSyntax)
             {
                 return new IntegerType(0, IntegerTypeSignedness.Signless, syntax);
             }
@@ -679,12 +679,12 @@ public sealed partial class SemanticTests
         {
             if (type is IntegerType integerType)
             {
-                return new global::MLIR.Syntax.Types.Primitives.BuiltinIntegerTypeSyntax(
-                    TokenFactory.Identifier(BuiltinIntegerTypeName.Format(integerType.Width, integerType.Signedness switch
+                return new Syntax.Types.Primitives.BuiltinIntegerTypeSyntax(
+                    TokenFactory.Identifier(IntegerTypeName.Format(integerType.Width, integerType.Signedness switch
                     {
-                        IntegerTypeSignedness.Signed => BuiltinIntegerTypeName.Kind.Signed,
-                        IntegerTypeSignedness.Unsigned => BuiltinIntegerTypeName.Kind.Unsigned,
-                        _ => BuiltinIntegerTypeName.Kind.Signless,
+                        IntegerTypeSignedness.Signed => IntegerTypeName.Kind.Signed,
+                        IntegerTypeSignedness.Unsigned => IntegerTypeName.Kind.Unsigned,
+                        _ => IntegerTypeName.Kind.Signless,
                     })),
                     integerType.Signedness,
                     integerType.Width);

@@ -18,11 +18,11 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
     /// </summary>
     public static bool TryParseName(string text, out IntegerTypeSignedness signedness, out int width)
     {
-        var parsed = BuiltinIntegerTypeName.TryParse(text, out var parsedSignedness, out width);
+        var parsed = IntegerTypeName.TryParse(text, out var parsedSignedness, out width);
         signedness = parsedSignedness switch
         {
-            BuiltinIntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
-            BuiltinIntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
+            IntegerTypeName.Kind.Signed => IntegerTypeSignedness.Signed,
+            IntegerTypeName.Kind.Unsigned => IntegerTypeSignedness.Unsigned,
             _ => IntegerTypeSignedness.Signless,
         };
 
@@ -33,11 +33,11 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
     /// Formats a builtin integer type name from width and signedness.
     /// </summary>
     public static string FormatName(int width, IntegerTypeSignedness signedness)
-        => BuiltinIntegerTypeName.Format(width, signedness switch
+        => IntegerTypeName.Format(width, signedness switch
         {
-            IntegerTypeSignedness.Signed => BuiltinIntegerTypeName.Kind.Signed,
-            IntegerTypeSignedness.Unsigned => BuiltinIntegerTypeName.Kind.Unsigned,
-            _ => BuiltinIntegerTypeName.Kind.Signless,
+            IntegerTypeSignedness.Signed => IntegerTypeName.Kind.Signed,
+            IntegerTypeSignedness.Unsigned => IntegerTypeName.Kind.Unsigned,
+            _ => IntegerTypeName.Kind.Signless,
         });
 
     /// <inheritdoc/>
