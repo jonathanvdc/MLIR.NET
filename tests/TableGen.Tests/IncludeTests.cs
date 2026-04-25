@@ -217,6 +217,28 @@ public sealed class IncludeTests
     }
 
     [Fact]
+    public void LoadParseDiagnosticAfterInactiveMultiLineConditionalResolvesToOriginalSource()
+    {
+        const string source =
+            "#ifdef DISABLED\n" +
+            "def SkippedA { int X = 1; };\n" +
+            "def SkippedB { int X = 2; };\n" +
+            "#endif\n" +
+            "    def Broken : Base<1;\n";
+
+        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(source, "conditional.td"), new DictionaryIncludeResolver(new Dictionary<string, string>()));
+        var resolved = diagnostic.Location.Resolve();
+
+        Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
+        Assert.Equal("conditional.td", diagnostic.FileName);
+        Assert.Equal(5, diagnostic.Line);
+        Assert.IsType<PreprocessedSourceDocument>(diagnostic.Location.Document);
+        Assert.NotNull(resolved);
+        Assert.Equal("conditional.td", resolved!.PrimarySpan.Document.FileName);
+        Assert.True(resolved.PrimarySpan.Start > diagnostic.Location.Start);
+    }
+
+    [Fact]
     public void CompositeResolverTriesResolversInOrder()
     {
         const string firstSource = "def FromFirst { int X = 1; };";
