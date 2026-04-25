@@ -1,7 +1,9 @@
 namespace TableGen;
 
+using System;
 using System.Collections.Generic;
 using System.Text;
+using MLIR.Text;
 
 /// <summary>
 /// Processes C-style preprocessor directives in TableGen source files.
@@ -16,7 +18,7 @@ using System.Text;
 /// <item><description><c>#endif</c> — closes a conditional block</description></item>
 /// </list>
 /// Inactive lines are replaced with blank lines to preserve line numbers for diagnostics.
-/// The <see cref="Process"/> method's <c>defines</c> parameter is updated in-place so that symbols defined in one file
+/// The process method's <c>defines</c> parameter is updated in-place so that symbols defined in one file
 /// remain visible when other files are processed.
 /// </remarks>
 public static class Preprocessor
@@ -36,7 +38,27 @@ public static class Preprocessor
     /// </returns>
     public static string Process(string source, ISet<string> defines)
     {
+        return Process(new OriginalSourceDocument(source), defines).Text;
+    }
+
+    /// <summary>
+    /// Processes preprocessor directives in <paramref name="sourceDocument"/> using the given
+    /// shared <paramref name="defines"/> set.
+    /// </summary>
+    /// <param name="sourceDocument">The source document to process.</param>
+    /// <param name="defines">
+    /// The set of currently defined preprocessor symbols.  Updated in-place when
+    /// <c>#define</c> directives are encountered in active regions.
+    /// </param>
+    /// <returns>
+    /// A source document view whose text contains the preprocessed output and whose spans resolve
+    /// back to the original source spans covered by the input document.
+    /// </returns>
+    public static PreprocessedSourceDocument Process(SourceDocument sourceDocument, ISet<string> defines)
+    {
+        var source = sourceDocument.Text;
         var output = new StringBuilder(source.Length);
+        var segments = new List<PreprocessedSourceMapSegment>();
 
         // Stack of (ownActive, parentActive) pairs.
         // ownActive:    whether this block's own condition is true.
@@ -60,10 +82,15 @@ public static class Preprocessor
             return true;
         }
 
-        var lines = source.Split('\n');
-        for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+        var lineStart = 0;
+        while (lineStart <= source.Length)
         {
-            var rawLine = lines[lineIndex];
+            var newlineOffset = source.IndexOf('\n', lineStart);
+            var hasNewline = newlineOffset >= 0;
+            var lineEnd = hasNewline ? newlineOffset : source.Length;
+            var nextLineStart = hasNewline ? newlineOffset + 1 : source.Length + 1;
+            var rawLine = source.Substring(lineStart, lineEnd - lineStart);
+
             // Normalize \r\n line endings.
             if (rawLine.Length > 0 && rawLine[rawLine.Length - 1] == '\r')
             {
@@ -77,7 +104,8 @@ public static class Preprocessor
                 var symbol = trimmed.Substring("#ifndef".Length).Trim();
                 var parentActive = IsActive();
                 condStack.Push((parentActive && !defines.Contains(symbol), parentActive));
-                output.Append('\n');
+                AppendSyntheticLineBreak(sourceDocument, output, segments, lineStart);
+                lineStart = nextLineStart;
                 continue;
             }
 
@@ -86,7 +114,8 @@ public static class Preprocessor
                 var symbol = trimmed.Substring("#ifdef".Length).Trim();
                 var parentActive = IsActive();
                 condStack.Push((parentActive && defines.Contains(symbol), parentActive));
-                output.Append('\n');
+                AppendSyntheticLineBreak(sourceDocument, output, segments, lineStart);
+                lineStart = nextLineStart;
                 continue;
             }
 
@@ -97,7 +126,8 @@ public static class Preprocessor
                     condStack.Pop();
                 }
 
-                output.Append('\n');
+                AppendSyntheticLineBreak(sourceDocument, output, segments, lineStart);
+                lineStart = nextLineStart;
                 continue;
             }
 
@@ -110,7 +140,8 @@ public static class Preprocessor
                     condStack.Push((!ownActive, parentActive));
                 }
 
-                output.Append('\n');
+                AppendSyntheticLineBreak(sourceDocument, output, segments, lineStart);
+                lineStart = nextLineStart;
                 continue;
             }
 
@@ -128,20 +159,118 @@ public static class Preprocessor
                     }
                 }
 
-                output.Append('\n');
+                AppendSyntheticLineBreak(sourceDocument, output, segments, lineStart);
+                lineStart = nextLineStart;
                 continue;
             }
 
             // Ordinary source line: emit when active, blank line when inactive.
             if (IsActive())
             {
+                AppendMappedText(sourceDocument, output, segments, rawLine, lineStart);
                 output.Append(rawLine);
             }
 
-            output.Append('\n');
+            AppendMappedLineBreak(sourceDocument, output, segments, hasNewline ? newlineOffset : lineStart + rawLine.Length);
+            lineStart = nextLineStart;
         }
 
-        return output.ToString();
+        return new PreprocessedSourceDocument(output.ToString(), segments);
+    }
+
+    /// <summary>
+    /// Appends active source text and records its one-to-one source mapping.
+    /// </summary>
+    private static void AppendMappedText(
+        SourceDocument sourceDocument,
+        StringBuilder output,
+        List<PreprocessedSourceMapSegment> segments,
+        string text,
+        int sourceStart)
+    {
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        AddSourceSegments(sourceDocument, segments, output.Length, text.Length, sourceStart, text.Length);
+    }
+
+    /// <summary>
+    /// Appends a line break that corresponds to an original source line break or end-of-line point.
+    /// </summary>
+    private static void AppendMappedLineBreak(
+        SourceDocument sourceDocument,
+        StringBuilder output,
+        List<PreprocessedSourceMapSegment> segments,
+        int sourceOffset)
+    {
+        AddSourceSegments(sourceDocument, segments, output.Length, 1, sourceOffset, sourceOffset < sourceDocument.Length ? 1 : 0);
+        output.Append('\n');
+    }
+
+    /// <summary>
+    /// Appends a synthetic line break for a directive or inactive line and anchors it at the
+    /// original line start.
+    /// </summary>
+    private static void AppendSyntheticLineBreak(
+        SourceDocument sourceDocument,
+        StringBuilder output,
+        List<PreprocessedSourceMapSegment> segments,
+        int sourceOffset)
+    {
+        AddSourceSegments(sourceDocument, segments, output.Length, 1, sourceOffset, 0);
+        output.Append('\n');
+    }
+
+    /// <summary>
+    /// Adds mapping segments from an output range to the original spans resolved from an input range.
+    /// </summary>
+    private static void AddSourceSegments(
+        SourceDocument sourceDocument,
+        List<PreprocessedSourceMapSegment> segments,
+        int outputStart,
+        int outputLength,
+        int sourceStart,
+        int sourceLength)
+    {
+        var resolved = sourceDocument.ResolveSpan(sourceStart, sourceLength);
+        if (resolved.OriginSpans.Count == 0)
+        {
+            segments.Add(new PreprocessedSourceMapSegment(outputStart, outputLength, resolved.PrimarySpan));
+            return;
+        }
+
+        if (resolved.OriginSpans.Count == 1)
+        {
+            segments.Add(new PreprocessedSourceMapSegment(outputStart, outputLength, resolved.OriginSpans[0]));
+            return;
+        }
+
+        var segmentOutputStart = outputStart;
+        foreach (var originSpan in resolved.OriginSpans)
+        {
+            var segmentLength = Math.Min(originSpan.Length, outputStart + outputLength - segmentOutputStart);
+            if (segmentLength <= 0)
+            {
+                continue;
+            }
+
+            segments.Add(new PreprocessedSourceMapSegment(segmentOutputStart, segmentLength, originSpan));
+            segmentOutputStart += segmentLength;
+            if (segmentOutputStart >= outputStart + outputLength)
+            {
+                break;
+            }
+        }
+
+        if (segmentOutputStart < outputStart + outputLength)
+        {
+            segments.Add(new PreprocessedSourceMapSegment(
+                segmentOutputStart,
+                outputStart + outputLength - segmentOutputStart,
+                resolved.PrimarySpan));
+        }
     }
 
     /// <summary>

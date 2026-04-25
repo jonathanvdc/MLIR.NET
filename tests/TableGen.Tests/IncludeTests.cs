@@ -176,6 +176,47 @@ public sealed class IncludeTests
     }
 
     [Fact]
+    public void LoadParseDiagnosticAfterPreprocessingResolvesToOriginalSource()
+    {
+        const string source =
+            "#define FEATURE\n" +
+            "    def Broken : Base<1;\n";
+
+        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(source, "main.td"), new DictionaryIncludeResolver(new Dictionary<string, string>()));
+        var resolved = diagnostic.Location.Resolve();
+
+        Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
+        Assert.Equal("main.td", diagnostic.FileName);
+        Assert.Equal(2, diagnostic.Line);
+        Assert.IsType<PreprocessedSourceDocument>(diagnostic.Location.Document);
+        Assert.NotNull(resolved);
+        Assert.Equal("main.td", resolved!.PrimarySpan.Document.FileName);
+        Assert.True(resolved.PrimarySpan.Start > diagnostic.Location.Start);
+    }
+
+    [Fact]
+    public void LoadParseDiagnosticInPreprocessedIncludeResolvesToIncludedOriginalSource()
+    {
+        const string mainSource = "include \"dep.td\"";
+        const string dependencySource =
+            "#define FEATURE\n" +
+            "    def Broken : Base<1;\n";
+
+        var resolver = new DictionaryIncludeResolver(
+            new Dictionary<string, string> { ["dep.td"] = dependencySource });
+
+        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(mainSource, "main.td"), resolver);
+        var resolved = diagnostic.Location.Resolve();
+
+        Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
+        Assert.Equal("dep.td", diagnostic.FileName);
+        Assert.Equal(2, diagnostic.Line);
+        Assert.IsType<PreprocessedSourceDocument>(diagnostic.Location.Document);
+        Assert.NotNull(resolved);
+        Assert.Equal("dep.td", resolved!.PrimarySpan.Document.FileName);
+    }
+
+    [Fact]
     public void CompositeResolverTriesResolversInOrder()
     {
         const string firstSource = "def FromFirst { int X = 1; };";
@@ -341,6 +382,54 @@ public sealed class IncludeTests
         var resultLines = result.Split('\n');
         // Line 4 (index 3) of the output should still contain the def.
         Assert.Contains("Line4", resultLines[3]);
+    }
+
+    [Fact]
+    public void PreprocessorDocumentMapsActiveTextToOriginalSource()
+    {
+        const string source =
+            "#define FEATURE\n" +
+            "  def Foo { int X = 1; };\n";
+        var sourceDocument = new OriginalSourceDocument(source, "active.td");
+        var defines = new HashSet<string>();
+
+        var result = Preprocessor.Process(sourceDocument, defines);
+        var outputStart = result.Text.IndexOf("Foo", StringComparison.Ordinal);
+        var originalStart = source.IndexOf("Foo", StringComparison.Ordinal);
+        var location = new SourceLocation(result, outputStart, "Foo".Length);
+        var resolved = location.Resolve();
+
+        Assert.True(outputStart >= 0);
+        Assert.True(originalStart >= 0);
+        Assert.NotEqual(originalStart, outputStart);
+        Assert.Equal("active.td", location.FileName);
+        Assert.Equal(2, location.Line);
+        Assert.NotNull(resolved);
+        Assert.Equal(originalStart, resolved!.PrimarySpan.Start);
+        Assert.Equal("Foo".Length, resolved.PrimarySpan.Length);
+        Assert.Equal("active.td", resolved.PrimarySpan.Document.FileName);
+    }
+
+    [Fact]
+    public void PreprocessorDocumentMapsSyntheticDirectiveLineToOriginalLineStart()
+    {
+        const string source =
+            "#define FEATURE\n" +
+            "def Foo { int X = 1; };\n";
+        var sourceDocument = new OriginalSourceDocument(source, "directive.td");
+        var defines = new HashSet<string>();
+
+        var result = Preprocessor.Process(sourceDocument, defines);
+        var location = new SourceLocation(result, 0, 1);
+        var resolved = location.Resolve();
+
+        Assert.Equal('\n', result.Text[0]);
+        Assert.Equal("directive.td", location.FileName);
+        Assert.Equal(1, location.Line);
+        Assert.Equal(1, location.Column);
+        Assert.NotNull(resolved);
+        Assert.Equal(0, resolved!.PrimarySpan.Start);
+        Assert.Equal(0, resolved.PrimarySpan.Length);
     }
 
     private sealed class TrackingResolver : IncludeResolver

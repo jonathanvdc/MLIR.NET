@@ -97,8 +97,8 @@ public sealed class Document(DocumentSyntax syntax)
         HashSet<string> defines,
         List<TopLevelSyntax> output)
     {
-        var preprocessed = Preprocessor.Process(sourceDocument.Text, defines);
-        var syntaxResult = Parser.ParseDocument(new OriginalSourceDocument(preprocessed, sourceDocument.FileName));
+        var preprocessed = Preprocessor.Process(sourceDocument, defines);
+        var syntaxResult = Parser.ParseDocument(preprocessed);
         if (!syntaxResult.IsSuccess)
         {
             return ParseResult<bool>.Failure(syntaxResult.Diagnostic!);
