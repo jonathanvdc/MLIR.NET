@@ -2,6 +2,7 @@ namespace MLIR.Generators.Tests;
 
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis;
 using MLIR.Generators;
 using TableGen;
 using Xunit;
@@ -241,13 +242,45 @@ public sealed class IncludeResolutionTests
     {
         const string source = "include \"does_not_exist.td\"";
 
-        // RunGenerator swallows the exception and emits it as a Roslyn diagnostic
-        // (wrapped in ParsedDialectFile.ErrorMessage). No sources should be generated.
-        var generatedSources = GeneratorTestHelpers.RunGenerator(
+        var runResult = GeneratorTestHelpers.RunGeneratorDetailed(
             new DialectGenerator(),
+            ensureUpstreamPrelude: false,
             ("broken.td", source));
+        var generatedSources = runResult.Results.Single().GeneratedSources;
+        var diagnostic = Assert.Single(runResult.Diagnostics);
+        var lineSpan = diagnostic.Location.GetLineSpan();
 
         Assert.Empty(generatedSources);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("broken.td", lineSpan.Path);
+        Assert.Equal(0, lineSpan.StartLinePosition.Line);
+        Assert.Contains("does_not_exist.td", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public void GeneratorReportsPreprocessedTableGenDiagnosticAtOriginalSourceLocation()
+    {
+        const string source =
+            "#ifdef DISABLED\n" +
+            "def SkippedA { int X = 1; };\n" +
+            "def SkippedB { int X = 2; };\n" +
+            "#endif\n" +
+            "    def Broken : Base<1;\n";
+
+        var runResult = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: false,
+            ("preprocessed.td", source));
+        var generatedSources = runResult.Results.Single().GeneratedSources;
+        var diagnostic = Assert.Single(runResult.Diagnostics);
+        var lineSpan = diagnostic.Location.GetLineSpan();
+
+        Assert.Empty(generatedSources);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("preprocessed.td", lineSpan.Path);
+        Assert.Equal(4, lineSpan.StartLinePosition.Line);
+        Assert.True(lineSpan.StartLinePosition.Character > 0);
+        Assert.Contains("Expected '>' to close the argument list.", diagnostic.GetMessage());
     }
 
     // -----------------------------------------------------------------------

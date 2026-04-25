@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Text;
 using MLIR.ODS;
 using MLIR.ODS.Model;
 using TableGen;
@@ -27,7 +28,7 @@ internal static class DialectGenerationPipeline
             result => productionContext.ReportDiagnostic(
                 Diagnostic.Create(
                     DialectGeneratorDiagnostics.InvalidTableGenInput,
-                    Location.None,
+                    CreateLocation(result),
                     result.Path,
                     result.ErrorMessage))).ToArray();
     }
@@ -52,7 +53,7 @@ internal static class DialectGenerationPipeline
             result => diagnostics.Add(
                 Diagnostic.Create(
                     DialectGeneratorDiagnostics.InvalidTableGenInput,
-                    Location.None,
+                    CreateLocation(result),
                     result.Path,
                     result.ErrorMessage!))).ToArray();
         return new DialectMergeResult(dialects, diagnostics);
@@ -87,6 +88,37 @@ internal static class DialectGenerationPipeline
             .GroupBy(static dialect => dialect.Name, StringComparer.Ordinal)
             .Select(DialectModelMerger.MergeDialectGroup)
             .OrderBy(static dialect => dialect.Name, StringComparer.Ordinal);
+    }
+
+    private static Location CreateLocation(ParsedDialectFile result)
+    {
+        var diagnostic = result.TableGenDiagnostic;
+        if (diagnostic == null || !diagnostic.Location.IsKnown)
+        {
+            return Location.None;
+        }
+
+        var resolved = diagnostic.Location.Resolve();
+        if (resolved == null)
+        {
+            return Location.None;
+        }
+
+        var primary = resolved.PrimarySpan;
+        var start = primary.Document.GetLineColumn(primary.Start);
+        var end = primary.Document.GetLineColumn(primary.End);
+        var fileName = start.FileName;
+        if (string.IsNullOrEmpty(fileName))
+        {
+            fileName = result.Path;
+        }
+
+        return Location.Create(
+            fileName!,
+            new TextSpan(primary.Start, primary.Length),
+            new LinePositionSpan(
+                new LinePosition(Math.Max(0, start.Line - 1), Math.Max(0, start.Column - 1)),
+                new LinePosition(Math.Max(0, end.Line - 1), Math.Max(0, end.Column - 1))));
     }
 }
 

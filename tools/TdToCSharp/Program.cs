@@ -158,15 +158,34 @@ static void LogInfo(ILog log, string message)
 
 static string FormatDiagnostic(RoslynDiagnostic diagnostic)
 {
-    var locationPrefix = diagnostic.Location == Location.None || !diagnostic.Location.IsInSource
-        ? string.Empty
-        : diagnostic.Location.ToString() + ": ";
+    var locationPrefix = FormatLocationPrefix(diagnostic.Location);
     return locationPrefix
         + diagnostic.Severity.ToString().ToLowerInvariant()
         + " "
         + diagnostic.Id
         + ": "
         + diagnostic.GetMessage();
+}
+
+static string FormatLocationPrefix(Location location)
+{
+    if (location == Location.None)
+    {
+        return string.Empty;
+    }
+
+    var lineSpan = location.GetLineSpan();
+    if (string.IsNullOrEmpty(lineSpan.Path))
+    {
+        return string.Empty;
+    }
+
+    return lineSpan.Path
+        + "("
+        + (lineSpan.StartLinePosition.Line + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+        + ","
+        + (lineSpan.StartLinePosition.Character + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)
+        + "): ";
 }
 
 static string FormatExceptionMessage(Exception exception)

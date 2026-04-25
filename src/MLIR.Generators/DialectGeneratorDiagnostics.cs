@@ -9,7 +9,7 @@ internal static class DialectGeneratorDiagnostics
         title: "Invalid TableGen input",
         messageFormat: "Could not process TableGen input '{0}': {1}",
         category: "MLIR.Generators",
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor DialectEmissionFailed = new DiagnosticDescriptor(

@@ -44,13 +44,15 @@ internal static class DialectGeneratorInput
                 : Document.Parse(sourceDocument);
             if (!documentResult.IsSuccess)
             {
-                return new ParsedDialectFile(path, EmptyDialects, documentResult.Diagnostic!.ToString());
+                var diagnostic = documentResult.Diagnostic!;
+                return new ParsedDialectFile(path, EmptyDialects, diagnostic.Message, diagnostic);
             }
 
             var evaluated = documentResult.Value.Evaluate();
             if (!evaluated.IsSuccess)
             {
-                return new ParsedDialectFile(path, EmptyDialects, evaluated.Diagnostic!.ToString());
+                var diagnostic = evaluated.Diagnostic!;
+                return new ParsedDialectFile(path, EmptyDialects, diagnostic.Message, diagnostic);
             }
 
             var dialects = DialectImporter.Import(evaluated.Value);
