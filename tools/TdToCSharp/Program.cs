@@ -44,17 +44,17 @@ else if (!parsedOptions.IsSuccess)
     return 1;
 }
 
-var inputPaths = parsedOptions.GetValue<string[]>(inputOption);
-if (inputPaths.Length == 0)
+var inputPaths = parsedOptions.GetValue(inputOption);
+if (inputPaths.Count == 0)
 {
     LogError(stderrLog, "At least one input .td file is required");
     return 1;
 }
 
-var writeToStdout = parsedOptions.GetValue<bool>(stdoutFlag);
-var includePrelude = parsedOptions.GetValue<bool>(includePreludeFlag);
-var outputDirectory = parsedOptions.GetValue<string>(outputOption);
-var dialectNames = parsedOptions.GetValue<string[]>(dialectOption);
+var writeToStdout = parsedOptions.GetValue(stdoutFlag);
+var includePrelude = parsedOptions.GetValue(includePreludeFlag);
+var outputDirectory = parsedOptions.GetValue(outputOption);
+var dialectNames = parsedOptions.GetValue(dialectOption);
 
 if (writeToStdout && !string.IsNullOrWhiteSpace(outputDirectory))
 {
