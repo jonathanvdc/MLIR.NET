@@ -196,7 +196,7 @@ static bool TryCreateHighlightedSource(Location location, out HighlightedSource 
     }
 
     var length = Math.Max(0, Math.Min(span.Length, document.Length - span.Start));
-    var sourceSpan = new Pixie.Code.SourceSpan(document, span.Start, length);
+    var sourceSpan = new SourceLocation(document, span.Start, length);
     var region = new SourceRegion(sourceSpan);
     highlightedSource = new HighlightedSource(region, region);
     return true;
