@@ -191,7 +191,7 @@ internal static class AttributeAssemblyFormatEmitter
             }
             else if (slot is VariableSlot v)
             {
-                builder.Append(", " + GetVariableRewriteExpression(v));
+                builder.Append(", " + SyntaxValueShapeEmitter.GetRewriteExpression(v.Name, v.SyntaxType, v.SyntaxShape));
             }
         }
 
@@ -543,71 +543,6 @@ internal static class AttributeAssemblyFormatEmitter
         return propertyExpr;
     }
 
-    /// <summary>
-    /// Returns the expression used to rewrite a generated variable slot back into syntax.
-    /// </summary>
-    private static string GetVariableRewriteExpression(VariableSlot slot)
-    {
-        var propertyExpr = EmitterHelpers.CapitalizeFirst(slot.Name) + "Syntax";
-        var syntaxType = slot.SyntaxType;
-
-        if (string.Equals(syntaxType, "Token", System.StringComparison.Ordinal) ||
-            string.Equals(syntaxType, "Token?", System.StringComparison.Ordinal))
-        {
-            return "rewriter.VisitToken(" + propertyExpr + ")";
-        }
-
-        if (string.Equals(syntaxType, "RawSyntaxText", System.StringComparison.Ordinal))
-        {
-            return "rewriter.VisitRawText(" + propertyExpr + ")";
-        }
-
-        if (syntaxType.EndsWith("?", System.StringComparison.Ordinal))
-        {
-            var innerType = syntaxType.Substring(0, syntaxType.Length - 1);
-            if (innerType.EndsWith("Syntax", System.StringComparison.Ordinal))
-            {
-                return propertyExpr + " != null ? (" + innerType + ")rewriter.Visit(" + propertyExpr + ") : null";
-            }
-        }
-
-        if (syntaxType.StartsWith("DelimitedSyntaxList<", System.StringComparison.Ordinal))
-        {
-            return syntaxType.Contains("Token", System.StringComparison.Ordinal)
-                ? "rewriter.VisitDelimitedTokenList(" + propertyExpr + ")"
-                : "rewriter.VisitDelimitedList(" + propertyExpr + ")";
-        }
-
-        if (syntaxType.StartsWith("SeparatedSyntaxList<", System.StringComparison.Ordinal))
-        {
-            return syntaxType.Contains("Token", System.StringComparison.Ordinal)
-                ? "rewriter.VisitSeparatedTokenList(" + propertyExpr + ")"
-                : "rewriter.VisitSeparatedList(" + propertyExpr + ")";
-        }
-
-        if (syntaxType.StartsWith("IReadOnlyList<", System.StringComparison.Ordinal))
-        {
-            if (syntaxType.Contains("Token", System.StringComparison.Ordinal))
-            {
-                return "rewriter.VisitTokenList(" + propertyExpr + ")";
-            }
-
-            if (syntaxType.Contains("RawSyntaxText", System.StringComparison.Ordinal))
-            {
-                return "rewriter.VisitRawTextList(" + propertyExpr + ")";
-            }
-
-            return "rewriter.VisitList(" + propertyExpr + ")";
-        }
-
-        if (syntaxType.EndsWith("Syntax", System.StringComparison.Ordinal))
-        {
-            return "(" + syntaxType + ")rewriter.Visit(" + propertyExpr + ")";
-        }
-
-        return propertyExpr;
-    }
-
     // -----------------------------------------------------------------------
     // Stop-token analysis
     // -----------------------------------------------------------------------
@@ -674,6 +609,9 @@ internal static class AttributeAssemblyFormatEmitter
         /// <c>"StringAttributeValueSyntax"</c>.  Falls back to <c>"AttributeValueSyntax"</c>.
         /// </summary>
         public string SyntaxType { get; set; } = "AttributeValueSyntax";
+
+        /// <summary>The resolved rewrite shape for <see cref="SyntaxType"/>.</summary>
+        public SyntaxValueShape SyntaxShape { get; set; } = SyntaxValueShape.SyntaxNode;
 
         /// <summary>ODS parameter model for this variable, or null when not found.</summary>
         public AttrOrTypeParameterModel? ParamModel { get; set; }
@@ -752,6 +690,7 @@ internal static class AttributeAssemblyFormatEmitter
                 {
                     Name = variable.Name,
                     SyntaxType = GetResolvedCSharpSyntaxType(paramModel),
+                    SyntaxShape = GetResolvedCSharpSyntaxShape(paramModel),
                     ParamModel = paramModel,
                 });
             });
@@ -812,6 +751,14 @@ internal static class AttributeAssemblyFormatEmitter
         }
 
         return "AttributeValueSyntax";
+    }
+
+    /// <summary>
+    /// Returns the resolved syntax rewrite shape for the generated syntax property.
+    /// </summary>
+    private static SyntaxValueShape GetResolvedCSharpSyntaxShape(AttrOrTypeParameterModel? param)
+    {
+        return param?.CsharpSyntaxShape ?? SyntaxValueShape.SyntaxNode;
     }
 
 }

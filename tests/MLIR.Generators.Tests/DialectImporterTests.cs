@@ -1,5 +1,6 @@
 namespace MLIR.Generators.Tests;
 
+using System;
 using System.Linq;
 using MLIR.ODS;
 using MLIR.ODS.Model;
@@ -317,12 +318,14 @@ public sealed class DialectImporterTests
         Assert.Equal("value", typeParam.Name);
         Assert.Equal("global::MLIR.Semantics.TypeReference", typeParam.CsharpType);
         Assert.Equal("global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax", typeParam.CsharpSyntaxType);
+        Assert.Equal(SyntaxValueShape.SyntaxNode, typeParam.CsharpSyntaxShape);
         Assert.Equal("$_syntax.TypeSyntax", typeParam.CsharpExtractor);
 
         var arrayAttr = Assert.Single(builtin.Attributes, static attr => attr.RecordName == "Builtin_ArrayAttr");
         var arrayParam = Assert.Single(arrayAttr.Parameters);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>", arrayParam.CsharpType);
         Assert.Equal("global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax", arrayParam.CsharpSyntaxType);
+        Assert.Equal(SyntaxValueShape.SyntaxNode, arrayParam.CsharpSyntaxShape);
         Assert.Equal("global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindItemsFromSyntax($_syntax.Items.Items)", arrayParam.CsharpExtractor);
         Assert.Equal("global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>()", arrayParam.CsharpDefault);
 
@@ -330,6 +333,7 @@ public sealed class DialectImporterTests
         var dictionaryParam = Assert.Single(dictionaryAttr.Parameters);
         Assert.Equal("global::MLIR.Semantics.NamedAttributeCollection", dictionaryParam.CsharpType);
         Assert.Equal("global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax", dictionaryParam.CsharpSyntaxType);
+        Assert.Equal(SyntaxValueShape.SyntaxNode, dictionaryParam.CsharpSyntaxShape);
         Assert.Equal("global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax($_syntax.Attributes.Items)", dictionaryParam.CsharpExtractor);
         Assert.Equal("global::MLIR.Semantics.NamedAttributeCollection.Empty", dictionaryParam.CsharpDefault);
 
@@ -368,8 +372,83 @@ public sealed class DialectImporterTests
         Assert.Null(opaqueAttr.PayloadParameters[0].ConstraintRecordName);
         Assert.Equal("StringAttr", opaqueAttr.PayloadParameters[0].CppType);
         Assert.Equal("StringAttributeValueSyntax", opaqueAttr.PayloadParameters[0].CsharpSyntaxType);
+        Assert.Equal(SyntaxValueShape.SyntaxNode, opaqueAttr.PayloadParameters[0].CsharpSyntaxShape);
         Assert.Equal("string", opaqueAttr.PayloadParameters[1].CsharpType);
         Assert.Equal("new global::MLIR.Dialects.Builtin.BuiltinOpaqueAttributeAssemblyFormat()", opaqueAttr.CsharpAssemblyFormat);
+    }
+
+    [Fact]
+    public void ImportsAttrOrTypeParameterSyntaxShapeFromExplicitMetadata()
+    {
+        const string source =
+            "class MyTokenParam<string desc> : AttrOrTypeParameter<\"Token\", desc>;\n" +
+            "extends MyTokenParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "  let csharpSyntaxType = \"Token\";\n" +
+            "  let csharpSyntaxShape = \"Token\";\n" +
+            "}\n" +
+            "def MyP_Dialect : Dialect { let name = \"myp\"; let cppNamespace = \"::mlir::myp\"; };\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> { let attrName = \"myp.\" # name; };\n" +
+            "def MyP_TokenAttr : MyP_Attr<\"token\"> {\n" +
+            "  let parameters = (ins MyTokenParam<\"token\">:$token);\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_TokenAttr");
+        var param = Assert.Single(attr.Parameters);
+        Assert.Equal("Token", param.CsharpSyntaxType);
+        Assert.Equal(SyntaxValueShape.Token, param.CsharpSyntaxShape);
+    }
+
+    [Fact]
+    public void InfersSyntaxShapeFromKnownCsharpSyntaxTypeMetadata()
+    {
+        const string source =
+            "class MyDelimitedParam<string desc> : AttrOrTypeParameter<\"Delimited\", desc>;\n" +
+            "extends MyDelimitedParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"DelimitedSyntaxList<Token>\"; }\n" +
+            "class MySeparatedParam<string desc> : AttrOrTypeParameter<\"Separated\", desc>;\n" +
+            "extends MySeparatedParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"SeparatedSyntaxList<NamedAttributeSyntax>\"; }\n" +
+            "class MyRawListParam<string desc> : AttrOrTypeParameter<\"RawList\", desc>;\n" +
+            "extends MyRawListParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"IReadOnlyList<RawSyntaxText>\"; }\n" +
+            "class MyCustomParam<string desc> : AttrOrTypeParameter<\"Custom\", desc>;\n" +
+            "extends MyCustomParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"MyCustomCarrier\"; }\n" +
+            "def MyP_Dialect : Dialect { let name = \"myp\"; let cppNamespace = \"::mlir::myp\"; };\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> { let attrName = \"myp.\" # name; };\n" +
+            "def MyP_ShapesAttr : MyP_Attr<\"shapes\"> {\n" +
+            "  let parameters = (ins MyDelimitedParam<\"delimited\">:$delimited, MySeparatedParam<\"separated\">:$separated, MyRawListParam<\"raws\">:$raws, MyCustomParam<\"custom\">:$custom);\n" +
+            "};\n";
+
+        var dialects = DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value);
+
+        var dialect = Assert.Single(dialects, static d => d.Name == "myp");
+        var attr = Assert.Single(dialect.Attributes, static a => a.RecordName == "MyP_ShapesAttr");
+        Assert.Equal(SyntaxValueShape.DelimitedTokenList, attr.Parameters[0].CsharpSyntaxShape);
+        Assert.Equal(SyntaxValueShape.SeparatedList, attr.Parameters[1].CsharpSyntaxShape);
+        Assert.Equal(SyntaxValueShape.RawTextList, attr.Parameters[2].CsharpSyntaxShape);
+        Assert.Equal(SyntaxValueShape.PlainValue, attr.Parameters[3].CsharpSyntaxShape);
+    }
+
+    [Fact]
+    public void InvalidSyntaxShapeMetadataProducesClearImportError()
+    {
+        const string source =
+            "class MyBadParam<string desc> : AttrOrTypeParameter<\"Bad\", desc>;\n" +
+            "extends MyBadParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "  let csharpSyntaxType = \"Token\";\n" +
+            "  let csharpSyntaxShape = \"MaybeToken\";\n" +
+            "}\n" +
+            "def MyP_Dialect : Dialect { let name = \"myp\"; let cppNamespace = \"::mlir::myp\"; };\n" +
+            "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> { let attrName = \"myp.\" # name; };\n" +
+            "def MyP_BadAttr : MyP_Attr<\"bad\"> {\n" +
+            "  let parameters = (ins MyBadParam<\"bad\">:$bad);\n" +
+            "};\n";
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value));
+
+        Assert.Contains("Unsupported csharpSyntaxShape 'MaybeToken'", ex.Message);
+        Assert.Contains("MyBadParam.bad", ex.Message);
     }
 
     [Fact]

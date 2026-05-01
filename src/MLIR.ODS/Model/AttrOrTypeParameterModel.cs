@@ -26,6 +26,7 @@ public sealed class AttrOrTypeParameterModel(
     string? csharpExtractor = null,
     string? csharpDefault = null,
     string? csharpPrinter = null,
+    SyntaxValueShape csharpSyntaxShape = SyntaxValueShape.SyntaxNode,
     bool isSelfTypeParameter = false)
 {
     /// <summary>
@@ -95,6 +96,17 @@ public sealed class AttrOrTypeParameterModel(
     /// <c>AttributeValueSyntax</c>.
     /// </summary>
     public string? CsharpSyntaxType { get; } = csharpSyntaxType;
+
+    /// <summary>
+    /// Gets the resolved syntax-value shape for <see cref="CsharpSyntaxType"/>.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="CsharpSyntaxType"/> controls the generated property type; this value
+    /// controls how a syntax rewriter should visit that property. Keeping both facts in
+    /// the imported model lets emitters switch on structured metadata instead of matching
+    /// C# type-name strings.
+    /// </remarks>
+    public SyntaxValueShape CsharpSyntaxShape { get; } = csharpSyntaxShape;
 
     /// <summary>
     /// Gets the custom C# parser expression for this parameter, if one was declared via

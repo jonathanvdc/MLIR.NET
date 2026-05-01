@@ -72,6 +72,14 @@ class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csh
 //                     an additional cast.  Falls back to "AttributeValueSyntax"
 //                     when absent.
 //
+//   csharpSyntaxShape – How the generated syntax property participates in syntax
+//                     rewriting. Accepted values are Token, OptionalToken, RawText,
+//                     SyntaxNode, OptionalSyntaxNode, DelimitedList, DelimitedTokenList,
+//                     SeparatedList, SeparatedTokenList, TokenList, RawTextList,
+//                     SyntaxList, and PlainValue. When absent, MLIR.NET infers
+//                     shapes for known built-in syntax types and falls back to
+//                     PlainValue for custom syntax types.
+//
 //   csharpParser    – C# expression that parses one parameter value from text
 //                     and returns a `ParseResult<AttributeValueSyntax>`.  Use
 //                     `$_parser` to refer to the `AttributeParsingContext` local
@@ -196,6 +204,9 @@ class MLIRNet_AttrOrTypeParameterExtension {
   // AttributeValueSyntax, allowing the csharpExtractor to access typed members directly
   // without an additional cast.  Falls back to "AttributeValueSyntax" when absent.
   string csharpSyntaxType = ?;
+  // Structured rewrite shape for csharpSyntaxType. If omitted, MLIR.NET infers the shape
+  // for built-in syntax types and treats unknown custom types as plain values.
+  string csharpSyntaxShape = ?;
   // Custom C# parser expression; `$_parser` refers to the AttributeParsingContext.
   // Must return `ParseResult<AttributeValueSyntax>`.
   string csharpParser = ?;

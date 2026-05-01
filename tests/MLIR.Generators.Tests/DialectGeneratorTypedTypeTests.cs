@@ -6,6 +6,43 @@ using Xunit;
 public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
 {
     [Fact]
+    public void TypeAssemblyFormatRewriteUsesDeclaredPlainValueSyntaxShape()
+    {
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "class PlainStringParam<string desc> : StringRefParameter<desc>;",
+                "extends PlainStringParam : MLIRNet_AttrOrTypeParameterExtension {",
+                "  let csharpType = \"string\";",
+                "  let csharpSyntaxType = \"StringAttributeValueSyntax\";",
+                "  let csharpSyntaxShape = \"PlainValue\";",
+                "  let csharpParser = \"$_parser.TryParseStringLiteralSyntax()\";",
+                "  let csharpExtractor = \"$_syntax.Value\";",
+                "  let csharpDefault = \"string.Empty\";",
+                "  let csharpPrinter = \"new StringAttributeValueSyntax(TokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)\";",
+                "}",
+                string.Empty,
+                "def MyDialect_LabelType : MyDialect_Type<\"label\"> {",
+                "  let parameters = (ins PlainStringParam<\"label\">:$value);",
+                "  let assemblyFormat = \"`<` $value `>`\";",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            "public StringAttributeValueSyntax ValueSyntax { get; }",
+            "rewriter.VisitToken(Literal0Token), ValueSyntax");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "(StringAttributeValueSyntax)rewriter.Visit(ValueSyntax)");
+    }
+
+    [Fact]
     public void TypeDefWithParametersAndAssemblyFormatGeneratesTypedSyntaxAndReferenceClasses()
     {
         var registrationSource = GenerateMyDialectRegistrationSource(

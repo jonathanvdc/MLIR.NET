@@ -5,6 +5,50 @@ using Xunit;
 public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBase
 {
     [Fact]
+    public void AttributeAssemblyFormatRewriteUsesDeclaredPlainValueSyntaxShape()
+    {
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "class PlainStringParam<string desc> : StringRefParameter<desc>;",
+            "extends PlainStringParam : MLIRNet_AttrOrTypeParameterExtension {",
+            "  let csharpType = \"string\";",
+            "  let csharpSyntaxType = \"StringAttributeValueSyntax\";",
+            "  let csharpSyntaxShape = \"PlainValue\";",
+            "  let csharpParser = \"$_parser.TryParseStringLiteralSyntax()\";",
+            "  let csharpExtractor = \"$_syntax.Value\";",
+            "  let csharpDefault = \"string.Empty\";",
+            "  let csharpPrinter = \"new StringAttributeValueSyntax(TokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)\";",
+            "}",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_LabelAttr : Test_Attr<\"Label\", \"label\"> {",
+            "  let parameters = (ins PlainStringParam<\"label\">:$value);",
+            "  let assemblyFormat = \"`<` $value `>`\";",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        AssertContainsAll(
+            registrationSource,
+            "public StringAttributeValueSyntax ValueSyntax { get; }",
+            "rewriter.VisitToken(Literal0Token), ValueSyntax");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "(StringAttributeValueSyntax)rewriter.Visit(ValueSyntax)");
+    }
+
+    [Fact]
     public void AttributePropertyTypeIsNarrowedForKnownConstraintKinds()
     {
         var registrationSource = GenerateMiniArithRegistrationSource(
