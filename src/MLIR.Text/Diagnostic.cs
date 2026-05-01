@@ -23,17 +23,17 @@ public sealed class Diagnostic(string message, SourceLocation location)
     /// <summary>
     /// Gets the logical source file name or path, if known.
     /// </summary>
-    public string? FileName => Location.FileName;
+    public string? FileName => Location.Position.Identifier;
 
     /// <summary>
     /// Gets the 1-based source line.
     /// </summary>
-    public int Line => Location.Line;
+    public int Line => Location.Position.Line;
 
     /// <summary>
     /// Gets the 1-based source column.
     /// </summary>
-    public int Column => Location.Column;
+    public int Column => Location.Position.Column;
 
     /// <summary>
     /// Formats the diagnostic as a human-readable string.

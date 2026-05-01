@@ -465,7 +465,8 @@ public sealed partial class Parser
     /// </summary>
     private static ParseResult<Parser> TryCreateParser(string source, DialectRegistry? dialectRegistry)
     {
-        var document = new OriginalSourceDocument(source);
+        source ??= string.Empty;
+        var document = new StringDocument(string.Empty, source);
         var lexResult = Lexer.TryLexCore(source, document);
         if (!lexResult.IsSuccess)
         {

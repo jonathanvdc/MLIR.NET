@@ -51,7 +51,7 @@ internal static class Lexer
         public LexerImpl(SourceDocument sourceDocument)
         {
             this.sourceDocument = sourceDocument;
-            source = sourceDocument.Text;
+            source = sourceDocument.GetText(0, sourceDocument.Length);
         }
 
         /// <summary>
@@ -440,7 +440,9 @@ internal static class Lexer
         /// <returns>The constructed diagnostic.</returns>
         private Diagnostic ErrorDiagnostic(string message)
         {
-            return new Diagnostic(message, new SourceLocation(sourceDocument, position, 1));
+            var start = Math.Min(position, sourceDocument.Length);
+            var length = start < sourceDocument.Length ? 1 : 0;
+            return new Diagnostic(message, new SourceLocation(sourceDocument, start, length));
         }
     }
 }

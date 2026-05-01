@@ -118,7 +118,7 @@ public sealed class BuiltinOpaqueAttributeAssemblyFormat : IAttributeAssemblyFor
         var attrDataStart = tokens[2].TokenStart + tokens[2].TokenLength;
         var attrDataEndToken = tokens[tokens.Count - 1];
         var attrData = attrDataEndToken.HasSourceLocation
-            ? attrDataEndToken.Document!.Text.Substring(attrDataStart, attrDataEndToken.TokenStart - attrDataStart)
+            ? attrDataEndToken.Document!.GetText(attrDataStart, attrDataEndToken.TokenStart - attrDataStart)
             : string.Concat(tokens.Skip(3).Take(tokens.Count - 4).Select(static token => token.FullText));
 
         return new OpaqueAttr(dialectNamespace, attrData, TypeFactory.None, resultSyntax);

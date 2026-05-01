@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using MLIR.Generators;
 using Pixie;
+using Pixie.Code;
 using Pixie.Markup;
 using Pixie.Options;
 using Pixie.Terminal;
@@ -133,17 +134,27 @@ catch (Exception exception)
 
 static void LogDiagnostic(ILog log, RoslynDiagnostic diagnostic)
 {
-    log.Log(
-        new LogEntry(
-            diagnostic.Severity switch
-            {
-                DiagnosticSeverity.Hidden => Severity.Message,
-                DiagnosticSeverity.Info => Severity.Info,
-                DiagnosticSeverity.Warning => Severity.Warning,
-                DiagnosticSeverity.Error => Severity.Error,
-                _ => Severity.Error,
-            },
-            (Block)FormatDiagnostic(diagnostic)));
+    var severity = diagnostic.Severity switch
+    {
+        DiagnosticSeverity.Hidden => Severity.Message,
+        DiagnosticSeverity.Info => Severity.Info,
+        DiagnosticSeverity.Warning => Severity.Warning,
+        DiagnosticSeverity.Error => Severity.Error,
+        _ => Severity.Error,
+    };
+
+    if (TryCreateHighlightedSource(diagnostic.Location, out var highlightedSource))
+    {
+        log.Diagnostic(
+            severity,
+            new SourceReference(highlightedSource.HighlightedSpan),
+            diagnostic.Id,
+            diagnostic.GetMessage(),
+            highlightedSource);
+        return;
+    }
+
+    log.Log(new LogEntry(severity, (Block)FormatDiagnostic(diagnostic)));
 }
 
 static void LogError(ILog log, string message)
@@ -165,6 +176,30 @@ static string FormatDiagnostic(RoslynDiagnostic diagnostic)
         + diagnostic.Id
         + ": "
         + diagnostic.GetMessage();
+}
+
+static bool TryCreateHighlightedSource(Location location, out HighlightedSource highlightedSource)
+{
+    highlightedSource = null!;
+    if (location == Location.None || location.SourceTree == null)
+    {
+        return false;
+    }
+
+    var sourceText = location.SourceTree.GetText();
+    var path = location.SourceTree.FilePath;
+    var document = new StringDocument(path, sourceText.ToString());
+    var span = location.SourceSpan;
+    if (span.Start < 0 || span.Start > document.Length)
+    {
+        return false;
+    }
+
+    var length = Math.Max(0, Math.Min(span.Length, document.Length - span.Start));
+    var sourceSpan = new Pixie.Code.SourceSpan(document, span.Start, length);
+    var region = new SourceRegion(sourceSpan);
+    highlightedSource = new HighlightedSource(region, region);
+    return true;
 }
 
 static string FormatLocationPrefix(Location location)

@@ -190,7 +190,8 @@ internal static class Lexer
     /// <returns><see langword="true"/> when lexing succeeded; otherwise, <see langword="false"/>.</returns>
     public static bool TryLex(string source, out IReadOnlyList<Token> tokens, out Diagnostic? diagnostic)
     {
-        var document = new OriginalSourceDocument(source);
+        source ??= string.Empty;
+        var document = new StringDocument(string.Empty, source);
         var result = TryLexCore(source, document);
         if (result.IsSuccess)
         {
@@ -212,7 +213,8 @@ internal static class Lexer
     /// <exception cref="ParseException">Thrown when the source contains invalid lexical syntax.</exception>
     public static IReadOnlyList<Token> Lex(string source)
     {
-        var document = new OriginalSourceDocument(source);
+        source ??= string.Empty;
+        var document = new StringDocument(string.Empty, source);
         var result = TryLexCore(source, document);
         if (result.IsSuccess)
         {

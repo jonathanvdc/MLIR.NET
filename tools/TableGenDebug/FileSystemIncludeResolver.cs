@@ -20,7 +20,7 @@ internal sealed class FileSystemIncludeResolver : IncludeResolver
         {
             if (File.Exists(candidatePath))
             {
-                resolvedDocument = new OriginalSourceDocument(File.ReadAllText(candidatePath), candidatePath);
+                resolvedDocument = new StringDocument(candidatePath, File.ReadAllText(candidatePath));
                 return true;
             }
         }
@@ -42,7 +42,7 @@ internal sealed class FileSystemIncludeResolver : IncludeResolver
 
             if (includingFile != null)
             {
-                var includingDirectory = Path.GetDirectoryName(includingFile.FileName);
+                var includingDirectory = Path.GetDirectoryName(includingFile.Identifier);
                 if (includingDirectory != null)
                 {
                     candidates.Add(Path.GetFullPath(Path.Combine(includingDirectory, includePath)));

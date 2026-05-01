@@ -271,7 +271,7 @@ public sealed partial class SemanticTests
         Assert.Single(result.Diagnostics);
         Assert.Equal("func.return", result.Diagnostics[0].Operation.Name);
         Assert.True(result.Diagnostics[0].Location.IsKnown);
-        Assert.Equal(2, result.Diagnostics[0].Location.Line);
-        Assert.Equal(3, result.Diagnostics[0].Location.Column);
+        Assert.Equal(2, result.Diagnostics[0].Location.Position.Line);
+        Assert.Equal(3, result.Diagnostics[0].Location.Position.Column);
     }
 }

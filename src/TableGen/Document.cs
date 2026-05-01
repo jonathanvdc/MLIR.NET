@@ -27,7 +27,7 @@ public sealed class Document(DocumentSyntax syntax)
     /// <returns>The parse result.</returns>
     public static ParseResult<Document> Parse(string source)
     {
-        return Parse(new OriginalSourceDocument(source));
+        return Parse(new StringDocument(string.Empty, source ?? string.Empty));
     }
 
     /// <summary>
@@ -52,7 +52,7 @@ public sealed class Document(DocumentSyntax syntax)
     /// </returns>
     public static ParseResult<Document> Load(string source, IncludeResolver resolver)
     {
-        return Load(new OriginalSourceDocument(source), resolver);
+        return Load(new StringDocument(string.Empty, source ?? string.Empty), resolver);
     }
 
     /// <summary>

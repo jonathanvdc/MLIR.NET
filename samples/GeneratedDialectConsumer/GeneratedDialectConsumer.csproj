@@ -13,6 +13,7 @@
     <ProjectReference Include="..\..\src\MLIR.ODS\MLIR.ODS.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\MLIR\MLIR.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\..\src\TableGen\TableGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Analyzer Include="$(NuGetPackageRoot)pixie/0.2.1/lib/netstandard2.0/Pixie.dll" />
   </ItemGroup>
 
   <ItemGroup>

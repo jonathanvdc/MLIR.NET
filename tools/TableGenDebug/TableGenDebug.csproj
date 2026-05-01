@@ -7,10 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Pixie" Version="0.2.1" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\..\src\TableGen\TableGen.csproj" />
     <ProjectReference Include="..\..\src\MLIR.Generators\MLIR.Generators.csproj" />
   </ItemGroup>

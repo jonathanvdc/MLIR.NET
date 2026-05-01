@@ -9,6 +9,7 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <OutputItemType>Analyzer</OutputItemType>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <NoWarn>$(NoWarn);RS2008</NoWarn>
   </PropertyGroup>
 

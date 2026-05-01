@@ -5,4 +5,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Pixie" Version="0.2.1" />
+    <Using Include="Pixie.Code" />
+    <Using Include="Pixie.Code.SourceSpan" Alias="SourceLocation" />
+    <Using Include="Pixie.Code.SourceDocument" Alias="SourceDocument" />
+    <Using Include="Pixie.Code.OriginalSourceSpan" Alias="OriginalSourceSpan" />
+    <Using Include="Pixie.Code.ResolvedSourceSpan" Alias="ResolvedSourceSpan" />
+    <Using Include="Pixie.Code.LineAndColumnPosition" Alias="SourcePosition" />
+  </ItemGroup>
 </Project>

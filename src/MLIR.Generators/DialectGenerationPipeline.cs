@@ -105,9 +105,9 @@ internal static class DialectGenerationPipeline
         }
 
         var primary = resolved.PrimarySpan;
-        var start = primary.Document.GetLineColumn(primary.Start);
-        var end = primary.Document.GetLineColumn(primary.End);
-        var fileName = start.FileName;
+        var start = primary.Document.GetPosition(primary.Start);
+        var end = primary.Document.GetPosition(primary.End);
+        var fileName = start.Identifier;
         if (string.IsNullOrEmpty(fileName))
         {
             fileName = result.Path;

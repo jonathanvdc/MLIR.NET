@@ -40,7 +40,7 @@ internal sealed class EmbeddedPreludeResolver : IncludeResolver
             text = reader.ReadToEnd();
         }
 
-        resolvedDocument = new OriginalSourceDocument(text, includePath);
+        resolvedDocument = new StringDocument(includePath, text);
         return true;
     }
 

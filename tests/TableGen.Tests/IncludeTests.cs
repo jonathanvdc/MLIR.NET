@@ -152,7 +152,7 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string>());
 
-        var sourceDocument = new OriginalSourceDocument(mainSource, "my_ops.td");
+        var sourceDocument = new StringDocument("my_ops.td", mainSource);
 
         var diagnostic = TestHelpers.LoadFailure(sourceDocument, resolver);
 
@@ -169,7 +169,7 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["dep.td"] = dependencySource });
 
-        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(mainSource, "main.td"), resolver);
+        var diagnostic = TestHelpers.LoadFailure(new StringDocument("main.td", mainSource), resolver);
 
         Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
         Assert.Equal("dep.td", diagnostic.FileName);
@@ -182,15 +182,15 @@ public sealed class IncludeTests
             "#define FEATURE\n" +
             "    def Broken : Base<1;\n";
 
-        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(source, "main.td"), new DictionaryIncludeResolver(new Dictionary<string, string>()));
+        var diagnostic = TestHelpers.LoadFailure(new StringDocument("main.td", source), new DictionaryIncludeResolver(new Dictionary<string, string>()));
         var resolved = diagnostic.Location.Resolve();
 
         Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
         Assert.Equal("main.td", diagnostic.FileName);
         Assert.Equal(2, diagnostic.Line);
-        Assert.IsType<PreprocessedSourceDocument>(diagnostic.Location.Document);
+        Assert.IsType<PiecewiseSourceDocument>(diagnostic.Location.Document);
         Assert.NotNull(resolved);
-        Assert.Equal("main.td", resolved!.PrimarySpan.Document.FileName);
+        Assert.Equal("main.td", resolved!.PrimarySpan.Document.Identifier);
         Assert.True(resolved.PrimarySpan.Start > diagnostic.Location.Start);
     }
 
@@ -205,15 +205,15 @@ public sealed class IncludeTests
         var resolver = new DictionaryIncludeResolver(
             new Dictionary<string, string> { ["dep.td"] = dependencySource });
 
-        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(mainSource, "main.td"), resolver);
+        var diagnostic = TestHelpers.LoadFailure(new StringDocument("main.td", mainSource), resolver);
         var resolved = diagnostic.Location.Resolve();
 
         Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
         Assert.Equal("dep.td", diagnostic.FileName);
         Assert.Equal(2, diagnostic.Line);
-        Assert.IsType<PreprocessedSourceDocument>(diagnostic.Location.Document);
+        Assert.IsType<PiecewiseSourceDocument>(diagnostic.Location.Document);
         Assert.NotNull(resolved);
-        Assert.Equal("dep.td", resolved!.PrimarySpan.Document.FileName);
+        Assert.Equal("dep.td", resolved!.PrimarySpan.Document.Identifier);
     }
 
     [Fact]
@@ -226,15 +226,15 @@ public sealed class IncludeTests
             "#endif\n" +
             "    def Broken : Base<1;\n";
 
-        var diagnostic = TestHelpers.LoadFailure(new OriginalSourceDocument(source, "conditional.td"), new DictionaryIncludeResolver(new Dictionary<string, string>()));
+        var diagnostic = TestHelpers.LoadFailure(new StringDocument("conditional.td", source), new DictionaryIncludeResolver(new Dictionary<string, string>()));
         var resolved = diagnostic.Location.Resolve();
 
         Assert.Contains("Expected '>' to close the argument list.", diagnostic.Message);
         Assert.Equal("conditional.td", diagnostic.FileName);
         Assert.Equal(5, diagnostic.Line);
-        Assert.IsType<PreprocessedSourceDocument>(diagnostic.Location.Document);
+        Assert.IsType<PiecewiseSourceDocument>(diagnostic.Location.Document);
         Assert.NotNull(resolved);
-        Assert.Equal("conditional.td", resolved!.PrimarySpan.Document.FileName);
+        Assert.Equal("conditional.td", resolved!.PrimarySpan.Document.Identifier);
         Assert.True(resolved.PrimarySpan.Start > diagnostic.Location.Start);
     }
 
@@ -283,12 +283,12 @@ public sealed class IncludeTests
             "def Dep { int X = 1; };");
 
         var mainSource = "include \"dep.td\"";
-        var mainDocument = new OriginalSourceDocument(mainSource, "main.td");
+        var mainDocument = new StringDocument("main.td", mainSource);
         var result = Document.Load(mainDocument, trackingResolver);
 
         Assert.True(result.IsSuccess);
         Assert.NotNull(trackingResolver.CapturedIncludingFile);
-        Assert.Equal("main.td", trackingResolver.CapturedIncludingFile!.FileName);
+        Assert.Equal("main.td", trackingResolver.CapturedIncludingFile!.Identifier);
     }
 
     // -----------------------------------------------------------------------
@@ -412,11 +412,11 @@ public sealed class IncludeTests
         const string source =
             "#define FEATURE\n" +
             "  def Foo { int X = 1; };\n";
-        var sourceDocument = new OriginalSourceDocument(source, "active.td");
+        var sourceDocument = new StringDocument("active.td", source);
         var defines = new HashSet<string>();
 
         var result = Preprocessor.Process(sourceDocument, defines);
-        var outputStart = result.Text.IndexOf("Foo", StringComparison.Ordinal);
+        var outputStart = result.GetText(0, result.Length).IndexOf("Foo", StringComparison.Ordinal);
         var originalStart = source.IndexOf("Foo", StringComparison.Ordinal);
         var location = new SourceLocation(result, outputStart, "Foo".Length);
         var resolved = location.Resolve();
@@ -424,12 +424,12 @@ public sealed class IncludeTests
         Assert.True(outputStart >= 0);
         Assert.True(originalStart >= 0);
         Assert.NotEqual(originalStart, outputStart);
-        Assert.Equal("active.td", location.FileName);
-        Assert.Equal(2, location.Line);
+        Assert.Equal("active.td", location.Position.Identifier);
+        Assert.Equal(2, location.Position.Line);
         Assert.NotNull(resolved);
         Assert.Equal(originalStart, resolved!.PrimarySpan.Start);
         Assert.Equal("Foo".Length, resolved.PrimarySpan.Length);
-        Assert.Equal("active.td", resolved.PrimarySpan.Document.FileName);
+        Assert.Equal("active.td", resolved.PrimarySpan.Document.Identifier);
     }
 
     [Fact]
@@ -438,17 +438,17 @@ public sealed class IncludeTests
         const string source =
             "#define FEATURE\n" +
             "def Foo { int X = 1; };\n";
-        var sourceDocument = new OriginalSourceDocument(source, "directive.td");
+        var sourceDocument = new StringDocument("directive.td", source);
         var defines = new HashSet<string>();
 
         var result = Preprocessor.Process(sourceDocument, defines);
         var location = new SourceLocation(result, 0, 1);
         var resolved = location.Resolve();
 
-        Assert.Equal('\n', result.Text[0]);
-        Assert.Equal("directive.td", location.FileName);
-        Assert.Equal(1, location.Line);
-        Assert.Equal(1, location.Column);
+        Assert.Equal('\n', result.GetText(0, result.Length)[0]);
+        Assert.Equal("directive.td", location.Position.Identifier);
+        Assert.Equal(1, location.Position.Line);
+        Assert.Equal(1, location.Position.Column);
         Assert.NotNull(resolved);
         Assert.Equal(0, resolved!.PrimarySpan.Start);
         Assert.Equal(0, resolved.PrimarySpan.Length);
@@ -475,7 +475,7 @@ public sealed class IncludeTests
             if (includePath == expectedPath)
             {
                 CapturedIncludingFile = includingFile;
-                resolvedDocument = new OriginalSourceDocument(resolvedText, includePath);
+                resolvedDocument = new StringDocument(includePath, resolvedText);
                 return true;
             }
 

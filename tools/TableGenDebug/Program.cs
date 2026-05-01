@@ -59,7 +59,7 @@ var recordPattern = positionalArguments.Count >= 2 ? positionalArguments[1] : "*
 try
 {
     var sourceText = File.ReadAllText(inputPath);
-    var sourceDocument = new OriginalSourceDocument(sourceText, Path.GetFullPath(inputPath));
+    var sourceDocument = new StringDocument(Path.GetFullPath(inputPath), sourceText);
     var resolver = new CompositeIncludeResolver(
         new FileSystemIncludeResolver(),
         PreludeIncludeResolvers.CreateEmbeddedPreludeResolver());
@@ -67,14 +67,14 @@ try
     var documentResult = Document.Load(sourceDocument, resolver);
     if (!documentResult.IsSuccess)
     {
-        LogError(stderrLog, documentResult.Diagnostic!.ToString());
+        LogDiagnostic(stderrLog, documentResult.Diagnostic!);
         return 1;
     }
 
     var evaluated = documentResult.Value.Evaluate();
     if (!evaluated.IsSuccess)
     {
-        LogError(stderrLog, evaluated.Diagnostic!.ToString());
+        LogDiagnostic(stderrLog, evaluated.Diagnostic!);
         return 1;
     }
 
@@ -117,6 +117,23 @@ static HelpMessage CreateHelpMessage(IReadOnlyList<Option> options)
 static void LogError(ILog log, string message)
 {
     log.ErrorDiagnostic("tablegendebug", "", message);
+}
+
+static void LogDiagnostic(ILog log, MLIR.Text.Diagnostic diagnostic)
+{
+    if (!diagnostic.Location.IsKnown)
+    {
+        LogError(log, diagnostic.Message);
+        return;
+    }
+
+    var region = new SourceRegion(diagnostic.Location);
+    var highlightedSource = new HighlightedSource(region, region);
+    log.ErrorDiagnostic(
+        new SourceReference(highlightedSource.HighlightedSpan),
+        "",
+        diagnostic.Message,
+        highlightedSource);
 }
 
 static void LogInfo(ILog log, string message)
