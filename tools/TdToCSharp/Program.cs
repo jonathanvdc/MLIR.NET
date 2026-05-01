@@ -8,8 +8,8 @@ using Pixie.Transforms;
 using TableGen;
 using RoslynDiagnostic = Microsoft.CodeAnalysis.Diagnostic;
 
-var stdoutLog = TerminalLog.AcquireStandardOutput().WithDiagnostics("tdtocsharp");
-var stderrLog = TerminalLog.AcquireStandardError().WithDiagnostics("tdtocsharp");
+var stdoutLog = TerminalLog.AcquireStandardOutput();
+var stderrLog = TerminalLog.AcquireStandardError();
 
 var stdoutFlag = Option.Flag("--stdout")
     .WithCategory("Output")
@@ -143,17 +143,17 @@ static void LogDiagnostic(ILog log, RoslynDiagnostic diagnostic)
                 DiagnosticSeverity.Error => Severity.Error,
                 _ => Severity.Error,
             },
-            new Text(FormatDiagnostic(diagnostic))));
+            (Block)FormatDiagnostic(diagnostic)));
 }
 
 static void LogError(ILog log, string message)
 {
-    log.Log(new LogEntry(Severity.Error, message));
+    log.ErrorDiagnostic("tdtocsharp", "", message);
 }
 
 static void LogInfo(ILog log, string message)
 {
-    log.Log(new LogEntry(Severity.Message, new Text(message)));
+    log.Log(new LogEntry(Severity.Message, (Block)message));
 }
 
 static string FormatDiagnostic(RoslynDiagnostic diagnostic)

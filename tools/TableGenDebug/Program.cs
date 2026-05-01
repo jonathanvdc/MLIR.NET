@@ -21,10 +21,10 @@ var helpFlag = FlagOption.CreateFlagOption(
         OptionForm.Short("h"),
         OptionForm.Long("help"))
     .WithCategory("General")
-    .WithDescription(new Text("Show this help text."));
+    .WithDescription("Show this help text.");
 var positionalOption = SequenceOption.CreateStringOption(OptionForm.Long("argument"))
     .WithCategory("Input")
-    .WithDescription(new Text("The input TableGen file, followed by an optional record-name glob pattern."))
+    .WithDescription("The input TableGen file, followed by an optional record-name glob pattern.")
     .WithParameters(
         new SymbolicOptionParameter("file"),
         new SymbolicOptionParameter("record-pattern"));
@@ -109,19 +109,19 @@ catch (Exception exception)
 static HelpMessage CreateHelpMessage(IReadOnlyList<Option> options)
 {
     return new HelpMessage(
-        new Text("Load a TableGen file, evaluate it with the embedded MLIR prelude, and print matching records."),
-        new Text("tablegendebug <file.td> [record-pattern]"),
+        "Load a TableGen file, evaluate it with the embedded MLIR prelude, and print matching records.",
+        "tablegendebug <file.td> [record-pattern]",
         options);
 }
 
 static void LogError(ILog log, string message)
 {
-    log.Log(new LogEntry(Severity.Error, new Text("error: " + message)));
+    log.ErrorDiagnostic("tablegendebug", "", message);
 }
 
 static void LogInfo(ILog log, string message)
 {
-    log.Log(new LogEntry(Severity.Message, new Text(message)));
+    log.Info((Block)message);
 }
 
 static string FormatExceptionMessage(Exception exception)
