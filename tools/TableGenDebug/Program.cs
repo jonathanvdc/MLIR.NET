@@ -32,16 +32,16 @@ var options = new Option[] { helpFlag };
 var parser = new GnuOptionSetParser(options, positionalOption);
 
 var parsedOptions = parser.Parse(args, stderrLog);
-if (parsedOptions.GetValue<bool>(helpFlag))
+if (parsedOptions.GetValue(helpFlag))
 {
     stdoutLog.Log(CreateHelpMessage(options));
     return 0;
 }
 
-var positionalArguments = parsedOptions.GetValue<string[]>(positionalOption);
-if (positionalArguments.Length == 0 || positionalArguments.Length > 2)
+var positionalArguments = parsedOptions.GetValue(positionalOption);
+if (positionalArguments.Count == 0 || positionalArguments.Count > 2)
 {
-    LogError(stderrLog, positionalArguments.Length == 0
+    LogError(stderrLog, positionalArguments.Count == 0
         ? "An input .td file is required."
         : "Expected at most two positional arguments: <file.td> [record-pattern].");
     stderrLog.Log(CreateHelpMessage(options));
@@ -55,7 +55,7 @@ if (!File.Exists(inputPath))
     return 1;
 }
 
-var recordPattern = positionalArguments.Length >= 2 ? positionalArguments[1] : "*";
+var recordPattern = positionalArguments.Count >= 2 ? positionalArguments[1] : "*";
 try
 {
     var sourceText = File.ReadAllText(inputPath);
