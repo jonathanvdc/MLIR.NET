@@ -42,7 +42,7 @@ internal static class DialectGeneratorNaming
         if (!string.IsNullOrWhiteSpace(cppNamespace))
         {
             var firstSegment = cppNamespace!
-                .Split(new[] { "::" }, StringSplitOptions.None)
+                .Split(["::"], StringSplitOptions.None)
                 .FirstOrDefault(static s => !string.IsNullOrWhiteSpace(s))
                 ?.Trim();
 
@@ -135,7 +135,7 @@ internal static class DialectGeneratorNaming
     private static IReadOnlyList<string> ParseCppNamespace(string cppNamespace)
     {
         var segments = cppNamespace
-            .Split(new[] { "::" }, StringSplitOptions.None)
+            .Split(["::"], StringSplitOptions.None)
             .Where(static segment => !string.IsNullOrWhiteSpace(segment))
             .ToArray();
 
