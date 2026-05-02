@@ -32,9 +32,10 @@ extends BoolAttr : MLIRNet_AttrExtension {
 
 extends TypeAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Dialects.Builtin.TypeAttr";
-  let csharpReturnType = "global::MLIR.Semantics.TypeReference";
+  let csharpReturnType = "global::MLIR.Dialects.Builtin.TypeAttr";
   let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self.Value";
+  let csharpConvertFromStorage = "$_self";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.TypeAttributeAssemblyFormat()";
 }
 
 extends UnitAttr : MLIRNet_AttrExtension {
@@ -49,9 +50,10 @@ extends UnitAttr : MLIRNet_AttrExtension {
 
 extends DictionaryAttrBase : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Dialects.Builtin.DictionaryAttr";
-  let csharpReturnType = "global::MLIR.Semantics.NamedAttributeCollection";
+  let csharpReturnType = "global::MLIR.Dialects.Builtin.DictionaryAttr";
   let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self.Value";
+  let csharpConvertFromStorage = "$_self";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat()";
 }
 
 extends ElementsAttrBase : MLIRNet_AttrExtension {
@@ -59,6 +61,7 @@ extends ElementsAttrBase : MLIRNet_AttrExtension {
   let csharpReturnType = "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
   let csharpOptionalValueAccess = "NullCheck";
   let csharpConvertFromStorage = "$_self";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat()";
 }
 
 extends ArrayAttrBase : MLIRNet_AttrExtension {

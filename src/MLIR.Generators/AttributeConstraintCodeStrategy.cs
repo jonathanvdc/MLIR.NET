@@ -264,28 +264,6 @@ internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeCons
 
 
 /// <summary>
-/// Strategy for attribute constraints whose code-generation behavior is fully described by
-/// constant type names and, optionally, a custom assembly-format type.
-/// </summary>
-internal sealed class FixedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public FixedAttributeConstraintCodeStrategy(
-        string publicTypeName,
-        string? assemblyFormatTypeName = null)
-    {
-        PublicTypeName = publicTypeName;
-        this.assemblyFormatTypeName = assemblyFormatTypeName;
-    }
-
-    private readonly string? assemblyFormatTypeName;
-
-    public override string PublicTypeName { get; }
-
-    public override string? GetAssemblyFormatConstructionExpression() =>
-        assemblyFormatTypeName != null ? "new " + assemblyFormatTypeName + "()" : null;
-}
-
-/// <summary>
 /// Enum attribute (e.g. <c>I32EnumAttr</c>-backed attrs). The C# type for the value
 /// is the generated enum type, resolved via the <see cref="DialectSymbolResolver"/>.
 /// </summary>
@@ -435,10 +413,12 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
 /// of the old <c>NamedAttribute</c> / <c>NamedAttribute?</c> pair, so callers always
 /// receive a typed value rather than a raw named-attribute wrapper.
 /// </remarks>
-internal static class FallbackAttributeConstraintCodeStrategy
+internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    public static AttributeConstraintCodeStrategy Instance { get; } =
-        new FixedAttributeConstraintCodeStrategy("AttributeValue");
+    public static readonly FallbackAttributeConstraintCodeStrategy Instance = new();
+    private FallbackAttributeConstraintCodeStrategy() { }
+
+    public override string PublicTypeName => "AttributeValue";
 }
 
 // =============================================================================
@@ -459,24 +439,6 @@ internal static class FallbackAttributeConstraintCodeStrategy
 /// </remarks>
 internal static class AttributeConstraintCodeStrategyFactory
 {
-    private static readonly AttributeConstraintCodeStrategy OpaqueAttributeStrategy =
-        new FixedAttributeConstraintCodeStrategy("AttributeValue");
-
-    private static readonly AttributeConstraintCodeStrategy ElementsAttributeStrategy =
-        new FixedAttributeConstraintCodeStrategy(
-            "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr",
-            assemblyFormatTypeName: "ElementsAttributeAssemblyFormat");
-
-    private static readonly AttributeConstraintCodeStrategy DictionaryAttributeStrategy =
-        new FixedAttributeConstraintCodeStrategy(
-            "DictionaryAttr",
-            assemblyFormatTypeName: "DictionaryAttributeAssemblyFormat");
-
-    private static readonly AttributeConstraintCodeStrategy TypeAttributeStrategy =
-        new FixedAttributeConstraintCodeStrategy(
-            "TypeAttr",
-            assemblyFormatTypeName: "TypeAttributeAssemblyFormat");
-
     /// <summary>
     /// Returns the model-bound strategy for the given attribute constraint. Returns
     /// <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/> for unrecognised
@@ -490,10 +452,6 @@ internal static class AttributeConstraintCodeStrategyFactory
     {
         return constraint.Kind switch
         {
-            AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeStrategy,
-            AttributeConstraintKind.ElementsAttribute => ElementsAttributeStrategy,
-            AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeStrategy,
-            AttributeConstraintKind.TypeAttribute => TypeAttributeStrategy,
             AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel),

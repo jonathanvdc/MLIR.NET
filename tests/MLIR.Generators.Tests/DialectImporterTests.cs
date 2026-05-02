@@ -695,9 +695,24 @@ public sealed class DialectImporterTests
 
         var typeAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "TypeAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.TypeAttr", typeAttr.CsharpStorageType);
-        Assert.Equal("global::MLIR.Semantics.TypeReference", typeAttr.CsharpReturnType);
+        Assert.Equal("global::MLIR.Dialects.Builtin.TypeAttr", typeAttr.CsharpReturnType);
         Assert.Equal(OptionalValueAccessKind.NullCheck, typeAttr.CsharpOptionalValueAccessKind);
-        Assert.Equal("$_self.Value", typeAttr.CsharpConvertFromStorage);
+        Assert.Equal("$_self", typeAttr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.TypeAttributeAssemblyFormat()", typeAttr.CsharpAssemblyFormat);
+
+        var dictionaryAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DictionaryAttr");
+        Assert.Equal("global::MLIR.Dialects.Builtin.DictionaryAttr", dictionaryAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Dialects.Builtin.DictionaryAttr", dictionaryAttr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullCheck, dictionaryAttr.CsharpOptionalValueAccessKind);
+        Assert.Equal("$_self", dictionaryAttr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat()", dictionaryAttr.CsharpAssemblyFormat);
+
+        var elementsAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "ElementsAttr");
+        Assert.Equal("global::MLIR.Dialects.Builtin.DenseTypedElementsAttr", elementsAttr.CsharpStorageType);
+        Assert.Equal("global::MLIR.Dialects.Builtin.DenseTypedElementsAttr", elementsAttr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullCheck, elementsAttr.CsharpOptionalValueAccessKind);
+        Assert.Equal("$_self", elementsAttr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat()", elementsAttr.CsharpAssemblyFormat);
 
         var unitAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "UnitAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.UnitAttr", unitAttr.CsharpStorageType);
