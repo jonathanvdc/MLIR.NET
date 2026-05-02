@@ -3,41 +3,30 @@ namespace MLIR.Generators;
 using System;
 using System.Text;
 using MLIR.Generators.Emitters;
-using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
-internal enum AttributeValueConversionKind
-{
-    Identity,
-    Template,
-}
 
 internal readonly struct AttributeValueConversion
 {
-    private AttributeValueConversion(AttributeValueConversionKind kind, CodeTemplate? template)
+    private readonly CodeTemplate? template;
+
+    private AttributeValueConversion(CodeTemplate? template)
     {
-        Kind = kind;
-        Template = template;
+        this.template = template;
     }
 
-    public AttributeValueConversionKind Kind { get; }
+    public static AttributeValueConversion Identity { get; } = new(null);
 
-    public CodeTemplate? Template { get; }
-
-    public static AttributeValueConversion Identity { get; } =
-        new(AttributeValueConversionKind.Identity, null);
-
-    public static AttributeValueConversion FromTemplate(CodeTemplate template) =>
-        new(AttributeValueConversionKind.Template, template);
+    public static AttributeValueConversion FromTemplate(CodeTemplate template) => new(template);
 
     public static AttributeValueConversion FromExpression(string expression) =>
         FromTemplate(new CodeTemplate(expression, CodeTemplateKind.Expression));
 
     public string Render(string valueExpression)
     {
-        return Kind == AttributeValueConversionKind.Identity
+        return template is null
             ? valueExpression
-            : Template!.Render(("value", valueExpression), ("self", valueExpression));
+            : template.Render(("value", valueExpression), ("self", valueExpression));
     }
 }
 
@@ -450,27 +439,6 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
     }
 }
 
-// =============================================================================
-// Fallback strategy
-// =============================================================================
-
-/// <summary>
-/// Used whenever no specialised strategy matches a constraint record (e.g.
-/// <see cref="AttributeConstraintKind.None"/> or any unrecognised kind, as well as
-/// when an attribute has no associated constraint record at all).
-/// </summary>
-/// <remarks>
-/// Produces <c>AttributeValue</c> / <c>AttributeValue?</c> operation properties instead
-/// of the old <c>NamedAttribute</c> / <c>NamedAttribute?</c> pair, so callers always
-/// receive a typed value rather than a raw named-attribute wrapper.
-/// </remarks>
-internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly FallbackAttributeConstraintCodeStrategy Instance = new();
-    private FallbackAttributeConstraintCodeStrategy() { }
-
-    public override string PublicTypeName => "AttributeValue";
-}
 
 // =============================================================================
 // Factory
@@ -493,6 +461,9 @@ internal static class AttributeConstraintCodeStrategyFactory
     private static readonly AttributeConstraintCodeStrategy OpaqueAttributeStrategy =
         new FixedAttributeConstraintCodeStrategy("AttributeValue");
 
+    private static readonly AttributeConstraintCodeStrategy FallbackAttributeStrategy =
+        new FixedAttributeConstraintCodeStrategy("AttributeValue");
+
     private static readonly AttributeConstraintCodeStrategy ElementsAttributeStrategy =
         new FixedAttributeConstraintCodeStrategy(
             "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr",
@@ -512,7 +483,7 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     /// <summary>
     /// Returns the model-bound strategy for the given attribute constraint. Returns
-    /// <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/> for unrecognised
+    /// the fallback <c>AttributeValue</c> strategy for unrecognised
     /// kinds (including <see cref="AttributeConstraintKind.None"/> and
     /// <see cref="AttributeConstraintKind.DenseArrayAttribute"/>).
     /// </summary>
@@ -531,7 +502,7 @@ internal static class AttributeConstraintCodeStrategyFactory
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel),
             _ when attrModel != null => new ModelBackedAttributeConstraintCodeStrategy(attrModel),
-            _ => FallbackAttributeConstraintCodeStrategy.Instance,
+            _ => FallbackAttributeStrategy,
         };
     }
 
