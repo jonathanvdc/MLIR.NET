@@ -88,10 +88,10 @@ internal sealed class AttributeStoragePlan
 /// <summary>
 /// Encapsulates the code-generation behavior associated with a specific kind of attribute
 /// constraint. Concrete subclasses replace the per-kind switch expressions that previously
-/// appeared across <see cref="Emitters.AttributeTypeResolver"/>,
-/// <see cref="global::MLIR.Generators.Emitters.Operation.OperationMemberPlanner"/>,
-/// <see cref="global::MLIR.Generators.Emitters.Operation.OperationAttributeValueHelpers"/>,
-/// <see cref="Emitters.AttributeConstraintEmitter"/>, and related emitters.
+/// appeared across <see cref="AttributeTypeResolver"/>,
+/// <see cref="Emitters.Operation.OperationMemberPlanner"/>,
+/// <see cref="Emitters.Operation.OperationAttributeValueHelpers"/>,
+/// <see cref="AttributeConstraintEmitter"/>, and related emitters.
 /// </summary>
 /// <remarks>
 /// <para>
