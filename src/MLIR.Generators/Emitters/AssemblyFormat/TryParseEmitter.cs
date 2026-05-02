@@ -49,19 +49,6 @@ internal sealed class TryParseEmitter
     }
 
     // -----------------------------------------------------------------------
-    // Public surface – determines whether a format is fully supported.
-    // -----------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns <see langword="true"/> when every element in <paramref name="format"/>
-    /// can be translated into a parsing statement.
-    /// </summary>
-    public static bool CanHandleFormat(AssemblyFormatModel format, OperationModel operation)
-    {
-        return AssemblyFormatLowerer.LowerOperation(operation, format).IsSupported;
-    }
-
-    // -----------------------------------------------------------------------
     // Method emission
     // -----------------------------------------------------------------------
 
