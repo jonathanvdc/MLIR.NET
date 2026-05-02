@@ -559,44 +559,6 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         return base.CreateStoragePlan();
     }
 
-    /// <summary>
-    /// Returns the C# typed-array value type (e.g. <c>"IReadOnlyList&lt;string&gt;"</c>),
-    /// resolved by looking up the element constraint record name and using the element
-    /// constraint's own <see cref="AttributeConstraintCodeStrategy.PublicTypeName"/>.
-    /// Returns <c>"IReadOnlyList&lt;AttributeValue&gt;"</c> when no element strategy is
-    /// available or the element type falls back to a generic type.
-    /// </summary>
-    public string GetRecursivePublicTypeName(DialectSymbolResolver resolver)
-    {
-        if (string.IsNullOrEmpty(elementRecordName))
-        {
-            return "IReadOnlyList<AttributeValue>";
-        }
-
-        var elementStrategy = resolver.TryResolveAttributeConstraintStrategy(elementRecordName!);
-        if (elementStrategy.IsGenericTypedArrayElement)
-        {
-            return "IReadOnlyList<AttributeValue>";
-        }
-
-        var elementTypeName = elementStrategy.TypedArrayElementTypeName;
-        if (IsTypedArrayFallbackElementType(elementTypeName))
-        {
-            return "IReadOnlyList<AttributeValue>";
-        }
-
-        return "IReadOnlyList<" + elementTypeName + ">";
-    }
-
-    /// <summary>
-    /// Returns <see langword="true"/> for element type names that should fall back to the
-    /// generic <c>IReadOnlyList&lt;AttributeValue&gt;</c> typed-array representation.
-    /// </summary>
-    private static bool IsTypedArrayFallbackElementType(string elementTypeName) =>
-        elementTypeName == "UnitAttr"
-        || elementTypeName == "OpaqueAttr"
-        || elementTypeName == "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
-
     private static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
     {
         var returnType = attrModel?.CsharpReturnType;
