@@ -132,25 +132,11 @@ internal static class AssemblyFormatLowerer
                 switch (lit)
                 {
                     case PunctuationLiteral punc:
-                        Slots.Add(new LiteralTokenSlot
-                        {
-                            LocalName = "literal" + literalIndex + "Token",
-                            SyntheticText = EmitterHelpers.GetPunctuationText(punc.TokenKind),
-                            KindExpr = "TokenKind." + punc.TokenKind,
-                            IsKeyword = false,
-                        });
-                        literalIndex++;
+                        AddLiteralTokenSlot(EmitterHelpers.GetPunctuationText(punc.TokenKind), "TokenKind." + punc.TokenKind, isKeyword: false);
                         break;
 
                     case KeywordLiteral kw:
-                        Slots.Add(new LiteralTokenSlot
-                        {
-                            LocalName = "literal" + literalIndex + "Token",
-                            SyntheticText = kw.Spelling,
-                            KindExpr = "TokenKind.Identifier",
-                            IsKeyword = true,
-                        });
-                        literalIndex++;
+                        AddLiteralTokenSlot(kw.Spelling, "TokenKind.Identifier", isKeyword: true);
                         break;
 
                     case WhitespaceLiteral ws when includeTrivia:
@@ -190,6 +176,18 @@ internal static class AssemblyFormatLowerer
 
         public void LowerUnsupported(Element element, int elementIndex)
         {
+        }
+
+        private void AddLiteralTokenSlot(string syntheticText, string kindExpr, bool isKeyword)
+        {
+            Slots.Add(new LiteralTokenSlot
+            {
+                LocalName = "literal" + literalIndex + "Token",
+                SyntheticText = syntheticText,
+                KindExpr = kindExpr,
+                IsKeyword = isKeyword,
+            });
+            literalIndex++;
         }
     }
 
