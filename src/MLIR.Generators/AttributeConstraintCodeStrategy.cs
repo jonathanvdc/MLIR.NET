@@ -171,7 +171,7 @@ internal abstract class AttributeConstraintCodeStrategy
     /// <param name="isRequired">
     /// Whether the attribute is mandatory (appears in the assembly format, so always present).
     /// </param>
-    public virtual string GetOperationPropertyTypeName(bool isRequired)
+    public string GetOperationPropertyTypeName(bool isRequired)
     {
         var storagePlan = CreateStoragePlan();
         if (!isRequired && storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean)
