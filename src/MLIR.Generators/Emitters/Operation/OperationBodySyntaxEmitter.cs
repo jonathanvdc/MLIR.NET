@@ -15,7 +15,7 @@ internal static class OperationBodySyntaxEmitter
     {
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var assemblyFormat = operation.AssemblyFormat!;
-        var metadata = ComputeBodySyntaxMetadata(operation, assemblyFormat, className);
+        var metadata = ComputeBodySyntaxMetadata(operation, assemblyFormat);
         var fields = metadata.Fields;
 
         builder.AppendLine("public sealed class " + className + "BodySyntax : OperationBodySyntax");
