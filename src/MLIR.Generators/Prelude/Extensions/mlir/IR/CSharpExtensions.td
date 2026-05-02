@@ -8,29 +8,59 @@ class CSharpOpExtension {
   string csharpAsmFormatCode = ?;
 }
 
+// Common C# metadata mixed into extension records that expose a generated or
+// semantic C# name override.
+class CSharpNamedExtension {
+  // Optional C# name override. The exact target depends on the derived schema:
+  // generated API name for interfaces, canonical semantic name for AttrDef/TypeDef.
+  string csharpName = ?;
+}
+
+// Common C# XML documentation metadata for generated API surfaces.
+class CSharpDocumentedExtension {
+  // Optional C# XML documentation summary override.
+  string csharpSummary = ?;
+  // Optional C# XML documentation remarks/description override.
+  string csharpDescription = ?;
+}
+
+// Common assembly-format hook for records that can bind and print through a
+// generated runtime assembly-format implementation.
+class CSharpAssemblyFormattableExtension {
+  // C# expression that instantiates the custom assembly-format helper.
+  string csharpAssemblyFormat = ?;
+}
+
+// Common optional-attribute behavior for Attr constraints used by generated
+// operation properties.
+class CSharpOptionalAttributeExtension {
+  // Optional value access strategy for generated operation bindings.
+  string csharpOptionalValueAccess = ?;
+  // Optional attribute public representation strategy for generated operation bindings.
+  string csharpOptionalAttributeRepresentation = ?;
+  // C# expression that builds a storage value when a presence-based optional attribute is present.
+  string csharpPresenceAttributeValue = ?;
+  // Syntax builder expression for a present presence-based optional attribute.
+  string csharpPresenceSyntax = ?;
+}
+
 // Extension schema for Interface records.
 //
 // Applying this class to an upstream or local Interface record via `extends`
 // lets MLIR.NET describe a C#-specific surface without hard-coding particular
 // MLIR interfaces in the generator.
-class CSharpInterfaceExtension {
-  // Optional C# interface name override. When absent, the generator derives a
-  // marker-style name from cppInterfaceName.
-  string csharpName = ?;
-  // Optional C# XML documentation summary override for the generated interface.
-  string csharpSummary = ?;
-  // Optional C# XML documentation remarks/description override for the generated interface.
-  string csharpDescription = ?;
+class CSharpInterfaceExtension
+    : CSharpNamedExtension,
+      CSharpDocumentedExtension {
   // Explicit member projections for the generated C# interface surface.
   list<CSharpInterfaceMember> csharpMembers = [];
 }
 
-class CSharpInterfaceMember<string upstreamNameValue, string csharpTypeValue, string csharpNameValue> {
+class CSharpInterfaceMember<string upstreamNameValue, string csharpTypeValue, string csharpNameValue>
+    : CSharpDocumentedExtension {
   string upstreamName = upstreamNameValue;
   string csharpType = csharpTypeValue;
   string csharpName = csharpNameValue;
-  string csharpSummary = ?;
-  string csharpDescription = ?;
 }
 
 class CSharpInterfaceProperty<string upstreamName, string csharpType, string csharpName>
@@ -176,13 +206,11 @@ class CSharpInterfacePropertyImplementation<Interface interfaceDef, string cshar
 //       "System.Numerics.BigInteger":$value
 //     );
 //   }
-class CSharpAttrOrTypeDefExtension {
+class CSharpAttrOrTypeDefExtension
+    : CSharpNamedExtension,
+      CSharpAssemblyFormattableExtension {
   // DAG of C# parameter overrides, keyed by the same names as the `parameters` dag.
   dag csharpParameters = ?;
-  // C# expression for the type's canonical name.
-  string csharpName = ?;
-  // C# expression that instantiates the custom assembly-format helper.
-  string csharpAssemblyFormat = ?;
   // Explicit implementations for generated C# interface members.
   list<CSharpInterfaceMemberImplementation> csharpInterfaceImplementations = [];
 }
@@ -192,7 +220,9 @@ class CSharpAttrOrTypeDefExtension {
 // Applying this class to an Attr or DialectAttr record via a record-level `extends`
 // lets MLIR.NET preserve the C#-oriented storage and accessor semantics separately
 // from the upstream TableGen representation.
-class CSharpAttrExtension {
+class CSharpAttrExtension
+    : CSharpAssemblyFormattableExtension,
+      CSharpOptionalAttributeExtension {
   // C# storage type used by the generated model.
   string csharpStorageType = ?;
   // C# return/accessor type exposed by the generated model.
@@ -203,20 +233,10 @@ class CSharpAttrExtension {
   // Prefer delegating to global::MLIR.Semantics.ConstantAttributeFactory so constant
   // construction logic stays centralized and consistent across constraints.
   string csharpConstBuilderCall = ?;
-  // C# expression that builds a storage value when a presence-based optional attribute is present.
-  string csharpPresenceAttributeValue = ?;
-  // C# expression that instantiates an IAttributeAssemblyFormat for this constraint.
-  string csharpAssemblyFormat = ?;
   // C# expression for the default result value, if any.
   string csharpDefaultValue = ?;
   // C# value-type description associated with the attr, if any.
   string csharpValueType = ?;
-  // Optional value access strategy for generated operation bindings.
-  string csharpOptionalValueAccess = ?;
-  // Optional attribute public representation strategy for generated operation bindings.
-  string csharpOptionalAttributeRepresentation = ?;
-  // Syntax builder expression for a present presence-based optional attribute.
-  string csharpPresenceSyntax = ?;
 }
 
 // Helper for reference-like attribute values: optional operation properties use
