@@ -260,7 +260,7 @@ internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeCons
     }
 
     public override string PublicTypeName => HasSpecializedAttrReturnType(attrModel)
-        ? attrModel!.CsharpReturnType!
+        ? attrModel.CsharpReturnType!
         : "AttributeValue";
 
     public override bool IsGenericTypedArrayElement => isGenericTypedArrayElement;
