@@ -99,7 +99,7 @@ internal static class OperationBodySyntaxEmitter
         return metadata;
     }
 
-    private static OperationBodySyntaxMetadata ComputeBodySyntaxMetadata(OperationModel operation, AssemblyFormatModel assemblyFormat, string operationClassName)
+    private static OperationBodySyntaxMetadata ComputeBodySyntaxMetadata(OperationModel operation, AssemblyFormatModel assemblyFormat)
     {
         return AssemblyFormatLowerer.LowerOperation(operation, assemblyFormat).Metadata;
     }
