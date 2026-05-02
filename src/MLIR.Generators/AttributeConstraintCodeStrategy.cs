@@ -246,9 +246,9 @@ internal abstract class AttributeConstraintCodeStrategy
 
 }
 
-internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    private readonly AttrModel? attrModel;
+    private readonly AttrModel attrModel;
     private readonly string fallbackPublicTypeName;
     private readonly string fallbackStorageTypeName;
     private readonly OptionalValueAccessKind fallbackOptionalValueAccessKind;
@@ -260,8 +260,8 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
     private readonly string? typedArrayElementDecodeExpression;
     private readonly string? typedArrayElementToSyntaxExpression;
 
-    protected ModelBackedAttributeConstraintCodeStrategy(
-        AttrModel? attrModel,
+    public ModelBackedAttributeConstraintCodeStrategy(
+        AttrModel attrModel,
         string fallbackPublicTypeName,
         string? fallbackStorageTypeName = null,
         OptionalValueAccessKind fallbackOptionalValueAccessKind = OptionalValueAccessKind.NullCheck,
@@ -299,8 +299,8 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
     public override string? GetAssemblyFormatType() => assemblyFormatType;
 
     public override string? GetAssemblyFormatConstructionExpression() =>
-        !string.IsNullOrEmpty(attrModel?.CsharpAssemblyFormat)
-            ? attrModel!.CsharpAssemblyFormat
+        !string.IsNullOrEmpty(attrModel.CsharpAssemblyFormat)
+            ? attrModel.CsharpAssemblyFormat
             : assemblyFormatConstructionExpression;
 
     public override string? GetTypedArrayElementDecodeExpression() => typedArrayElementDecodeExpression;
@@ -309,10 +309,10 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
 
     public override AttributeStoragePlan CreateStoragePlan()
     {
-        var storageTypeName = !string.IsNullOrEmpty(attrModel?.CsharpStorageType)
-            ? attrModel!.CsharpStorageType!
+        var storageTypeName = !string.IsNullOrEmpty(attrModel.CsharpStorageType)
+            ? attrModel.CsharpStorageType!
             : fallbackStorageTypeName;
-        var storageToPublic = attrModel?.CsharpConvertFromStorageTemplate is CodeTemplate convertTemplate
+        var storageToPublic = attrModel.CsharpConvertFromStorageTemplate is CodeTemplate convertTemplate
             ? AttributeValueConversion.FromTemplate(convertTemplate)
             : AttributeValueConversion.Identity;
         var publicToStorage = GetPublicToStorageConversion(storageTypeName);
@@ -322,9 +322,9 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
             publicToStorage,
             GetOptionalValueAccessKind(),
             GetOptionalRepresentation(),
-            attrModel?.CsharpPresenceAttributeValueTemplate?.Render(("value", "true"), ("self", "true")),
-            attrModel?.CsharpPresenceSyntaxTemplate,
-            attrModel?.CsharpDefaultValue);
+            attrModel.CsharpPresenceAttributeValueTemplate?.Render(("value", "true"), ("self", "true")),
+            attrModel.CsharpPresenceSyntaxTemplate,
+            attrModel.CsharpDefaultValue);
     }
 
     private OptionalValueAccessKind GetOptionalValueAccessKind()
@@ -334,13 +334,13 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
             return fallbackOptionalValueAccessKind;
         }
 
-        if (attrModel?.CsharpOptionalValueAccessKind is OptionalValueAccessKind kind)
+        if (attrModel.CsharpOptionalValueAccessKind is OptionalValueAccessKind kind)
         {
             return kind;
         }
 
         throw new InvalidOperationException(
-            "Attr record '" + attrModel!.RecordName + "' declares csharpReturnType but no csharpOptionalValueAccess.");
+            "Attr record '" + attrModel.RecordName + "' declares csharpReturnType but no csharpOptionalValueAccess.");
     }
 
     private OptionalAttributeRepresentation GetOptionalRepresentation()
@@ -350,7 +350,7 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
             return fallbackOptionalRepresentation;
         }
 
-        return attrModel?.CsharpOptionalAttributeRepresentation
+        return attrModel.CsharpOptionalAttributeRepresentation
             ?? OptionalAttributeRepresentation.NullableValue;
     }
 
@@ -366,40 +366,12 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
             : AttributeValueConversion.FromExpression("new " + storageTypeName + "(${value})");
     }
 
-    protected static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
+    private static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
     {
         var returnType = attrModel?.CsharpReturnType;
         return !string.IsNullOrEmpty(returnType)
             && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
             && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal);
-    }
-}
-
-internal sealed class GenericModelBackedAttributeConstraintCodeStrategy : ModelBackedAttributeConstraintCodeStrategy
-{
-    public GenericModelBackedAttributeConstraintCodeStrategy(
-        AttrModel? attrModel,
-        string fallbackPublicTypeName,
-        string? assemblyFormatType,
-        string? assemblyFormatConstructionExpression,
-        OptionalValueAccessKind fallbackOptionalValueAccessKind,
-        OptionalAttributeRepresentation fallbackOptionalRepresentation,
-        bool fallbackGenericTypedArrayElement,
-        string typedArrayElementPayloadPropertyName = "Value",
-        string? typedArrayElementDecodeExpression = null,
-        string? typedArrayElementToSyntaxExpression = null)
-        : base(
-            attrModel,
-            fallbackPublicTypeName,
-            fallbackOptionalValueAccessKind: fallbackOptionalValueAccessKind,
-            fallbackOptionalRepresentation: fallbackOptionalRepresentation,
-            fallbackGenericTypedArrayElement: fallbackGenericTypedArrayElement,
-            assemblyFormatType: assemblyFormatType,
-            assemblyFormatConstructionExpression: assemblyFormatConstructionExpression,
-            typedArrayElementPayloadPropertyName: typedArrayElementPayloadPropertyName,
-            typedArrayElementDecodeExpression: typedArrayElementDecodeExpression,
-            typedArrayElementToSyntaxExpression: typedArrayElementToSyntaxExpression)
-    {
     }
 }
 
@@ -789,7 +761,7 @@ internal static class AttributeConstraintCodeStrategyFactory
             AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel, constraint.ElementConstraintRecordName),
-            _ when IsModelBackedConstraintKind(constraint.Kind) =>
+            _ when attrModel != null =>
                 CreateModelBackedStrategy(
                     attrModel,
                     fallbackGenericTypedArrayElement: constraint.Kind == AttributeConstraintKind.UnitAttribute),
@@ -829,27 +801,14 @@ internal static class AttributeConstraintCodeStrategyFactory
     }
 
     private static AttributeConstraintCodeStrategy CreateModelBackedStrategy(
-        AttrModel? attrModel,
+        AttrModel attrModel,
         bool fallbackGenericTypedArrayElement = false)
     {
-        return new GenericModelBackedAttributeConstraintCodeStrategy(
+        return new ModelBackedAttributeConstraintCodeStrategy(
             attrModel,
             "AttributeValue",
-            null,
-            null,
-            OptionalValueAccessKind.NullCheck,
-            OptionalAttributeRepresentation.NullableValue,
-            fallbackGenericTypedArrayElement);
+            fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullCheck,
+            fallbackOptionalRepresentation: OptionalAttributeRepresentation.NullableValue,
+            fallbackGenericTypedArrayElement: fallbackGenericTypedArrayElement);
     }
-
-    private static bool IsModelBackedConstraintKind(AttributeConstraintKind kind) =>
-        kind == AttributeConstraintKind.BooleanLiteral
-        || kind == AttributeConstraintKind.IntegerLiteral
-        || kind == AttributeConstraintKind.FloatingPointLiteral
-        || kind == AttributeConstraintKind.StringLiteral
-        || kind == AttributeConstraintKind.UnitAttribute
-        || kind == AttributeConstraintKind.DenseBooleanArrayAttribute
-        || kind == AttributeConstraintKind.DenseIntegerArrayAttribute
-        || kind == AttributeConstraintKind.DenseF32ArrayAttribute
-        || kind == AttributeConstraintKind.DenseF64ArrayAttribute;
 }
