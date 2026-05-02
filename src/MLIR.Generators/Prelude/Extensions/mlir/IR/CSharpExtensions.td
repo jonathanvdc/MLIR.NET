@@ -230,12 +230,18 @@ class CSharpNamedAssemblyFormattedDef<string csharpNameExpression,
   let csharpName = csharpNameExpression;
 }
 
+// Convenience base for AttrDef/TypeDef overlays whose canonical C# name is a
+// literal MLIR mnemonic rather than an arbitrary expression.
+class CSharpMnemonicAssemblyFormattedDef<string mnemonic,
+                                         string csharpAssemblyFormatExpression>
+    : CSharpNamedAssemblyFormattedDef<"\"" # mnemonic # "\"", csharpAssemblyFormatExpression>;
+
 // Builtin scalar floating-point types all share the same assembly-format helper;
 // only the exposed MLIR mnemonic and concrete semantic type constructor vary.
-class CSharpBuiltinScalarFloatType<string csharpNameExpression,
+class CSharpBuiltinScalarFloatType<string mnemonic,
                                    string csharpTypeName>
-    : CSharpNamedAssemblyFormattedDef<
-        csharpNameExpression,
+    : CSharpMnemonicAssemblyFormattedDef<
+        mnemonic,
         "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new "
           # csharpTypeName # "(syntax))">;
 
