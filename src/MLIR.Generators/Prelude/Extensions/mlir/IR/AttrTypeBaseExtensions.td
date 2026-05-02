@@ -12,6 +12,7 @@ extends StringRefParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "string";
   // The parser returns a StringAttributeValueSyntax, so the property can be strongly typed.
   let csharpSyntaxType = "StringAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   // Parse a quoted string literal and return it as StringAttributeValueSyntax so the
   // extractor can recover the unescaped value without reparsing raw text.
   let csharpParser = "$_parser.TryParseStringLiteralSyntax()";
@@ -28,6 +29,7 @@ extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::MLIR.Numerics.ApInt";
   // The parser returns an IntegerAttributeValueSyntax, so the property can be strongly typed.
   let csharpSyntaxType = "IntegerAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   // Parse a signed integer literal and return it as IntegerAttributeValueSyntax.
   let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
   // The syntax node already stores the parsed APInt value.
@@ -43,6 +45,7 @@ extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::MLIR.Numerics.ApFloat";
   // The parser returns a FloatingPointAttributeValueSyntax, so the property can be strongly typed.
   let csharpSyntaxType = "FloatingPointAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   // Parse a decimal floating-point literal and return it as FloatingPointAttributeValueSyntax.
   let csharpParser = "$_parser.TryParseFloatingPointLiteralSyntax()";
   // The syntax node already stores the parsed APFloat value.
@@ -57,6 +60,7 @@ extends AttributeSelfTypeParameter : MLIRNet_AttrOrTypeParameterExtension {
   // Attribute self types bind to semantic type references in generated attribute classes.
   let csharpType = "global::MLIR.Semantics.TypeReference";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   let csharpParser = "$_parser.TryParseTypeSyntax().Map<AttributeValueSyntax>(static typeSyntax => new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax(typeSyntax))";
   let csharpExtractor = "$_syntax.TypeSyntax";
   let csharpDefault = "global::MLIR.Semantics.TypeFactory.None";

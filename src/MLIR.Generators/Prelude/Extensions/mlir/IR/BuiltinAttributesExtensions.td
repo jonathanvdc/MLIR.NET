@@ -9,6 +9,7 @@ def Builtin_TypeParameter : AttrOrTypeParameter<"Type", "nested type">,
     MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::MLIR.Semantics.TypeReference";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   let csharpExtractor = "$_syntax.TypeSyntax";
 }
 
@@ -17,6 +18,7 @@ def Builtin_ArrayParameter : AttrOrTypeParameter<
     MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   let csharpExtractor = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindItemsFromSyntax($_syntax.Items.Items)";
   let csharpDefault = "global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>()";
 }
@@ -26,6 +28,7 @@ def Builtin_DictionaryParameter : AttrOrTypeParameter<
     MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "global::MLIR.Semantics.NamedAttributeCollection";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   let csharpExtractor = "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax($_syntax.Attributes.Items)";
   let csharpDefault = "global::MLIR.Semantics.NamedAttributeCollection.Empty";
 }
@@ -34,6 +37,7 @@ def Builtin_StringAttrParameter : AttrOrTypeParameter<"StringAttr", "string attr
     MLIRNet_AttrOrTypeParameterExtension {
   let csharpType = "string";
   let csharpSyntaxType = "StringAttributeValueSyntax";
+  let csharpSyntaxShape = "SyntaxNode";
   let csharpParser = "$_parser.TryParseStringLiteralSyntax()";
   let csharpExtractor = "$_syntax.Value";
   let csharpDefault = "string.Empty";

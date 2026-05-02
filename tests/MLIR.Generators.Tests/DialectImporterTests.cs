@@ -402,15 +402,24 @@ public sealed class DialectImporterTests
     }
 
     [Fact]
-    public void InfersSyntaxShapeFromKnownCsharpSyntaxTypeMetadata()
+    public void ImportsExplicitSyntaxShapesAndLeavesUndeclaredTypedSyntaxAsPlainValue()
     {
         const string source =
             "class MyDelimitedParam<string desc> : AttrOrTypeParameter<\"Delimited\", desc>;\n" +
-            "extends MyDelimitedParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"DelimitedSyntaxList<Token>\"; }\n" +
+            "extends MyDelimitedParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "  let csharpSyntaxType = \"DelimitedSyntaxList<Token>\";\n" +
+            "  let csharpSyntaxShape = \"DelimitedTokenList\";\n" +
+            "}\n" +
             "class MySeparatedParam<string desc> : AttrOrTypeParameter<\"Separated\", desc>;\n" +
-            "extends MySeparatedParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"SeparatedSyntaxList<NamedAttributeSyntax>\"; }\n" +
+            "extends MySeparatedParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "  let csharpSyntaxType = \"SeparatedSyntaxList<NamedAttributeSyntax>\";\n" +
+            "  let csharpSyntaxShape = \"SeparatedList\";\n" +
+            "}\n" +
             "class MyRawListParam<string desc> : AttrOrTypeParameter<\"RawList\", desc>;\n" +
-            "extends MyRawListParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"IReadOnlyList<RawSyntaxText>\"; }\n" +
+            "extends MyRawListParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "  let csharpSyntaxType = \"IReadOnlyList<RawSyntaxText>\";\n" +
+            "  let csharpSyntaxShape = \"RawTextList\";\n" +
+            "}\n" +
             "class MyCustomParam<string desc> : AttrOrTypeParameter<\"Custom\", desc>;\n" +
             "extends MyCustomParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"MyCustomCarrier\"; }\n" +
             "def MyP_Dialect : Dialect { let name = \"myp\"; let cppNamespace = \"::mlir::myp\"; };\n" +

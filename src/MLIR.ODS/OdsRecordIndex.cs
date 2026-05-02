@@ -942,9 +942,9 @@ internal sealed class OdsRecordIndex
         // property (e.g., StringRefParameter → "StringAttributeValueSyntax").
         var csharpSyntaxType = GetStringFromValueDictionary(fields, "csharpSyntaxType");
 
-        // csharpSyntaxShape tells generators how to rewrite the syntax value. If the shape
-        // is not declared, infer it for the built-in syntax container names and otherwise
-        // deliberately fall back to PlainValue for custom syntax-like values.
+        // csharpSyntaxShape tells generators how to rewrite the syntax value. Typed syntax
+        // properties without an explicit shape are treated as plain values so custom
+        // csharpSyntaxType declarations do not accidentally opt into syntax-node rewriting.
         var csharpSyntaxShape = ResolveSyntaxValueShape(
             GetStringFromValueDictionary(fields, "csharpSyntaxShape"),
             csharpSyntaxType,
@@ -1000,84 +1000,6 @@ internal sealed class OdsRecordIndex
         }
 
         if (string.IsNullOrEmpty(csharpSyntaxType))
-        {
-            return SyntaxValueShape.SyntaxNode;
-        }
-
-        return InferSyntaxValueShape(csharpSyntaxType!);
-    }
-
-    /// <summary>
-    /// Infers shapes for the built-in syntax value families when metadata predates
-    /// <c>csharpSyntaxShape</c>.
-    /// </summary>
-    private static SyntaxValueShape InferSyntaxValueShape(string syntaxType)
-    {
-        if (string.Equals(syntaxType, "Token", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.Token;
-        }
-
-        if (string.Equals(syntaxType, "Token?", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.OptionalToken;
-        }
-
-        if (string.Equals(syntaxType, "RawSyntaxText", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.RawText;
-        }
-
-        if (syntaxType.StartsWith("DelimitedSyntaxList<Token>", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.DelimitedTokenList;
-        }
-
-        if (syntaxType.StartsWith("DelimitedSyntaxList<", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.DelimitedList;
-        }
-
-        if (syntaxType.StartsWith("SeparatedSyntaxList<Token>", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.SeparatedTokenList;
-        }
-
-        if (syntaxType.StartsWith("SeparatedSyntaxList<", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.SeparatedList;
-        }
-
-        if (syntaxType.StartsWith("IReadOnlyList<Token>", StringComparison.Ordinal)
-            || syntaxType.StartsWith("global::System.Collections.Generic.IReadOnlyList<Token>", StringComparison.Ordinal)
-            || syntaxType.StartsWith("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.Token>", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.TokenList;
-        }
-
-        if (syntaxType.StartsWith("IReadOnlyList<RawSyntaxText>", StringComparison.Ordinal)
-            || syntaxType.StartsWith("global::System.Collections.Generic.IReadOnlyList<RawSyntaxText>", StringComparison.Ordinal)
-            || syntaxType.StartsWith("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Syntax.RawSyntaxText>", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.RawTextList;
-        }
-
-        if (syntaxType.StartsWith("IReadOnlyList<", StringComparison.Ordinal)
-            || syntaxType.StartsWith("global::System.Collections.Generic.IReadOnlyList<", StringComparison.Ordinal))
-        {
-            return SyntaxValueShape.SyntaxList;
-        }
-
-        if (syntaxType.EndsWith("?", StringComparison.Ordinal))
-        {
-            var innerType = syntaxType.Substring(0, syntaxType.Length - 1);
-            if (innerType.EndsWith("Syntax", StringComparison.Ordinal))
-            {
-                return SyntaxValueShape.OptionalSyntaxNode;
-            }
-        }
-
-        if (syntaxType.EndsWith("Syntax", StringComparison.Ordinal))
         {
             return SyntaxValueShape.SyntaxNode;
         }
