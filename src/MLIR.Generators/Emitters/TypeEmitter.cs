@@ -91,7 +91,7 @@ internal static class TypeEmitter
                 builder.Append(", ");
             }
 
-            var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
+            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(parameters[i]);
             builder.Append(csharpType + " " + EmitterHelpers.LowerFirst(parameters[i].Name));
         }
 
@@ -119,7 +119,7 @@ internal static class TypeEmitter
     {
         foreach (var param in parameters)
         {
-            var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(param);
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
             if (TryFindMappedInterfaceMember(interfaces, propertyName, csharpType, out var mappedMember, out var upstreamMethod))
             {
@@ -151,7 +151,7 @@ internal static class TypeEmitter
             }
 
             var propertyName = DialectGeneratorNaming.ToPascalCase(parameters[i].Name);
-            var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
+            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(parameters[i]);
             builder.Append(GetSemanticEqualsExpression(csharpType, propertyName, "typedOther." + propertyName));
         }
 
@@ -171,7 +171,7 @@ internal static class TypeEmitter
         foreach (var param in parameters)
         {
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
-            var csharpType = TypeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(param);
             EmitHashContribution(builder, csharpType, propertyName);
         }
 

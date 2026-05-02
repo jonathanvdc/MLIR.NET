@@ -102,7 +102,7 @@ internal static class AttributeEmitter
                 builder.Append(", ");
             }
 
-            var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
+            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(parameters[i]);
             builder.Append(csharpType + " " + EmitterHelpers.LowerFirst(parameters[i].Name));
         }
 
@@ -127,7 +127,7 @@ internal static class AttributeEmitter
     {
         foreach (var param in parameters)
         {
-            var csharpType = AttributeAssemblyFormatEmitter.GetResolvedCSharpType(param);
+            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(param);
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
             builder.AppendLine("    public " + csharpType + " " + propertyName + " { get; }");
         }

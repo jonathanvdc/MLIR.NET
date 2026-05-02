@@ -48,7 +48,7 @@ internal static class AttributeAssemblyFormatEmitter
     {
         var format = attribute.AssemblyFormat!;
         var syntaxClassName = className + "Syntax";
-        var slots = BuildFormatSlots(attribute, format);
+        var slots = AssemblyFormatLowerer.LowerAttribute(attribute, format).Slots;
 
         builder.AppendLine("public sealed class " + syntaxClassName + " : DialectPrefixedAttributeValueSyntax");
         builder.AppendLine("{");
@@ -207,7 +207,7 @@ internal static class AttributeAssemblyFormatEmitter
     public static void EmitAssemblyFormatClass(StringBuilder builder, AttributeModel attribute, string className)
     {
         var format = attribute.AssemblyFormat!;
-        var slots = BuildFormatSlots(attribute, format);
+        var slots = AssemblyFormatLowerer.LowerAttribute(attribute, format).Slots;
         var syntaxClassName = className + "Syntax";
         var formatClassName = className + "AssemblyFormat";
 
@@ -561,16 +561,6 @@ internal static class AttributeAssemblyFormatEmitter
         }
 
         return string.Join(", ", parts);
-    }
-
-    private static IReadOnlyList<FormatSlot> BuildFormatSlots(AttributeModel attribute, AssemblyFormatModel format)
-    {
-        return AssemblyFormatLowerer.LowerAttribute(attribute, format).Slots;
-    }
-
-    internal static string GetResolvedCSharpType(AttrOrTypeParameterModel? param)
-    {
-        return AssemblyFormatLowerer.GetResolvedCSharpType(param);
     }
 
 }
