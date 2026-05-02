@@ -198,42 +198,37 @@ internal abstract class AttributeConstraintCodeStrategy
 
 }
 
-internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+internal static class AttributeModelCodeStrategySupport
 {
-    private readonly AttrModel attrModel;
-
-    public ModelBackedAttributeConstraintCodeStrategy(AttrModel attrModel)
+    public static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
     {
-        this.attrModel = attrModel;
+        var returnType = attrModel?.CsharpReturnType;
+        return !string.IsNullOrEmpty(returnType)
+            && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
+            && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal);
     }
 
-    public override string PublicTypeName => HasSpecializedAttrReturnType(attrModel)
-        ? attrModel.CsharpReturnType!
-        : "AttributeValue";
-
-    public override string? GetAssemblyFormatConstructionExpression() => attrModel.CsharpAssemblyFormat;
-
-    public override AttributeStoragePlan CreateStoragePlan()
+    public static AttributeStoragePlan CreateStoragePlan(AttrModel attrModel, string publicTypeName)
     {
         var storageTypeName = !string.IsNullOrEmpty(attrModel.CsharpStorageType)
             ? attrModel.CsharpStorageType!
-            : PublicTypeName;
+            : publicTypeName;
         var storageToPublic = attrModel.CsharpConvertFromStorageTemplate is CodeTemplate convertTemplate
             ? AttributeValueConversion.FromTemplate(convertTemplate)
             : AttributeValueConversion.Identity;
-        var publicToStorage = GetPublicToStorageConversion(storageTypeName);
+        var publicToStorage = GetPublicToStorageConversion(attrModel, storageTypeName, publicTypeName);
         return new AttributeStoragePlan(
             storageTypeName,
             storageToPublic,
             publicToStorage,
-            GetOptionalValueAccessKind(),
-            GetOptionalRepresentation(),
+            GetOptionalValueAccessKind(attrModel),
+            GetOptionalRepresentation(attrModel),
             attrModel.CsharpPresenceAttributeValueTemplate?.Render(("value", "true"), ("self", "true")),
             attrModel.CsharpPresenceSyntaxTemplate,
             attrModel.CsharpDefaultValue);
     }
 
-    private OptionalValueAccessKind GetOptionalValueAccessKind()
+    private static OptionalValueAccessKind GetOptionalValueAccessKind(AttrModel attrModel)
     {
         if (!HasSpecializedAttrReturnType(attrModel))
         {
@@ -249,7 +244,7 @@ internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeCons
             "Attr record '" + attrModel.RecordName + "' declares csharpReturnType but no csharpOptionalValueAccess.");
     }
 
-    private OptionalAttributeRepresentation GetOptionalRepresentation()
+    private static OptionalAttributeRepresentation GetOptionalRepresentation(AttrModel attrModel)
     {
         if (!HasSpecializedAttrReturnType(attrModel))
         {
@@ -260,25 +255,39 @@ internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeCons
             ?? OptionalAttributeRepresentation.NullableValue;
     }
 
-    private AttributeValueConversion GetPublicToStorageConversion(string storageTypeName)
+    private static AttributeValueConversion GetPublicToStorageConversion(
+        AttrModel attrModel,
+        string storageTypeName,
+        string publicTypeName)
     {
         if (attrModel.CsharpConstBuilderCallTemplate is CodeTemplate constBuilderTemplate)
         {
             return AttributeValueConversion.FromTemplate(constBuilderTemplate);
         }
 
-        return string.Equals(storageTypeName, PublicTypeName, StringComparison.Ordinal)
+        return string.Equals(storageTypeName, publicTypeName, StringComparison.Ordinal)
             ? AttributeValueConversion.Identity
             : AttributeValueConversion.FromExpression("new " + storageTypeName + "(${value})");
     }
+}
 
-    private static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
+internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+{
+    private readonly AttrModel attrModel;
+
+    public ModelBackedAttributeConstraintCodeStrategy(AttrModel attrModel)
     {
-        var returnType = attrModel?.CsharpReturnType;
-        return !string.IsNullOrEmpty(returnType)
-            && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
-            && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal);
+        this.attrModel = attrModel;
     }
+
+    public override string PublicTypeName => AttributeModelCodeStrategySupport.HasSpecializedAttrReturnType(attrModel)
+        ? attrModel.CsharpReturnType!
+        : "AttributeValue";
+
+    public override string? GetAssemblyFormatConstructionExpression() => attrModel.CsharpAssemblyFormat;
+
+    public override AttributeStoragePlan CreateStoragePlan() =>
+        AttributeModelCodeStrategySupport.CreateStoragePlan(attrModel, PublicTypeName);
 }
 
 
@@ -425,70 +434,19 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         this.attrModel = attrModel;
     }
 
-    public override string PublicTypeName => HasSpecializedAttrReturnType(attrModel)
+    public override string PublicTypeName => AttributeModelCodeStrategySupport.HasSpecializedAttrReturnType(attrModel)
         ? attrModel!.CsharpReturnType!
         : "IReadOnlyList<AttributeValue>";
+
     public override bool IsTypedArray => true;
     public override string? GetAssemblyFormatConstructionExpression() =>
         "new global::MLIR.Dialects.Attributes.Collections.ArrayAttributeAssemblyFormat()";
 
     public override AttributeStoragePlan CreateStoragePlan()
     {
-        if (HasSpecializedAttrReturnType(attrModel))
-        {
-            var storageTypeName = !string.IsNullOrEmpty(attrModel!.CsharpStorageType)
-                ? attrModel.CsharpStorageType!
-                : PublicTypeName;
-            var storageToPublic = attrModel.CsharpConvertFromStorageTemplate is CodeTemplate convertTemplate
-                ? AttributeValueConversion.FromTemplate(convertTemplate)
-                : AttributeValueConversion.Identity;
-            var publicToStorage = attrModel.CsharpConstBuilderCallTemplate is CodeTemplate constBuilderTemplate
-                ? AttributeValueConversion.FromTemplate(constBuilderTemplate)
-                : string.Equals(storageTypeName, PublicTypeName, StringComparison.Ordinal)
-                    ? AttributeValueConversion.Identity
-                    : AttributeValueConversion.FromExpression("new " + storageTypeName + "(${value})");
-            return new AttributeStoragePlan(
-                storageTypeName,
-                storageToPublic,
-                publicToStorage,
-                GetOptionalValueAccessKind(attrModel),
-                GetOptionalRepresentation(attrModel),
-                attrModel.CsharpPresenceAttributeValueTemplate?.Render(("value", "true"), ("self", "true")),
-                attrModel.CsharpPresenceSyntaxTemplate,
-                attrModel.CsharpDefaultValue);
-        }
-
-        return base.CreateStoragePlan();
-    }
-
-    private static bool HasSpecializedAttrReturnType(AttrModel? attrModel)
-    {
-        var returnType = attrModel?.CsharpReturnType;
-        return !string.IsNullOrEmpty(returnType)
-            && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
-            && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal);
-    }
-
-    private static OptionalValueAccessKind GetOptionalValueAccessKind(AttrModel attrModel)
-    {
-        if (attrModel.CsharpOptionalValueAccessKind is OptionalValueAccessKind kind)
-        {
-            return kind;
-        }
-
-        if (HasSpecializedAttrReturnType(attrModel))
-        {
-            throw new InvalidOperationException(
-                "Attr record '" + attrModel.RecordName + "' declares csharpReturnType but no csharpOptionalValueAccess.");
-        }
-
-        return OptionalValueAccessKind.NullCheck;
-    }
-
-    private static OptionalAttributeRepresentation GetOptionalRepresentation(AttrModel attrModel)
-    {
-        return attrModel.CsharpOptionalAttributeRepresentation
-            ?? OptionalAttributeRepresentation.NullableValue;
+        return AttributeModelCodeStrategySupport.HasSpecializedAttrReturnType(attrModel)
+            ? AttributeModelCodeStrategySupport.CreateStoragePlan(attrModel!, PublicTypeName)
+            : base.CreateStoragePlan();
     }
 }
 
