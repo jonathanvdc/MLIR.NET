@@ -643,12 +643,14 @@ public sealed class DialectImporterTests
         Assert.Equal(OptionalValueAccessKind.NullableValueType, boolAttr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value.ToUInt64() != 0", boolAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.Bool($0)", boolAttr.CsharpConstBuilderCall);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Primitives.BooleanLiteralAttributeAssemblyFormat()", boolAttr.CsharpAssemblyFormat);
 
         var i32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "I32Attr");
         Assert.Equal("global::MLIR.Dialects.Builtin.IntegerAttr", i32Attr.CsharpStorageType);
         Assert.Equal("uint", i32Attr.CsharpReturnType);
         Assert.Equal(OptionalValueAccessKind.NullableValueType, i32Attr.CsharpOptionalValueAccessKind);
         Assert.Equal("(uint)$_self.Value.ToUInt64()", i32Attr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()", i32Attr.CsharpAssemblyFormat);
 
         var si32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "SI32Attr");
         Assert.Equal("global::MLIR.Dialects.Builtin.IntegerAttr", si32Attr.CsharpStorageType);
@@ -664,12 +666,14 @@ public sealed class DialectImporterTests
         Assert.Equal("global::MLIR.Dialects.Builtin.FloatAttr", f16Attr.CsharpStorageType);
         Assert.Equal("global::MLIR.Numerics.ApFloat", f16Attr.CsharpReturnType);
         Assert.Equal("$_self.Value", f16Attr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)", f16Attr.CsharpAssemblyFormat);
 
         var f32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F32Attr");
         Assert.Equal("global::MLIR.Dialects.Builtin.FloatAttr", f32Attr.CsharpStorageType);
         Assert.Equal("global::MLIR.Numerics.ApFloat", f32Attr.CsharpReturnType);
         Assert.Equal(OptionalValueAccessKind.NullableValueType, f32Attr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value", f32Attr.CsharpConvertFromStorage);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)", f32Attr.CsharpAssemblyFormat);
 
         var f64Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F64Attr");
         Assert.Equal("global::MLIR.Dialects.Builtin.FloatAttr", f64Attr.CsharpStorageType);
@@ -687,6 +691,7 @@ public sealed class DialectImporterTests
         Assert.Equal(OptionalValueAccessKind.NullCheck, strAttr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value", strAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.String($0)", strAttr.CsharpConstBuilderCall);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Primitives.StringLiteralAttributeAssemblyFormat()", strAttr.CsharpAssemblyFormat);
 
         var typeAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "TypeAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.TypeAttr", typeAttr.CsharpStorageType);
@@ -727,6 +732,7 @@ public sealed class DialectImporterTests
         Assert.Equal("global::System.ReadOnlySpan<int>", denseI32ArrayAttr.CsharpReturnType);
         Assert.Equal("global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>($_self.RawData.Span)", denseI32ArrayAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.DenseI32($0)", denseI32ArrayAttr.CsharpConstBuilderCall);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()", denseI32ArrayAttr.CsharpAssemblyFormat);
 
         var denseBoolArrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "DenseBoolArrayAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.DenseArrayAttr", denseBoolArrayAttr.CsharpStorageType);

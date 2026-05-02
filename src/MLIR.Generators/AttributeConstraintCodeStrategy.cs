@@ -769,48 +769,6 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
 /// </remarks>
 internal static class AttributeConstraintCodeStrategyFactory
 {
-    private static readonly AttributeStrategyAssemblyFormat BooleanLiteralAssemblyFormat =
-        new("bool", "BooleanLiteralAttributeAssemblyFormat", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
-
-    private static readonly AttributeStrategyAssemblyFormat IntegerLiteralAssemblyFormat =
-        new("global::MLIR.Numerics.ApInt", "IntegerLiteralAttributeAssemblyFormat", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
-
-    private static readonly AttributeStrategyAssemblyFormat StringLiteralAssemblyFormat =
-        new("string", "StringLiteralAttributeAssemblyFormat");
-
-    private static readonly AttributeStrategyAssemblyFormat UnitAssemblyFormat =
-        new(
-            "global::MLIR.Dialects.Builtin.UnitAttr",
-            constructionExpression: "new global::MLIR.Dialects.Attributes.Primitives.UnitLiteralAttributeAssemblyFormat()",
-            fallbackGenericTypedArrayElement: true);
-
-    private static readonly AttributeStrategyAssemblyFormat GenericFloatingPointAssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", "FloatingPointLiteralAttributeAssemblyFormat", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
-
-    private static readonly AttributeStrategyAssemblyFormat F16AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
-
-    private static readonly AttributeStrategyAssemblyFormat F32AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
-
-    private static readonly AttributeStrategyAssemblyFormat BF16AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
-
-    private static readonly AttributeStrategyAssemblyFormat F64AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
-
-    private static readonly AttributeStrategyAssemblyFormat DenseBooleanArrayAssemblyFormat =
-        new("IReadOnlyList<bool>", "DenseBooleanArrayAttributeAssemblyFormat", typedArrayElementPayloadPropertyName: "Items");
-
-    private static readonly AttributeStrategyAssemblyFormat DenseIntegerArrayAssemblyFormat =
-        new("IReadOnlyList<global::MLIR.Numerics.ApInt>", "DenseIntegerArrayAttributeAssemblyFormat", typedArrayElementPayloadPropertyName: "Items");
-
-    private static readonly AttributeStrategyAssemblyFormat DenseF32ArrayAssemblyFormat =
-        new("IReadOnlyList<global::MLIR.Numerics.ApFloat>", constructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")", typedArrayElementPayloadPropertyName: "Items");
-
-    private static readonly AttributeStrategyAssemblyFormat DenseF64ArrayAssemblyFormat =
-        new("IReadOnlyList<global::MLIR.Numerics.ApFloat>", constructionExpression: "new DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")", typedArrayElementPayloadPropertyName: "Items");
-
     /// <summary>
     /// Returns the model-bound strategy for the given attribute constraint. Returns
     /// <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/> for unrecognised
@@ -824,22 +782,17 @@ internal static class AttributeConstraintCodeStrategyFactory
     {
         return constraint.Kind switch
         {
-            AttributeConstraintKind.BooleanLiteral => CreateModelBackedStrategy(attrModel, BooleanLiteralAssemblyFormat),
-            AttributeConstraintKind.IntegerLiteral => CreateModelBackedStrategy(attrModel, IntegerLiteralAssemblyFormat),
-            AttributeConstraintKind.FloatingPointLiteral => CreateModelBackedStrategy(attrModel, GetFloatingPointAssemblyFormat(constraint.RecordName)),
-            AttributeConstraintKind.StringLiteral => CreateModelBackedStrategy(attrModel, StringLiteralAssemblyFormat),
             AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.ElementsAttribute => ElementsAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.TypeAttribute => TypeAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.UnitAttribute => CreateModelBackedStrategy(attrModel, UnitAssemblyFormat),
-            AttributeConstraintKind.DenseBooleanArrayAttribute => CreateModelBackedStrategy(attrModel, DenseBooleanArrayAssemblyFormat),
-            AttributeConstraintKind.DenseIntegerArrayAttribute => CreateModelBackedStrategy(attrModel, DenseIntegerArrayAssemblyFormat),
-            AttributeConstraintKind.DenseF32ArrayAttribute => CreateModelBackedStrategy(attrModel, DenseF32ArrayAssemblyFormat),
-            AttributeConstraintKind.DenseF64ArrayAttribute => CreateModelBackedStrategy(attrModel, DenseF64ArrayAssemblyFormat),
             AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel, constraint.ElementConstraintRecordName),
+            _ when IsModelBackedConstraintKind(constraint.Kind) =>
+                CreateModelBackedStrategy(
+                    attrModel,
+                    fallbackGenericTypedArrayElement: constraint.Kind == AttributeConstraintKind.UnitAttribute),
             _ => FallbackAttributeConstraintCodeStrategy.Instance,
         };
     }
@@ -877,64 +830,26 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     private static AttributeConstraintCodeStrategy CreateModelBackedStrategy(
         AttrModel? attrModel,
-        AttributeStrategyAssemblyFormat format)
+        bool fallbackGenericTypedArrayElement = false)
     {
         return new GenericModelBackedAttributeConstraintCodeStrategy(
             attrModel,
-            format.FallbackPublicTypeName,
-            format.TypeName,
-            format.ConstructionExpression,
-            format.FallbackOptionalValueAccessKind,
-            format.FallbackOptionalRepresentation,
-            format.FallbackGenericTypedArrayElement,
-            typedArrayElementPayloadPropertyName: format.TypedArrayElementPayloadPropertyName);
+            "AttributeValue",
+            null,
+            null,
+            OptionalValueAccessKind.NullCheck,
+            OptionalAttributeRepresentation.NullableValue,
+            fallbackGenericTypedArrayElement);
     }
 
-    private static AttributeStrategyAssemblyFormat GetFloatingPointAssemblyFormat(string recordName)
-    {
-        return recordName switch
-        {
-            "Builtin_FloatAttr" => GenericFloatingPointAssemblyFormat,
-            "F16Attr" => F16AssemblyFormat,
-            "F32Attr" => F32AssemblyFormat,
-            "BF16Attr" => BF16AssemblyFormat,
-            "F64Attr" => F64AssemblyFormat,
-            _ => throw new System.NotSupportedException($"Unsupported floating-point attribute constraint '{recordName}'."),
-        };
-    }
-
-    private sealed class AttributeStrategyAssemblyFormat
-    {
-        public AttributeStrategyAssemblyFormat(
-            string fallbackPublicTypeName,
-            string? typeName = null,
-            string? constructionExpression = null,
-            OptionalValueAccessKind fallbackOptionalValueAccessKind = OptionalValueAccessKind.NullCheck,
-            OptionalAttributeRepresentation fallbackOptionalRepresentation = OptionalAttributeRepresentation.NullableValue,
-            bool fallbackGenericTypedArrayElement = false,
-            string typedArrayElementPayloadPropertyName = "Value")
-        {
-            FallbackPublicTypeName = fallbackPublicTypeName;
-            TypeName = typeName;
-            ConstructionExpression = constructionExpression;
-            FallbackOptionalValueAccessKind = fallbackOptionalValueAccessKind;
-            FallbackOptionalRepresentation = fallbackOptionalRepresentation;
-            FallbackGenericTypedArrayElement = fallbackGenericTypedArrayElement;
-            TypedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
-        }
-
-        public string FallbackPublicTypeName { get; }
-
-        public string? TypeName { get; }
-
-        public string? ConstructionExpression { get; }
-
-        public OptionalValueAccessKind FallbackOptionalValueAccessKind { get; }
-
-        public OptionalAttributeRepresentation FallbackOptionalRepresentation { get; }
-
-        public bool FallbackGenericTypedArrayElement { get; }
-
-        public string TypedArrayElementPayloadPropertyName { get; }
-    }
+    private static bool IsModelBackedConstraintKind(AttributeConstraintKind kind) =>
+        kind == AttributeConstraintKind.BooleanLiteral
+        || kind == AttributeConstraintKind.IntegerLiteral
+        || kind == AttributeConstraintKind.FloatingPointLiteral
+        || kind == AttributeConstraintKind.StringLiteral
+        || kind == AttributeConstraintKind.UnitAttribute
+        || kind == AttributeConstraintKind.DenseBooleanArrayAttribute
+        || kind == AttributeConstraintKind.DenseIntegerArrayAttribute
+        || kind == AttributeConstraintKind.DenseF32ArrayAttribute
+        || kind == AttributeConstraintKind.DenseF64ArrayAttribute;
 }
