@@ -157,106 +157,64 @@ extends DenseF64ArrayAttr : MLIRNet_DenseArrayAttrExtension<
     "global::MLIR.Semantics.ConstantAttributeFactory.DenseF64($0)",
     "new global::MLIR.Dialects.Attributes.Collections.DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")">;
 
-extends BoolArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<bool>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToUInt64() != 0)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => global::MLIR.Semantics.ConstantAttributeFactory.Bool(element))";
-}
+extends BoolArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<bool>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToUInt64() != 0)",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => global::MLIR.Semantics.ConstantAttributeFactory.Bool(element))">;
 
-extends I32ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<int>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => (int)((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToInt64())";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => global::MLIR.Semantics.ConstantAttributeFactory.I32(unchecked((uint)element)))";
-}
+extends I32ArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<int>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => (int)((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToInt64())",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => global::MLIR.Semantics.ConstantAttributeFactory.I32(unchecked((uint)element)))">;
 
-extends I64ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<long>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToInt64())";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I64, global::MLIR.Numerics.ApInt.FromInt64(64, element), null))";
-}
+extends I64ArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<long>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToInt64())",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I64, global::MLIR.Numerics.ApInt.FromInt64(64, element), null))">;
 
-extends I64SmallVectorArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<long>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToInt64())";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I64, global::MLIR.Numerics.ApInt.FromInt64(64, element), null))";
-}
+extends I64SmallVectorArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<long>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.IntegerAttr)itemValue).Value.ToInt64())",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.IntegerAttr(global::MLIR.Semantics.TypeFactory.I64, global::MLIR.Numerics.ApInt.FromInt64(64, element), null))">;
 
-extends F32ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<float>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.FloatAttr)itemValue).Value.ToSingle())";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, global::MLIR.Numerics.ApFloat.FromDouble(global::MLIR.Numerics.FloatSemantics.IEEESingle, element), null))";
-}
+extends F32ArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<float>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.FloatAttr)itemValue).Value.ToSingle())",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F32, global::MLIR.Numerics.ApFloat.FromDouble(global::MLIR.Numerics.FloatSemantics.IEEESingle, element), null))">;
 
-extends F64ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<double>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.FloatAttr)itemValue).Value.ToDouble())";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, global::MLIR.Numerics.ApFloat.FromDouble(global::MLIR.Numerics.FloatSemantics.IEEEDouble, element), null))";
-}
+extends F64ArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<double>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.FloatAttr)itemValue).Value.ToDouble())",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.FloatAttr(global::MLIR.Semantics.TypeFactory.F64, global::MLIR.Numerics.ApFloat.FromDouble(global::MLIR.Numerics.FloatSemantics.IEEEDouble, element), null))">;
 
-extends StrArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<string>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.StringAttr)itemValue).Value)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => global::MLIR.Semantics.ConstantAttributeFactory.String(element))";
-}
+extends StrArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<string>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.StringAttr)itemValue).Value)",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => global::MLIR.Semantics.ConstantAttributeFactory.String(element))">;
 
-extends TypeArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.TypeAttr)itemValue).Value)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.TypeAttr(element, null))";
-}
+extends TypeArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.TypeAttr)itemValue).Value)",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.TypeAttr(element, null))">;
 
-extends SymbolRefAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.SymbolRefAttr";
-  let csharpReturnType = "global::MLIR.Dialects.Builtin.SymbolRefAttr";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self";
+extends SymbolRefAttr : MLIRNet_IdentityAttrExtension<"global::MLIR.Dialects.Builtin.SymbolRefAttr"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.SymbolRef($0)";
 }
 
-extends FlatSymbolRefAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.SymbolRefAttr";
-  let csharpReturnType = "string";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self.RootReference";
+extends FlatSymbolRefAttr : MLIRNet_ReferenceAttrValueExtension<
+    "global::MLIR.Dialects.Builtin.SymbolRefAttr",
+    "string",
+    "$_self.RootReference"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.FlatSymbolRef($0)";
 }
 
-extends AffineMapAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.AttributeValue";
-  let csharpReturnType = "global::MLIR.Semantics.AttributeValue";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self";
-}
+extends AffineMapAttr : MLIRNet_IdentityAttrExtension<"global::MLIR.Semantics.AttributeValue">;
 
-extends IntegerSetAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.AttributeValue";
-  let csharpReturnType = "global::MLIR.Semantics.AttributeValue";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self";
-}
+extends IntegerSetAttr : MLIRNet_IdentityAttrExtension<"global::MLIR.Semantics.AttributeValue">;
 
-extends DictArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.DictionaryAttr)itemValue).Value)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.DictionaryAttr(element, null))";
-}
+extends DictArrayAttr : MLIRNet_ArrayAttrExtension<
+    "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.NamedAttributeCollection>",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.GetItems($_self, static itemValue => ((global::MLIR.Dialects.Builtin.DictionaryAttr)itemValue).Value)",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.Create($0, static element => new global::MLIR.Dialects.Builtin.DictionaryAttr(element, null))">;
 
 #endif // COMMON_ATTR_CONSTRAINTS_EXTENSIONS_TD
