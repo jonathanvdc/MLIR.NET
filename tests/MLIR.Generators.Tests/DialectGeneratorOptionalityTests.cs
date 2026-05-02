@@ -35,7 +35,7 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
     {
         var registrationSource = GenerateMiniArithRegistrationSource(
             [
-                "def MiniArith_ValueLikeAttr : AnyIntegerAttrBase<AnyI32, \"value-like\">, MLIRNet_AttrExtension {",
+                "def MiniArith_ValueLikeAttr : AnyIntegerAttrBase<AnyI32, \"value-like\">, CSharpAttrExtension {",
                 "  let csharpStorageType = \"global::MLIR.Dialects.Builtin.IntegerAttr\";",
                 "  let csharpReturnType = \"global::My.ValueLike\";",
                 "  let csharpConvertFromStorage = \"global::My.ValueLike.FromInteger($_self.Value)\";",
@@ -60,7 +60,7 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
     {
         var registrationSource = GenerateMiniArithRegistrationSource(
             [
-                "def MiniArith_PresenceAttr : AnyIntegerAttrBase<AnyI32, \"presence\">, MLIRNet_AttrExtension {",
+                "def MiniArith_PresenceAttr : AnyIntegerAttrBase<AnyI32, \"presence\">, CSharpAttrExtension {",
                 "  let csharpStorageType = \"global::MLIR.Dialects.Builtin.IntegerAttr\";",
                 "  let csharpReturnType = \"bool\";",
                 "  let csharpConvertFromStorage = \"$_self != null\";",

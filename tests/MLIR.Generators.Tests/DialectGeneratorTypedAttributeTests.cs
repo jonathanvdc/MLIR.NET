@@ -12,7 +12,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "include \"mlir/IR/AttrTypeBase.td\"",
             string.Empty,
             "class PlainStringParam<string desc> : StringRefParameter<desc>;",
-            "extends PlainStringParam : MLIRNet_AttrOrTypeParameterExtension {",
+            "extends PlainStringParam : CSharpParameterExtension {",
             "  let csharpType = \"string\";",
             "  let csharpSyntaxType = \"StringAttributeValueSyntax\";",
             "  let csharpSyntaxShape = \"PlainValue\";",
@@ -675,7 +675,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "}",
             string.Empty,
             // Override: use ulong instead of the default ApInt type.
-            "extends Test_SizedAttr : MLIRNet_AttrOrTypeDefExtension {",
+            "extends Test_SizedAttr : CSharpAttrOrTypeDefExtension {",
             "  let csharpParameters = (ins \"ulong\":$width);",
             "}",
         ]);
@@ -699,7 +699,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     public void AttrDefWithCsharpParametersRecordEntryUsesExtensionMetadata()
     {
         // When csharpParameters provides a parameter class instance, the generated code uses
-        // the C# metadata from that class's MLIRNet_AttrOrTypeParameterExtension annotations.
+        // the C# metadata from that class's CSharpParameterExtension annotations.
         var source = ComposeSource(
         [
             "include \"mlir/IR/AttrTypeBase.td\"",
@@ -720,7 +720,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "}",
             string.Empty,
             // ...but map it to the richer StringRefParameter C# metadata via csharpParameters.
-            "extends Test_LabelAttr : MLIRNet_AttrOrTypeDefExtension {",
+            "extends Test_LabelAttr : CSharpAttrOrTypeDefExtension {",
             "  let csharpParameters = (ins StringRefParameter<\"the label\">:$label);",
             "}",
         ]);
@@ -750,7 +750,7 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
             "};",
             string.Empty,
             "class MyStrParam<string desc> : AttrOrTypeParameter<\"std::string\", desc>;",
-            "extends MyStrParam : MLIRNet_AttrOrTypeParameterExtension {",
+            "extends MyStrParam : CSharpParameterExtension {",
             "  let csharpType = \"string\";",
             "  let csharpParser = \"$_parser.TryMatch(TokenKind.Identifier, out var idTok_) ? ParseResult<AttributeValueSyntax>.Success(new StringAttributeValueSyntax(idTok_, idTok_.Text)) : ParseResult<AttributeValueSyntax>.NoMatch()\";",
             "  let csharpPrinter = \"new StringAttributeValueSyntax(TokenFactory.Identifier($_self), $_self)\";",

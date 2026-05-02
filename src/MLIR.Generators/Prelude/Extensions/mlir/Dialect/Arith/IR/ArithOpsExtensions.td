@@ -1,9 +1,9 @@
-include "mlir/Extensions/IR/MLIRNetExtensions.td"
+include "mlir/Extensions/IR/CSharpExtensions.td"
 
 #ifndef ARITH_OPS_EXTENSIONS_TD
 #define ARITH_OPS_EXTENSIONS_TD
 
-extends SelectOp : MLIRNet_OpExtension {
+extends SelectOp : CSharpOpExtension {
   let csharpAsmFormatCode = "global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance";
 }
 

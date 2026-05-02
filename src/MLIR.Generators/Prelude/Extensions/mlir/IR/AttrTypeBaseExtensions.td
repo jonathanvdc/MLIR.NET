@@ -1,4 +1,4 @@
-include "mlir/Extensions/IR/MLIRNetExtensions.td"
+include "mlir/Extensions/IR/CSharpExtensions.td"
 
 #ifndef ATTR_TYPE_BASE_EXTENSIONS_TD
 #define ATTR_TYPE_BASE_EXTENSIONS_TD
@@ -7,7 +7,7 @@ include "mlir/Extensions/IR/MLIRNetExtensions.td"
 // These classes are defined in the vendored upstream AttrTypeBase.td and cannot be
 // modified directly; class-level extends lets us attach the metadata here instead.
 
-extends StringRefParameter : MLIRNet_AttrOrTypeParameterExtension {
+extends StringRefParameter : CSharpParameterExtension {
   // StringRef exposes as a reference into std::string storage. In C# this is just string.
   let csharpType = "string";
   // The parser returns a StringAttributeValueSyntax, so the property can be strongly typed.
@@ -24,7 +24,7 @@ extends StringRefParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpPrinter = "new StringAttributeValueSyntax(TokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)";
 }
 
-extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
+extends APIntParameter : CSharpParameterExtension {
   // MLIR APInt values are represented as bitvectors in MLIR.NET.
   let csharpType = "global::MLIR.Numerics.ApInt";
   // The parser returns an IntegerAttributeValueSyntax, so the property can be strongly typed.
@@ -40,7 +40,7 @@ extends APIntParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpPrinter = "new IntegerAttributeValueSyntax(TokenFactory.Integer($_self.ToStringSigned()), $_self)";
 }
 
-extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {
+extends APFloatParameter : CSharpParameterExtension {
   // APFloat maps to MLIR.NET's semantic floating-point value type.
   let csharpType = "global::MLIR.Numerics.ApFloat";
   // The parser returns a FloatingPointAttributeValueSyntax, so the property can be strongly typed.
@@ -56,7 +56,7 @@ extends APFloatParameter : MLIRNet_AttrOrTypeParameterExtension {
   let csharpPrinter = "new FloatingPointAttributeValueSyntax(new global::MLIR.Syntax.RawSyntaxText(global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.Format($_self)), $_self)";
 }
 
-extends AttributeSelfTypeParameter : MLIRNet_AttrOrTypeParameterExtension {
+extends AttributeSelfTypeParameter : CSharpParameterExtension {
   // Attribute self types bind to semantic type references in generated attribute classes.
   let csharpType = "global::MLIR.Semantics.TypeReference";
   let csharpSyntaxType = "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax";

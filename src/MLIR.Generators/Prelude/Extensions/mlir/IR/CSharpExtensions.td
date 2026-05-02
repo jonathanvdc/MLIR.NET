@@ -1,10 +1,10 @@
-#ifndef MLIR_NET_EXTENSIONS_TD
-#define MLIR_NET_EXTENSIONS_TD
+#ifndef CSHARP_EXTENSIONS_TD
+#define CSHARP_EXTENSIONS_TD
 
 // MLIR.NET-specific extension schemas that overlay upstream ODS definitions
 // without editing the vendored upstream files directly.
 
-class MLIRNet_OpExtension {
+class CSharpOpExtension {
   string csharpAsmFormatCode = ?;
 }
 
@@ -13,7 +13,7 @@ class MLIRNet_OpExtension {
 // Applying this class to an upstream or local Interface record via `extends`
 // lets MLIR.NET describe a C#-specific surface without hard-coding particular
 // MLIR interfaces in the generator.
-class MLIRNet_InterfaceExtension {
+class CSharpInterfaceExtension {
   // Optional C# interface name override. When absent, the generator derives a
   // marker-style name from cppInterfaceName.
   string csharpName = ?;
@@ -22,10 +22,10 @@ class MLIRNet_InterfaceExtension {
   // Optional C# XML documentation remarks/description override for the generated interface.
   string csharpDescription = ?;
   // Explicit member projections for the generated C# interface surface.
-  list<MLIRNet_InterfaceMember> csharpMembers = [];
+  list<CSharpInterfaceMember> csharpMembers = [];
 }
 
-class MLIRNet_InterfaceMember<string upstreamNameValue, string csharpTypeValue, string csharpNameValue> {
+class CSharpInterfaceMember<string upstreamNameValue, string csharpTypeValue, string csharpNameValue> {
   string upstreamName = upstreamNameValue;
   string csharpType = csharpTypeValue;
   string csharpName = csharpNameValue;
@@ -33,23 +33,23 @@ class MLIRNet_InterfaceMember<string upstreamNameValue, string csharpTypeValue, 
   string csharpDescription = ?;
 }
 
-class MLIRNet_InterfaceProperty<string upstreamName, string csharpType, string csharpName>
-    : MLIRNet_InterfaceMember<upstreamName, csharpType, csharpName>;
+class CSharpInterfaceProperty<string upstreamName, string csharpType, string csharpName>
+    : CSharpInterfaceMember<upstreamName, csharpType, csharpName>;
 
 // Extension schema for concrete AttrDef/TypeDef interface-member implementations.
 //
 // The first implementation slice is type-focused, but the schema lives on the
 // shared AttrOrTypeDef overlay so attribute support can reuse it later.
-class MLIRNet_InterfaceMemberImplementation<Interface interfaceDefValue, string csharpMemberNameValue,
+class CSharpInterfaceMemberImplementation<Interface interfaceDefValue, string csharpMemberNameValue,
                                             string csharpExpressionValue> {
   Interface interfaceDef = interfaceDefValue;
   string csharpMemberName = csharpMemberNameValue;
   string csharpExpression = csharpExpressionValue;
 }
 
-class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csharpMemberName,
+class CSharpInterfacePropertyImplementation<Interface interfaceDef, string csharpMemberName,
                                               string csharpExpression>
-    : MLIRNet_InterfaceMemberImplementation<interfaceDef, csharpMemberName, csharpExpression>;
+    : CSharpInterfaceMemberImplementation<interfaceDef, csharpMemberName, csharpExpression>;
 
 // Extension schema for AttrOrTypeParameter subclasses.
 //
@@ -110,7 +110,7 @@ class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csh
 //
 // Example for a user-defined parameter class:
 //   class MyIntParam<string desc> : AttrOrTypeParameter<"MyIntType", desc>;
-//   extends MyIntParam : MLIRNet_AttrOrTypeParameterExtension {
+//   extends MyIntParam : CSharpParameterExtension {
 //     let csharpType = "global::MLIR.Numerics.ApInt";
 //     let csharpSyntaxType = "IntegerAttributeValueSyntax";
 //     let csharpParser = "$_parser.TryParseIntegerLiteralSyntax()";
@@ -138,7 +138,7 @@ class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csh
 //                          The argument is an AttrOrTypeParameter subclass instance;
 //                          C# metadata (csharpType, csharpSyntaxType, csharpParser,
 //                          csharpExtractor, csharpDefault, csharpPrinter) is resolved
-//                          from the class via MLIRNet_AttrOrTypeParameterExtension
+//                          from the class via CSharpParameterExtension
 //                          annotations (including class-level extends).
 //
 //                      When `csharpParameters` is present it overrides the C# type
@@ -170,13 +170,13 @@ class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csh
 //                      synthesized presence keyword token.
 //
 // Example:
-//   extends MyAttr : MLIRNet_AttrOrTypeDefExtension {
+//   extends MyAttr : CSharpAttrOrTypeDefExtension {
 //     let csharpParameters = (ins
 //       StringRefParameter<"desc">:$name,
 //       "System.Numerics.BigInteger":$value
 //     );
 //   }
-class MLIRNet_AttrOrTypeDefExtension {
+class CSharpAttrOrTypeDefExtension {
   // DAG of C# parameter overrides, keyed by the same names as the `parameters` dag.
   dag csharpParameters = ?;
   // C# expression for the type's canonical name.
@@ -184,7 +184,7 @@ class MLIRNet_AttrOrTypeDefExtension {
   // C# expression that instantiates the custom assembly-format helper.
   string csharpAssemblyFormat = ?;
   // Explicit implementations for generated C# interface members.
-  list<MLIRNet_InterfaceMemberImplementation> csharpInterfaceImplementations = [];
+  list<CSharpInterfaceMemberImplementation> csharpInterfaceImplementations = [];
 }
 
 // Extension schema for upstream Attr records.
@@ -192,7 +192,7 @@ class MLIRNet_AttrOrTypeDefExtension {
 // Applying this class to an Attr or DialectAttr record via a record-level `extends`
 // lets MLIR.NET preserve the C#-oriented storage and accessor semantics separately
 // from the upstream TableGen representation.
-class MLIRNet_AttrExtension {
+class CSharpAttrExtension {
   // C# storage type used by the generated model.
   string csharpStorageType = ?;
   // C# return/accessor type exposed by the generated model.
@@ -221,10 +221,10 @@ class MLIRNet_AttrExtension {
 
 // Helper for reference-like attribute values: optional operation properties use
 // null to represent absence.
-class MLIRNet_ReferenceAttrValueExtension<
+class CSharpReferenceAttrValue<
     string storageType,
     string returnType,
-    string convertFromStorage> : MLIRNet_AttrExtension {
+    string convertFromStorage> : CSharpAttrExtension {
   let csharpStorageType = storageType;
   let csharpReturnType = returnType;
   let csharpOptionalValueAccess = "NullCheck";
@@ -233,40 +233,40 @@ class MLIRNet_ReferenceAttrValueExtension<
 
 // Helper for value-like attribute values: optional operation properties use
 // System.Nullable<T> to represent absence.
-class MLIRNet_ValueAttrValueExtension<
+class CSharpValueAttrValue<
     string storageType,
     string returnType,
-    string convertFromStorage> : MLIRNet_AttrExtension {
+    string convertFromStorage> : CSharpAttrExtension {
   let csharpStorageType = storageType;
   let csharpReturnType = returnType;
   let csharpOptionalValueAccess = "NullableValueType";
   let csharpConvertFromStorage = convertFromStorage;
 }
 
-class MLIRNet_IdentityAttrExtension<string type>
-    : MLIRNet_ReferenceAttrValueExtension<type, type, "$_self">;
+class CSharpIdentityAttr<string type>
+    : CSharpReferenceAttrValue<type, type, "$_self">;
 
-class MLIRNet_IntegerAttrExtension<string returnType, string convertFromStorage>
-    : MLIRNet_ValueAttrValueExtension<
+class CSharpIntegerAttr<string returnType, string convertFromStorage>
+    : CSharpValueAttrValue<
         "global::MLIR.Dialects.Builtin.IntegerAttr",
         returnType,
         convertFromStorage> {
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
 }
 
-class MLIRNet_FloatAttrExtension<string assemblyFormat>
-    : MLIRNet_ValueAttrValueExtension<
+class CSharpFloatAttr<string assemblyFormat>
+    : CSharpValueAttrValue<
         "global::MLIR.Dialects.Builtin.FloatAttr",
         "global::MLIR.Numerics.ApFloat",
         "$_self.Value"> {
   let csharpAssemblyFormat = assemblyFormat;
 }
 
-class MLIRNet_DenseArrayAttrExtension<
+class CSharpDenseArrayAttr<
     string returnType,
     string convertFromStorage,
     string builderCall,
-    string assemblyFormat> : MLIRNet_ReferenceAttrValueExtension<
+    string assemblyFormat> : CSharpReferenceAttrValue<
         "global::MLIR.Dialects.Builtin.DenseArrayAttr",
         returnType,
         convertFromStorage> {
@@ -274,17 +274,17 @@ class MLIRNet_DenseArrayAttrExtension<
   let csharpAssemblyFormat = assemblyFormat;
 }
 
-class MLIRNet_ArrayAttrExtension<
+class CSharpArrayAttr<
     string returnType,
     string convertFromStorage,
-    string builderCall> : MLIRNet_ReferenceAttrValueExtension<
+    string builderCall> : CSharpReferenceAttrValue<
         "global::MLIR.Dialects.Builtin.ArrayAttr",
         returnType,
         convertFromStorage> {
   let csharpConstBuilderCall = builderCall;
 }
 
-class MLIRNet_AttrOrTypeParameterExtension {
+class CSharpParameterExtension {
   // The C# type used for the generated typed property.
   string csharpType = ?;
   // The C# syntax type for the generated syntax property (e.g. "StringAttributeValueSyntax").
@@ -308,4 +308,4 @@ class MLIRNet_AttrOrTypeParameterExtension {
   string csharpPrinter = ?;
 }
 
-#endif // MLIR_NET_EXTENSIONS_TD
+#endif // CSHARP_EXTENSIONS_TD

@@ -763,10 +763,10 @@ internal sealed class OdsRecordIndex
     /// <c>StringRefParameter&lt;"desc"&gt;:$name</c>). Both forms are supported.
     ///
     /// When a <c>csharpParameters</c> dag is also present (contributed directly or via a
-    /// record-level <c>extends MLIRNet_AttrOrTypeDefExtension</c> overlay), its entries
+    /// record-level <c>extends CSharpAttrOrTypeDefExtension</c> overlay), its entries
     /// override the C# type information inferred from the upstream <c>parameters</c> dag.
     /// String literals in <c>csharpParameters</c> are used directly as C# type names;
-    /// class instances are resolved through their <c>MLIRNet_AttrOrTypeParameterExtension</c>
+    /// class instances are resolved through their <c>CSharpParameterExtension</c>
     /// fields.  The upstream <c>parameters</c> field remains the source of truth for C++
     /// semantics (cppType, storage types, default values, etc.).
     /// </remarks>
@@ -794,7 +794,7 @@ internal sealed class OdsRecordIndex
 
         // Check for a csharpParameters DAG that overrides C# type info per parameter.
         // This field may be present directly on the record or contributed by a
-        // record-level `extends MLIRNet_AttrOrTypeDefExtension` overlay; in both cases
+        // record-level `extends CSharpAttrOrTypeDefExtension` overlay; in both cases
         // it is visible through the extension-aware Fields view.
         if (parameters.Count > 0
             && record.Fields.TryGetValue("csharpParameters", out var csharpParamsField)
@@ -1317,8 +1317,8 @@ internal sealed class OdsRecordIndex
             return null;
         }
 
-        var kind = resolved.HasBaseClass("MLIRNet_InterfaceProperty")
-            || string.Equals(resolved.LogicalName, "MLIRNet_InterfaceProperty", StringComparison.Ordinal)
+        var kind = resolved.HasBaseClass("CSharpInterfaceProperty")
+            || string.Equals(resolved.LogicalName, "CSharpInterfaceProperty", StringComparison.Ordinal)
             ? Model.InterfaceCSharpMemberKind.Property
             : resolved.LogicalName switch
         {

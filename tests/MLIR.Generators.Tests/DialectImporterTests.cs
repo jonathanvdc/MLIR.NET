@@ -382,7 +382,7 @@ public sealed class DialectImporterTests
     {
         const string source =
             "class MyTokenParam<string desc> : AttrOrTypeParameter<\"Token\", desc>;\n" +
-            "extends MyTokenParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "extends MyTokenParam : CSharpParameterExtension {\n" +
             "  let csharpSyntaxType = \"Token\";\n" +
             "  let csharpSyntaxShape = \"Token\";\n" +
             "}\n" +
@@ -406,22 +406,22 @@ public sealed class DialectImporterTests
     {
         const string source =
             "class MyDelimitedParam<string desc> : AttrOrTypeParameter<\"Delimited\", desc>;\n" +
-            "extends MyDelimitedParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "extends MyDelimitedParam : CSharpParameterExtension {\n" +
             "  let csharpSyntaxType = \"DelimitedSyntaxList<Token>\";\n" +
             "  let csharpSyntaxShape = \"DelimitedTokenList\";\n" +
             "}\n" +
             "class MySeparatedParam<string desc> : AttrOrTypeParameter<\"Separated\", desc>;\n" +
-            "extends MySeparatedParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "extends MySeparatedParam : CSharpParameterExtension {\n" +
             "  let csharpSyntaxType = \"SeparatedSyntaxList<NamedAttributeSyntax>\";\n" +
             "  let csharpSyntaxShape = \"SeparatedList\";\n" +
             "}\n" +
             "class MyRawListParam<string desc> : AttrOrTypeParameter<\"RawList\", desc>;\n" +
-            "extends MyRawListParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "extends MyRawListParam : CSharpParameterExtension {\n" +
             "  let csharpSyntaxType = \"IReadOnlyList<RawSyntaxText>\";\n" +
             "  let csharpSyntaxShape = \"RawTextList\";\n" +
             "}\n" +
             "class MyCustomParam<string desc> : AttrOrTypeParameter<\"Custom\", desc>;\n" +
-            "extends MyCustomParam : MLIRNet_AttrOrTypeParameterExtension { let csharpSyntaxType = \"MyCustomCarrier\"; }\n" +
+            "extends MyCustomParam : CSharpParameterExtension { let csharpSyntaxType = \"MyCustomCarrier\"; }\n" +
             "def MyP_Dialect : Dialect { let name = \"myp\"; let cppNamespace = \"::mlir::myp\"; };\n" +
             "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> { let attrName = \"myp.\" # name; };\n" +
             "def MyP_ShapesAttr : MyP_Attr<\"shapes\"> {\n" +
@@ -443,7 +443,7 @@ public sealed class DialectImporterTests
     {
         const string source =
             "class MyBadParam<string desc> : AttrOrTypeParameter<\"Bad\", desc>;\n" +
-            "extends MyBadParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "extends MyBadParam : CSharpParameterExtension {\n" +
             "  let csharpSyntaxType = \"Token\";\n" +
             "  let csharpSyntaxShape = \"MaybeToken\";\n" +
             "}\n" +
@@ -806,7 +806,7 @@ public sealed class DialectImporterTests
     public void InvalidOptionalValueAccessMetadataProducesClearImportError()
     {
         const string source =
-            "def MyBadAttr : AnyIntegerAttrBase<AnyI32, \"bad\">, MLIRNet_AttrExtension {\n" +
+            "def MyBadAttr : AnyIntegerAttrBase<AnyI32, \"bad\">, CSharpAttrExtension {\n" +
             "  let csharpOptionalValueAccess = \"Maybe\";\n" +
             "}\n";
 
@@ -821,7 +821,7 @@ public sealed class DialectImporterTests
     public void InvalidOptionalAttributeRepresentationMetadataProducesClearImportError()
     {
         const string source =
-            "def MyBadAttr : AnyIntegerAttrBase<AnyI32, \"bad\">, MLIRNet_AttrExtension {\n" +
+            "def MyBadAttr : AnyIntegerAttrBase<AnyI32, \"bad\">, CSharpAttrExtension {\n" +
             "  let csharpOptionalAttributeRepresentation = \"Maybe\";\n" +
             "}\n";
 
@@ -977,17 +977,17 @@ public sealed class DialectImporterTests
     [Fact]
     public void ImportsAttrOrTypeParameterExtensionCsharpTypeFromUserDefinedClass()
     {
-        // User-defined parameter classes that inherit MLIRNet_AttrOrTypeParameterExtension
+        // User-defined parameter classes that inherit CSharpParameterExtension
         // allow callers to declare their own C# type mapping.
         const string source =
-            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "include \"mlir/Extensions/IR/CSharpExtensions.td\"\n" +
             "def MyP_Dialect : Dialect {\n" +
             "  let name = \"myp\";\n" +
             "  let cppNamespace = \"::mlir::myp\";\n" +
             "};\n" +
             "class MyCustomIntParam<string desc> :\n" +
             "    AttrOrTypeParameter<\"MyIntType\", desc>,\n" +
-            "    MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "    CSharpParameterExtension {\n" +
             "  let csharpType = \"global::MyNamespace.MyInt\";\n" +
             "};\n" +
             "class MyP_Attr<string name> : AttrDef<MyP_Dialect, name> {\n" +
@@ -1076,7 +1076,7 @@ public sealed class DialectImporterTests
         // User-defined parameter classes can specify csharpParser and csharpPrinter.
         const string source =
             "class MyIdParam<string desc> : AttrOrTypeParameter<\"std::string\", desc>;\n" +
-            "extends MyIdParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "extends MyIdParam : CSharpParameterExtension {\n" +
             "  let csharpType = \"string\";\n" +
             "  let csharpParser = \"$_parser.ParseId()\";\n" +
             "  let csharpPrinter = \"Fmt($_self)\";\n" +
@@ -1111,7 +1111,7 @@ public sealed class DialectImporterTests
         // User-defined parameter classes can specify csharpExtractor and csharpDefault.
         const string source =
             "class MyIdParam<string desc> : AttrOrTypeParameter<\"std::string\", desc>;\n" +
-            "extends MyIdParam : MLIRNet_AttrOrTypeParameterExtension {\n" +
+            "extends MyIdParam : CSharpParameterExtension {\n" +
             "  let csharpType = \"string\";\n" +
             "  let csharpExtractor = \"Extract($_syntax)\";\n" +
             "  let csharpDefault = \"string.Empty\";\n" +
@@ -1156,7 +1156,7 @@ public sealed class DialectImporterTests
             "def MyP_ValueAttr : MyP_Attr<\"value\"> {\n" +
             "  let parameters = (ins \"uint64_t\":$value);\n" +
             "};\n" +
-            "extends MyP_ValueAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "extends MyP_ValueAttr : CSharpAttrOrTypeDefExtension {\n" +
             "  let csharpParameters = (ins \"System.Numerics.BigInteger\":$value);\n" +
             "}\n";
 
@@ -1193,7 +1193,7 @@ public sealed class DialectImporterTests
             "def MyP_LabelAttr : MyP_Attr<\"label\"> {\n" +
             "  let parameters = (ins \"std::string\":$label);\n" +
             "};\n" +
-            "extends MyP_LabelAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "extends MyP_LabelAttr : CSharpAttrOrTypeDefExtension {\n" +
             "  let csharpParameters = (ins StringRefParameter<\"the label\">:$label);\n" +
             "}\n";
 
@@ -1230,7 +1230,7 @@ public sealed class DialectImporterTests
             "def MyP_PairAttr : MyP_Attr<\"pair\"> {\n" +
             "  let parameters = (ins StringRefParameter<\"the name\">:$name, \"uint64_t\":$value);\n" +
             "};\n" +
-            "extends MyP_PairAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "extends MyP_PairAttr : CSharpAttrOrTypeDefExtension {\n" +
             "  let csharpParameters = (ins\n" +
             "    StringRefParameter<\"the name\">:$name,\n" +
             "    \"System.Numerics.BigInteger\":$value\n" +
@@ -1275,7 +1275,7 @@ public sealed class DialectImporterTests
             "    APIntParameter<\"third\">:$third\n" +
             "  );\n" +
             "};\n" +
-            "extends MyP_TripleAttr : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "extends MyP_TripleAttr : CSharpAttrOrTypeDefExtension {\n" +
             "  let csharpParameters = (ins \"int\":$second);\n" +
             "}\n";
 
@@ -1575,7 +1575,7 @@ public sealed class DialectImporterTests
     public void TypeInterfaceOverlayImportsCSharpMembers()
     {
         const string source =
-            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "include \"mlir/Extensions/IR/CSharpExtensions.td\"\n" +
             "def MyIMX_Dialect : Dialect {\n" +
             "  let name = \"myimx\";\n" +
             "  let cppNamespace = \"::mlir::myimx\";\n" +
@@ -1583,12 +1583,12 @@ public sealed class DialectImporterTests
             "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
             "  let cppNamespace = \"::mlir::myimx\";\n" +
             "};\n" +
-            "extends MyTypeIface : MLIRNet_InterfaceExtension {\n" +
+            "extends MyTypeIface : CSharpInterfaceExtension {\n" +
             "  let csharpName = \"IMyProjectedType\";\n" +
             "  let csharpSummary = \"Projected summary.\";\n" +
             "  let csharpDescription = [{Projected interface remarks.}];\n" +
             "  let csharpMembers = [\n" +
-            "    MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
+            "    CSharpInterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
             "      let csharpSummary = \"Projected property summary.\";\n" +
             "      let csharpDescription = [{Projected property remarks.}];\n" +
             "    },\n" +
@@ -1616,28 +1616,28 @@ public sealed class DialectImporterTests
     public void NamedRecordReferencesImportInterfaceOverlayMembersAndImplementations()
     {
         const string source =
-            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "include \"mlir/Extensions/IR/CSharpExtensions.td\"\n" +
             "def MyNamed_Dialect : Dialect {\n" +
             "  let name = \"mynamed\";\n" +
             "  let cppNamespace = \"::mlir::mynamed\";\n" +
             "};\n" +
             "def NamedMethod : StaticInterfaceMethod<\"named method\", \"int\", \"getValue\">;\n" +
-            "def NamedMember : MLIRNet_InterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
+            "def NamedMember : CSharpInterfaceProperty<\"getValue\", \"int\", \"Value\"> {\n" +
             "  let csharpSummary = \"Named property summary.\";\n" +
             "};\n" +
             "def MyTypeIface : TypeInterface<\"MyTypeIface\"> {\n" +
             "  let cppNamespace = \"::mlir::mynamed\";\n" +
             "  let methods = [NamedMethod];\n" +
             "};\n" +
-            "extends MyTypeIface : MLIRNet_InterfaceExtension {\n" +
+            "extends MyTypeIface : CSharpInterfaceExtension {\n" +
             "  let csharpMembers = [NamedMember];\n" +
             "};\n" +
-            "def NamedImplementation : MLIRNet_InterfacePropertyImplementation<MyTypeIface, \"Value\", \"42\">;\n" +
+            "def NamedImplementation : CSharpInterfacePropertyImplementation<MyTypeIface, \"Value\", \"42\">;\n" +
             "class MyNamed_Type<string name, list<Trait> traits = []> : TypeDef<MyNamed_Dialect, name, traits> {\n" +
             "  let typeName = \"mynamed.\" # name;\n" +
             "};\n" +
             "def MyNamed_FooType : MyNamed_Type<\"foo\", [MyTypeIface]>;\n" +
-            "extends MyNamed_FooType : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "extends MyNamed_FooType : CSharpAttrOrTypeDefExtension {\n" +
             "  let csharpInterfaceImplementations = [NamedImplementation];\n" +
             "};\n";
 
@@ -1688,7 +1688,7 @@ public sealed class DialectImporterTests
     public void TypeOverlayImportsInterfaceMemberImplementations()
     {
         const string source =
-            "include \"mlir/Extensions/IR/MLIRNetExtensions.td\"\n" +
+            "include \"mlir/Extensions/IR/CSharpExtensions.td\"\n" +
             "def MyImpl_Dialect : Dialect {\n" +
             "  let name = \"myimpl\";\n" +
             "  let cppNamespace = \"::mlir::myimpl\";\n" +
@@ -1700,9 +1700,9 @@ public sealed class DialectImporterTests
             "  let typeName = \"myimpl.\" # name;\n" +
             "};\n" +
             "def MyImpl_FooType : MyImpl_Type<\"foo\", [MyTypeIface]>;\n" +
-            "extends MyImpl_FooType : MLIRNet_AttrOrTypeDefExtension {\n" +
+            "extends MyImpl_FooType : CSharpAttrOrTypeDefExtension {\n" +
             "  let csharpInterfaceImplementations = [\n" +
-            "    MLIRNet_InterfacePropertyImplementation<MyTypeIface, \"HasThing\", \"true\">\n" +
+            "    CSharpInterfacePropertyImplementation<MyTypeIface, \"HasThing\", \"true\">\n" +
             "  ];\n" +
             "};\n";
 

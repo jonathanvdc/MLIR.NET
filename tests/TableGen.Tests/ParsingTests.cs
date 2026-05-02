@@ -40,7 +40,7 @@ public sealed class ParsingTests
     {
         const string source =
             "let Prefix = \"arith\" in\n" +
-            "extends Arith_SelectOp : MLIRNet_OpExtension, OtherOverlay<1, \"x\"> {\n" +
+            "extends Arith_SelectOp : CSharpOpExtension, OtherOverlay<1, \"x\"> {\n" +
             "  let csharpAsmFormatCode = Prefix # \".select\";\n" +
             "}";
 
@@ -49,7 +49,7 @@ public sealed class ParsingTests
 
         Assert.Equal("Arith_SelectOp", extends.TargetName);
         Assert.Equal(2, extends.Bases.Count);
-        Assert.Equal("MLIRNet_OpExtension", extends.Bases[0].Name);
+        Assert.Equal("CSharpOpExtension", extends.Bases[0].Name);
         Assert.Equal("OtherOverlay", extends.Bases[1].Name);
         Assert.Equal(2, extends.Bases[1].Arguments.Count);
         Assert.Single(extends.TopLevelLets);

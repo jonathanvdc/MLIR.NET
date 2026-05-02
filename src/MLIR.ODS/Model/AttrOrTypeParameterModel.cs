@@ -79,7 +79,7 @@ public sealed class AttrOrTypeParameterModel(
 
     /// <summary>
     /// Gets the mapped C# type for this parameter, if known from an
-    /// <c>MLIRNet_AttrOrTypeParameterExtension</c> declaration or a built-in class mapping.
+    /// <c>CSharpParameterExtension</c> declaration or a built-in class mapping.
     /// For example, <c>StringRefParameter</c> maps to <c>"string"</c>.
     /// Null when no C# type mapping is available.
     /// </summary>
@@ -87,7 +87,7 @@ public sealed class AttrOrTypeParameterModel(
 
     /// <summary>
     /// Gets the C# syntax type for the generated syntax property in the structured syntax class,
-    /// if one was declared via <c>MLIRNet_AttrOrTypeParameterExtension.csharpSyntaxType</c>.
+    /// if one was declared via <c>CSharpParameterExtension.csharpSyntaxType</c>.
     /// For example, <c>StringRefParameter</c> maps to <c>"StringAttributeValueSyntax"</c>.
     /// When set, the generated syntax class stores a strongly-typed property instead of a bare
     /// <c>AttributeValueSyntax</c>, which allows the <c>csharpExtractor</c> expression to access
@@ -110,7 +110,7 @@ public sealed class AttrOrTypeParameterModel(
 
     /// <summary>
     /// Gets the custom C# parser expression for this parameter, if one was declared via
-    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpParser</c>.
+    /// <c>CSharpParameterExtension.csharpParser</c>.
     /// <c>$_parser</c> is substituted with the <c>AttributeParsingContext</c> variable name.
     /// The expression must return <c>ParseResult&lt;AttributeValueSyntax&gt;</c>.
     /// When null the generator uses the default <c>TryParseAttributeValueSyntax</c> call.
@@ -120,7 +120,7 @@ public sealed class AttrOrTypeParameterModel(
 
     /// <summary>
     /// Gets the custom C# extractor expression for this parameter, if one was declared via
-    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpExtractor</c>.
+    /// <c>CSharpParameterExtension.csharpExtractor</c>.
     /// <c>$_syntax</c> is substituted with the per-parameter <c>AttributeValueSyntax</c>
     /// field from the structured syntax class. The expression must return <see cref="CsharpType"/>.
     /// When null and <see cref="CsharpType"/> is <c>AttributeValueSyntax</c>, the syntax node
@@ -131,7 +131,7 @@ public sealed class AttrOrTypeParameterModel(
 
     /// <summary>
     /// Gets the C# default-value expression for this parameter, if one was declared via
-    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpDefault</c>.
+    /// <c>CSharpParameterExtension.csharpDefault</c>.
     /// Used as the fallback when no structured syntax is available during construction.
     /// When null the generator falls back to a raw empty syntax node (only valid for
     /// <c>AttributeValueSyntax</c> parameters).
@@ -140,7 +140,7 @@ public sealed class AttrOrTypeParameterModel(
 
     /// <summary>
     /// Gets the custom C# printer expression for this parameter, if one was declared via
-    /// <c>MLIRNet_AttrOrTypeParameterExtension.csharpPrinter</c>.
+    /// <c>CSharpParameterExtension.csharpPrinter</c>.
     /// <c>$_self</c> is substituted with the typed property value expression.
     /// The expression must return an <c>AttributeValueSyntax</c>.
     /// When null the syntax node stored in the structured syntax class is used as-is

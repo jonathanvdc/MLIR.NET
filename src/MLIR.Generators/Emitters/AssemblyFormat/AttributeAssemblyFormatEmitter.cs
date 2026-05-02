@@ -395,7 +395,7 @@ internal static class AttributeAssemblyFormatEmitter
         var parserTemplate = paramModel?.CsharpParserTemplate;
         if (parserTemplate is not null)
         {
-            // Custom parser from MLIRNet_AttrOrTypeParameterExtension.csharpParser:
+            // Custom parser from CSharpParameterExtension.csharpParser:
             // substitute ${parser} → context.
             parseExpr = parserTemplate.Render("parser", "context");
         }
@@ -413,7 +413,7 @@ internal static class AttributeAssemblyFormatEmitter
         // Cast to concrete syntax type when the parameter has a specific syntax type.
         // This enables the syntax class constructor to accept a strongly-typed parameter.
         // The cast relies on the contract that the csharpParser expression declared in
-        // MLIRNet_AttrOrTypeParameterExtension.csharpSyntaxType returns a value of exactly
+        // CSharpParameterExtension.csharpSyntaxType returns a value of exactly
         // the declared csharpSyntaxType.  For the built-in parameter types (StringRefParameter,
         // APIntParameter, APFloatParameter) this invariant is maintained by the helper methods
         // (TryParseStringLiteralSyntax, TryParseIntegerLiteralSyntax, etc.) on
@@ -533,7 +533,7 @@ internal static class AttributeAssemblyFormatEmitter
         var printerTemplate = param?.CsharpPrinterTemplate;
         if (printerTemplate is not null)
         {
-            // Custom printer from MLIRNet_AttrOrTypeParameterExtension.csharpPrinter:
+            // Custom printer from CSharpParameterExtension.csharpPrinter:
             // substitute ${self} → the property expression.
             return printerTemplate.Render("self", propertyExpr);
         }
@@ -740,7 +740,7 @@ internal static class AttributeAssemblyFormatEmitter
 
     /// <summary>
     /// Returns the C# concrete syntax type for the generated per-parameter syntax property.
-    /// Comes from <c>MLIRNet_AttrOrTypeParameterExtension.csharpSyntaxType</c> when set;
+    /// Comes from <c>CSharpParameterExtension.csharpSyntaxType</c> when set;
     /// falls back to <c>"AttributeValueSyntax"</c> otherwise.
     /// </summary>
     private static string GetResolvedCSharpSyntaxType(AttrOrTypeParameterModel? param)
