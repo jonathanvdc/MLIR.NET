@@ -23,6 +23,11 @@ internal static class OperationAttributeValueHelpers
         }
 
         var storagePlan = GetStoragePlan(member);
+        if (isOptional && storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean)
+        {
+            return "Attributes.Contains(" + sourceNameLiteral + ")";
+        }
+
         var requiredStorage = GetStorageExpression(storagePlan, "Attributes[" + sourceNameLiteral + "].Value");
         var convertedRequired = storagePlan.StorageToPublic.Render(requiredStorage);
         var defaultValue = storagePlan.DefaultValueExpression;
@@ -55,20 +60,12 @@ internal static class OperationAttributeValueHelpers
     public static string GetAttributeValueExpression(GeneratedMember member, string valueExpression)
     {
         var isOptional = IsOptionalMember(member);
-        // ConstraintStrategy is always non-null for attribute members.
-        var strategy = member.ConstraintStrategy!;
-
-        if (strategy.IsUnit)
+        var storagePlan = GetStoragePlan(member);
+        if (isOptional && storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean)
         {
-            if (string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
-            {
-                return valueExpression + " ? " + GetUnitAttributeValueExpression() + " : null";
-            }
-
-            return valueExpression;
+            return valueExpression + " ? " + storagePlan.GetPresenceAttributeValueExpression() + " : null";
         }
 
-        var storagePlan = GetStoragePlan(member);
         var storageExpression = storagePlan.PublicToStorage.Render(valueExpression);
         if (!isOptional)
         {
@@ -81,7 +78,7 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + ".HasValue ? " + typedStorageExpression + " : null";
         }
 
-        if (strategy.IsTypedArray && !HasStorageConversionPlan(member))
+        if (member.ConstraintStrategy!.IsTypedArray && !HasStorageConversionPlan(member))
         {
             var constraintClass = member.ConstraintClassName!;
             return valueExpression + " != null ? " + constraintClass + ".Create(" + valueExpression + ") : null";
@@ -94,20 +91,12 @@ internal static class OperationAttributeValueHelpers
     {
         var sourceName = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
         var isOptional = IsOptionalMember(member);
-        // ConstraintStrategy is always non-null for attribute members.
-        var strategy = member.ConstraintStrategy!;
-
-        if (strategy.IsUnit)
+        var storagePlan = GetStoragePlan(member);
+        if (isOptional && storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean)
         {
-            if (string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
-            {
-                return valueExpression + " ? new NamedAttribute(" + sourceName + ", " + GetUnitAttributeValueExpression() + ") : null";
-            }
-
-            return "new NamedAttribute(" + sourceName + ", " + valueExpression + ")";
+            return valueExpression + " ? new NamedAttribute(" + sourceName + ", " + storagePlan.GetPresenceAttributeValueExpression() + ") : null";
         }
 
-        var storagePlan = GetStoragePlan(member);
         var storageExpression = storagePlan.PublicToStorage.Render(valueExpression);
         if (!isOptional)
         {
@@ -120,7 +109,7 @@ internal static class OperationAttributeValueHelpers
             return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", " + typedStorageExpression + ") : null";
         }
 
-        if (strategy.IsTypedArray && !HasStorageConversionPlan(member))
+        if (member.ConstraintStrategy!.IsTypedArray && !HasStorageConversionPlan(member))
         {
             var constraintClass = member.ConstraintClassName!;
             return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + constraintClass + ".Create(" + valueExpression + ")) : null";
@@ -129,14 +118,9 @@ internal static class OperationAttributeValueHelpers
         return valueExpression + " != null ? new NamedAttribute(" + sourceName + ", " + storageExpression + ") : null";
     }
 
-    public static string GetUnitAttributeValueExpression()
-    {
-        return "ConstantAttributeFactory.Unit";
-    }
-
     private static bool IsOptionalMember(GeneratedMember member)
     {
-        return member.TypeName.EndsWith("?", System.StringComparison.Ordinal);
+        return member.IsOptional;
     }
 
     private static AttributeStoragePlan GetStoragePlan(GeneratedMember member)

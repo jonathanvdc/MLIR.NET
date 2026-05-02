@@ -56,6 +56,35 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
     }
 
     [Fact]
+    public void CustomAttributeCanOptIntoPresenceBooleanRepresentation()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_PresenceAttr : AnyIntegerAttrBase<AnyI32, \"presence\">, MLIRNet_AttrExtension {",
+                "  let csharpStorageType = \"global::MLIR.Dialects.Builtin.IntegerAttr\";",
+                "  let csharpReturnType = \"bool\";",
+                "  let csharpConvertFromStorage = \"$_self != null\";",
+                "  let csharpPresenceAttributeValue = \"global::MLIR.Semantics.ConstantAttributeFactory.I32(1u)\";",
+                "  let csharpOptionalValueAccess = \"NullableValueType\";",
+                "  let csharpOptionalAttributeRepresentation = \"PresenceBoolean\";",
+                "}",
+                string.Empty,
+                "def MiniArith_PresenceOp : MiniArith_Op<\"presence\", []> {",
+                "  let arguments = (ins MiniArith_PresenceAttr:$enabled);",
+                "  let results = (outs I32:$result);",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            "public bool Enabled",
+            "get => Attributes.Contains(\"enabled\")",
+            "set => SetAttribute(\"enabled\", value ? global::MLIR.Semantics.ConstantAttributeFactory.I32(1u) : null)",
+            "bool enabled,",
+            "enabled ? new NamedAttribute(\"enabled\", global::MLIR.Semantics.ConstantAttributeFactory.I32(1u)) : null");
+    }
+
+    [Fact]
     public void AttributesPropertyHoldsDataAndNamedAttributeAccessorsAreDerived()
     {
         var registrationSource = GenerateMiniArithRegistrationSource(
@@ -106,11 +135,11 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
             registrationSource,
             "public bool OptionalFlag",
             "get => Attributes.Contains(\"optionalFlag\")",
-            "SetAttribute(\"optionalFlag\", value ? ConstantAttributeFactory.Unit : null)",
-            "bool optionalFlag,");
+            "SetAttribute(\"optionalFlag\", value ? global::MLIR.Semantics.ConstantAttributeFactory.Unit : null)",
+            "bool optionalFlag,",
+            "public global::MLIR.Dialects.Builtin.UnitAttr RequiredFlag");
         AssertDoesNotContainAny(
             registrationSource,
-            "public UnitAttr RequiredFlag",
             "public bool RequiredFlag");
     }
 

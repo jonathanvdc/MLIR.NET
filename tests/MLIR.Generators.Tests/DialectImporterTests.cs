@@ -696,10 +696,15 @@ public sealed class DialectImporterTests
 
         var unitAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "UnitAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.UnitAttr", unitAttr.CsharpStorageType);
-        Assert.Equal("bool", unitAttr.CsharpReturnType);
+        Assert.Equal("global::MLIR.Dialects.Builtin.UnitAttr", unitAttr.CsharpReturnType);
         Assert.True(unitAttr.IsOptional);
-        Assert.Equal("false", unitAttr.CsharpDefaultValue);
+        Assert.Null(unitAttr.CsharpDefaultValue);
         Assert.Null(unitAttr.CsharpConstBuilderCall);
+        Assert.Equal(OptionalValueAccessKind.NullCheck, unitAttr.CsharpOptionalValueAccessKind);
+        Assert.Equal(OptionalAttributeRepresentation.PresenceBoolean, unitAttr.CsharpOptionalAttributeRepresentation);
+        Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.Unit", unitAttr.CsharpPresenceAttributeValue);
+        Assert.Equal("new UnitAttributeValueSyntax(${token})", unitAttr.CsharpPresenceSyntax);
+        Assert.Equal("new global::MLIR.Dialects.Attributes.Primitives.UnitLiteralAttributeAssemblyFormat()", unitAttr.CsharpAssemblyFormat);
 
         var arrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "ArrayAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.ArrayAttr", arrayAttr.CsharpStorageType);
@@ -788,6 +793,21 @@ public sealed class DialectImporterTests
             DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value));
 
         Assert.Contains("Unsupported csharpOptionalValueAccess 'Maybe'", ex.Message);
+        Assert.Contains("MyBadAttr", ex.Message);
+    }
+
+    [Fact]
+    public void InvalidOptionalAttributeRepresentationMetadataProducesClearImportError()
+    {
+        const string source =
+            "def MyBadAttr : AnyIntegerAttrBase<AnyI32, \"bad\">, MLIRNet_AttrExtension {\n" +
+            "  let csharpOptionalAttributeRepresentation = \"Maybe\";\n" +
+            "}\n";
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value));
+
+        Assert.Contains("Unsupported csharpOptionalAttributeRepresentation 'Maybe'", ex.Message);
         Assert.Contains("MyBadAttr", ex.Message);
     }
 

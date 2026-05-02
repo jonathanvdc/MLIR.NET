@@ -21,9 +21,13 @@ public sealed class AttrModel(
     string? csharpReturnType = null,
     string? csharpConvertFromStorage = null,
     string? csharpConstBuilderCall = null,
+    string? csharpPresenceAttributeValue = null,
+    string? csharpAssemblyFormat = null,
     string? csharpDefaultValue = null,
     string? csharpValueType = null,
     OptionalValueAccessKind? csharpOptionalValueAccessKind = null,
+    OptionalAttributeRepresentation? csharpOptionalAttributeRepresentation = null,
+    string? csharpPresenceSyntax = null,
     bool isOptional = false,
     string? baseAttrRecordName = null,
     string? cppNamespace = null,
@@ -85,6 +89,17 @@ public sealed class AttrModel(
     public string? CsharpConstBuilderCall { get; } = csharpConstBuilderCall;
 
     /// <summary>
+    /// Gets the C# expression that constructs the stored attribute value for a present
+    /// presence-based optional attribute.
+    /// </summary>
+    public string? CsharpPresenceAttributeValue { get; } = csharpPresenceAttributeValue;
+
+    /// <summary>
+    /// Gets the C# expression that instantiates the assembly format for this constraint.
+    /// </summary>
+    public string? CsharpAssemblyFormat { get; } = csharpAssemblyFormat;
+
+    /// <summary>
     /// Gets the <see cref="CsharpConvertFromStorage"/> value as a normalized
     /// <see cref="CodeTemplate"/> with canonical <c>${self}</c> placeholder syntax, or
     /// <see langword="null"/> when <see cref="CsharpConvertFromStorage"/> is not set.
@@ -111,6 +126,12 @@ public sealed class AttrModel(
         CodeTemplate.From(CsharpConstBuilderCall, CodeTemplateKind.Expression, new Dictionary<string, string>(StringComparer.Ordinal) { ["0"] = "value" });
 
     /// <summary>
+    /// Gets <see cref="CsharpPresenceAttributeValue"/> as a normalized expression template.
+    /// </summary>
+    public CodeTemplate? CsharpPresenceAttributeValueTemplate =>
+        CodeTemplate.From(CsharpPresenceAttributeValue, CodeTemplateKind.Expression);
+
+    /// <summary>
     /// Gets the C# default value expression for this attr, if one is known.
     /// </summary>
     public string? CsharpDefaultValue { get; } = csharpDefaultValue;
@@ -124,6 +145,25 @@ public sealed class AttrModel(
     /// Gets the declared optional-value access pattern for generated operation bindings.
     /// </summary>
     public OptionalValueAccessKind? CsharpOptionalValueAccessKind { get; } = csharpOptionalValueAccessKind;
+
+    /// <summary>
+    /// Gets the declared public representation for optional generated operation attributes.
+    /// </summary>
+    public OptionalAttributeRepresentation? CsharpOptionalAttributeRepresentation { get; } = csharpOptionalAttributeRepresentation;
+
+    /// <summary>
+    /// Gets the C# expression that builds syntax for a present presence-based optional attribute.
+    /// </summary>
+    /// <remarks>
+    /// The expression may use <c>${token}</c> for the parsed or synthesized presence keyword token.
+    /// </remarks>
+    public string? CsharpPresenceSyntax { get; } = csharpPresenceSyntax;
+
+    /// <summary>
+    /// Gets <see cref="CsharpPresenceSyntax"/> as a normalized expression template.
+    /// </summary>
+    public CodeTemplate? CsharpPresenceSyntaxTemplate =>
+        CodeTemplate.From(CsharpPresenceSyntax, CodeTemplateKind.Expression);
 
     /// <summary>
     /// Gets a value indicating whether this attr is optional.

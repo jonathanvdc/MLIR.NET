@@ -272,8 +272,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
             {
                 var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
                 var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
-                var expr = IsImplicitUnitAttributeAnchor(group, elementIndex, variable)
-                    ? "new UnitAttributeValueSyntax(" + EmitterHelpers.LowerFirst(metadata.Fields[fieldIndex - 2].Name) + ".Value)"
+                var expr = IsImplicitPresenceAttributeAnchor(group, elementIndex, variable)
+                    ? BuildPresenceSyntaxExpression(GetAttributeStoragePlan(variable.Name), EmitterHelpers.LowerFirst(metadata.Fields[fieldIndex - 2].Name) + ".Value")
                     : BuildNullableVariableExpression(variable.Name);
                 builder.AppendLine(indent + varName + " = " + expr + ";");
                 break;
@@ -292,7 +292,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
     }
 
-    private bool IsImplicitUnitAttributeAnchor(OptionalGroup group, int elementIndex, VariableChunk variable)
+    private bool IsImplicitPresenceAttributeAnchor(OptionalGroup group, int elementIndex, VariableChunk variable)
     {
         if (elementIndex == 0 || !variable.IsAnchor)
         {
@@ -300,14 +300,31 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
 
         return EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name)
-            && IsUnitAttribute(variable.Name);
+            && TryGetAttributeStoragePlan(variable.Name) is AttributeStoragePlan storagePlan
+            && storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean
+            && storagePlan.PresenceSyntaxTemplate != null;
     }
 
-    private bool IsUnitAttribute(string attributeName)
+    private AttributeStoragePlan GetAttributeStoragePlan(string attributeName)
+    {
+        return TryGetAttributeStoragePlan(attributeName)
+            ?? throw new System.InvalidOperationException("Attribute '" + attributeName + "' has no storage plan.");
+    }
+
+    private AttributeStoragePlan? TryGetAttributeStoragePlan(string attributeName)
     {
         var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
-        return !string.IsNullOrEmpty(constraintRecordName)
-            && resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!).IsUnit;
+        if (string.IsNullOrEmpty(constraintRecordName))
+        {
+            return null;
+        }
+
+        return resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!).CreateStoragePlan();
+    }
+
+    private static string BuildPresenceSyntaxExpression(AttributeStoragePlan storagePlan, string tokenExpression)
+    {
+        return storagePlan.PresenceSyntaxTemplate!.Render("token", tokenExpression);
     }
 
     // -----------------------------------------------------------------------
@@ -738,10 +755,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         var propName = GetOperationPropertyName(anchorName);
         if (EmitterHelpers.ContainsName(operation.Attributes, anchorName, static attribute => attribute.Name))
         {
-            // Non-required UnitAttributes are represented as 'bool' (a value type).
-            // Comparing a bool to null always evaluates to true (CS0472), so emit the
-            // value directly without '!= null'.
-            if (IsUnitAttribute(anchorName) && !requiredVariables.Contains(anchorName))
+            if (IsPresenceBooleanAttribute(anchorName) && !requiredVariables.Contains(anchorName))
             {
                 return "op." + propName;
             }
@@ -784,8 +798,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
                 var propName = GetOperationPropertyName(variable.Name);
                 if (EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name))
                 {
-                    // Non-required UnitAttributes are 'bool': emit the value directly.
-                    if (IsUnitAttribute(variable.Name) && !requiredVariables.Contains(variable.Name))
+                    if (IsPresenceBooleanAttribute(variable.Name) && !requiredVariables.Contains(variable.Name))
                     {
                         return "op." + propName;
                     }
@@ -800,6 +813,12 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
         }
 
         return null;
+    }
+
+    private bool IsPresenceBooleanAttribute(string attributeName)
+    {
+        return TryGetAttributeStoragePlan(attributeName) is AttributeStoragePlan storagePlan
+            && storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean;
     }
 
     // -----------------------------------------------------------------------

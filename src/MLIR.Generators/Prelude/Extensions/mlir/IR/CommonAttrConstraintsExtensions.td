@@ -37,10 +37,12 @@ extends TypeAttr : MLIRNet_AttrExtension {
 
 extends UnitAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Dialects.Builtin.UnitAttr";
-  let csharpReturnType = "bool";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self != null";
-  let csharpDefaultValue = "false";
+  let csharpReturnType = "global::MLIR.Dialects.Builtin.UnitAttr";
+  let csharpOptionalValueAccess = "NullCheck";
+  let csharpOptionalAttributeRepresentation = "PresenceBoolean";
+  let csharpPresenceAttributeValue = "global::MLIR.Semantics.ConstantAttributeFactory.Unit";
+  let csharpPresenceSyntax = "new UnitAttributeValueSyntax(${token})";
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.UnitLiteralAttributeAssemblyFormat()";
 }
 
 extends DictionaryAttrBase : MLIRNet_AttrExtension {

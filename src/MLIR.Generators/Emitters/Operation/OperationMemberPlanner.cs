@@ -17,6 +17,7 @@ internal sealed class GeneratedMember
         AttributeConstraintCodeStrategy? constraintStrategy,
         string? constraintClassName,
         AttributeStoragePlan? attributeStoragePlan = null,
+        bool isOptional = false,
         bool isVariadic = false)
     {
         PropertyName = propertyName;
@@ -27,6 +28,7 @@ internal sealed class GeneratedMember
         ConstraintStrategy = constraintStrategy;
         ConstraintClassName = constraintClassName;
         AttributeStoragePlan = attributeStoragePlan;
+        IsOptional = isOptional;
         IsVariadic = isVariadic;
     }
 
@@ -54,6 +56,14 @@ internal sealed class GeneratedMember
     /// for non-attribute members.
     /// </summary>
     public AttributeStoragePlan? AttributeStoragePlan { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether this generated member represents an optional
+    /// operation component. Attribute emitters need this because optional
+    /// presence-boolean attributes are value-typed and therefore cannot be detected from
+    /// the public type name alone.
+    /// </summary>
+    public bool IsOptional { get; }
 
     /// <summary>
     /// Gets a value indicating whether this member is variadic (zero or more values).
@@ -138,25 +148,8 @@ internal static class AttributePropertyPlanner
             return null;
         }
 
-        // ConstraintStrategy is always non-null for attribute members: the planner
-        // sets it to at least FallbackAttributeConstraintCodeStrategy.Instance.
-        var strategy = member.ConstraintStrategy!;
         var sourceNameLiteral = EmitterHelpers.ToCSharpStringLiteral(member.SourceName);
         var localName = EmitterHelpers.LowerFirst(member.PropertyName);
-
-        if (strategy.IsUnit)
-        {
-            if (!string.Equals(member.TypeName, "bool", StringComparison.Ordinal))
-            {
-                return null;
-            }
-
-            return new AttributePropertyPlan(
-                member.PropertyName,
-                member.TypeName,
-                "Attributes.Contains(" + sourceNameLiteral + ")",
-                "SetAttribute(" + sourceNameLiteral + ", value ? " + OperationAttributeValueHelpers.GetUnitAttributeValueExpression() + " : null)");
-        }
 
         return new AttributePropertyPlan(
             member.PropertyName,
@@ -290,7 +283,11 @@ internal static class OperationMemberPlanner
                 constraintClassName = resolver.TryResolveAttributeConstraintClassName(nonNullConstraintRecordName);
             }
 
+            var storagePlan = constraintStrategy.CreateStoragePlan();
             var typeName = constraintStrategy.GetOperationPropertyTypeName(isRequired);
+            var isOptional = !isRequired
+                && (typeName.EndsWith("?", StringComparison.Ordinal)
+                    || storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean);
             members.Add(new GeneratedMember(
                 propertyName,
                 GetParameterName(propertyName),
@@ -299,7 +296,8 @@ internal static class OperationMemberPlanner
                 constraintRecordName,
                 constraintStrategy,
                 constraintClassName,
-                attributeStoragePlan: constraintStrategy.CreateStoragePlan()));
+                attributeStoragePlan: storagePlan,
+                isOptional: isOptional));
         }
 
         return members;

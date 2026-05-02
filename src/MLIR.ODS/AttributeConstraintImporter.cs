@@ -40,11 +40,17 @@ internal static class AttributeConstraintImporter
                     csharpReturnType: index.GetOptionalStringField(record, "csharpReturnType"),
                     csharpConvertFromStorage: index.GetOptionalStringField(record, "csharpConvertFromStorage"),
                     csharpConstBuilderCall: index.GetOptionalStringField(record, "csharpConstBuilderCall"),
+                    csharpPresenceAttributeValue: index.GetOptionalStringField(record, "csharpPresenceAttributeValue"),
+                    csharpAssemblyFormat: index.GetOptionalStringField(record, "csharpAssemblyFormat"),
                     csharpDefaultValue: index.GetOptionalStringField(record, "csharpDefaultValue"),
                     csharpValueType: index.GetOptionalStringField(record, "csharpValueType"),
                     csharpOptionalValueAccessKind: ParseOptionalValueAccessKind(
                         index.GetOptionalStringField(record, "csharpOptionalValueAccess"),
                         record.Name),
+                    csharpOptionalAttributeRepresentation: ParseOptionalAttributeRepresentation(
+                        index.GetOptionalStringField(record, "csharpOptionalAttributeRepresentation"),
+                        record.Name),
+                    csharpPresenceSyntax: index.GetOptionalStringField(record, "csharpPresenceSyntax"),
                     isOptional: record.Fields.TryGetValue("isOptional", out var isOptionalField)
                         && isOptionalField is BitValue bitValue
                         && bitValue.Value,
@@ -69,5 +75,22 @@ internal static class AttributeConstraintImporter
 
         throw new InvalidOperationException(
             "Unsupported csharpOptionalValueAccess '" + value + "' for Attr record '" + recordName + "'.");
+    }
+
+    private static OptionalAttributeRepresentation? ParseOptionalAttributeRepresentation(string? value, string recordName)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        if (Enum.TryParse<OptionalAttributeRepresentation>(value, ignoreCase: false, out var representation)
+            && Enum.IsDefined(typeof(OptionalAttributeRepresentation), representation))
+        {
+            return representation;
+        }
+
+        throw new InvalidOperationException(
+            "Unsupported csharpOptionalAttributeRepresentation '" + value + "' for Attr record '" + recordName + "'.");
     }
 }

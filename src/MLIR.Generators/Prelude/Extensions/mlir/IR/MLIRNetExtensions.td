@@ -159,6 +159,16 @@ class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csh
 //                      unwrap values. Accepted values are NullCheck and
 //                      NullableValueType.
 //
+//   csharpOptionalAttributeRepresentation – Public shape for optional generated operation
+//                      attributes. Accepted values are NullableValue and PresenceBoolean.
+//
+//   csharpPresenceAttributeValue – C# expression that builds the stored attribute value for
+//                      a present presence-based optional attribute.
+//
+//   csharpPresenceSyntax – C# expression that builds attribute syntax for a present
+//                      presence-based optional attribute. `${token}` is the parsed or
+//                      synthesized presence keyword token.
+//
 // Example:
 //   extends MyAttr : MLIRNet_AttrOrTypeDefExtension {
 //     let csharpParameters = (ins
@@ -193,12 +203,20 @@ class MLIRNet_AttrExtension {
   // Prefer delegating to global::MLIR.Semantics.ConstantAttributeFactory so constant
   // construction logic stays centralized and consistent across constraints.
   string csharpConstBuilderCall = ?;
+  // C# expression that builds a storage value when a presence-based optional attribute is present.
+  string csharpPresenceAttributeValue = ?;
+  // C# expression that instantiates an IAttributeAssemblyFormat for this constraint.
+  string csharpAssemblyFormat = ?;
   // C# expression for the default result value, if any.
   string csharpDefaultValue = ?;
   // C# value-type description associated with the attr, if any.
   string csharpValueType = ?;
   // Optional value access strategy for generated operation bindings.
   string csharpOptionalValueAccess = ?;
+  // Optional attribute public representation strategy for generated operation bindings.
+  string csharpOptionalAttributeRepresentation = ?;
+  // Syntax builder expression for a present presence-based optional attribute.
+  string csharpPresenceSyntax = ?;
 }
 
 class MLIRNet_AttrOrTypeParameterExtension {

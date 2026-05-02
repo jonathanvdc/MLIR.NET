@@ -408,13 +408,14 @@ internal sealed class TryParseEmitter
         IReadOnlyList<Element> siblings,
         string indent)
     {
-        if (element is VariableChunk variable && IsImplicitUnitAttributeAnchor(group, elementIndex, variable))
+        if (element is VariableChunk variable && IsImplicitPresenceAttributeAnchor(group, elementIndex, variable))
         {
             var field = EmitterHelpers.NextBodySyntaxField(metadata.Fields, ref fieldIndex);
             var varName = EmitterHelpers.GetBodySyntaxFieldLocalName(field);
             var keywordField = metadata.Fields[fieldIndex - 2];
             var keywordVarName = EmitterHelpers.LowerFirst(keywordField.Name);
-            builder.AppendLine(indent + varName + " = new UnitAttributeValueSyntax(" + keywordVarName + ".Value);");
+            var storagePlan = GetAttributeStoragePlan(variable.Name);
+            builder.AppendLine(indent + varName + " = " + BuildPresenceSyntaxExpression(storagePlan, keywordVarName + ".Value") + ";");
             return;
         }
 
@@ -462,7 +463,7 @@ internal sealed class TryParseEmitter
         return (null, null);
     }
 
-    private bool IsImplicitUnitAttributeAnchor(OptionalGroup group, int elementIndex, VariableChunk variable)
+    private bool IsImplicitPresenceAttributeAnchor(OptionalGroup group, int elementIndex, VariableChunk variable)
     {
         if (elementIndex == 0 || !variable.IsAnchor)
         {
@@ -470,14 +471,31 @@ internal sealed class TryParseEmitter
         }
 
         return EmitterHelpers.ContainsName(operation.Attributes, variable.Name, static attribute => attribute.Name)
-            && IsUnitAttribute(variable.Name);
+            && TryGetAttributeStoragePlan(variable.Name) is AttributeStoragePlan storagePlan
+            && storagePlan.OptionalRepresentation == OptionalAttributeRepresentation.PresenceBoolean
+            && storagePlan.PresenceSyntaxTemplate != null;
     }
 
-    private bool IsUnitAttribute(string attributeName)
+    private AttributeStoragePlan GetAttributeStoragePlan(string attributeName)
+    {
+        return TryGetAttributeStoragePlan(attributeName)
+            ?? throw new System.InvalidOperationException("Attribute '" + attributeName + "' has no storage plan.");
+    }
+
+    private AttributeStoragePlan? TryGetAttributeStoragePlan(string attributeName)
     {
         var constraintRecordName = EmitterHelpers.TryGetAttributeConstraint(operation, attributeName);
-        return !string.IsNullOrEmpty(constraintRecordName)
-            && resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!).IsUnit;
+        if (string.IsNullOrEmpty(constraintRecordName))
+        {
+            return null;
+        }
+
+        return resolver.TryResolveAttributeConstraintStrategy(constraintRecordName!).CreateStoragePlan();
+    }
+
+    private static string BuildPresenceSyntaxExpression(AttributeStoragePlan storagePlan, string tokenExpression)
+    {
+        return storagePlan.PresenceSyntaxTemplate!.Render("token", tokenExpression);
     }
 
     // -----------------------------------------------------------------------
