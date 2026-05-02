@@ -58,15 +58,7 @@ internal sealed class TryParseEmitter
     /// </summary>
     public static bool CanHandleFormat(AssemblyFormatModel format, OperationModel operation)
     {
-        foreach (var element in format.Elements)
-        {
-            if (!CanHandleElement(element))
-            {
-                return false;
-            }
-        }
-
-        return true;
+        return AssemblyFormatLowerer.LowerOperation(operation, format).IsSupported;
     }
 
     // -----------------------------------------------------------------------
@@ -80,7 +72,8 @@ internal sealed class TryParseEmitter
 
         var format = operation.AssemblyFormat!;
 
-        if (!CanHandleFormat(format, operation))
+        var lowered = AssemblyFormatLowerer.LowerOperation(operation, format);
+        if (!lowered.IsSupported)
         {
             // Unsupported directives – fall back to generic parsing.
             builder.AppendLine("        return ParseResult<OperationBodySyntax>.NoMatch();");
@@ -91,7 +84,9 @@ internal sealed class TryParseEmitter
         fieldIndex = 0;
 
         var elements = format.Elements;
-        AssemblyFormatTraversal.ForEachElement(elements, (i, element) => EmitElement(builder, element, i, elements, indent: "        ", declare: true));
+        AssemblyFormatTraversal.ForEachElement(
+            lowered.Elements,
+            (i, element) => EmitElement(builder, element, elements, indent: "        ", declare: true));
 
         EmitBodyConstruction(builder);
         builder.AppendLine("    }");
@@ -102,58 +97,64 @@ internal sealed class TryParseEmitter
     // -----------------------------------------------------------------------
 
     /// <param name="builder">The <see cref="StringBuilder"/> to append generated code to.</param>
-    /// <param name="element">The assembly-format element to emit parsing code for.</param>
-    /// <param name="elementIndex">The index of <paramref name="element"/> within <paramref name="allElements"/>.</param>
+    /// <param name="element">The lowered assembly-format element to emit parsing code for.</param>
     /// <param name="allElements">All sibling elements in the current sequence (used for lookahead context).</param>
     /// <param name="indent">The indentation string to prepend to each emitted line.</param>
     /// <param name="declare">
     /// When <see langword="true"/>, emit <c>var name = expr;</c>.
     /// When <see langword="false"/>, emit <c>name = expr;</c> (assignment into a pre-declared nullable local).
     /// </param>
-    private void EmitElement(StringBuilder builder, Element element, int elementIndex, IReadOnlyList<Element> allElements, string indent, bool declare)
+    private void EmitElement(StringBuilder builder, LoweredOperationElement element, IReadOnlyList<Element> allElements, string indent, bool declare)
     {
-        switch (element)
+        switch (element.Kind)
         {
-            case LiteralChunk literal:
+            case OperationFormatElementKind.Literal:
+                var literal = (LiteralChunk)element.Source;
                 EmitLiteral(builder, literal, indent, declare);
                 break;
-            case VariableChunk variable:
-                EmitVariable(builder, variable, elementIndex, allElements, indent, declare);
+            case OperationFormatElementKind.Variable:
+                var variable = (VariableChunk)element.Source;
+                EmitVariable(builder, variable, element.SiblingIndex, allElements, indent, declare);
                 break;
-            case AttrDictDirectiveChunk _:
+            case OperationFormatElementKind.AttrDict:
                 EmitAttrDict(builder, indent, declare);
                 break;
-            case AttrDictWithKeywordDirectiveChunk _:
+            case OperationFormatElementKind.AttrDictWithKeyword:
                 EmitAttrDictWithKeyword(builder, indent, declare);
                 break;
-            case PropDictDirectiveChunk _:
+            case OperationFormatElementKind.PropDict:
                 EmitPropDict(builder, indent, declare);
                 break;
-            case TypeDirectiveChunk typeDir:
-                EmitType(builder, typeDir, elementIndex, allElements, indent, declare);
+            case OperationFormatElementKind.Type:
+                var typeDir = (TypeDirectiveChunk)element.Source;
+                EmitType(builder, typeDir, element.SiblingIndex, allElements, indent, declare);
                 break;
-            case QualifiedDirectiveChunk qualified:
-                EmitQualifiedType(builder, qualified, elementIndex, allElements, indent, declare);
+            case OperationFormatElementKind.QualifiedType:
+                var qualified = (QualifiedDirectiveChunk)element.Source;
+                EmitQualifiedType(builder, qualified, element.SiblingIndex, allElements, indent, declare);
                 break;
-            case ResultsDirectiveChunk _:
-                EmitResultsType(builder, elementIndex, allElements, indent, declare);
+            case OperationFormatElementKind.ResultsType:
+                EmitResultsType(builder, element.SiblingIndex, allElements, indent, declare);
                 break;
-            case FunctionalTypeDirectiveChunk functionalType:
-                EmitFunctionalType(builder, functionalType, elementIndex, allElements, indent, declare);
+            case OperationFormatElementKind.FunctionalType:
+                var functionalType = (FunctionalTypeDirectiveChunk)element.Source;
+                EmitFunctionalType(builder, functionalType, element.SiblingIndex, allElements, indent, declare);
                 break;
-            case RegionsDirectiveChunk _:
+            case OperationFormatElementKind.Regions:
                 EmitRegions(builder, indent, declare);
                 break;
-            case SuccessorsDirectiveChunk _:
+            case OperationFormatElementKind.Successors:
                 EmitSuccessors(builder, indent, declare);
                 break;
-            case OperandsDirectiveChunk _:
+            case OperationFormatElementKind.Operands:
                 EmitOperands(builder, indent, declare);
                 break;
-            case OptionalGroup optionalGroup:
-                EmitOptionalGroup(builder, optionalGroup, elementIndex, allElements, indent);
+            case OperationFormatElementKind.OptionalGroup:
+                var optionalGroup = (OptionalGroup)element.Source;
+                EmitOptionalGroup(builder, optionalGroup, element.SiblingIndex, allElements, indent);
                 break;
-            case OilistDirectiveChunk oilist:
+            case OperationFormatElementKind.Oilist:
+                var oilist = (OilistDirectiveChunk)element.Source;
                 EmitOilist(builder, oilist, indent);
                 break;
         }
@@ -419,7 +420,14 @@ internal sealed class TryParseEmitter
             return;
         }
 
-        EmitElement(builder, element, elementIndex, siblings, indent, declare: false);
+        var lowered = new LoweredOperationElement(
+            element,
+            AssemblyFormatLowerer.GetOperationElementKind(element),
+            elementIndex,
+            fieldStart: 0,
+            fieldCount: 0,
+            isSupported: true);
+        EmitElement(builder, lowered, siblings, indent, declare: false);
     }
 
     /// <summary>
@@ -661,28 +669,6 @@ internal sealed class TryParseEmitter
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
-
-    private static bool CanHandleElement(Element element)
-    {
-        return element switch
-        {
-            LiteralChunk _ => true,
-            VariableChunk _ => true,
-            AttrDictDirectiveChunk _ => true,
-            AttrDictWithKeywordDirectiveChunk _ => true,
-            PropDictDirectiveChunk _ => true,
-            TypeDirectiveChunk _ => true,
-            QualifiedDirectiveChunk _ => true,
-            ResultsDirectiveChunk _ => true,
-            FunctionalTypeDirectiveChunk _ => true,
-            RegionsDirectiveChunk _ => true,
-            SuccessorsDirectiveChunk _ => true,
-            OperandsDirectiveChunk _ => true,
-            OptionalGroup _ => true,
-            OilistDirectiveChunk _ => true,
-            _ => false,
-        };
-    }
 
     private string BuildTypeParseExpr(int elementIndex, IReadOnlyList<Element> allElements)
     {

@@ -60,7 +60,8 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
         var format = operation.AssemblyFormat!;
 
-        if (!TryParseEmitter.CanHandleFormat(format, operation))
+        var lowered = AssemblyFormatLowerer.LowerOperation(operation, format);
+        if (!lowered.IsSupported)
         {
             // Unsupported directives – fall back to generic body.
             builder.AppendLine("        return context.RewriteOperation(operation, context.TransformGenericBody(operation));");
@@ -72,8 +73,9 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
         fieldIndex = 0;
 
-        var elements = format.Elements;
-        AssemblyFormatTraversal.ForEachElement(elements, (i, element) => EmitElement(builder, element, indent: "        ", declare: true));
+        AssemblyFormatTraversal.ForEachElement(
+            lowered.Elements,
+            (_, element) => EmitElement(builder, element, indent: "        ", declare: true));
 
         EmitBodyConstruction(builder);
         builder.AppendLine("        return context.RewriteOperation(operation, body, TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + "));");
@@ -84,48 +86,52 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
     // Element dispatch
     // -----------------------------------------------------------------------
 
-    private void EmitElement(StringBuilder builder, Element element, string indent, bool declare)
+    private void EmitElement(StringBuilder builder, LoweredOperationElement element, string indent, bool declare)
     {
-        switch (element)
+        switch (element.Kind)
         {
-            case LiteralChunk literal:
+            case OperationFormatElementKind.Literal:
+                var literal = (LiteralChunk)element.Source;
                 EmitLiteral(builder, literal, indent, declare);
                 break;
 
-            case VariableChunk variable:
+            case OperationFormatElementKind.Variable:
+                var variable = (VariableChunk)element.Source;
                 EmitVariable(builder, variable, indent, declare);
                 break;
 
-            case AttrDictDirectiveChunk _:
-            case AttrDictWithKeywordDirectiveChunk _:
-            case PropDictDirectiveChunk _:
+            case OperationFormatElementKind.AttrDict:
+            case OperationFormatElementKind.AttrDictWithKeyword:
+            case OperationFormatElementKind.PropDict:
                 EmitAttrDict(builder, indent, declare);
                 break;
 
-            case TypeDirectiveChunk _:
-            case QualifiedDirectiveChunk _:
-            case ResultsDirectiveChunk _:
-            case FunctionalTypeDirectiveChunk _:
+            case OperationFormatElementKind.Type:
+            case OperationFormatElementKind.QualifiedType:
+            case OperationFormatElementKind.ResultsType:
+            case OperationFormatElementKind.FunctionalType:
                 EmitType(builder, indent, declare);
                 break;
 
-            case RegionsDirectiveChunk _:
+            case OperationFormatElementKind.Regions:
                 EmitRegions(builder, indent, declare);
                 break;
 
-            case SuccessorsDirectiveChunk _:
+            case OperationFormatElementKind.Successors:
                 EmitSuccessors(builder, indent, declare);
                 break;
 
-            case OperandsDirectiveChunk _:
+            case OperationFormatElementKind.Operands:
                 EmitOperands(builder, indent, declare);
                 break;
 
-            case OptionalGroup optionalGroup:
+            case OperationFormatElementKind.OptionalGroup:
+                var optionalGroup = (OptionalGroup)element.Source;
                 EmitOptionalGroup(builder, optionalGroup, indent);
                 break;
 
-            case OilistDirectiveChunk oilist:
+            case OperationFormatElementKind.Oilist:
+                var oilist = (OilistDirectiveChunk)element.Source;
                 EmitOilist(builder, oilist, indent);
                 break;
         }

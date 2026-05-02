@@ -372,115 +372,13 @@ internal static class TypeAssemblyFormatEmitter
         }
     }
 
-    private abstract class FormatSlot { }
-
-    private sealed class LiteralTokenSlot : FormatSlot
-    {
-        public string LocalName { get; set; } = string.Empty;
-        public string SyntheticText { get; set; } = string.Empty;
-        public string KindExpr { get; set; } = string.Empty;
-        public bool IsKeyword { get; set; }
-    }
-
-    private sealed class VariableSlot : FormatSlot
-    {
-        public string Name { get; set; } = string.Empty;
-        public string SyntaxType { get; set; } = "AttributeValueSyntax";
-        public SyntaxValueShape SyntaxShape { get; set; } = SyntaxValueShape.SyntaxNode;
-        public AttrOrTypeParameterModel? ParamModel { get; set; }
-    }
-
     private static IReadOnlyList<FormatSlot> BuildFormatSlots(TypeModel type, AssemblyFormatModel format)
     {
-        var slots = new List<FormatSlot>();
-        var literalIndex = 0;
-
-        AssemblyFormatTraversal.VisitElements(
-            format.Elements,
-            onLiteral: literal =>
-            {
-                foreach (var lit in literal.Value)
-                {
-                    switch (lit)
-                    {
-                        case PunctuationLiteral punc:
-                            slots.Add(new LiteralTokenSlot
-                            {
-                                LocalName = "literal" + literalIndex + "Token",
-                                SyntheticText = EmitterHelpers.GetPunctuationText(punc.TokenKind),
-                                KindExpr = "TokenKind." + punc.TokenKind,
-                            });
-                            literalIndex++;
-                            break;
-
-                        case KeywordLiteral kw:
-                            slots.Add(new LiteralTokenSlot
-                            {
-                                LocalName = "literal" + literalIndex + "Token",
-                                SyntheticText = kw.Spelling,
-                                KindExpr = "TokenKind.Identifier",
-                                IsKeyword = true,
-                            });
-                            literalIndex++;
-                            break;
-                    }
-                }
-            },
-            onVariable: variable =>
-            {
-                var paramModel = FindParameter(type, variable.Name);
-                slots.Add(new VariableSlot
-                {
-                    Name = variable.Name,
-                    SyntaxType = GetResolvedCSharpSyntaxType(paramModel),
-                    SyntaxShape = GetResolvedCSharpSyntaxShape(paramModel),
-                    ParamModel = paramModel,
-                });
-            });
-
-        return slots;
-    }
-
-    internal static AttrOrTypeParameterModel? FindParameter(TypeModel type, string variableName)
-    {
-        foreach (var param in type.Parameters)
-        {
-            if (string.Equals(param.Name, variableName, System.StringComparison.Ordinal))
-            {
-                return param;
-            }
-        }
-
-        return null;
+        return AssemblyFormatLowerer.LowerType(type, format).Slots;
     }
 
     internal static string GetResolvedCSharpType(AttrOrTypeParameterModel? param)
     {
-        if (param == null)
-        {
-            return "AttributeValueSyntax";
-        }
-
-        if (!string.IsNullOrEmpty(param.CsharpType))
-        {
-            return param.CsharpType!;
-        }
-
-        return "AttributeValueSyntax";
-    }
-
-    private static string GetResolvedCSharpSyntaxType(AttrOrTypeParameterModel? param)
-    {
-        if (!string.IsNullOrEmpty(param?.CsharpSyntaxType))
-        {
-            return param!.CsharpSyntaxType!;
-        }
-
-        return "AttributeValueSyntax";
-    }
-
-    private static SyntaxValueShape GetResolvedCSharpSyntaxShape(AttrOrTypeParameterModel? param)
-    {
-        return param?.CsharpSyntaxShape ?? SyntaxValueShape.SyntaxNode;
+        return AssemblyFormatLowerer.GetResolvedCSharpType(param);
     }
 }

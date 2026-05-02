@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using MLIR.Generators.Emitters;
+using MLIR.Generators.Emitters.AssemblyFormat;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 using MLIR.ODS.Model.AssemblyFormat;
@@ -100,21 +101,7 @@ internal static class OperationBodySyntaxEmitter
 
     private static OperationBodySyntaxMetadata ComputeBodySyntaxMetadata(OperationModel operation, AssemblyFormatModel assemblyFormat, string operationClassName)
     {
-        var metadata = new OperationBodySyntaxMetadata(operationClassName);
-        var usedNames = new HashSet<string>(StringComparer.Ordinal);
-
-        foreach (var element in assemblyFormat.Elements)
-        {
-            AppendBodySyntaxFields(usedNames, element, operation, metadata);
-        }
-
-        return metadata;
-    }
-
-    private static void AppendBodySyntaxFields(HashSet<string> usedNames, Element element, OperationModel operation, OperationBodySyntaxMetadata metadata)
-    {
-        // Implementation moved to helper so OperationBodySyntaxEmitter uses helper methods for readability.
-        EmitterHelpers.AppendBodySyntaxFields(usedNames, element, operation, metadata);
+        return AssemblyFormatLowerer.LowerOperation(operation, assemblyFormat).Metadata;
     }
 
     private static string GetRewriteExpression(BodySyntaxField field)
