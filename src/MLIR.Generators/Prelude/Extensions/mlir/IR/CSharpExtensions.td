@@ -358,4 +358,82 @@ class CSharpParameterExtension {
   string csharpPrinter = ?;
 }
 
+// Parameter helper for values whose generated syntax property is a typed syntax
+// node and whose semantic value can be extracted directly from that node.
+class CSharpTypedSyntaxParameter<
+    string csharpTypeValue,
+    string csharpSyntaxTypeValue,
+    string csharpExtractorValue> : CSharpParameterExtension {
+  let csharpType = csharpTypeValue;
+  let csharpSyntaxType = csharpSyntaxTypeValue;
+  let csharpSyntaxShape = "SyntaxNode";
+  let csharpExtractor = csharpExtractorValue;
+}
+
+// Parameter helper for typed syntax values that also define a complete
+// parse/default/print round trip for syntax synthesis.
+class CSharpLiteralSyntaxParameter<
+    string csharpTypeValue,
+    string csharpSyntaxTypeValue,
+    string parser,
+    string extractor,
+    string defaultValue,
+    string printer> : CSharpTypedSyntaxParameter<
+        csharpTypeValue,
+        csharpSyntaxTypeValue,
+        extractor> {
+  let csharpParser = parser;
+  let csharpDefault = defaultValue;
+  let csharpPrinter = printer;
+}
+
+class CSharpStringLiteralParameter : CSharpLiteralSyntaxParameter<
+    "string",
+    "StringAttributeValueSyntax",
+    "$_parser.TryParseStringLiteralSyntax()",
+    "$_syntax.Value",
+    "string.Empty",
+    "new StringAttributeValueSyntax(TokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)">;
+
+class CSharpIntegerLiteralParameter : CSharpLiteralSyntaxParameter<
+    "global::MLIR.Numerics.ApInt",
+    "IntegerAttributeValueSyntax",
+    "$_parser.TryParseIntegerLiteralSyntax()",
+    "$_syntax.Value",
+    "global::MLIR.Numerics.ApInt.Zero(64)",
+    "new IntegerAttributeValueSyntax(TokenFactory.Integer($_self.ToStringSigned()), $_self)">;
+
+class CSharpFloatLiteralParameter : CSharpLiteralSyntaxParameter<
+    "global::MLIR.Numerics.ApFloat",
+    "FloatingPointAttributeValueSyntax",
+    "$_parser.TryParseFloatingPointLiteralSyntax()",
+    "$_syntax.Value",
+    "global::MLIR.Numerics.ApFloat.Zero(global::MLIR.Numerics.FloatSemantics.IEEEDouble)",
+    "new FloatingPointAttributeValueSyntax(new global::MLIR.Syntax.RawSyntaxText(global::MLIR.Semantics.Attributes.Primitives.FloatingPointLiteralParser.Format($_self)), $_self)">;
+
+class CSharpTypeSyntaxParameter : CSharpTypedSyntaxParameter<
+    "global::MLIR.Semantics.TypeReference",
+    "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax",
+    "$_syntax.TypeSyntax">;
+
+class CSharpAttributeSelfTypeParameter : CSharpTypeSyntaxParameter {
+  let csharpParser = "$_parser.TryParseTypeSyntax().Map<AttributeValueSyntax>(static typeSyntax => new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax(typeSyntax))";
+  let csharpDefault = "global::MLIR.Semantics.TypeFactory.None";
+  let csharpPrinter = "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax(context.BuildTypeSyntax($_self))";
+}
+
+class CSharpAttributeArrayParameter : CSharpTypedSyntaxParameter<
+    "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>",
+    "global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax",
+    "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindItemsFromSyntax($_syntax.Items.Items)"> {
+  let csharpDefault = "global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>()";
+}
+
+class CSharpNamedAttributeDictionaryParameter : CSharpTypedSyntaxParameter<
+    "global::MLIR.Semantics.NamedAttributeCollection",
+    "global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax",
+    "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax($_syntax.Attributes.Items)"> {
+  let csharpDefault = "global::MLIR.Semantics.NamedAttributeCollection.Empty";
+}
+
 #endif // CSHARP_EXTENSIONS_TD

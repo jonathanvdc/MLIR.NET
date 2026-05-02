@@ -6,43 +6,18 @@ include "mlir/Extensions/IR/CSharpExtensions.td"
 // MLIR.NET-specific parameter overlays for builtin attribute defs.
 
 def Builtin_TypeParameter : AttrOrTypeParameter<"Type", "nested type">,
-    CSharpParameterExtension {
-  let csharpType = "global::MLIR.Semantics.TypeReference";
-  let csharpSyntaxType = "global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax";
-  let csharpSyntaxShape = "SyntaxNode";
-  let csharpExtractor = "$_syntax.TypeSyntax";
-}
+    CSharpTypeSyntaxParameter;
 
 def Builtin_ArrayParameter : AttrOrTypeParameter<
     "ArrayRef<Attribute>", "array of attributes">,
-    CSharpParameterExtension {
-  let csharpType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
-  let csharpSyntaxType = "global::MLIR.Syntax.Attributes.Collections.ArrayAttributeValueSyntax";
-  let csharpSyntaxShape = "SyntaxNode";
-  let csharpExtractor = "global::MLIR.Semantics.Attributes.Collections.ArrayAttrConstraintHelpers.BindItemsFromSyntax($_syntax.Items.Items)";
-  let csharpDefault = "global::System.Array.Empty<global::MLIR.Semantics.AttributeValue>()";
-}
+    CSharpAttributeArrayParameter;
 
 def Builtin_DictionaryParameter : AttrOrTypeParameter<
     "ArrayRef<NamedAttribute>", "named attributes">,
-    CSharpParameterExtension {
-  let csharpType = "global::MLIR.Semantics.NamedAttributeCollection";
-  let csharpSyntaxType = "global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax";
-  let csharpSyntaxShape = "SyntaxNode";
-  let csharpExtractor = "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax($_syntax.Attributes.Items)";
-  let csharpDefault = "global::MLIR.Semantics.NamedAttributeCollection.Empty";
-}
+    CSharpNamedAttributeDictionaryParameter;
 
 def Builtin_StringAttrParameter : AttrOrTypeParameter<"StringAttr", "string attribute">,
-    CSharpParameterExtension {
-  let csharpType = "string";
-  let csharpSyntaxType = "StringAttributeValueSyntax";
-  let csharpSyntaxShape = "SyntaxNode";
-  let csharpParser = "$_parser.TryParseStringLiteralSyntax()";
-  let csharpExtractor = "$_syntax.Value";
-  let csharpDefault = "string.Empty";
-  let csharpPrinter = "new StringAttributeValueSyntax(TokenFactory.StringLiteral(StringLiteralAttributeAssemblyFormat.Quote($_self)), $_self)";
-}
+    CSharpStringLiteralParameter;
 
 extends Builtin_DenseArrayRawDataParameter : CSharpParameterExtension {
   let csharpType = "global::System.ReadOnlyMemory<byte>";
