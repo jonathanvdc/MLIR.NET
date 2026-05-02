@@ -1,13 +1,10 @@
 namespace MLIR.Generators.Emitters.Operation;
 
 using System;
-using System.Collections.Generic;
 using System.Text;
-using MLIR.Generators.Emitters;
 using MLIR.Generators.Emitters.AssemblyFormat;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
-using MLIR.ODS.Model.AssemblyFormat;
 
 internal static class OperationBodySyntaxEmitter
 {
