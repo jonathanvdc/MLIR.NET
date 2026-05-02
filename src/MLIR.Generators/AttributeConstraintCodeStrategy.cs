@@ -464,12 +464,10 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
 internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
     private readonly AttrModel? attrModel;
-    private readonly string? elementRecordName;
 
-    public TypedArrayConstraintCodeStrategy(AttrModel? attrModel, string? elementRecordName)
+    public TypedArrayConstraintCodeStrategy(AttrModel? attrModel)
     {
         this.attrModel = attrModel;
-        this.elementRecordName = elementRecordName;
     }
 
     public override string PublicTypeName => HasSpecializedAttrReturnType(attrModel)
@@ -598,7 +596,7 @@ internal static class AttributeConstraintCodeStrategyFactory
             AttributeConstraintKind.TypeAttribute => TypeAttributeConstraintCodeStrategy.Instance,
             AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
-            AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel, constraint.ElementConstraintRecordName),
+            AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel),
             _ when attrModel != null => new ModelBackedAttributeConstraintCodeStrategy(attrModel),
             _ => FallbackAttributeConstraintCodeStrategy.Instance,
         };
