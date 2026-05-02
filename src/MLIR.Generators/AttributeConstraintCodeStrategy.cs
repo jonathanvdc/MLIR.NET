@@ -196,30 +196,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// </summary>
     public virtual void EmitAdditionalDefinitions(StringBuilder builder) { }
 
-    // -------------------------------------------------------------------------
-    // Typed-array decode/encode
-    // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns a C# expression that extracts the typed element value directly from a
-    /// decoded <c>AttributeValue</c> when the constraint is used as a typed-array element
-    /// type. The placeholder <c>{itemSyntax}</c> in the returned expression is replaced by
-    /// the name of the <c>AttributeValueSyntax</c> variable available at the call site.
-    /// Returns <see langword="null"/> when the old constraint-class instance path should be
-    /// used instead.
-    /// </summary>
-    public virtual string? GetTypedArrayElementDecodeExpression() => null;
-
-    /// <summary>
-    /// Returns a C# expression that converts the typed element value back to an
-    /// <c>AttributeValueSyntax</c> for the typed-array assembly format.  The placeholder
-    /// <c>{element}</c> in the returned expression is replaced by the name of the element
-    /// variable, and <c>{context}</c> by the <c>ConcreteSyntaxBuilderContext</c> variable.
-    /// Returns <see langword="null"/> when the old constraint-class instance path should be
-    /// used instead.
-    /// </summary>
-    public virtual string? GetTypedArrayElementToSyntaxExpression() => null;
-
 }
 
 internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
@@ -353,12 +329,6 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
     /// whether the constraint is classified as primitive (it is not).
     /// </summary>
     public override string? GetAssemblyFormatType() => "DictionaryAttributeAssemblyFormat";
-    public override string? GetTypedArrayElementDecodeExpression() =>
-        "{itemSyntax} is global::MLIR.Syntax.Attributes.Collections.DictionaryAttributeValueSyntax dictionarySyntax " +
-        "? global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BindAttributesFromSyntax(dictionarySyntax.Attributes.Items) " +
-        ": global::MLIR.Semantics.NamedAttributeCollection.Empty";
-    public override string? GetTypedArrayElementToSyntaxExpression() =>
-        "global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat.BuildSyntax({element}, {context})";
 
 }
 
@@ -380,12 +350,6 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
     /// element extraction.
     /// </summary>
     public override string? GetAssemblyFormatType() => "TypeAttributeAssemblyFormat";
-    public override string? GetTypedArrayElementDecodeExpression() =>
-        "{itemSyntax} is global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax typeSyntax " +
-        "? new global::MLIR.Semantics.UnknownTypeReference(typeSyntax.TypeSyntax, null, null, typeSyntax.TypeSyntax.Location) " +
-        ": throw new global::System.InvalidOperationException(\"Unexpected syntax for type attribute. Expected a type attribute literal such as 'i32'.\")";
-    public override string? GetTypedArrayElementToSyntaxExpression() =>
-        "new global::MLIR.Syntax.Attributes.TypeAttributeValueSyntax({context}.BuildTypeSyntax({element}))";
 }
 
 /// <summary>
