@@ -14,7 +14,7 @@ internal static class DialectGenerationPipeline
 {
     public static IReadOnlyList<DialectModel> ParseAndMerge(
         ImmutableArray<AdditionalText> additionalTexts,
-        System.Threading.CancellationToken cancellationToken,
+        CancellationToken cancellationToken,
         SourceProductionContext productionContext)
     {
         var includeResolver = BuildIncludeResolver(additionalTexts, cancellationToken);
@@ -31,13 +31,6 @@ internal static class DialectGenerationPipeline
                     CreateLocation(result),
                     result.Path,
                     result.ErrorMessage))).ToArray();
-    }
-
-    internal static IReadOnlyList<DialectModel> ParseAndMerge(
-        IReadOnlyList<TableGenInput> inputs,
-        IncludeResolver includeResolver)
-    {
-        return ParseAndMergeDetailed(inputs, includeResolver).Dialects;
     }
 
     internal static DialectMergeResult ParseAndMergeDetailed(
