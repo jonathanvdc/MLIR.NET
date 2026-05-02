@@ -119,15 +119,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// </summary>
     public virtual bool IsGenericTypedArrayElement => false;
 
-    /// <summary>
-    /// Gets a value indicating whether this constraint, when used as an element type inside
-    /// a typed-array attribute, should have its payload extracted via a named property on
-    /// the generated constraint class (see <see cref="GetTypedArrayElementPayloadPropertyName"/>).
-    /// When <see langword="false"/> the strategy provides a direct syntax-to-value decode
-    /// expression for the element.
-    /// </summary>
-    public virtual bool UsesTypedArrayElementPayload => false;
-
     // -------------------------------------------------------------------------
     // Type name resolution
     // -------------------------------------------------------------------------
@@ -190,14 +181,6 @@ internal abstract class AttributeConstraintCodeStrategy
     // -------------------------------------------------------------------------
     // Typed-array element payload
     // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Returns the name of the property on the generated constraint class that holds the
-    /// element's typed payload when this constraint is used as an element inside a
-    /// typed-array attribute (e.g. <c>"Value"</c>, <c>"TypedValue"</c>, <c>"Items"</c>).
-    /// Only called when <see cref="UsesTypedArrayElementPayload"/> is <see langword="true"/>.
-    /// </summary>
-    public virtual string GetTypedArrayElementPayloadPropertyName() => "Value";
 
     /// <summary>
     /// Returns the name of the assembly-format type to register with
@@ -378,7 +361,6 @@ internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConst
 
     public override string PublicTypeName => "DictionaryAttr";
     public override string TypedArrayElementTypeName => "NamedAttributeCollection";
-    public override bool UsesTypedArrayElementPayload => false;
 
     /// <summary>
     /// Returns <c>"NamedAttributeCollection"</c> – the unwrapped value type used for
@@ -407,7 +389,6 @@ internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintC
 
     public override string PublicTypeName => "TypeAttr";
     public override string TypedArrayElementTypeName => "TypeReference";
-    public override bool UsesTypedArrayElementPayload => false;
 
     /// <summary>
     /// Returns <c>"TypeReference"</c> – the unwrapped value type used for typed-array
@@ -546,8 +527,6 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         ? attrModel!.CsharpReturnType!
         : "IReadOnlyList<AttributeValue>";
     public override bool IsTypedArray => true;
-    public override bool UsesTypedArrayElementPayload => true;
-    public override string GetTypedArrayElementPayloadPropertyName() => "Items";
     public override string? GetAssemblyFormatConstructionExpression() =>
         "new global::MLIR.Dialects.Attributes.Collections.ArrayAttributeAssemblyFormat()";
 
