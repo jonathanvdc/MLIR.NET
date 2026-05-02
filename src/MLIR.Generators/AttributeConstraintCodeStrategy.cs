@@ -155,13 +155,6 @@ internal abstract class AttributeConstraintCodeStrategy
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Returns the name of the assembly-format type to register with
-    /// <c>AttributeConstraintDefinition</c>, or <see langword="null"/> when no custom
-    /// assembly format is needed.
-    /// </summary>
-    public virtual string? GetAssemblyFormatType() => null;
-
-    /// <summary>
     /// Returns the full C# expression used to instantiate the assembly-format object
     /// when registration needs constructor arguments or a custom factory expression.
     /// Returns <see langword="null"/> when the default <c>new {GetAssemblyFormatType}()</c>
@@ -288,7 +281,8 @@ internal sealed class FixedAttributeConstraintCodeStrategy : AttributeConstraint
 
     public override string PublicTypeName { get; }
 
-    public override string? GetAssemblyFormatType() => assemblyFormatTypeName;
+    public override string? GetAssemblyFormatConstructionExpression() =>
+        assemblyFormatTypeName != null ? "new " + assemblyFormatTypeName + "()" : null;
 }
 
 /// <summary>

@@ -40,7 +40,7 @@ internal static class AttributeConstraintEmitter
         AppendAttributeConstraintDefinition(
             builder,
             attributeConstraint.Name,
-            GetAssemblyFormatExpression(strategy),
+            strategy.GetAssemblyFormatConstructionExpression(),
             indent);
     }
 
@@ -60,17 +60,5 @@ internal static class AttributeConstraintEmitter
         }
 
         builder.AppendLine(");");
-    }
-
-    private static string? GetAssemblyFormatExpression(AttributeConstraintCodeStrategy strategy)
-    {
-        var assemblyFormatExpression = strategy.GetAssemblyFormatConstructionExpression();
-        if (assemblyFormatExpression != null)
-        {
-            return assemblyFormatExpression;
-        }
-
-        var assemblyFormatType = strategy.GetAssemblyFormatType();
-        return assemblyFormatType != null ? "new " + assemblyFormatType + "()" : null;
     }
 }
