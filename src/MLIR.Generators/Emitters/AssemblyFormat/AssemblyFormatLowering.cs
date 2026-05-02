@@ -629,12 +629,17 @@ internal static class AssemblyFormatLowerer
         BodyComponentKind componentKind)
     {
         var name = EmitterHelpers.MakeUnique(baseName, usedNames);
-        string csType;
-        string writeStmt;
-        if (IsVariadicOperand(operation, operandName) || IsVariadicResult(operation, operandName))
+        var isVariadic = IsVariadicOperand(operation, operandName) || IsVariadicResult(operation, operandName);
+        var (csType, writeStmt) = GetTypeFieldShape(name, nullable, isVariadic);
+        AddBodySyntaxField(metadata, componentKind, operandName, name, csType, writeStmt);
+    }
+
+    private static (string CsType, string WriteStmt) GetTypeFieldShape(string name, bool nullable, bool isVariadic)
+    {
+        if (isVariadic)
         {
-            csType = "IReadOnlyList<TypeSyntax>";
-            writeStmt =
+            return (
+                "IReadOnlyList<TypeSyntax>",
                 "for (var i = 0; i < " + name + ".Count; i++)\n" +
                 "{\n" +
                 "    if (i > 0)\n" +
@@ -644,16 +649,12 @@ internal static class AssemblyFormatLowerer
                 "\n" +
                 "    writer.SuggestTrivia(\" \");\n" +
                 "    " + name + "[i].WriteTo(writer);\n" +
-                "}";
-        }
-        else
-        {
-            (csType, writeStmt) = nullable
-                ? ("TypeSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
-                : ("TypeSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
+                "}");
         }
 
-        AddBodySyntaxField(metadata, componentKind, operandName, name, csType, writeStmt);
+        return nullable
+            ? ("TypeSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
+            : ("TypeSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
     }
 
     private static string GetTypeBaseName(DirectiveOperand operand)
