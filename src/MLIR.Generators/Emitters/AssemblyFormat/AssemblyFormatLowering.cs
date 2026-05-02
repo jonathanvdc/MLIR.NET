@@ -21,126 +21,55 @@ internal static class AssemblyFormatLowerer
 {
     public static LoweredAssemblyFormat LowerAttribute(AttributeModel attribute, AssemblyFormatModel format)
     {
-        var slots = LowerAttrOrTypeSlots(
-            format,
-            includeTrivia: true,
-            variable =>
-            {
-                var param = FindParameter(attribute.Parameters, variable.Name);
-                return new VariableSlot
-                {
-                    Name = variable.Name,
-                    SyntaxType = GetResolvedCSharpSyntaxType(param),
-                    SyntaxShape = GetResolvedCSharpSyntaxShape(param),
-                    ParamModel = param,
-                };
-            });
-
-        return new LoweredAssemblyFormat(slots);
+        var sink = new AttrOrTypeFormatSink(attribute.Parameters, includeTrivia: true);
+        LowerElements(format.Elements, sink);
+        return new LoweredAssemblyFormat(sink.Slots);
     }
 
     public static LoweredAssemblyFormat LowerType(TypeModel type, AssemblyFormatModel format)
     {
-        var slots = LowerAttrOrTypeSlots(
-            format,
-            includeTrivia: false,
-            variable =>
-            {
-                var param = FindParameter(type.Parameters, variable.Name);
-                return new VariableSlot
-                {
-                    Name = variable.Name,
-                    SyntaxType = GetResolvedCSharpSyntaxType(param),
-                    SyntaxShape = GetResolvedCSharpSyntaxShape(param),
-                    ParamModel = param,
-                };
-            });
-
-        return new LoweredAssemblyFormat(slots);
+        var sink = new AttrOrTypeFormatSink(type.Parameters, includeTrivia: false);
+        LowerElements(format.Elements, sink);
+        return new LoweredAssemblyFormat(sink.Slots);
     }
 
     public static LoweredOperationAssemblyFormat LowerOperation(OperationModel operation, AssemblyFormatModel format)
     {
-        var metadata = new OperationBodySyntaxMetadata(DialectGeneratorNaming.GetOperationClassName(operation));
-        var usedNames = new HashSet<string>(System.StringComparer.Ordinal);
-        var elements = new List<LoweredOperationElement>();
-        LowerOperationElements(format.Elements, operation, metadata, usedNames, elements);
-        return new LoweredOperationAssemblyFormat(elements, metadata);
+        var sink = new OperationFormatSink(operation);
+        LowerElements(format.Elements, sink);
+        return new LoweredOperationAssemblyFormat(sink.Elements, sink.Metadata);
     }
 
-    private static IReadOnlyList<FormatSlot> LowerAttrOrTypeSlots(
-        AssemblyFormatModel format,
-        bool includeTrivia,
-        System.Func<VariableChunk, VariableSlot> lowerVariable)
-    {
-        var slots = new List<FormatSlot>();
-        var literalIndex = 0;
-
-        AssemblyFormatTraversal.VisitElements(
-            format.Elements,
-            onLiteral: literal =>
-            {
-                foreach (var lit in literal.Value)
-                {
-                    switch (lit)
-                    {
-                        case PunctuationLiteral punc:
-                            slots.Add(new LiteralTokenSlot
-                            {
-                                LocalName = "literal" + literalIndex + "Token",
-                                SyntheticText = EmitterHelpers.GetPunctuationText(punc.TokenKind),
-                                KindExpr = "TokenKind." + punc.TokenKind,
-                                IsKeyword = false,
-                            });
-                            literalIndex++;
-                            break;
-
-                        case KeywordLiteral kw:
-                            slots.Add(new LiteralTokenSlot
-                            {
-                                LocalName = "literal" + literalIndex + "Token",
-                                SyntheticText = kw.Spelling,
-                                KindExpr = "TokenKind.Identifier",
-                                IsKeyword = true,
-                            });
-                            literalIndex++;
-                            break;
-
-                        case WhitespaceLiteral ws when includeTrivia:
-                            slots.Add(new TriviaSlot { Text = ws.Spaces, IsNewline = false });
-                            break;
-
-                        case NewlineLiteral when includeTrivia:
-                            slots.Add(new TriviaSlot { Text = "\n", IsNewline = true });
-                            break;
-                    }
-                }
-            },
-            onVariable: variable => slots.Add(lowerVariable(variable)));
-
-        return slots;
-    }
-
-    private static void LowerOperationElements(
-        IReadOnlyList<Element> elements,
-        OperationModel operation,
-        OperationBodySyntaxMetadata metadata,
-        HashSet<string> usedNames,
-        List<LoweredOperationElement> loweredElements)
+    private static void LowerElements(IReadOnlyList<Element> elements, IAssemblyFormatLoweringSink sink)
     {
         for (var i = 0; i < elements.Count; i++)
         {
-            var start = metadata.Fields.Count;
-            AppendBodySyntaxFields(usedNames, elements[i], operation, metadata);
-            var count = metadata.Fields.Count - start;
-            var kind = GetOperationElementKind(elements[i]);
-            loweredElements.Add(new LoweredOperationElement(
-                elements[i],
-                kind,
-                i,
-                start,
-                count,
-                kind != OperationFormatElementKind.Unsupported));
+            LowerElement(elements[i], i, sink);
+        }
+    }
+
+    private static void LowerElement(Element element, int elementIndex, IAssemblyFormatLoweringSink sink)
+    {
+        switch (element)
+        {
+            case LiteralChunk literal:
+                sink.LowerLiteral(literal, elementIndex);
+                break;
+            case VariableChunk variable:
+                sink.LowerVariable(variable, elementIndex);
+                break;
+            case OptionalGroup optionalGroup:
+                sink.LowerOptionalGroup(optionalGroup, elementIndex);
+                break;
+            case OilistDirectiveChunk oilist:
+                sink.LowerOilist(oilist, elementIndex);
+                break;
+            case DirectiveChunk directive:
+                sink.LowerDirective(directive, elementIndex);
+                break;
+            default:
+                sink.LowerUnsupported(element, elementIndex);
+                break;
         }
     }
 
@@ -164,6 +93,176 @@ internal static class AssemblyFormatLowerer
             OilistDirectiveChunk _ => OperationFormatElementKind.Oilist,
             _ => OperationFormatElementKind.Unsupported,
         };
+    }
+
+    private interface IAssemblyFormatLoweringSink
+    {
+        void LowerLiteral(LiteralChunk literal, int elementIndex);
+
+        void LowerVariable(VariableChunk variable, int elementIndex);
+
+        void LowerDirective(DirectiveChunk directive, int elementIndex);
+
+        void LowerOptionalGroup(OptionalGroup optionalGroup, int elementIndex);
+
+        void LowerOilist(OilistDirectiveChunk oilist, int elementIndex);
+
+        void LowerUnsupported(Element element, int elementIndex);
+    }
+
+    private sealed class AttrOrTypeFormatSink : IAssemblyFormatLoweringSink
+    {
+        private readonly IReadOnlyList<AttrOrTypeParameterModel> parameters;
+        private readonly bool includeTrivia;
+        private int literalIndex;
+
+        public AttrOrTypeFormatSink(IReadOnlyList<AttrOrTypeParameterModel> parameters, bool includeTrivia)
+        {
+            this.parameters = parameters;
+            this.includeTrivia = includeTrivia;
+            Slots = new List<FormatSlot>();
+        }
+
+        public List<FormatSlot> Slots { get; }
+
+        public void LowerLiteral(LiteralChunk literal, int elementIndex)
+        {
+            foreach (var lit in literal.Value)
+            {
+                switch (lit)
+                {
+                    case PunctuationLiteral punc:
+                        Slots.Add(new LiteralTokenSlot
+                        {
+                            LocalName = "literal" + literalIndex + "Token",
+                            SyntheticText = EmitterHelpers.GetPunctuationText(punc.TokenKind),
+                            KindExpr = "TokenKind." + punc.TokenKind,
+                            IsKeyword = false,
+                        });
+                        literalIndex++;
+                        break;
+
+                    case KeywordLiteral kw:
+                        Slots.Add(new LiteralTokenSlot
+                        {
+                            LocalName = "literal" + literalIndex + "Token",
+                            SyntheticText = kw.Spelling,
+                            KindExpr = "TokenKind.Identifier",
+                            IsKeyword = true,
+                        });
+                        literalIndex++;
+                        break;
+
+                    case WhitespaceLiteral ws when includeTrivia:
+                        Slots.Add(new TriviaSlot { Text = ws.Spaces, IsNewline = false });
+                        break;
+
+                    case NewlineLiteral when includeTrivia:
+                        Slots.Add(new TriviaSlot { Text = "\n", IsNewline = true });
+                        break;
+                }
+            }
+        }
+
+        public void LowerVariable(VariableChunk variable, int elementIndex)
+        {
+            var param = FindParameter(parameters, variable.Name);
+            Slots.Add(new VariableSlot
+            {
+                Name = variable.Name,
+                SyntaxType = GetResolvedCSharpSyntaxType(param),
+                SyntaxShape = GetResolvedCSharpSyntaxShape(param),
+                ParamModel = param,
+            });
+        }
+
+        public void LowerDirective(DirectiveChunk directive, int elementIndex)
+        {
+        }
+
+        public void LowerOptionalGroup(OptionalGroup optionalGroup, int elementIndex)
+        {
+        }
+
+        public void LowerOilist(OilistDirectiveChunk oilist, int elementIndex)
+        {
+        }
+
+        public void LowerUnsupported(Element element, int elementIndex)
+        {
+        }
+    }
+
+    private sealed class OperationFormatSink : IAssemblyFormatLoweringSink
+    {
+        private readonly OperationModel operation;
+        private readonly HashSet<string> usedNames;
+
+        public OperationFormatSink(OperationModel operation)
+        {
+            this.operation = operation;
+            Metadata = new OperationBodySyntaxMetadata(DialectGeneratorNaming.GetOperationClassName(operation));
+            Elements = new List<LoweredOperationElement>();
+            usedNames = new HashSet<string>(System.StringComparer.Ordinal);
+        }
+
+        public OperationBodySyntaxMetadata Metadata { get; }
+
+        public List<LoweredOperationElement> Elements { get; }
+
+        public void LowerLiteral(LiteralChunk literal, int elementIndex)
+        {
+            LowerOperationElement(literal, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+        }
+
+        public void LowerVariable(VariableChunk variable, int elementIndex)
+        {
+            LowerOperationElement(variable, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+        }
+
+        public void LowerDirective(DirectiveChunk directive, int elementIndex)
+        {
+            LowerOperationElement(directive, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+        }
+
+        public void LowerOptionalGroup(OptionalGroup optionalGroup, int elementIndex)
+        {
+            LowerOperationElement(optionalGroup, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+        }
+
+        public void LowerOilist(OilistDirectiveChunk oilist, int elementIndex)
+        {
+            LowerOperationElement(oilist, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+        }
+
+        public void LowerUnsupported(Element element, int elementIndex)
+        {
+            AddElement(element, elementIndex, fieldStart: Metadata.Fields.Count, fieldCount: 0);
+        }
+
+        private void LowerOperationElement(Element element, int elementIndex, System.Action<OperationFormatSink, Element> lowerFields)
+        {
+            var start = Metadata.Fields.Count;
+            lowerFields(this, element);
+            AddElement(element, elementIndex, start, Metadata.Fields.Count - start);
+        }
+
+        private void AddElement(Element element, int elementIndex, int fieldStart, int fieldCount)
+        {
+            var kind = GetOperationElementKind(element);
+            Elements.Add(new LoweredOperationElement(
+                element,
+                kind,
+                elementIndex,
+                fieldStart,
+                fieldCount,
+                kind != OperationFormatElementKind.Unsupported));
+        }
+
+        private void AppendBodySyntaxFields(Element element, bool nullable = false)
+        {
+            AssemblyFormatLowerer.AppendBodySyntaxFields(usedNames, element, operation, Metadata, nullable);
+        }
     }
 
     private static void AppendBodySyntaxFields(HashSet<string> usedNames, Element element, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable = false)
