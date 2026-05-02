@@ -19,13 +19,13 @@ def Builtin_IntegerSignednessParameter : AttrOrTypeParameter<"SignednessSemantic
   let csharpDefault = "global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signless";
 }
 
-extends Builtin_Integer : CSharpAttrOrTypeDefExtension {
+extends Builtin_Integer : CSharpNamedAssemblyFormattedDef<
+    "Signedness switch { global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signed => \"si\" + Width, global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Unsigned => \"ui\" + Width, _ => \"i\" + Width }",
+    "new global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     Builtin_IntegerWidthParameter:$width,
     Builtin_IntegerSignednessParameter:$signedness
   );
-  let csharpName = "Signedness switch { global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Signed => \"si\" + Width, global::MLIR.Semantics.Types.Primitives.IntegerTypeSignedness.Unsigned => \"ui\" + Width, _ => \"i\" + Width }";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinIntegerTypeAssemblyFormat()";
 }
 
 // Assembly formats and C# names for scalar float types.
@@ -34,184 +34,111 @@ extends Builtin_Integer : CSharpAttrOrTypeDefExtension {
 // csharpName overrides the Name property to return the short MLIR mnemonic (e.g., "f32")
 // rather than the qualified registry key (e.g., "builtin.f32").
 
-extends Builtin_Float8E5M2 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E5M2\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E5M2Type(syntax))";
-}
-
-extends Builtin_Float8E4M3 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E4M3\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E4M3Type(syntax))";
-}
-
-extends Builtin_Float8E4M3FN : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E4M3FN\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E4M3FNType(syntax))";
-}
-
-extends Builtin_Float8E5M2FNUZ : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E5M2FNUZ\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E5M2FNUZType(syntax))";
-}
-
-extends Builtin_Float8E4M3FNUZ : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E4M3FNUZ\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E4M3FNUZType(syntax))";
-}
-
-extends Builtin_Float8E4M3B11FNUZ : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E4M3B11FNUZ\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E4M3B11FNUZType(syntax))";
-}
-
-extends Builtin_Float8E3M4 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E3M4\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E3M4Type(syntax))";
-}
-
-extends Builtin_Float4E2M1FN : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f4E2M1FN\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float4E2M1FNType(syntax))";
-}
-
-extends Builtin_Float6E2M3FN : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f6E2M3FN\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float6E2M3FNType(syntax))";
-}
-
-extends Builtin_Float6E3M2FN : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f6E3M2FN\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float6E3M2FNType(syntax))";
-}
-
-extends Builtin_Float8E8M0FNU : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f8E8M0FNU\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float8E8M0FNUType(syntax))";
-}
-
-extends Builtin_BFloat16 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"bf16\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.BFloat16Type(syntax))";
-}
-
-extends Builtin_Float16 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f16\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float16Type(syntax))";
-}
-
-extends Builtin_FloatTF32 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"tf32\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.FloatTF32Type(syntax))";
-}
-
-extends Builtin_Float32 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f32\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float32Type(syntax))";
-}
-
-extends Builtin_Float64 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f64\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float64Type(syntax))";
-}
-
-extends Builtin_Float80 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f80\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float80Type(syntax))";
-}
-
-extends Builtin_Float128 : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"f128\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new global::MLIR.Dialects.Builtin.Float128Type(syntax))";
-}
+extends Builtin_Float8E5M2 : CSharpBuiltinScalarFloatType<"\"f8E5M2\"", "global::MLIR.Dialects.Builtin.Float8E5M2Type">;
+extends Builtin_Float8E4M3 : CSharpBuiltinScalarFloatType<"\"f8E4M3\"", "global::MLIR.Dialects.Builtin.Float8E4M3Type">;
+extends Builtin_Float8E4M3FN : CSharpBuiltinScalarFloatType<"\"f8E4M3FN\"", "global::MLIR.Dialects.Builtin.Float8E4M3FNType">;
+extends Builtin_Float8E5M2FNUZ : CSharpBuiltinScalarFloatType<"\"f8E5M2FNUZ\"", "global::MLIR.Dialects.Builtin.Float8E5M2FNUZType">;
+extends Builtin_Float8E4M3FNUZ : CSharpBuiltinScalarFloatType<"\"f8E4M3FNUZ\"", "global::MLIR.Dialects.Builtin.Float8E4M3FNUZType">;
+extends Builtin_Float8E4M3B11FNUZ : CSharpBuiltinScalarFloatType<"\"f8E4M3B11FNUZ\"", "global::MLIR.Dialects.Builtin.Float8E4M3B11FNUZType">;
+extends Builtin_Float8E3M4 : CSharpBuiltinScalarFloatType<"\"f8E3M4\"", "global::MLIR.Dialects.Builtin.Float8E3M4Type">;
+extends Builtin_Float4E2M1FN : CSharpBuiltinScalarFloatType<"\"f4E2M1FN\"", "global::MLIR.Dialects.Builtin.Float4E2M1FNType">;
+extends Builtin_Float6E2M3FN : CSharpBuiltinScalarFloatType<"\"f6E2M3FN\"", "global::MLIR.Dialects.Builtin.Float6E2M3FNType">;
+extends Builtin_Float6E3M2FN : CSharpBuiltinScalarFloatType<"\"f6E3M2FN\"", "global::MLIR.Dialects.Builtin.Float6E3M2FNType">;
+extends Builtin_Float8E8M0FNU : CSharpBuiltinScalarFloatType<"\"f8E8M0FNU\"", "global::MLIR.Dialects.Builtin.Float8E8M0FNUType">;
+extends Builtin_BFloat16 : CSharpBuiltinScalarFloatType<"\"bf16\"", "global::MLIR.Dialects.Builtin.BFloat16Type">;
+extends Builtin_Float16 : CSharpBuiltinScalarFloatType<"\"f16\"", "global::MLIR.Dialects.Builtin.Float16Type">;
+extends Builtin_FloatTF32 : CSharpBuiltinScalarFloatType<"\"tf32\"", "global::MLIR.Dialects.Builtin.FloatTF32Type">;
+extends Builtin_Float32 : CSharpBuiltinScalarFloatType<"\"f32\"", "global::MLIR.Dialects.Builtin.Float32Type">;
+extends Builtin_Float64 : CSharpBuiltinScalarFloatType<"\"f64\"", "global::MLIR.Dialects.Builtin.Float64Type">;
+extends Builtin_Float80 : CSharpBuiltinScalarFloatType<"\"f80\"", "global::MLIR.Dialects.Builtin.Float80Type">;
+extends Builtin_Float128 : CSharpBuiltinScalarFloatType<"\"f128\"", "global::MLIR.Dialects.Builtin.Float128Type">;
 
 // Assembly formats and C# names for scalar non-float types (index, none).
 
-extends Builtin_Index : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"index\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinIndexTypeAssemblyFormat()";
-}
+extends Builtin_Index : CSharpNamedAssemblyFormattedDef<
+    "\"index\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinIndexTypeAssemblyFormat()">;
 
-extends Builtin_None : CSharpAttrOrTypeDefExtension {
-  let csharpName = "\"none\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat()";
-}
+extends Builtin_None : CSharpNamedAssemblyFormattedDef<
+    "\"none\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinNoneTypeAssemblyFormat()">;
 
 // Aggregate builtin types are described upstream as TypeDef records. MLIR.NET keeps their
 // parser/printer logic in hand-written assembly-format helpers because their textual forms are
 // core MLIR syntax rather than dialect-prefixed declarative formats, but the generated TypeDef
 // classes own the canonical TypeDefinition and semantic payload.
 
-extends Builtin_Function : CSharpAttrOrTypeDefExtension {
+extends Builtin_Function : CSharpNamedAssemblyFormattedDef<
+    "\"function\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinFunctionTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>":$inputs,
     "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>":$results
   );
-  let csharpName = "\"function\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinFunctionTypeAssemblyFormat()";
 }
 
-extends Builtin_Tuple : CSharpAttrOrTypeDefExtension {
+extends Builtin_Tuple : CSharpNamedAssemblyFormattedDef<
+    "\"tuple\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinTupleTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.TypeReference>":$types
   );
-  let csharpName = "\"tuple\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinTupleTypeAssemblyFormat()";
 }
 
-extends Builtin_RankedTensor : CSharpAttrOrTypeDefExtension {
+extends Builtin_RankedTensor : CSharpNamedAssemblyFormattedDef<
+    "\"tensor\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinTensorTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
     "global::MLIR.Semantics.TypeReference":$elementType
   );
-  let csharpName = "\"tensor\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinTensorTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     CSharpInterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
   ];
 }
 
-extends Builtin_UnrankedTensor : CSharpAttrOrTypeDefExtension {
+extends Builtin_UnrankedTensor : CSharpNamedAssemblyFormattedDef<
+    "\"tensor\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinTensorTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     "global::MLIR.Semantics.TypeReference":$elementType
   );
-  let csharpName = "\"tensor\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinTensorTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     CSharpInterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "false">,
     CSharpInterfacePropertyImplementation<ShapedTypeInterface, "Shape", "throw new global::System.InvalidOperationException(\"Unranked shaped types do not have a shape.\")">
   ];
 }
 
-extends Builtin_Vector : CSharpAttrOrTypeDefExtension {
+extends Builtin_Vector : CSharpNamedAssemblyFormattedDef<
+    "\"vector\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinVectorTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
     "global::MLIR.Semantics.TypeReference":$elementType
   );
-  let csharpName = "\"vector\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinVectorTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     CSharpInterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
   ];
 }
 
-extends Builtin_MemRef : CSharpAttrOrTypeDefExtension {
+extends Builtin_MemRef : CSharpNamedAssemblyFormattedDef<
+    "\"memref\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinMemRefTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     "global::System.Collections.Generic.IReadOnlyList<long>":$shape,
     "global::MLIR.Semantics.TypeReference":$elementType
   );
-  let csharpName = "\"memref\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinMemRefTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     CSharpInterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "true">
   ];
 }
 
-extends Builtin_UnrankedMemRef : CSharpAttrOrTypeDefExtension {
+extends Builtin_UnrankedMemRef : CSharpNamedAssemblyFormattedDef<
+    "\"memref\"",
+    "new global::MLIR.Dialects.Builtin.BuiltinMemRefTypeAssemblyFormat()"> {
   let csharpParameters = (ins
     "global::MLIR.Semantics.TypeReference":$elementType
   );
-  let csharpName = "\"memref\"";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinMemRefTypeAssemblyFormat()";
   let csharpInterfaceImplementations = [
     CSharpInterfacePropertyImplementation<ShapedTypeInterface, "HasRank", "false">,
     CSharpInterfacePropertyImplementation<ShapedTypeInterface, "Shape", "throw new global::System.InvalidOperationException(\"Unranked shaped types do not have a shape.\")">

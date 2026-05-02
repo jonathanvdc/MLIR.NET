@@ -215,6 +215,30 @@ class CSharpAttrOrTypeDefExtension
   list<CSharpInterfaceMemberImplementation> csharpInterfaceImplementations = [];
 }
 
+// Convenience base for AttrDef/TypeDef overlays that only need a custom
+// assembly-format helper.
+class CSharpAssemblyFormattedDef<string csharpAssemblyFormatExpression>
+    : CSharpAttrOrTypeDefExtension {
+  let csharpAssemblyFormat = csharpAssemblyFormatExpression;
+}
+
+// Convenience base for AttrDef/TypeDef overlays that need a C# name expression
+// in addition to a custom assembly-format helper.
+class CSharpNamedAssemblyFormattedDef<string csharpNameExpression,
+                                      string csharpAssemblyFormatExpression>
+    : CSharpAssemblyFormattedDef<csharpAssemblyFormatExpression> {
+  let csharpName = csharpNameExpression;
+}
+
+// Builtin scalar floating-point types all share the same assembly-format helper;
+// only the exposed MLIR mnemonic and concrete semantic type constructor vary.
+class CSharpBuiltinScalarFloatType<string csharpNameExpression,
+                                   string csharpTypeName>
+    : CSharpNamedAssemblyFormattedDef<
+        csharpNameExpression,
+        "new global::MLIR.Dialects.Builtin.BuiltinScalarFloatTypeAssemblyFormat(syntax => new "
+          # csharpTypeName # "(syntax))">;
+
 // Extension schema for upstream Attr records.
 //
 // Applying this class to an Attr or DialectAttr record via a record-level `extends`

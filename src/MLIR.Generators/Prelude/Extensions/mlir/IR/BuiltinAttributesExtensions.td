@@ -53,9 +53,8 @@ extends Builtin_TypeAttr : CSharpAttrOrTypeDefExtension {
   let csharpParameters = (ins Builtin_TypeParameter:$value);
 }
 
-extends Builtin_UnitAttr : CSharpAttrOrTypeDefExtension {
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.UnitLiteralAttributeAssemblyFormat()";
-}
+extends Builtin_UnitAttr : CSharpAssemblyFormattedDef<
+    "new global::MLIR.Dialects.Attributes.Primitives.UnitLiteralAttributeAssemblyFormat()">;
 
 extends Builtin_DenseArray : CSharpAttrOrTypeDefExtension {
   let csharpParameters = (ins
@@ -65,12 +64,12 @@ extends Builtin_DenseArray : CSharpAttrOrTypeDefExtension {
   );
 }
 
-extends Builtin_DenseTypedElementsAttr : CSharpAttrOrTypeDefExtension {
+extends Builtin_DenseTypedElementsAttr : CSharpAssemblyFormattedDef<
+    "new global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat()"> {
   let csharpParameters = (ins
     AttributeSelfTypeParameter<"", "ShapedType">:$type,
     "global::MLIR.Semantics.AttributeValue":$rawData
   );
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat()";
 }
 
 extends Builtin_ArrayAttr : CSharpAttrOrTypeDefExtension {
@@ -95,9 +94,9 @@ extends Builtin_DenseResourceElementsAttr : CSharpAttrOrTypeDefExtension {
   );
 }
 
-extends Builtin_OpaqueAttr : CSharpAttrOrTypeDefExtension {
+extends Builtin_OpaqueAttr : CSharpAssemblyFormattedDef<
+    "new global::MLIR.Dialects.Builtin.BuiltinOpaqueAttributeAssemblyFormat()"> {
   let csharpParameters = (ins Builtin_StringAttrParameter:$dialectNamespace);
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinOpaqueAttributeAssemblyFormat()";
 }
 
 extends Builtin_SparseElementsAttr : CSharpAttrOrTypeDefExtension {
@@ -108,12 +107,12 @@ extends Builtin_SparseElementsAttr : CSharpAttrOrTypeDefExtension {
   );
 }
 
-extends Builtin_SymbolRefAttr : CSharpAttrOrTypeDefExtension {
+extends Builtin_SymbolRefAttr : CSharpAssemblyFormattedDef<
+    "new global::MLIR.Dialects.Builtin.BuiltinSymbolRefAttributeAssemblyFormat()"> {
   let csharpParameters = (ins
     "string":$rootReference,
     "global::System.Collections.Generic.IReadOnlyList<string>":$nestedReferences
   );
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Builtin.BuiltinSymbolRefAttributeAssemblyFormat()";
 }
 
 extends StridedLayoutAttr : CSharpAttrOrTypeDefExtension {
