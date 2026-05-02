@@ -112,13 +112,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// </summary>
     public virtual bool IsTypedArray => false;
 
-    /// <summary>
-    /// Gets a value indicating whether this constraint, when used as an element type inside
-    /// a <c>TypedArrayAttrBase</c>-derived attribute, should fall back to the generic
-    /// <c>AttributeValue</c> element type rather than a specialised C# type.
-    /// </summary>
-    public virtual bool IsGenericTypedArrayElement => false;
-
     // -------------------------------------------------------------------------
     // Type name resolution
     // -------------------------------------------------------------------------
@@ -232,21 +225,15 @@ internal abstract class AttributeConstraintCodeStrategy
 internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
     private readonly AttrModel attrModel;
-    private readonly bool isGenericTypedArrayElement;
 
-    public ModelBackedAttributeConstraintCodeStrategy(
-        AttrModel attrModel,
-        bool isGenericTypedArrayElement = false)
+    public ModelBackedAttributeConstraintCodeStrategy(AttrModel attrModel)
     {
         this.attrModel = attrModel;
-        this.isGenericTypedArrayElement = isGenericTypedArrayElement;
     }
 
     public override string PublicTypeName => HasSpecializedAttrReturnType(attrModel)
         ? attrModel.CsharpReturnType!
         : "AttributeValue";
-
-    public override bool IsGenericTypedArrayElement => isGenericTypedArrayElement;
 
     public override string? GetAssemblyFormatConstructionExpression() => attrModel.CsharpAssemblyFormat;
 
@@ -330,7 +317,6 @@ internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstrain
     private OpaqueAttributeConstraintCodeStrategy() { }
 
     public override string PublicTypeName => "AttributeValue";
-    public override bool IsGenericTypedArrayElement => true;
 }
 
 /// <summary>
@@ -344,7 +330,6 @@ internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstra
     private ElementsAttributeConstraintCodeStrategy() { }
 
     public override string PublicTypeName => "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
-    public override bool IsGenericTypedArrayElement => true;
 
     public override string? GetAssemblyFormatType() => "ElementsAttributeAssemblyFormat";
 }
@@ -603,9 +588,6 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
 /// Produces <c>AttributeValue</c> / <c>AttributeValue?</c> operation properties instead
 /// of the old <c>NamedAttribute</c> / <c>NamedAttribute?</c> pair, so callers always
 /// receive a typed value rather than a raw named-attribute wrapper.
-/// When used as a typed-array element type the generic
-/// <c>IReadOnlyList&lt;AttributeValue&gt;</c> fallback is applied (via
-/// <see cref="AttributeConstraintCodeStrategy.IsGenericTypedArrayElement"/>).
 /// </remarks>
 internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
@@ -613,15 +595,6 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
     private FallbackAttributeConstraintCodeStrategy() { }
 
     public override string PublicTypeName => "AttributeValue";
-
-    /// <summary>
-    /// Marks this as a generic typed-array element so that
-    /// <see cref="TypedArrayConstraintCodeStrategy"/> falls back to
-    /// <c>IReadOnlyList&lt;AttributeValue&gt;</c> for arrays whose element type is
-    /// unknown.
-    /// </summary>
-    public override bool IsGenericTypedArrayElement => true;
-
 }
 
 // =============================================================================
@@ -662,10 +635,7 @@ internal static class AttributeConstraintCodeStrategyFactory
             AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel, constraint.ElementConstraintRecordName),
-            _ when attrModel != null =>
-                new ModelBackedAttributeConstraintCodeStrategy(
-                    attrModel,
-                    isGenericTypedArrayElement: constraint.Kind == AttributeConstraintKind.UnitAttribute),
+            _ when attrModel != null => new ModelBackedAttributeConstraintCodeStrategy(attrModel),
             _ => FallbackAttributeConstraintCodeStrategy.Instance,
         };
     }
