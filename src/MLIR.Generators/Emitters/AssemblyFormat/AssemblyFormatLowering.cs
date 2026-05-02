@@ -491,66 +491,102 @@ internal static class AssemblyFormatLowerer
     private static void AppendVariableField(HashSet<string> usedNames, string variableName, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
     {
         var name = EmitterHelpers.MakeUnique(DialectGeneratorNaming.ToPascalCase(variableName), usedNames);
-        if (EmitterHelpers.ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
+        if (TryAppendAttributeVariableField(variableName, name, operation, metadata, nullable))
         {
-            var (csType, writeStmt) = nullable
-                ? ("AttributeValueSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
-                : ("AttributeValueSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
-            var field = new BodySyntaxField(name, csType, writeStmt);
-            metadata.AddField(field);
-            metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Attribute, variableName, field.Name));
+            return;
         }
-        else if (EmitterHelpers.ContainsName(operation.Regions, variableName, static region => region.Name))
-        {
-            var isVariadic = IsVariadicRegion(operation, variableName);
-            string csType;
-            string writeStmt;
-            if (isVariadic)
-            {
-                csType = "global::System.Collections.Generic.IReadOnlyList<RegionSyntax>";
-                writeStmt = "foreach (var region in " + name + ") { writer.WriteRegion(region); }";
-            }
-            else
-            {
-                csType = nullable ? "RegionSyntax?" : "RegionSyntax";
-                writeStmt = nullable
-                    ? "if (" + name + ".HasValue) writer.WriteRegion(" + name + ".Value);"
-                    : "writer.WriteRegion(" + name + ");";
-            }
 
-            var field = new BodySyntaxField(name, csType, writeStmt);
-            metadata.AddField(field);
-            metadata.AddComponentField(new BodyComponentField(
-                EmitterHelpers.GetComponentKindForVariable(operation, variableName),
-                variableName,
-                field.Name));
-        }
-        else if (IsVariadicOperand(operation, variableName))
+        if (TryAppendRegionVariableField(variableName, name, operation, metadata, nullable))
         {
-            const string csType = "global::System.Collections.Generic.IReadOnlyList<Token>";
-            var writeStmt =
-                "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
-                "if (_i > 0) writer.WriteToken(TokenFactory.Comma(), \"\"); " +
-                "writer.WriteToken(" + name + "[_i], \" \"); }";
-            var field = new BodySyntaxField(name, csType, writeStmt);
-            metadata.AddField(field);
-            metadata.AddComponentField(new BodyComponentField(
-                EmitterHelpers.GetComponentKindForVariable(operation, variableName),
-                variableName,
-                field.Name));
+            return;
         }
-        else
+
+        if (TryAppendVariadicOperandVariableField(variableName, name, operation, metadata))
         {
-            var (csType, writeStmt) = nullable
-                ? ("Token?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \" \");")
-                : ("Token", "writer.WriteToken(" + name + ", \" \");");
-            var field = new BodySyntaxField(name, csType, writeStmt);
-            metadata.AddField(field);
-            metadata.AddComponentField(new BodyComponentField(
-                EmitterHelpers.GetComponentKindForVariable(operation, variableName),
-                variableName,
-                field.Name));
+            return;
         }
+
+        AppendTokenVariableField(variableName, name, operation, metadata, nullable);
+    }
+
+    private static bool TryAppendAttributeVariableField(string variableName, string name, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
+    {
+        if (!EmitterHelpers.ContainsName(operation.Attributes, variableName, static attribute => attribute.Name))
+        {
+            return false;
+        }
+
+        var (csType, writeStmt) = nullable
+            ? ("AttributeValueSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
+            : ("AttributeValueSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
+        AddBodySyntaxField(metadata, BodyComponentKind.Attribute, variableName, name, csType, writeStmt);
+        return true;
+    }
+
+    private static bool TryAppendRegionVariableField(string variableName, string name, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
+    {
+        if (!EmitterHelpers.ContainsName(operation.Regions, variableName, static region => region.Name))
+        {
+            return false;
+        }
+
+        var (csType, writeStmt) = GetRegionFieldShape(name, nullable, IsVariadicRegion(operation, variableName));
+        AddBodySyntaxField(
+            metadata,
+            EmitterHelpers.GetComponentKindForVariable(operation, variableName),
+            variableName,
+            name,
+            csType,
+            writeStmt);
+        return true;
+    }
+
+    private static bool TryAppendVariadicOperandVariableField(string variableName, string name, OperationModel operation, OperationBodySyntaxMetadata metadata)
+    {
+        if (!IsVariadicOperand(operation, variableName))
+        {
+            return false;
+        }
+
+        const string csType = "global::System.Collections.Generic.IReadOnlyList<Token>";
+        var writeStmt =
+            "for (var _i = 0; _i < " + name + ".Count; _i++) { " +
+            "if (_i > 0) writer.WriteToken(TokenFactory.Comma(), \"\"); " +
+            "writer.WriteToken(" + name + "[_i], \" \"); }";
+        AddBodySyntaxField(
+            metadata,
+            EmitterHelpers.GetComponentKindForVariable(operation, variableName),
+            variableName,
+            name,
+            csType,
+            writeStmt);
+        return true;
+    }
+
+    private static void AppendTokenVariableField(string variableName, string name, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
+    {
+        var (csType, writeStmt) = GetTokenFieldShape(name, " ", nullable);
+        AddBodySyntaxField(
+            metadata,
+            EmitterHelpers.GetComponentKindForVariable(operation, variableName),
+            variableName,
+            name,
+            csType,
+            writeStmt);
+    }
+
+    private static (string CsType, string WriteStmt) GetRegionFieldShape(string name, bool nullable, bool isVariadic)
+    {
+        if (isVariadic)
+        {
+            return (
+                "global::System.Collections.Generic.IReadOnlyList<RegionSyntax>",
+                "foreach (var region in " + name + ") { writer.WriteRegion(region); }");
+        }
+
+        return nullable
+            ? ("RegionSyntax?", "if (" + name + ".HasValue) writer.WriteRegion(" + name + ".Value);")
+            : ("RegionSyntax", "writer.WriteRegion(" + name + ");");
     }
 
     private static bool IsVariadicOperand(OperationModel operation, string variableName)
@@ -571,12 +607,12 @@ internal static class AssemblyFormatLowerer
     private static bool ContainsVariadic<T>(
         IEnumerable<T> items,
         string variableName,
-        Func<T, string> getName,
-        Func<T, bool> isVariadic)
+        System.Func<T, string> getName,
+        System.Func<T, bool> isVariadic)
     {
         foreach (var item in items)
         {
-            if (string.Equals(getName(item), variableName, StringComparison.Ordinal))
+            if (string.Equals(getName(item), variableName, System.StringComparison.Ordinal))
             {
                 return isVariadic(item);
             }
