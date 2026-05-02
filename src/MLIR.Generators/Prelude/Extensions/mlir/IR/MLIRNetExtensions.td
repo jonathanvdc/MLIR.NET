@@ -219,6 +219,71 @@ class MLIRNet_AttrExtension {
   string csharpPresenceSyntax = ?;
 }
 
+// Helper for reference-like attribute values: optional operation properties use
+// null to represent absence.
+class MLIRNet_ReferenceAttrValueExtension<
+    string storageType,
+    string returnType,
+    string convertFromStorage> : MLIRNet_AttrExtension {
+  let csharpStorageType = storageType;
+  let csharpReturnType = returnType;
+  let csharpOptionalValueAccess = "NullCheck";
+  let csharpConvertFromStorage = convertFromStorage;
+}
+
+// Helper for value-like attribute values: optional operation properties use
+// System.Nullable<T> to represent absence.
+class MLIRNet_ValueAttrValueExtension<
+    string storageType,
+    string returnType,
+    string convertFromStorage> : MLIRNet_AttrExtension {
+  let csharpStorageType = storageType;
+  let csharpReturnType = returnType;
+  let csharpOptionalValueAccess = "NullableValueType";
+  let csharpConvertFromStorage = convertFromStorage;
+}
+
+class MLIRNet_IdentityAttrExtension<string type>
+    : MLIRNet_ReferenceAttrValueExtension<type, type, "$_self">;
+
+class MLIRNet_IntegerAttrExtension<string returnType, string convertFromStorage>
+    : MLIRNet_ValueAttrValueExtension<
+        "global::MLIR.Dialects.Builtin.IntegerAttr",
+        returnType,
+        convertFromStorage> {
+  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
+}
+
+class MLIRNet_FloatAttrExtension<string assemblyFormat>
+    : MLIRNet_ValueAttrValueExtension<
+        "global::MLIR.Dialects.Builtin.FloatAttr",
+        "global::MLIR.Numerics.ApFloat",
+        "$_self.Value"> {
+  let csharpAssemblyFormat = assemblyFormat;
+}
+
+class MLIRNet_DenseArrayAttrExtension<
+    string returnType,
+    string convertFromStorage,
+    string builderCall,
+    string assemblyFormat> : MLIRNet_ReferenceAttrValueExtension<
+        "global::MLIR.Dialects.Builtin.DenseArrayAttr",
+        returnType,
+        convertFromStorage> {
+  let csharpConstBuilderCall = builderCall;
+  let csharpAssemblyFormat = assemblyFormat;
+}
+
+class MLIRNet_ArrayAttrExtension<
+    string returnType,
+    string convertFromStorage,
+    string builderCall> : MLIRNet_ReferenceAttrValueExtension<
+        "global::MLIR.Dialects.Builtin.ArrayAttr",
+        returnType,
+        convertFromStorage> {
+  let csharpConstBuilderCall = builderCall;
+}
+
 class MLIRNet_AttrOrTypeParameterExtension {
   // The C# type used for the generated typed property.
   string csharpType = ?;

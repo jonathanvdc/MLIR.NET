@@ -5,339 +5,157 @@ include "mlir/Extensions/IR/MLIRNetExtensions.td"
 
 // Preserve a generic C# view for all Attr-style constraints unless a more specific
 // overlay below refines the storage/result relationship.
-extends Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Semantics.AttributeValue";
-  let csharpReturnType = "global::MLIR.Semantics.AttributeValue";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self";
-}
+extends Attr : MLIRNet_IdentityAttrExtension<"global::MLIR.Semantics.AttributeValue">;
 
-extends StringBasedAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.StringAttr";
-  let csharpReturnType = "string";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self.Value";
+extends StringBasedAttr : MLIRNet_ReferenceAttrValueExtension<
+    "global::MLIR.Dialects.Builtin.StringAttr",
+    "string",
+    "$_self.Value"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.String($0)";
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.StringLiteralAttributeAssemblyFormat()";
 }
 
-extends BoolAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "bool";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value.ToUInt64() != 0";
+extends BoolAttr : MLIRNet_ValueAttrValueExtension<
+    "global::MLIR.Dialects.Builtin.IntegerAttr",
+    "bool",
+    "$_self.Value.ToUInt64() != 0"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.Bool($0)";
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.BooleanLiteralAttributeAssemblyFormat()";
 }
 
-extends TypeAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.TypeAttr";
-  let csharpReturnType = "global::MLIR.Dialects.Builtin.TypeAttr";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self";
+extends TypeAttr : MLIRNet_IdentityAttrExtension<"global::MLIR.Dialects.Builtin.TypeAttr"> {
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.TypeAttributeAssemblyFormat()";
 }
 
-extends UnitAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.UnitAttr";
-  let csharpReturnType = "global::MLIR.Dialects.Builtin.UnitAttr";
-  let csharpOptionalValueAccess = "NullCheck";
+extends UnitAttr : MLIRNet_IdentityAttrExtension<"global::MLIR.Dialects.Builtin.UnitAttr"> {
   let csharpOptionalAttributeRepresentation = "PresenceBoolean";
   let csharpPresenceAttributeValue = "global::MLIR.Semantics.ConstantAttributeFactory.Unit";
   let csharpPresenceSyntax = "new UnitAttributeValueSyntax(${token})";
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.UnitLiteralAttributeAssemblyFormat()";
 }
 
-extends DictionaryAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DictionaryAttr";
-  let csharpReturnType = "global::MLIR.Dialects.Builtin.DictionaryAttr";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self";
+extends DictionaryAttrBase : MLIRNet_IdentityAttrExtension<"global::MLIR.Dialects.Builtin.DictionaryAttr"> {
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DictionaryAttributeAssemblyFormat()";
 }
 
-extends ElementsAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
-  let csharpReturnType = "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self";
+extends ElementsAttrBase : MLIRNet_IdentityAttrExtension<"global::MLIR.Dialects.Builtin.DenseTypedElementsAttr"> {
   let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.ElementsAttributeAssemblyFormat()";
 }
 
-extends ArrayAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
-  let csharpReturnType = "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self.Value";
+extends ArrayAttrBase : MLIRNet_ReferenceAttrValueExtension<
+    "global::MLIR.Dialects.Builtin.ArrayAttr",
+    "global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>",
+    "$_self.Value"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.Array($0)";
 }
 
 // Integer attrs all use the semantic integer-value storage layer; the concrete leaf
 // definitions refine only the exposed return type and conversion expression.
-extends AnyIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApInt";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends AnyIntegerAttrBase : MLIRNet_IntegerAttrExtension<"global::MLIR.Numerics.ApInt", "$_self.Value">;
 
-extends SignlessIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApInt";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends SignlessIntegerAttrBase : MLIRNet_IntegerAttrExtension<"global::MLIR.Numerics.ApInt", "$_self.Value">;
 
-extends SignedIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApInt";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends SignedIntegerAttrBase : MLIRNet_IntegerAttrExtension<"global::MLIR.Numerics.ApInt", "$_self.Value">;
 
-extends UnsignedIntegerAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApInt";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends UnsignedIntegerAttrBase : MLIRNet_IntegerAttrExtension<"global::MLIR.Numerics.ApInt", "$_self.Value">;
 
-extends I1Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "bool";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value.ToUInt64() != 0";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends I1Attr : MLIRNet_IntegerAttrExtension<"bool", "$_self.Value.ToUInt64() != 0">;
 
-extends I8Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "byte";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(byte)$_self.Value.ToUInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends I8Attr : MLIRNet_IntegerAttrExtension<"byte", "(byte)$_self.Value.ToUInt64()">;
 
-extends I16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "ushort";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(ushort)$_self.Value.ToUInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends I16Attr : MLIRNet_IntegerAttrExtension<"ushort", "(ushort)$_self.Value.ToUInt64()">;
 
-extends I32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "uint";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(uint)$_self.Value.ToUInt64()";
+extends I32Attr : MLIRNet_IntegerAttrExtension<"uint", "(uint)$_self.Value.ToUInt64()"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.I32($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
 }
 
-extends I64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "ulong";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value.ToUInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends I64Attr : MLIRNet_IntegerAttrExtension<"ulong", "$_self.Value.ToUInt64()">;
 
-extends SI1Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "bool";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value.ToInt64() != 0";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends SI1Attr : MLIRNet_IntegerAttrExtension<"bool", "$_self.Value.ToInt64() != 0">;
 
-extends SI8Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "sbyte";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(sbyte)$_self.Value.ToInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends SI8Attr : MLIRNet_IntegerAttrExtension<"sbyte", "(sbyte)$_self.Value.ToInt64()">;
 
-extends SI16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "short";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(short)$_self.Value.ToInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends SI16Attr : MLIRNet_IntegerAttrExtension<"short", "(short)$_self.Value.ToInt64()">;
 
-extends SI32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "int";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(int)$_self.Value.ToInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends SI32Attr : MLIRNet_IntegerAttrExtension<"int", "(int)$_self.Value.ToInt64()">;
 
-extends SI64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "long";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value.ToInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends SI64Attr : MLIRNet_IntegerAttrExtension<"long", "$_self.Value.ToInt64()">;
 
-extends UI1Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "bool";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value.ToUInt64() != 0";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends UI1Attr : MLIRNet_IntegerAttrExtension<"bool", "$_self.Value.ToUInt64() != 0">;
 
-extends UI8Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "byte";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(byte)$_self.Value.ToUInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends UI8Attr : MLIRNet_IntegerAttrExtension<"byte", "(byte)$_self.Value.ToUInt64()">;
 
-extends UI16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "ushort";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(ushort)$_self.Value.ToUInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends UI16Attr : MLIRNet_IntegerAttrExtension<"ushort", "(ushort)$_self.Value.ToUInt64()">;
 
-extends UI32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "uint";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "(uint)$_self.Value.ToUInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends UI32Attr : MLIRNet_IntegerAttrExtension<"uint", "(uint)$_self.Value.ToUInt64()">;
 
-extends UI64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.IntegerAttr";
-  let csharpReturnType = "ulong";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value.ToUInt64()";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.IntegerLiteralAttributeAssemblyFormat()";
-}
+extends UI64Attr : MLIRNet_IntegerAttrExtension<"ulong", "$_self.Value.ToUInt64()">;
 
-extends FloatAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.FloatAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat()";
-}
+extends FloatAttrBase : MLIRNet_FloatAttrExtension<
+    "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat()">;
 
-extends F16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.FloatAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)";
-}
+extends F16Attr : MLIRNet_FloatAttrExtension<
+    "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)">;
 
-extends F32Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.FloatAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
+extends F32Attr : MLIRNet_FloatAttrExtension<
+    "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.F32($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)";
 }
 
-extends F64Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.FloatAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
+extends F64Attr : MLIRNet_FloatAttrExtension<
+    "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)"> {
   let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.F64($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)";
 }
 
-extends BF16Attr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.FloatAttr";
-  let csharpReturnType = "global::MLIR.Numerics.ApFloat";
-  let csharpOptionalValueAccess = "NullableValueType";
-  let csharpConvertFromStorage = "$_self.Value";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)";
-}
+extends BF16Attr : MLIRNet_FloatAttrExtension<
+    "new global::MLIR.Dialects.Attributes.Primitives.FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)">;
 
-extends DenseArrayAttrBase : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlyMemory<byte>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "$_self.RawData";
-}
+extends DenseArrayAttrBase : MLIRNet_ReferenceAttrValueExtension<
+    "global::MLIR.Dialects.Builtin.DenseArrayAttr",
+    "global::System.ReadOnlyMemory<byte>",
+    "$_self.RawData">;
 
-extends DenseBoolArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlySpan<bool>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, bool>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseBool($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DenseBooleanArrayAttributeAssemblyFormat()";
-}
+extends DenseBoolArrayAttr : MLIRNet_DenseArrayAttrExtension<
+    "global::System.ReadOnlySpan<bool>",
+    "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, bool>($_self.RawData.Span)",
+    "global::MLIR.Semantics.ConstantAttributeFactory.DenseBool($0)",
+    "new global::MLIR.Dialects.Attributes.Collections.DenseBooleanArrayAttributeAssemblyFormat()">;
 
-extends DenseI8ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlySpan<sbyte>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, sbyte>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI8($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()";
-}
+extends DenseI8ArrayAttr : MLIRNet_DenseArrayAttrExtension<
+    "global::System.ReadOnlySpan<sbyte>",
+    "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, sbyte>($_self.RawData.Span)",
+    "global::MLIR.Semantics.ConstantAttributeFactory.DenseI8($0)",
+    "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()">;
 
-extends DenseI16ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlySpan<short>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, short>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI16($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()";
-}
+extends DenseI16ArrayAttr : MLIRNet_DenseArrayAttrExtension<
+    "global::System.ReadOnlySpan<short>",
+    "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, short>($_self.RawData.Span)",
+    "global::MLIR.Semantics.ConstantAttributeFactory.DenseI16($0)",
+    "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()">;
 
-extends DenseI32ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlySpan<int>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI32($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()";
-}
+extends DenseI32ArrayAttr : MLIRNet_DenseArrayAttrExtension<
+    "global::System.ReadOnlySpan<int>",
+    "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, int>($_self.RawData.Span)",
+    "global::MLIR.Semantics.ConstantAttributeFactory.DenseI32($0)",
+    "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()">;
 
-extends DenseI64ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlySpan<long>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, long>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseI64($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()";
-}
+extends DenseI64ArrayAttr : MLIRNet_DenseArrayAttrExtension<
+    "global::System.ReadOnlySpan<long>",
+    "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, long>($_self.RawData.Span)",
+    "global::MLIR.Semantics.ConstantAttributeFactory.DenseI64($0)",
+    "new global::MLIR.Dialects.Attributes.Collections.DenseIntegerArrayAttributeAssemblyFormat()">;
 
-extends DenseF32ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlySpan<float>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseF32($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")";
-}
+extends DenseF32ArrayAttr : MLIRNet_DenseArrayAttrExtension<
+    "global::System.ReadOnlySpan<float>",
+    "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, float>($_self.RawData.Span)",
+    "global::MLIR.Semantics.ConstantAttributeFactory.DenseF32($0)",
+    "new global::MLIR.Dialects.Attributes.Collections.DenseFloatingPointArrayAttributeAssemblyFormat(\"f32\")">;
 
-extends DenseF64ArrayAttr : MLIRNet_AttrExtension {
-  let csharpStorageType = "global::MLIR.Dialects.Builtin.DenseArrayAttr";
-  let csharpReturnType = "global::System.ReadOnlySpan<double>";
-  let csharpOptionalValueAccess = "NullCheck";
-  let csharpConvertFromStorage = "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, double>($_self.RawData.Span)";
-  let csharpConstBuilderCall = "global::MLIR.Semantics.ConstantAttributeFactory.DenseF64($0)";
-  let csharpAssemblyFormat = "new global::MLIR.Dialects.Attributes.Collections.DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")";
-}
+extends DenseF64ArrayAttr : MLIRNet_DenseArrayAttrExtension<
+    "global::System.ReadOnlySpan<double>",
+    "global::System.Runtime.InteropServices.MemoryMarshal.Cast<byte, double>($_self.RawData.Span)",
+    "global::MLIR.Semantics.ConstantAttributeFactory.DenseF64($0)",
+    "new global::MLIR.Dialects.Attributes.Collections.DenseFloatingPointArrayAttributeAssemblyFormat(\"f64\")">;
 
 extends BoolArrayAttr : MLIRNet_AttrExtension {
   let csharpStorageType = "global::MLIR.Dialects.Builtin.ArrayAttr";
