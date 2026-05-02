@@ -640,12 +640,14 @@ public sealed class DialectImporterTests
         var boolAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "BoolAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.IntegerAttr", boolAttr.CsharpStorageType);
         Assert.Equal("bool", boolAttr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullableValueType, boolAttr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value.ToUInt64() != 0", boolAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.Bool($0)", boolAttr.CsharpConstBuilderCall);
 
         var i32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "I32Attr");
         Assert.Equal("global::MLIR.Dialects.Builtin.IntegerAttr", i32Attr.CsharpStorageType);
         Assert.Equal("uint", i32Attr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullableValueType, i32Attr.CsharpOptionalValueAccessKind);
         Assert.Equal("(uint)$_self.Value.ToUInt64()", i32Attr.CsharpConvertFromStorage);
 
         var si32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "SI32Attr");
@@ -666,6 +668,7 @@ public sealed class DialectImporterTests
         var f32Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F32Attr");
         Assert.Equal("global::MLIR.Dialects.Builtin.FloatAttr", f32Attr.CsharpStorageType);
         Assert.Equal("global::MLIR.Numerics.ApFloat", f32Attr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullableValueType, f32Attr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value", f32Attr.CsharpConvertFromStorage);
 
         var f64Attr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "F64Attr");
@@ -681,12 +684,14 @@ public sealed class DialectImporterTests
         var strAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "StrAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.StringAttr", strAttr.CsharpStorageType);
         Assert.Equal("string", strAttr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullCheck, strAttr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value", strAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.String($0)", strAttr.CsharpConstBuilderCall);
 
         var typeAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "TypeAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.TypeAttr", typeAttr.CsharpStorageType);
         Assert.Equal("global::MLIR.Semantics.TypeReference", typeAttr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullCheck, typeAttr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value", typeAttr.CsharpConvertFromStorage);
 
         var unitAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "UnitAttr");
@@ -699,6 +704,7 @@ public sealed class DialectImporterTests
         var arrayAttr = Assert.Single(prelude.Attrs, static attr => attr.RecordName == "ArrayAttr");
         Assert.Equal("global::MLIR.Dialects.Builtin.ArrayAttr", arrayAttr.CsharpStorageType);
         Assert.Equal("global::System.Collections.Generic.IReadOnlyList<global::MLIR.Semantics.AttributeValue>", arrayAttr.CsharpReturnType);
+        Assert.Equal(OptionalValueAccessKind.NullCheck, arrayAttr.CsharpOptionalValueAccessKind);
         Assert.Equal("$_self.Value", arrayAttr.CsharpConvertFromStorage);
         Assert.Equal("global::MLIR.Semantics.ConstantAttributeFactory.Array($0)", arrayAttr.CsharpConstBuilderCall);
 
@@ -768,6 +774,21 @@ public sealed class DialectImporterTests
 
         Assert.Single(dialect.Attributes, static attr => attr.RecordName == "MyP_FooAttr");
         Assert.DoesNotContain(dialect.Attrs, static attr => attr.RecordName == "MyP_FooAttr");
+    }
+
+    [Fact]
+    public void InvalidOptionalValueAccessMetadataProducesClearImportError()
+    {
+        const string source =
+            "def MyBadAttr : AnyIntegerAttrBase<AnyI32, \"bad\">, MLIRNet_AttrExtension {\n" +
+            "  let csharpOptionalValueAccess = \"Maybe\";\n" +
+            "}\n";
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            DialectImporter.Import(GeneratorTestHelpers.LoadTableGenWithUpstreamPrelude(source).Evaluate().Value));
+
+        Assert.Contains("Unsupported csharpOptionalValueAccess 'Maybe'", ex.Message);
+        Assert.Contains("MyBadAttr", ex.Message);
     }
 
     [Fact]

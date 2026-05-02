@@ -5,6 +5,57 @@ using Xunit;
 public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 {
     [Fact]
+    public void OptionalAttributeAccessUsesDeclaredOptionalValueAccessMetadata()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_MetadataOp : MiniArith_Op<\"metadata\", []> {",
+                "  let arguments = (ins BoolAttr:$flag, F32Attr:$scale, StrAttr:$label);",
+                "  let results = (outs I32:$result);",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            "public bool? Flag",
+            "set => SetAttribute(\"flag\", value.HasValue ? global::MLIR.Semantics.ConstantAttributeFactory.Bool(value.Value) : null)",
+            "public global::MLIR.Numerics.ApFloat? Scale",
+            "set => SetAttribute(\"scale\", value.HasValue ? global::MLIR.Semantics.ConstantAttributeFactory.F32(value.Value) : null)",
+            "public string? Label",
+            "set => SetAttribute(\"label\", value != null ? global::MLIR.Semantics.ConstantAttributeFactory.String(value) : null)");
+        AssertDoesNotContainAny(
+            registrationSource,
+            "SetAttribute(\"flag\", value != null",
+            "SetAttribute(\"scale\", value != null",
+            "SetAttribute(\"label\", value.HasValue");
+    }
+
+    [Fact]
+    public void CustomValueLikeAttributeCanOptIntoNullableValueTypeAccess()
+    {
+        var registrationSource = GenerateMiniArithRegistrationSource(
+            [
+                "def MiniArith_ValueLikeAttr : AnyIntegerAttrBase<AnyI32, \"value-like\">, MLIRNet_AttrExtension {",
+                "  let csharpStorageType = \"global::MLIR.Dialects.Builtin.IntegerAttr\";",
+                "  let csharpReturnType = \"global::My.ValueLike\";",
+                "  let csharpConvertFromStorage = \"global::My.ValueLike.FromInteger($_self.Value)\";",
+                "  let csharpConstBuilderCall = \"global::My.ValueLike.ToAttribute($0)\";",
+                "  let csharpOptionalValueAccess = \"NullableValueType\";",
+                "}",
+                string.Empty,
+                "def MiniArith_CustomOp : MiniArith_Op<\"custom\", []> {",
+                "  let arguments = (ins MiniArith_ValueLikeAttr:$value);",
+                "  let results = (outs I32:$result);",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            "public global::My.ValueLike? Value",
+            "set => SetAttribute(\"value\", value.HasValue ? global::My.ValueLike.ToAttribute(value.Value) : null)");
+    }
+
+    [Fact]
     public void AttributesPropertyHoldsDataAndNamedAttributeAccessorsAreDerived()
     {
         var registrationSource = GenerateMiniArithRegistrationSource(

@@ -23,6 +23,7 @@ public sealed class AttrModel(
     string? csharpConstBuilderCall = null,
     string? csharpDefaultValue = null,
     string? csharpValueType = null,
+    OptionalValueAccessKind? csharpOptionalValueAccessKind = null,
     bool isOptional = false,
     string? baseAttrRecordName = null,
     string? cppNamespace = null,
@@ -118,6 +119,11 @@ public sealed class AttrModel(
     /// Gets the C# value-type description associated with this attr, if one is known.
     /// </summary>
     public string? CsharpValueType { get; } = csharpValueType;
+
+    /// <summary>
+    /// Gets the declared optional-value access pattern for generated operation bindings.
+    /// </summary>
+    public OptionalValueAccessKind? CsharpOptionalValueAccessKind { get; } = csharpOptionalValueAccessKind;
 
     /// <summary>
     /// Gets a value indicating whether this attr is optional.

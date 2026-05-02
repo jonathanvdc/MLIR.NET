@@ -12,12 +12,6 @@ internal enum AttributeValueConversionKind
     Template,
 }
 
-internal enum OptionalValueKind
-{
-    Reference,
-    NullableValueType,
-}
-
 internal readonly struct AttributeValueConversion
 {
     private AttributeValueConversion(AttributeValueConversionKind kind, CodeTemplate? template)
@@ -53,13 +47,13 @@ internal sealed class AttributeStoragePlan
         string storageTypeName,
         AttributeValueConversion storageToPublic,
         AttributeValueConversion publicToStorage,
-        OptionalValueKind optionalValueKind,
+        OptionalValueAccessKind optionalValueAccessKind,
         string? defaultValueExpression)
     {
         StorageTypeName = storageTypeName;
         StorageToPublic = storageToPublic;
         PublicToStorage = publicToStorage;
-        OptionalValueKind = optionalValueKind;
+        OptionalValueAccessKind = optionalValueAccessKind;
         DefaultValueExpression = defaultValueExpression;
     }
 
@@ -69,7 +63,7 @@ internal sealed class AttributeStoragePlan
 
     public AttributeValueConversion PublicToStorage { get; }
 
-    public OptionalValueKind OptionalValueKind { get; }
+    public OptionalValueAccessKind OptionalValueAccessKind { get; }
 
     public string? DefaultValueExpression { get; }
 }
@@ -152,7 +146,7 @@ internal abstract class AttributeConstraintCodeStrategy
             PublicTypeName,
             AttributeValueConversion.Identity,
             AttributeValueConversion.Identity,
-            GetOptionalValueKind(PublicTypeName),
+            OptionalValueAccessKind.NullCheck,
             null);
     }
 
@@ -232,29 +226,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// </summary>
     public virtual string? GetTypedArrayElementToSyntaxExpression() => null;
 
-    protected static OptionalValueKind GetOptionalValueKind(string typeName)
-    {
-        var trimmedTypeName = typeName.TrimEnd('?');
-        return string.Equals(trimmedTypeName, "bool", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "byte", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "sbyte", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "short", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "ushort", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "int", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "uint", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "long", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "ulong", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "BigInteger", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "global::MLIR.Numerics.ApInt", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "ApInt", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "global::MLIR.Numerics.ApFloat", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "ApFloat", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "float", StringComparison.Ordinal)
-            || string.Equals(trimmedTypeName, "double", StringComparison.Ordinal)
-            ? OptionalValueKind.NullableValueType
-            : OptionalValueKind.Reference;
-    }
-
 }
 
 internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
@@ -262,6 +233,7 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
     private readonly AttrModel? attrModel;
     private readonly string fallbackPublicTypeName;
     private readonly string fallbackStorageTypeName;
+    private readonly OptionalValueAccessKind fallbackOptionalValueAccessKind;
     private readonly string? assemblyFormatType;
     private readonly string? assemblyFormatConstructionExpression;
     private readonly string typedArrayElementPayloadPropertyName;
@@ -272,6 +244,7 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
         AttrModel? attrModel,
         string fallbackPublicTypeName,
         string? fallbackStorageTypeName = null,
+        OptionalValueAccessKind fallbackOptionalValueAccessKind = OptionalValueAccessKind.NullCheck,
         string? assemblyFormatType = null,
         string? assemblyFormatConstructionExpression = null,
         string typedArrayElementPayloadPropertyName = "Value",
@@ -281,6 +254,7 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
         this.attrModel = attrModel;
         this.fallbackPublicTypeName = fallbackPublicTypeName;
         this.fallbackStorageTypeName = fallbackStorageTypeName ?? fallbackPublicTypeName;
+        this.fallbackOptionalValueAccessKind = fallbackOptionalValueAccessKind;
         this.assemblyFormatType = assemblyFormatType;
         this.assemblyFormatConstructionExpression = assemblyFormatConstructionExpression;
         this.typedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
@@ -317,8 +291,24 @@ internal abstract class ModelBackedAttributeConstraintCodeStrategy : AttributeCo
             storageTypeName,
             storageToPublic,
             publicToStorage,
-            GetOptionalValueKind(PublicTypeName),
+            GetOptionalValueAccessKind(),
             attrModel?.CsharpDefaultValue);
+    }
+
+    private OptionalValueAccessKind GetOptionalValueAccessKind()
+    {
+        if (!HasSpecializedAttrReturnType(attrModel))
+        {
+            return fallbackOptionalValueAccessKind;
+        }
+
+        if (attrModel?.CsharpOptionalValueAccessKind is OptionalValueAccessKind kind)
+        {
+            return kind;
+        }
+
+        throw new InvalidOperationException(
+            "Attr record '" + attrModel!.RecordName + "' declares csharpReturnType but no csharpOptionalValueAccess.");
     }
 
     private AttributeValueConversion GetPublicToStorageConversion(string storageTypeName)
@@ -349,12 +339,14 @@ internal sealed class GenericModelBackedAttributeConstraintCodeStrategy : ModelB
         string fallbackPublicTypeName,
         string? assemblyFormatType,
         string? assemblyFormatConstructionExpression,
+        OptionalValueAccessKind fallbackOptionalValueAccessKind,
         string typedArrayElementPayloadPropertyName = "Value",
         string? typedArrayElementDecodeExpression = null,
         string? typedArrayElementToSyntaxExpression = null)
         : base(
             attrModel,
             fallbackPublicTypeName,
+            fallbackOptionalValueAccessKind: fallbackOptionalValueAccessKind,
             assemblyFormatType: assemblyFormatType,
             assemblyFormatConstructionExpression: assemblyFormatConstructionExpression,
             typedArrayElementPayloadPropertyName: typedArrayElementPayloadPropertyName,
@@ -520,7 +512,7 @@ internal sealed class EnumAttributeConstraintCodeStrategy : AttributeConstraintC
             storageTypeName,
             storageToPublic,
             publicToStorage,
-            OptionalValueKind.NullableValueType,
+            OptionalValueAccessKind.NullableValueType,
             null);
     }
 
@@ -621,7 +613,7 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
                 storageTypeName,
                 storageToPublic,
                 publicToStorage,
-                GetOptionalValueKind(PublicTypeName),
+                GetOptionalValueAccessKind(attrModel),
                 attrModel.CsharpDefaultValue);
         }
 
@@ -672,6 +664,22 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
         return !string.IsNullOrEmpty(returnType)
             && !string.Equals(returnType, "AttributeValue", StringComparison.Ordinal)
             && !string.Equals(returnType, "global::MLIR.Semantics.AttributeValue", StringComparison.Ordinal);
+    }
+
+    private static OptionalValueAccessKind GetOptionalValueAccessKind(AttrModel attrModel)
+    {
+        if (attrModel.CsharpOptionalValueAccessKind is OptionalValueAccessKind kind)
+        {
+            return kind;
+        }
+
+        if (HasSpecializedAttrReturnType(attrModel))
+        {
+            throw new InvalidOperationException(
+                "Attr record '" + attrModel.RecordName + "' declares csharpReturnType but no csharpOptionalValueAccess.");
+        }
+
+        return OptionalValueAccessKind.NullCheck;
     }
 }
 
@@ -728,28 +736,28 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
 internal static class AttributeConstraintCodeStrategyFactory
 {
     private static readonly AttributeStrategyAssemblyFormat BooleanLiteralAssemblyFormat =
-        new("bool", "BooleanLiteralAttributeAssemblyFormat");
+        new("bool", "BooleanLiteralAttributeAssemblyFormat", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
 
     private static readonly AttributeStrategyAssemblyFormat IntegerLiteralAssemblyFormat =
-        new("global::MLIR.Numerics.ApInt", "IntegerLiteralAttributeAssemblyFormat");
+        new("global::MLIR.Numerics.ApInt", "IntegerLiteralAttributeAssemblyFormat", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
 
     private static readonly AttributeStrategyAssemblyFormat StringLiteralAssemblyFormat =
         new("string", "StringLiteralAttributeAssemblyFormat");
 
     private static readonly AttributeStrategyAssemblyFormat GenericFloatingPointAssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", "FloatingPointLiteralAttributeAssemblyFormat");
+        new("global::MLIR.Numerics.ApFloat", "FloatingPointLiteralAttributeAssemblyFormat", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
 
     private static readonly AttributeStrategyAssemblyFormat F16AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)");
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEHalf)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
 
     private static readonly AttributeStrategyAssemblyFormat F32AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)");
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEESingle)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
 
     private static readonly AttributeStrategyAssemblyFormat BF16AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)");
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.BFloat16)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
 
     private static readonly AttributeStrategyAssemblyFormat F64AssemblyFormat =
-        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)");
+        new("global::MLIR.Numerics.ApFloat", constructionExpression: "new FloatingPointLiteralAttributeAssemblyFormat(global::MLIR.Numerics.FloatSemantics.IEEEDouble)", fallbackOptionalValueAccessKind: OptionalValueAccessKind.NullableValueType);
 
     private static readonly AttributeStrategyAssemblyFormat DenseBooleanArrayAssemblyFormat =
         new("IReadOnlyList<bool>", "DenseBooleanArrayAttributeAssemblyFormat", typedArrayElementPayloadPropertyName: "Items");
@@ -836,6 +844,7 @@ internal static class AttributeConstraintCodeStrategyFactory
             format.FallbackPublicTypeName,
             format.TypeName,
             format.ConstructionExpression,
+            format.FallbackOptionalValueAccessKind,
             typedArrayElementPayloadPropertyName: format.TypedArrayElementPayloadPropertyName);
     }
 
@@ -858,11 +867,13 @@ internal static class AttributeConstraintCodeStrategyFactory
             string fallbackPublicTypeName,
             string? typeName = null,
             string? constructionExpression = null,
+            OptionalValueAccessKind fallbackOptionalValueAccessKind = OptionalValueAccessKind.NullCheck,
             string typedArrayElementPayloadPropertyName = "Value")
         {
             FallbackPublicTypeName = fallbackPublicTypeName;
             TypeName = typeName;
             ConstructionExpression = constructionExpression;
+            FallbackOptionalValueAccessKind = fallbackOptionalValueAccessKind;
             TypedArrayElementPayloadPropertyName = typedArrayElementPayloadPropertyName;
         }
 
@@ -871,6 +882,8 @@ internal static class AttributeConstraintCodeStrategyFactory
         public string? TypeName { get; }
 
         public string? ConstructionExpression { get; }
+
+        public OptionalValueAccessKind FallbackOptionalValueAccessKind { get; }
 
         public string TypedArrayElementPayloadPropertyName { get; }
     }

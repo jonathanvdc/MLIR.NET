@@ -2,6 +2,7 @@ namespace MLIR.Generators.Emitters.Operation;
 
 using System;
 using MLIR.Generators.Emitters.Common;
+using MLIR.ODS.Model;
 
 internal static class OperationAttributeValueHelpers
 {
@@ -74,7 +75,7 @@ internal static class OperationAttributeValueHelpers
             return storageExpression;
         }
 
-        if (storagePlan.OptionalValueKind == OptionalValueKind.NullableValueType)
+        if (storagePlan.OptionalValueAccessKind == OptionalValueAccessKind.NullableValueType)
         {
             var typedStorageExpression = storagePlan.PublicToStorage.Render(valueExpression + ".Value");
             return valueExpression + ".HasValue ? " + typedStorageExpression + " : null";
@@ -113,7 +114,7 @@ internal static class OperationAttributeValueHelpers
             return "new NamedAttribute(" + sourceName + ", " + storageExpression + ")";
         }
 
-        if (storagePlan.OptionalValueKind == OptionalValueKind.NullableValueType)
+        if (storagePlan.OptionalValueAccessKind == OptionalValueAccessKind.NullableValueType)
         {
             var typedStorageExpression = storagePlan.PublicToStorage.Render(valueExpression + ".Value");
             return valueExpression + ".HasValue ? new NamedAttribute(" + sourceName + ", " + typedStorageExpression + ") : null";

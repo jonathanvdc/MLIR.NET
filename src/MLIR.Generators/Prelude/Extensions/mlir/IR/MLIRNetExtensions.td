@@ -155,6 +155,10 @@ class MLIRNet_InterfacePropertyImplementation<Interface interfaceDef, string csh
 //                      formatter path and synthetic types fall back to their attached
 //                      syntax, if any.
 //
+//   csharpOptionalValueAccess – How optional generated operation properties test and
+//                      unwrap values. Accepted values are NullCheck and
+//                      NullableValueType.
+//
 // Example:
 //   extends MyAttr : MLIRNet_AttrOrTypeDefExtension {
 //     let csharpParameters = (ins
@@ -193,6 +197,8 @@ class MLIRNet_AttrExtension {
   string csharpDefaultValue = ?;
   // C# value-type description associated with the attr, if any.
   string csharpValueType = ?;
+  // Optional value access strategy for generated operation bindings.
+  string csharpOptionalValueAccess = ?;
 }
 
 class MLIRNet_AttrOrTypeParameterExtension {

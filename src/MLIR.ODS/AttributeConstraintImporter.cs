@@ -1,5 +1,6 @@
 namespace MLIR.ODS;
 
+using System;
 using MLIR.ODS.Model;
 using TableGen.Evaluation;
 
@@ -41,6 +42,9 @@ internal static class AttributeConstraintImporter
                     csharpConstBuilderCall: index.GetOptionalStringField(record, "csharpConstBuilderCall"),
                     csharpDefaultValue: index.GetOptionalStringField(record, "csharpDefaultValue"),
                     csharpValueType: index.GetOptionalStringField(record, "csharpValueType"),
+                    csharpOptionalValueAccessKind: ParseOptionalValueAccessKind(
+                        index.GetOptionalStringField(record, "csharpOptionalValueAccess"),
+                        record.Name),
                     isOptional: record.Fields.TryGetValue("isOptional", out var isOptionalField)
                         && isOptionalField is BitValue bitValue
                         && bitValue.Value,
@@ -48,5 +52,22 @@ internal static class AttributeConstraintImporter
                     cppNamespace: index.GetOptionalStringField(record, "cppNamespace"),
                     description: index.GetOptionalStringField(record, "description")));
         }
+    }
+
+    private static OptionalValueAccessKind? ParseOptionalValueAccessKind(string? value, string recordName)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        if (Enum.TryParse<OptionalValueAccessKind>(value, ignoreCase: false, out var kind)
+            && Enum.IsDefined(typeof(OptionalValueAccessKind), kind))
+        {
+            return kind;
+        }
+
+        throw new InvalidOperationException(
+            "Unsupported csharpOptionalValueAccess '" + value + "' for Attr record '" + recordName + "'.");
     }
 }
