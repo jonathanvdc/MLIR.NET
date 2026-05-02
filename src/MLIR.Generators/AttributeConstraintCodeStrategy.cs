@@ -283,73 +283,28 @@ internal sealed class ModelBackedAttributeConstraintCodeStrategy : AttributeCons
 
 
 /// <summary>
-/// Opaque attribute (e.g. <c>AnyAttr</c>, <c>LocationAttr</c>). Preserved as a generic
-/// <c>AttributeValue</c>; falls back to <c>AttributeValue</c> when used as a
-/// typed-array element.
+/// Strategy for attribute constraints whose code-generation behavior is fully described by
+/// constant type names and, optionally, a custom assembly-format type.
 /// </summary>
-internal sealed class OpaqueAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
+internal sealed class FixedAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
 {
-    public static readonly OpaqueAttributeConstraintCodeStrategy Instance = new();
-    private OpaqueAttributeConstraintCodeStrategy() { }
+    public FixedAttributeConstraintCodeStrategy(
+        string publicTypeName,
+        string? typedArrayElementTypeName = null,
+        string? assemblyFormatTypeName = null)
+    {
+        PublicTypeName = publicTypeName;
+        TypedArrayElementTypeName = typedArrayElementTypeName ?? publicTypeName;
+        this.assemblyFormatTypeName = assemblyFormatTypeName;
+    }
 
-    public override string PublicTypeName => "AttributeValue";
-}
+    private readonly string? assemblyFormatTypeName;
 
-/// <summary>
-/// Elements attribute (e.g. <c>ElementsAttr</c>). Dense elements literals bind to the
-/// generated builtin <c>DenseTypedElementsAttr</c> class rather than to a handwritten
-/// constraint wrapper.
-/// </summary>
-internal sealed class ElementsAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly ElementsAttributeConstraintCodeStrategy Instance = new();
-    private ElementsAttributeConstraintCodeStrategy() { }
+    public override string PublicTypeName { get; }
 
-    public override string PublicTypeName => "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr";
+    public override string TypedArrayElementTypeName { get; }
 
-    public override string? GetAssemblyFormatType() => "ElementsAttributeAssemblyFormat";
-}
-
-/// <summary>
-/// Dictionary attribute (<c>DictionaryAttr</c>). Properties are exposed as
-/// <c>DictionaryAttr</c>; the unwrapped value type for typed-array elements
-/// is <c>NamedAttributeCollection</c>.
-/// </summary>
-internal sealed class DictionaryAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly DictionaryAttributeConstraintCodeStrategy Instance = new();
-    private DictionaryAttributeConstraintCodeStrategy() { }
-
-    public override string PublicTypeName => "DictionaryAttr";
-    public override string TypedArrayElementTypeName => "NamedAttributeCollection";
-
-    /// <summary>
-    /// Returns <c>"NamedAttributeCollection"</c> – the unwrapped value type used for
-    /// typed-array element extraction. Note that this is the unwrapped type regardless of
-    /// whether the constraint is classified as primitive (it is not).
-    /// </summary>
-    public override string? GetAssemblyFormatType() => "DictionaryAttributeAssemblyFormat";
-
-}
-
-/// <summary>
-/// Type attribute (<c>TypeAttr</c>). Properties are exposed as
-/// <c>TypeAttr</c>; the unwrapped value for typed-array elements is
-/// <c>TypeReference</c>.
-/// </summary>
-internal sealed class TypeAttributeConstraintCodeStrategy : AttributeConstraintCodeStrategy
-{
-    public static readonly TypeAttributeConstraintCodeStrategy Instance = new();
-    private TypeAttributeConstraintCodeStrategy() { }
-
-    public override string PublicTypeName => "TypeAttr";
-    public override string TypedArrayElementTypeName => "TypeReference";
-
-    /// <summary>
-    /// Returns <c>"TypeReference"</c> – the unwrapped value type used for typed-array
-    /// element extraction.
-    /// </summary>
-    public override string? GetAssemblyFormatType() => "TypeAttributeAssemblyFormat";
+    public override string? GetAssemblyFormatType() => assemblyFormatTypeName;
 }
 
 /// <summary>
@@ -577,6 +532,26 @@ internal sealed class FallbackAttributeConstraintCodeStrategy : AttributeConstra
 /// </remarks>
 internal static class AttributeConstraintCodeStrategyFactory
 {
+    private static readonly AttributeConstraintCodeStrategy OpaqueAttributeStrategy =
+        new FixedAttributeConstraintCodeStrategy("AttributeValue");
+
+    private static readonly AttributeConstraintCodeStrategy ElementsAttributeStrategy =
+        new FixedAttributeConstraintCodeStrategy(
+            "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr",
+            assemblyFormatTypeName: "ElementsAttributeAssemblyFormat");
+
+    private static readonly AttributeConstraintCodeStrategy DictionaryAttributeStrategy =
+        new FixedAttributeConstraintCodeStrategy(
+            "DictionaryAttr",
+            typedArrayElementTypeName: "NamedAttributeCollection",
+            assemblyFormatTypeName: "DictionaryAttributeAssemblyFormat");
+
+    private static readonly AttributeConstraintCodeStrategy TypeAttributeStrategy =
+        new FixedAttributeConstraintCodeStrategy(
+            "TypeAttr",
+            typedArrayElementTypeName: "TypeReference",
+            assemblyFormatTypeName: "TypeAttributeAssemblyFormat");
+
     /// <summary>
     /// Returns the model-bound strategy for the given attribute constraint. Returns
     /// <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/> for unrecognised
@@ -590,10 +565,10 @@ internal static class AttributeConstraintCodeStrategyFactory
     {
         return constraint.Kind switch
         {
-            AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.ElementsAttribute => ElementsAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeConstraintCodeStrategy.Instance,
-            AttributeConstraintKind.TypeAttribute => TypeAttributeConstraintCodeStrategy.Instance,
+            AttributeConstraintKind.OpaqueAttribute => OpaqueAttributeStrategy,
+            AttributeConstraintKind.ElementsAttribute => ElementsAttributeStrategy,
+            AttributeConstraintKind.DictionaryAttribute => DictionaryAttributeStrategy,
+            AttributeConstraintKind.TypeAttribute => TypeAttributeStrategy,
             AttributeConstraintKind.EnumAttribute when constraint.EnumModel != null && enumTypeName != null =>
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel),
