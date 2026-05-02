@@ -399,6 +399,33 @@ internal static class AssemblyFormatLowerer
         }
     }
 
+    private sealed class BodyFieldSpec
+    {
+        public BodyFieldSpec(
+            BodyComponentKind componentKind,
+            string componentName,
+            string fieldBaseName,
+            string csType,
+            System.Func<string, string> writeStmtFactory)
+        {
+            ComponentKind = componentKind;
+            ComponentName = componentName;
+            FieldBaseName = fieldBaseName;
+            CsType = csType;
+            WriteStmtFactory = writeStmtFactory;
+        }
+
+        public BodyComponentKind ComponentKind { get; }
+
+        public string ComponentName { get; }
+
+        public string FieldBaseName { get; }
+
+        public string CsType { get; }
+
+        public System.Func<string, string> WriteStmtFactory { get; }
+    }
+
     private static void AddBodySyntaxField(
         OperationBodySyntaxMetadata metadata,
         BodyComponentKind componentKind,
@@ -410,6 +437,15 @@ internal static class AssemblyFormatLowerer
         var field = new BodySyntaxField(name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(componentKind, componentName, field.Name));
+    }
+
+    private static void AddBodySyntaxField(
+        HashSet<string> usedNames,
+        OperationBodySyntaxMetadata metadata,
+        BodyFieldSpec spec)
+    {
+        var name = EmitterHelpers.MakeUnique(spec.FieldBaseName, usedNames);
+        AddBodySyntaxField(metadata, spec.ComponentKind, spec.ComponentName, name, spec.CsType, spec.WriteStmtFactory(name));
     }
 
     private static (string CsType, string WriteStmt) GetTokenFieldShape(string name, string leadingTrivia, bool nullable)
@@ -433,14 +469,15 @@ internal static class AssemblyFormatLowerer
         BodyComponentKind componentKind,
         string csType = "DelimitedSyntaxList<NamedAttributeSyntax>")
     {
-        var name = EmitterHelpers.MakeUnique(baseName, usedNames);
         AddBodySyntaxField(
+            usedNames,
             metadata,
-            componentKind,
-            baseName,
-            name,
-            csType,
-            "writer.WriteDelimitedList(" + name + ", \" \");");
+            new BodyFieldSpec(
+                componentKind,
+                baseName,
+                baseName,
+                csType,
+                name => string.Concat("writer.WriteDelimitedList(", name, ", ", '"', " ", '"', ");")));
     }
 
     private static void AppendOilistElementFields(HashSet<string> usedNames, OilistElement element, OperationModel operation, OperationBodySyntaxMetadata metadata)
@@ -479,23 +516,61 @@ internal static class AssemblyFormatLowerer
 
     private static void AppendPunctuationField(HashSet<string> usedNames, TokenKind tokenKind, OperationBodySyntaxMetadata metadata, bool nullable)
     {
-        var name = EmitterHelpers.MakeUnique(GetPunctuationFieldName(tokenKind), usedNames);
         var leadingTrivia = GetPunctuationLeadingTrivia(tokenKind);
-        var (csType, writeStmt) = GetTokenFieldShape(name, leadingTrivia, nullable);
-        AddBodySyntaxField(metadata, BodyComponentKind.Literal, "Punctuation:" + tokenKind, name, csType, writeStmt);
+        AddTokenBodyField(
+            usedNames,
+            metadata,
+            BodyComponentKind.Literal,
+            "Punctuation:" + tokenKind,
+            GetPunctuationFieldName(tokenKind),
+            leadingTrivia,
+            nullable);
     }
 
     private static void AppendKeywordField(HashSet<string> usedNames, string spelling, OperationBodySyntaxMetadata metadata, bool nullable, bool isOilistKeyword = false)
     {
-        var name = EmitterHelpers.MakeUnique(DialectGeneratorNaming.ToPascalCase(spelling) + "Keyword", usedNames);
         var leadingTrivia = isOilistKeyword ? "\\n    " : " ";
-        var (csType, writeStmt) = GetTokenFieldShape(name, leadingTrivia, nullable);
-        AddBodySyntaxField(metadata, BodyComponentKind.Literal, "Keyword:" + spelling, name, csType, writeStmt);
+        AddTokenBodyField(
+            usedNames,
+            metadata,
+            BodyComponentKind.Literal,
+            "Keyword:" + spelling,
+            DialectGeneratorNaming.ToPascalCase(spelling) + "Keyword",
+            leadingTrivia,
+            nullable);
+    }
+
+    private static void AddTokenBodyField(
+        HashSet<string> usedNames,
+        OperationBodySyntaxMetadata metadata,
+        BodyComponentKind componentKind,
+        string componentName,
+        string fieldBaseName,
+        string leadingTrivia,
+        bool nullable)
+    {
+        var csType = nullable ? "Token?" : "Token";
+        AddBodySyntaxField(
+            usedNames,
+            metadata,
+            new BodyFieldSpec(
+                componentKind,
+                componentName,
+                fieldBaseName,
+                csType,
+                name => GetTokenWriteStmt(name, leadingTrivia, nullable)));
+    }
+
+    private static string GetTokenWriteStmt(string name, string leadingTrivia, bool nullable)
+    {
+        return nullable
+            ? "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");"
+            : "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");";
     }
 
     private static void AppendVariableField(HashSet<string> usedNames, string variableName, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
     {
-        var name = EmitterHelpers.MakeUnique(DialectGeneratorNaming.ToPascalCase(variableName), usedNames);
+        var name = DialectGeneratorNaming.ToPascalCase(variableName);
         if (TryAppendAttributeVariableField(variableName, name, operation, metadata, nullable))
         {
             return;
@@ -511,7 +586,7 @@ internal static class AssemblyFormatLowerer
             return;
         }
 
-        AppendTokenVariableField(variableName, name, operation, metadata, nullable);
+        AppendTokenVariableField(usedNames, variableName, operation, metadata, nullable);
     }
 
     private static bool TryAppendAttributeVariableField(string variableName, string name, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
@@ -566,16 +641,16 @@ internal static class AssemblyFormatLowerer
         return true;
     }
 
-    private static void AppendTokenVariableField(string variableName, string name, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
+    private static void AppendTokenVariableField(HashSet<string> usedNames, string variableName, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
     {
-        var (csType, writeStmt) = GetTokenFieldShape(name, " ", nullable);
-        AddBodySyntaxField(
+        AddTokenBodyField(
+            usedNames,
             metadata,
             EmitterHelpers.GetComponentKindForVariable(operation, variableName),
             variableName,
-            name,
-            csType,
-            writeStmt);
+            DialectGeneratorNaming.ToPascalCase(variableName),
+            " ",
+            nullable);
     }
 
     private static (string CsType, string WriteStmt) GetRegionFieldShape(string name, bool nullable, bool isVariadic)
