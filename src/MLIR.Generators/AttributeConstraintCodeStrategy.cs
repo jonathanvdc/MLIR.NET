@@ -440,6 +440,27 @@ internal sealed class TypedArrayConstraintCodeStrategy : AttributeConstraintCode
 }
 
 
+
+// =============================================================================
+// Fallback strategy
+// =============================================================================
+
+/// <summary>
+/// Used whenever no specialised strategy matches a constraint record (e.g.
+/// <see cref="AttributeConstraintKind.None"/> or any unrecognised kind, as well as
+/// when an attribute has no associated constraint record at all).
+/// </summary>
+/// <remarks>
+/// Produces <c>AttributeValue</c> / <c>AttributeValue?</c> operation properties instead
+/// of the old <c>NamedAttribute</c> / <c>NamedAttribute?</c> pair, so callers always
+/// receive a typed value rather than a raw named-attribute wrapper.
+/// </remarks>
+internal static class FallbackAttributeConstraintCodeStrategy
+{
+    public static AttributeConstraintCodeStrategy Instance { get; } =
+        new FixedAttributeConstraintCodeStrategy("AttributeValue");
+}
+
 // =============================================================================
 // Factory
 // =============================================================================
@@ -461,9 +482,6 @@ internal static class AttributeConstraintCodeStrategyFactory
     private static readonly AttributeConstraintCodeStrategy OpaqueAttributeStrategy =
         new FixedAttributeConstraintCodeStrategy("AttributeValue");
 
-    private static readonly AttributeConstraintCodeStrategy FallbackAttributeStrategy =
-        new FixedAttributeConstraintCodeStrategy("AttributeValue");
-
     private static readonly AttributeConstraintCodeStrategy ElementsAttributeStrategy =
         new FixedAttributeConstraintCodeStrategy(
             "global::MLIR.Dialects.Builtin.DenseTypedElementsAttr",
@@ -483,7 +501,7 @@ internal static class AttributeConstraintCodeStrategyFactory
 
     /// <summary>
     /// Returns the model-bound strategy for the given attribute constraint. Returns
-    /// the fallback <c>AttributeValue</c> strategy for unrecognised
+    /// <see cref="FallbackAttributeConstraintCodeStrategy.Instance"/> for unrecognised
     /// kinds (including <see cref="AttributeConstraintKind.None"/> and
     /// <see cref="AttributeConstraintKind.DenseArrayAttribute"/>).
     /// </summary>
@@ -502,7 +520,7 @@ internal static class AttributeConstraintCodeStrategyFactory
                 CreateEnumConstraintStrategy(constraint.RecordName, constraint.EnumModel, enumTypeName),
             AttributeConstraintKind.TypedArrayAttribute => new TypedArrayConstraintCodeStrategy(attrModel),
             _ when attrModel != null => new ModelBackedAttributeConstraintCodeStrategy(attrModel),
-            _ => FallbackAttributeStrategy,
+            _ => FallbackAttributeConstraintCodeStrategy.Instance,
         };
     }
 
