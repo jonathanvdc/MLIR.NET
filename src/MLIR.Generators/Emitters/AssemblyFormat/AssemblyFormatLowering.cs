@@ -419,6 +419,13 @@ internal static class AssemblyFormatLowerer
             : ("Token", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
     }
 
+    private static (string CsType, string WriteStmt) GetSyntaxNodeFieldShape(string name, string syntaxType, bool nullable)
+    {
+        return nullable
+            ? (syntaxType + "?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
+            : (syntaxType, "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
+    }
+
     private static void AppendDelimitedField(
         HashSet<string> usedNames,
         OperationBodySyntaxMetadata metadata,
@@ -514,9 +521,7 @@ internal static class AssemblyFormatLowerer
             return false;
         }
 
-        var (csType, writeStmt) = nullable
-            ? ("AttributeValueSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
-            : ("AttributeValueSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
+        var (csType, writeStmt) = GetSyntaxNodeFieldShape(name, "AttributeValueSyntax", nullable);
         AddBodySyntaxField(metadata, BodyComponentKind.Attribute, variableName, name, csType, writeStmt);
         return true;
     }
@@ -652,9 +657,7 @@ internal static class AssemblyFormatLowerer
                 "}");
         }
 
-        return nullable
-            ? ("TypeSyntax?", "if (" + name + " != null) { writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer); }")
-            : ("TypeSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
+        return GetSyntaxNodeFieldShape(name, "TypeSyntax", nullable);
     }
 
     private static string GetTypeBaseName(DirectiveOperand operand)
