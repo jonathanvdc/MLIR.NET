@@ -212,27 +212,27 @@ internal static class AssemblyFormatLowerer
 
         public void LowerLiteral(LiteralChunk literal, int elementIndex)
         {
-            LowerOperationElement(literal, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+            LowerSupportedOperationElement(literal, elementIndex);
         }
 
         public void LowerVariable(VariableChunk variable, int elementIndex)
         {
-            LowerOperationElement(variable, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+            LowerSupportedOperationElement(variable, elementIndex);
         }
 
         public void LowerDirective(DirectiveChunk directive, int elementIndex)
         {
-            LowerOperationElement(directive, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+            LowerSupportedOperationElement(directive, elementIndex);
         }
 
         public void LowerOptionalGroup(OptionalGroup optionalGroup, int elementIndex)
         {
-            LowerOperationElement(optionalGroup, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+            LowerSupportedOperationElement(optionalGroup, elementIndex);
         }
 
         public void LowerOilist(OilistDirectiveChunk oilist, int elementIndex)
         {
-            LowerOperationElement(oilist, elementIndex, static (self, element) => self.AppendBodySyntaxFields(element));
+            LowerSupportedOperationElement(oilist, elementIndex);
         }
 
         public void LowerUnsupported(Element element, int elementIndex)
@@ -240,10 +240,10 @@ internal static class AssemblyFormatLowerer
             AddElement(element, elementIndex, fieldStart: Metadata.Fields.Count, fieldCount: 0);
         }
 
-        private void LowerOperationElement(Element element, int elementIndex, System.Action<OperationFormatSink, Element> lowerFields)
+        private void LowerSupportedOperationElement(Element element, int elementIndex)
         {
             var start = Metadata.Fields.Count;
-            lowerFields(this, element);
+            AppendBodySyntaxFields(element);
             AddElement(element, elementIndex, start, Metadata.Fields.Count - start);
         }
 
@@ -398,6 +398,26 @@ internal static class AssemblyFormatLowerer
         }
     }
 
+    private static void AddBodySyntaxField(
+        OperationBodySyntaxMetadata metadata,
+        BodyComponentKind componentKind,
+        string componentName,
+        string name,
+        string csType,
+        string writeStmt)
+    {
+        var field = new BodySyntaxField(name, csType, writeStmt);
+        metadata.AddField(field);
+        metadata.AddComponentField(new BodyComponentField(componentKind, componentName, field.Name));
+    }
+
+    private static (string CsType, string WriteStmt) GetTokenFieldShape(string name, string leadingTrivia, bool nullable)
+    {
+        return nullable
+            ? ("Token?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
+            : ("Token", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
+    }
+
     private static void AppendDelimitedField(
         HashSet<string> usedNames,
         OperationBodySyntaxMetadata metadata,
@@ -406,9 +426,13 @@ internal static class AssemblyFormatLowerer
         string csType = "DelimitedSyntaxList<NamedAttributeSyntax>")
     {
         var name = EmitterHelpers.MakeUnique(baseName, usedNames);
-        var field = new BodySyntaxField(name, csType, "writer.WriteDelimitedList(" + name + ", \" \");");
-        metadata.AddField(field);
-        metadata.AddComponentField(new BodyComponentField(componentKind, baseName, field.Name));
+        AddBodySyntaxField(
+            metadata,
+            componentKind,
+            baseName,
+            name,
+            csType,
+            "writer.WriteDelimitedList(" + name + ", \" \");");
     }
 
     private static void AppendOilistElementFields(HashSet<string> usedNames, OilistElement element, OperationModel operation, OperationBodySyntaxMetadata metadata)
@@ -446,24 +470,16 @@ internal static class AssemblyFormatLowerer
     {
         var name = EmitterHelpers.MakeUnique(GetPunctuationFieldName(tokenKind), usedNames);
         var leadingTrivia = GetPunctuationLeadingTrivia(tokenKind);
-        var (csType, writeStmt) = nullable
-            ? ("Token?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
-            : ("Token", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
-        var field = new BodySyntaxField(name, csType, writeStmt);
-        metadata.AddField(field);
-        metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Punctuation:" + tokenKind, field.Name));
+        var (csType, writeStmt) = GetTokenFieldShape(name, leadingTrivia, nullable);
+        AddBodySyntaxField(metadata, BodyComponentKind.Literal, "Punctuation:" + tokenKind, name, csType, writeStmt);
     }
 
     private static void AppendKeywordField(HashSet<string> usedNames, string spelling, OperationBodySyntaxMetadata metadata, bool nullable, bool isOilistKeyword = false)
     {
         var name = EmitterHelpers.MakeUnique(DialectGeneratorNaming.ToPascalCase(spelling) + "Keyword", usedNames);
         var leadingTrivia = isOilistKeyword ? "\\n    " : " ";
-        var (csType, writeStmt) = nullable
-            ? ("Token?", "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value, \"" + leadingTrivia + "\");")
-            : ("Token", "writer.WriteToken(" + name + ", \"" + leadingTrivia + "\");");
-        var field = new BodySyntaxField(name, csType, writeStmt);
-        metadata.AddField(field);
-        metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "Keyword:" + spelling, field.Name));
+        var (csType, writeStmt) = GetTokenFieldShape(name, leadingTrivia, nullable);
+        AddBodySyntaxField(metadata, BodyComponentKind.Literal, "Keyword:" + spelling, name, csType, writeStmt);
     }
 
     private static void AppendVariableField(HashSet<string> usedNames, string variableName, OperationModel operation, OperationBodySyntaxMetadata metadata, bool nullable)
