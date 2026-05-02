@@ -76,11 +76,7 @@ internal sealed class AttributeStoragePlan
 
 /// <summary>
 /// Encapsulates the code-generation behavior associated with a specific kind of attribute
-/// constraint. Concrete subclasses replace the per-kind switch expressions that previously
-/// appeared across <see cref="AttributeTypeResolver"/>,
-/// <see cref="Emitters.Operation.OperationMemberPlanner"/>,
-/// <see cref="Emitters.Operation.OperationAttributeValueHelpers"/>,
-/// <see cref="AttributeConstraintEmitter"/>, and related emitters.
+/// constraint.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -112,12 +108,6 @@ internal abstract class AttributeConstraintCodeStrategy
     /// This type is used for typed-array element types and for primitive property types.
     /// </summary>
     public abstract string PublicTypeName { get; }
-
-    /// <summary>
-    /// Gets the unwrapped element type to use when this constraint appears as the element
-    /// constraint of a typed-array attribute.
-    /// </summary>
-    public virtual string TypedArrayElementTypeName => PublicTypeName;
 
     /// <summary>
     /// Creates the storage conversion plan used by operation property getters, setters, and
@@ -288,19 +278,15 @@ internal sealed class FixedAttributeConstraintCodeStrategy : AttributeConstraint
 {
     public FixedAttributeConstraintCodeStrategy(
         string publicTypeName,
-        string? typedArrayElementTypeName = null,
         string? assemblyFormatTypeName = null)
     {
         PublicTypeName = publicTypeName;
-        TypedArrayElementTypeName = typedArrayElementTypeName ?? publicTypeName;
         this.assemblyFormatTypeName = assemblyFormatTypeName;
     }
 
     private readonly string? assemblyFormatTypeName;
 
     public override string PublicTypeName { get; }
-
-    public override string TypedArrayElementTypeName { get; }
 
     public override string? GetAssemblyFormatType() => assemblyFormatTypeName;
 }
@@ -490,13 +476,11 @@ internal static class AttributeConstraintCodeStrategyFactory
     private static readonly AttributeConstraintCodeStrategy DictionaryAttributeStrategy =
         new FixedAttributeConstraintCodeStrategy(
             "DictionaryAttr",
-            typedArrayElementTypeName: "NamedAttributeCollection",
             assemblyFormatTypeName: "DictionaryAttributeAssemblyFormat");
 
     private static readonly AttributeConstraintCodeStrategy TypeAttributeStrategy =
         new FixedAttributeConstraintCodeStrategy(
             "TypeAttr",
-            typedArrayElementTypeName: "TypeReference",
             assemblyFormatTypeName: "TypeAttributeAssemblyFormat");
 
     /// <summary>
