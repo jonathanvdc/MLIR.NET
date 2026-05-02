@@ -305,13 +305,16 @@ internal static class AssemblyFormatLowerer
             case RegionsDirectiveChunk _:
             {
                 var name = EmitterHelpers.MakeUnique("Regions", usedNames);
-                var field = new BodySyntaxField(name, "IReadOnlyList<RegionSyntax>",
+                AddBodySyntaxField(
+                    metadata,
+                    BodyComponentKind.Regions,
+                    "Regions",
+                    name,
+                    "IReadOnlyList<RegionSyntax>",
                     "foreach (var region in " + name + ")\n" +
                     "{\n" +
                     "    writer.WriteRegion(region);\n" +
                     "}");
-                metadata.AddField(field);
-                metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Regions, "Regions", field.Name));
                 break;
             }
 
@@ -457,10 +460,13 @@ internal static class AssemblyFormatLowerer
             case OilistLiteralElement literal:
             {
                 var name = EmitterHelpers.MakeUnique(DialectGeneratorNaming.ToPascalCase(literal.Value) + "Token", usedNames);
-                var field = new BodySyntaxField(name, "Token?",
+                AddBodySyntaxField(
+                    metadata,
+                    BodyComponentKind.Literal,
+                    "OilistLiteral:" + literal.Value,
+                    name,
+                    "Token?",
                     "if (" + name + ".HasValue) writer.WriteToken(" + name + ".Value);");
-                metadata.AddField(field);
-                metadata.AddComponentField(new BodyComponentField(BodyComponentKind.Literal, "OilistLiteral:" + literal.Value, field.Name));
                 break;
             }
         }
@@ -549,37 +555,30 @@ internal static class AssemblyFormatLowerer
 
     private static bool IsVariadicOperand(OperationModel operation, string variableName)
     {
-        foreach (var operand in operation.Operands)
-        {
-            if (string.Equals(operand.Name, variableName, System.StringComparison.Ordinal))
-            {
-                return operand.IsVariadic;
-            }
-        }
-
-        return false;
+        return ContainsVariadic(operation.Operands, variableName, static operand => operand.Name, static operand => operand.IsVariadic);
     }
 
     private static bool IsVariadicResult(OperationModel operation, string variableName)
     {
-        foreach (var result in operation.Results)
-        {
-            if (string.Equals(result.Name, variableName, System.StringComparison.Ordinal))
-            {
-                return result.IsVariadic;
-            }
-        }
-
-        return false;
+        return ContainsVariadic(operation.Results, variableName, static result => result.Name, static result => result.IsVariadic);
     }
 
     private static bool IsVariadicRegion(OperationModel operation, string variableName)
     {
-        foreach (var region in operation.Regions)
+        return ContainsVariadic(operation.Regions, variableName, static region => region.Name, static region => region.IsVariadic);
+    }
+
+    private static bool ContainsVariadic<T>(
+        IEnumerable<T> items,
+        string variableName,
+        Func<T, string> getName,
+        Func<T, bool> isVariadic)
+    {
+        foreach (var item in items)
         {
-            if (string.Equals(region.Name, variableName, System.StringComparison.Ordinal))
+            if (string.Equals(getName(item), variableName, StringComparison.Ordinal))
             {
-                return region.IsVariadic;
+                return isVariadic(item);
             }
         }
 
@@ -620,9 +619,7 @@ internal static class AssemblyFormatLowerer
                 : ("TypeSyntax", "writer.SuggestTrivia(\" \"); " + name + ".WriteTo(writer);");
         }
 
-        var field = new BodySyntaxField(name, csType, writeStmt);
-        metadata.AddField(field);
-        metadata.AddComponentField(new BodyComponentField(componentKind, operandName, field.Name));
+        AddBodySyntaxField(metadata, componentKind, operandName, name, csType, writeStmt);
     }
 
     private static string GetTypeBaseName(DirectiveOperand operand)
