@@ -104,7 +104,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             "public StringAttributeValueSyntax ValueSyntax { get; }",
             ": BodyOnlyTypeAssemblyFormat",
             "Unsupported declarative assembly format construct for type body.",
-            "public static TypeReference BindValue(TypeSyntax syntax)",
+            "public static TypeReference BindValue(TypeSyntax syntax, Binder binder)",
             "public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
             "StringLiteralAttributeAssemblyFormat.Quote(typed.Value)");
     }
