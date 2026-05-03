@@ -48,7 +48,7 @@ internal static class TypeAssemblyFormatEmitter
         }
         else
         {
-            EmitTryParseBody(builder, lowered, syntaxClassName);
+            new TypeTryParseBodyEmitter(lowered, syntaxClassName).Emit(builder);
         }
 
         builder.AppendLine("    }");
@@ -68,88 +68,6 @@ internal static class TypeAssemblyFormatEmitter
         EmitBuildCustomAssemblySyntaxBody(builder, type, fields, className, syntaxClassName);
         builder.AppendLine("    }");
         builder.AppendLine("}");
-    }
-
-    private static void EmitTryParseBody(
-        StringBuilder builder,
-        LoweredAssemblyFormat lowered,
-        string syntaxClassName)
-    {
-        foreach (var element in lowered.Elements)
-        {
-            foreach (var field in lowered.GetFields(element))
-            {
-                switch (field)
-                {
-                    case LiteralTokenField lit:
-                        EmitLiteralTokenParse(builder, lit);
-                        break;
-                    case VariableSyntaxField v:
-                        EmitVariableParse(builder, v, syntaxClassName);
-                        break;
-                }
-            }
-        }
-
-        builder.Append("        return ParseResult<TypeSyntax>.Success(new " + syntaxClassName + "(prefix");
-        foreach (var field in lowered.Fields)
-        {
-            if (field is LiteralTokenField lit)
-            {
-                builder.Append(", " + lit.LocalName);
-            }
-            else if (field is VariableSyntaxField v)
-            {
-                builder.Append(", " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
-            }
-        }
-
-        builder.AppendLine("));");
-    }
-
-    private static void EmitLiteralTokenParse(StringBuilder builder, LiteralTokenField lit)
-    {
-        if (lit.IsKeyword)
-        {
-            builder.AppendLine("        if (!context.TryMatch(TokenKind.Identifier, out var " + lit.LocalName + ") || " + lit.LocalName + ".Text != " + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")");
-            builder.AppendLine("            return ParseResult<TypeSyntax>.NoMatch();");
-        }
-        else
-        {
-            builder.AppendLine("        var " + lit.LocalName + "Result = context.Expect(" + lit.KindExpr + ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(lit.SyntheticText, escapeSingleQuote: true) + "'.\");");
-            builder.AppendLine("        if (!" + lit.LocalName + "Result.IsSuccess)");
-            builder.AppendLine("            return ParseResult<TypeSyntax>.Failure(" + lit.LocalName + "Result.Diagnostic!);");
-            builder.AppendLine("        var " + lit.LocalName + " = " + lit.LocalName + "Result.Value;");
-        }
-    }
-
-    private static void EmitVariableParse(StringBuilder builder, VariableSyntaxField field, string syntaxClassName)
-    {
-        var varLocalName = EmitterHelpers.LowerFirst(field.Name) + "Syntax";
-        var stopExpr = string.Empty;
-        string parseExpr;
-
-        var parserTemplate = field.ParamModel?.CsharpParserTemplate;
-        if (parserTemplate is not null)
-        {
-            parseExpr = parserTemplate.Render("parser", "context");
-        }
-        else
-        {
-            parseExpr = "context.TryParseAttributeValueSyntax(" + stopExpr + ")";
-        }
-
-        builder.AppendLine("        var " + varLocalName + "Result = " + parseExpr + ";");
-        builder.AppendLine("        if (!" + varLocalName + "Result.IsSuccess)");
-        builder.AppendLine("            return ParseResult<TypeSyntax>.Failure(" + varLocalName + "Result.Diagnostic!);");
-        if (string.Equals(field.SyntaxType, "TypeSyntax", System.StringComparison.Ordinal))
-        {
-            builder.AppendLine("        var " + varLocalName + " = (TypeSyntax)" + varLocalName + "Result.Value;");
-        }
-        else
-        {
-            builder.AppendLine("        var " + varLocalName + " = (" + field.SyntaxType + ")" + varLocalName + "Result.Value;");
-        }
     }
 
     private static void EmitBuildCustomAssemblySyntaxBody(

@@ -5,7 +5,6 @@ using System.Text;
 using MLIR.Generators.Emitters;
 using MLIR.ODS.Model;
 using MLIR.Generators.Emitters.Common;
-using MLIR.Text;
 
 /// <summary>
 /// Generates the structured <c>DialectPrefixedAttributeValueSyntax</c> subclass and the
@@ -80,7 +79,7 @@ internal static class AttributeAssemblyFormatEmitter
         }
         else
         {
-            EmitTryParseBody(builder, lowered, syntaxClassName);
+            new AttributeTryParseBodyEmitter(lowered, syntaxClassName).Emit(builder);
         }
 
         builder.AppendLine("    }");
@@ -106,146 +105,6 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine("    }");
 
         builder.AppendLine("}");
-    }
-
-    // -----------------------------------------------------------------------
-    // TryParse body
-    // -----------------------------------------------------------------------
-
-    private static void EmitTryParseBody(
-        StringBuilder builder,
-        LoweredAssemblyFormat lowered,
-        string syntaxClassName)
-    {
-        var elements = lowered.Elements.Select(static element => element.Source).ToArray();
-        var isFirst = true;
-
-        foreach (var element in lowered.Elements)
-        {
-            foreach (var field in lowered.GetFields(element))
-            {
-                switch (field)
-                {
-                    case LiteralTokenField lit:
-                        EmitLiteralTokenParse(builder, lit, ref isFirst);
-                        break;
-
-                    case VariableSyntaxField v:
-                    {
-                        var stopTokens = AssemblyFormatTraversal.FindStopTokensForVariable(elements, element.ElementIndex);
-                        var varLocalName = EmitterHelpers.LowerFirst(v.Name) + "Syntax";
-                        EmitVariableParse(builder, v.Name, varLocalName, stopTokens, v.ParamModel, v.SyntaxType);
-                        isFirst = false;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Construct and return the syntax; pass prefix + all fields in order.
-        builder.Append("        return ParseResult<AttributeValueSyntax>.Success(new " + syntaxClassName + "(prefix");
-        foreach (var field in lowered.Fields)
-        {
-            if (field is LiteralTokenField lit)
-            {
-                builder.Append(", " + lit.LocalName);
-            }
-            else if (field is VariableSyntaxField v)
-            {
-                builder.Append(", " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
-            }
-        }
-
-        builder.AppendLine("));");
-    }
-
-    private static void EmitLiteralTokenParse(StringBuilder builder, LiteralTokenField lit, ref bool isFirst)
-    {
-        if (lit.IsKeyword)
-        {
-            var spellingExpr = EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText);
-            if (isFirst)
-            {
-                builder.AppendLine("        if (!context.TryMatch(TokenKind.Identifier, out var " + lit.LocalName + ") || " + lit.LocalName + ".Text != " + spellingExpr + ")");
-                builder.AppendLine("        {");
-                builder.AppendLine("            return ParseResult<AttributeValueSyntax>.NoMatch();");
-                builder.AppendLine("        }");
-                isFirst = false;
-            }
-            else
-            {
-                builder.AppendLine("        var " + lit.LocalName + "Result = context.Expect(TokenKind.Identifier, \"Expected keyword '" + EmitterHelpers.EscapeForStringLiteral(lit.SyntheticText, escapeSingleQuote: true) + "'.\");");
-                builder.AppendLine("        if (!" + lit.LocalName + "Result.IsSuccess)");
-                builder.AppendLine("            return ParseResult<AttributeValueSyntax>.Failure(" + lit.LocalName + "Result.Diagnostic!);");
-                builder.AppendLine("        var " + lit.LocalName + " = " + lit.LocalName + "Result.Value;");
-            }
-        }
-        else
-        {
-            if (isFirst)
-            {
-                builder.AppendLine("        if (!context.TryMatch(" + lit.KindExpr + ", out var " + lit.LocalName + "))");
-                builder.AppendLine("        {");
-                builder.AppendLine("            return ParseResult<AttributeValueSyntax>.NoMatch();");
-                builder.AppendLine("        }");
-                isFirst = false;
-            }
-            else
-            {
-                builder.AppendLine("        var " + lit.LocalName + "Result = context.Expect(" + lit.KindExpr + ", \"Expected '" + EmitterHelpers.EscapeForStringLiteral(lit.SyntheticText, escapeSingleQuote: true) + "'.\");");
-                builder.AppendLine("        if (!" + lit.LocalName + "Result.IsSuccess)");
-                builder.AppendLine("            return ParseResult<AttributeValueSyntax>.Failure(" + lit.LocalName + "Result.Diagnostic!);");
-                builder.AppendLine("        var " + lit.LocalName + " = " + lit.LocalName + "Result.Value;");
-            }
-        }
-    }
-
-    private static void EmitVariableParse(
-        StringBuilder builder,
-        string variableName,
-        string varLocalName,
-        IReadOnlyList<TokenKind> stopTokens,
-        AttrOrTypeParameterModel? paramModel,
-        string syntaxType)
-    {
-        string parseExpr;
-
-        var parserTemplate = paramModel?.CsharpParserTemplate;
-        if (parserTemplate is not null)
-        {
-            // Custom parser from CSharpParameterExtension.csharpParser:
-            // substitute ${parser} → context.
-            parseExpr = parserTemplate.Render("parser", "context");
-        }
-        else
-        {
-            // Default: parse any attribute value, stopping before the inferred delimiters.
-            var stopExpr = BuildStopTokensExpression(stopTokens);
-            parseExpr = "context.TryParseAttributeValueSyntax(" + stopExpr + ")";
-        }
-
-        builder.AppendLine("        var " + varLocalName + "Result = " + parseExpr + ";");
-        builder.AppendLine("        if (!" + varLocalName + "Result.IsSuccess)");
-        builder.AppendLine("            return ParseResult<AttributeValueSyntax>.Failure(" + varLocalName + "Result.Diagnostic!);");
-
-        // Cast to concrete syntax type when the parameter has a specific syntax type.
-        // This enables the syntax class constructor to accept a strongly-typed parameter.
-        // The cast relies on the contract that the csharpParser expression declared in
-        // CSharpParameterExtension.csharpSyntaxType returns a value of exactly
-        // the declared csharpSyntaxType.  For the built-in parameter types (StringRefParameter,
-        // APIntParameter, APFloatParameter) this invariant is maintained by the helper methods
-        // (TryParseStringLiteralSyntax, TryParseIntegerLiteralSyntax, etc.) on
-        // AttributeParsingContext, which always return the appropriate concrete syntax class.
-        // When adding a custom parameter type, the csharpParser expression must also satisfy
-        // this contract.
-        if (string.Equals(syntaxType, "AttributeValueSyntax", System.StringComparison.Ordinal))
-        {
-            builder.AppendLine("        var " + varLocalName + " = " + varLocalName + "Result.Value;");
-        }
-        else
-        {
-            builder.AppendLine("        var " + varLocalName + " = (" + syntaxType + ")" + varLocalName + "Result.Value;");
-        }
     }
 
     // -----------------------------------------------------------------------
@@ -359,26 +218,6 @@ internal static class AttributeAssemblyFormatEmitter
         // No printer defined: use the syntax node stored in the structured syntax class directly.
         // This is only valid when csharpType is AttributeValueSyntax.
         return propertyExpr;
-    }
-
-    // -----------------------------------------------------------------------
-    // Stop-token analysis
-    // -----------------------------------------------------------------------
-
-    private static string BuildStopTokensExpression(IReadOnlyList<TokenKind> stopTokens)
-    {
-        if (stopTokens.Count == 0)
-        {
-            return string.Empty;
-        }
-
-        var parts = new List<string>(stopTokens.Count);
-        foreach (var kind in stopTokens)
-        {
-            parts.Add("TokenKind." + kind);
-        }
-
-        return string.Join(", ", parts);
     }
 
 }
