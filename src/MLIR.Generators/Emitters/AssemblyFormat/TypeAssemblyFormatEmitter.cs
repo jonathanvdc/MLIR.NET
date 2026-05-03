@@ -27,8 +27,12 @@ internal static class TypeAssemblyFormatEmitter
         var syntaxClassName = className + "Syntax";
         var formatClassName = className + "AssemblyFormat";
 
-        builder.AppendLine("internal sealed class " + formatClassName + " : ITypeAssemblyFormat");
+        builder.AppendLine("internal sealed class " + formatClassName + " : BodyOnlyTypeAssemblyFormat");
         builder.AppendLine("{");
+        builder.AppendLine("    public " + formatClassName + "()");
+        builder.AppendLine("        : base(" + EmitterHelpers.ToCSharpStringLiteral(type.Name ?? string.Empty) + ")");
+        builder.AppendLine("    {");
+        builder.AppendLine("    }");
         builder.AppendLine();
         if (!lowered.IsSupported)
         {
@@ -36,11 +40,11 @@ internal static class TypeAssemblyFormatEmitter
             builder.AppendLine("    // The generated format class is still emitted for API completeness, but parsing will fail fast.");
             builder.AppendLine();
         }
-        builder.AppendLine("    public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)");
+        builder.AppendLine("    protected override ParseResult<TypeSyntax> TryParseBody(TypeParsingContext context, DialectTypePrefix prefix)");
         builder.AppendLine("    {");
         if (!lowered.IsSupported)
         {
-            builder.AppendLine("        return ParseResult<TypeSyntax>.Failure(new AssemblyDiagnostic(SourceLocation.Unknown, \"Unsupported declarative assembly format construct for type body.\"));");
+            builder.AppendLine("        return ParseResult<TypeSyntax>.Failure(new AssemblyDiagnostic(prefix.Location, \"Unsupported declarative assembly format construct for type body.\"));");
         }
         else
         {
@@ -71,11 +75,6 @@ internal static class TypeAssemblyFormatEmitter
         LoweredAssemblyFormat lowered,
         string syntaxClassName)
     {
-        builder.AppendLine("        if (!context.TryMatch(TokenKind.Bang, out var bangToken))");
-        builder.AppendLine("            return ParseResult<TypeSyntax>.NoMatch();");
-        builder.AppendLine("        if (!context.TryMatch(TokenKind.Identifier, out var nameToken))");
-        builder.AppendLine("            return ParseResult<TypeSyntax>.NoMatch();");
-
         foreach (var element in lowered.Elements)
         {
             foreach (var field in lowered.GetFields(element))
@@ -92,7 +91,7 @@ internal static class TypeAssemblyFormatEmitter
             }
         }
 
-        builder.Append("        return ParseResult<TypeSyntax>.Success(new " + syntaxClassName + "(new DialectTypePrefix(bangToken, nameToken)");
+        builder.Append("        return ParseResult<TypeSyntax>.Success(new " + syntaxClassName + "(prefix");
         foreach (var field in lowered.Fields)
         {
             if (field is LiteralTokenField lit)

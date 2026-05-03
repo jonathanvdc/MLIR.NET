@@ -71,7 +71,9 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             ": base(syntax)",
             "TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
             "WritePrefix(writer);",
-            "new DialectTypePrefix(bangToken, nameToken)");
+            ": BodyOnlyTypeAssemblyFormat",
+            "ParseResult<TypeSyntax> TryParseBody(TypeParsingContext context, DialectTypePrefix prefix)",
+            "ParseResult<TypeSyntax>.Success(new");
         AssertDoesNotContainAny(
             registrationSource,
             "factory:",
@@ -100,7 +102,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             registrationSource,
             ": DialectNamedTypeSyntax",
             "public StringAttributeValueSyntax ValueSyntax { get; }",
-            ": ITypeAssemblyFormat",
+            ": BodyOnlyTypeAssemblyFormat",
             "Unsupported declarative assembly format construct for type body.",
             "public static TypeReference BindValue(TypeSyntax syntax)",
             "public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
