@@ -180,9 +180,29 @@ internal static partial class AssemblyFormatLowerer
         string csType,
         string writeStmt)
     {
-        var field = new BodySyntaxField(name, csType, writeStmt);
+        var field = new BodySyntaxField(GetSyntaxFieldKind(componentKind, csType), name, csType, writeStmt);
         metadata.AddField(field);
         metadata.AddComponentField(new BodyComponentField(componentKind, componentName, field.Name));
+    }
+
+    private static AssemblyFormatSyntaxFieldKind GetSyntaxFieldKind(BodyComponentKind componentKind, string csType)
+    {
+        return componentKind switch
+        {
+            BodyComponentKind.Literal => AssemblyFormatSyntaxFieldKind.Token,
+            BodyComponentKind.AttrDict
+                or BodyComponentKind.AttrDictWithKeyword
+                or BodyComponentKind.PropDict
+                or BodyComponentKind.Successors
+                or BodyComponentKind.Operands => AssemblyFormatSyntaxFieldKind.DelimitedList,
+            BodyComponentKind.Regions => AssemblyFormatSyntaxFieldKind.RegionList,
+            BodyComponentKind.TypeDirective
+                or BodyComponentKind.ResultsDirective
+                or BodyComponentKind.FunctionalTypeDirective => csType.Contains("IReadOnlyList", System.StringComparison.Ordinal)
+                    ? AssemblyFormatSyntaxFieldKind.TypeList
+                    : AssemblyFormatSyntaxFieldKind.SyntaxNode,
+            _ => AssemblyFormatSyntaxFieldKind.SyntaxNode,
+        };
     }
 
     private static void AddBodySyntaxField(

@@ -18,34 +18,34 @@ internal static partial class AssemblyFormatLowerer
         {
             this.parameters = parameters;
             this.includeTrivia = includeTrivia;
-            Slots = new List<FormatSlot>();
+            Fields = new List<AssemblyFormatSyntaxField>();
             Elements = new List<LoweredFormatElement>();
         }
 
-        public List<FormatSlot> Slots { get; }
+        public List<AssemblyFormatSyntaxField> Fields { get; }
         public List<LoweredFormatElement> Elements { get; }
 
         public void LowerLiteral(LiteralChunk literal, int elementIndex)
         {
-            var start = Slots.Count;
+            var start = Fields.Count;
             foreach (var lit in literal.Value)
             {
                 switch (lit)
                 {
                     case PunctuationLiteral punc:
-                        AddLiteralTokenSlot(EmitterHelpers.GetPunctuationText(punc.TokenKind), "TokenKind." + punc.TokenKind, isKeyword: false);
+                        AddLiteralTokenField(EmitterHelpers.GetPunctuationText(punc.TokenKind), "TokenKind." + punc.TokenKind, isKeyword: false);
                         break;
 
                     case KeywordLiteral kw:
-                        AddLiteralTokenSlot(kw.Spelling, "TokenKind.Identifier", isKeyword: true);
+                        AddLiteralTokenField(kw.Spelling, "TokenKind.Identifier", isKeyword: true);
                         break;
 
                     case WhitespaceLiteral ws when includeTrivia:
-                        Slots.Add(new TriviaSlot { Text = ws.Spaces, IsNewline = false });
+                        Fields.Add(new TriviaSyntaxField(ws.Spaces, isNewline: false));
                         break;
 
                     case NewlineLiteral when includeTrivia:
-                        Slots.Add(new TriviaSlot { Text = "\n", IsNewline = true });
+                        Fields.Add(new TriviaSyntaxField("\n", isNewline: true));
                         break;
                 }
             }
@@ -53,27 +53,25 @@ internal static partial class AssemblyFormatLowerer
             Elements.Add(new LoweredFormatElement(
                 literal,
                 elementIndex,
-                slotStart: start,
-                slotCount: Slots.Count - start,
+                fieldStart: start,
+                fieldCount: Fields.Count - start,
                 isSupported: true));
         }
 
         public void LowerVariable(VariableChunk variable, int elementIndex)
         {
-            var start = Slots.Count;
+            var start = Fields.Count;
             var param = FindParameter(parameters, variable.Name);
-            Slots.Add(new VariableSlot
-            {
-                Name = variable.Name,
-                SyntaxType = GetResolvedCSharpSyntaxType(param),
-                SyntaxShape = GetResolvedCSharpSyntaxShape(param),
-                ParamModel = param,
-            });
+            Fields.Add(new VariableSyntaxField(
+                variable.Name,
+                GetResolvedCSharpSyntaxType(param),
+                GetResolvedCSharpSyntaxShape(param),
+                param));
             Elements.Add(new LoweredFormatElement(
                 variable,
                 elementIndex,
-                slotStart: start,
-                slotCount: 1,
+                fieldStart: start,
+                fieldCount: 1,
                 isSupported: true));
         }
 
@@ -102,20 +100,18 @@ internal static partial class AssemblyFormatLowerer
             Elements.Add(new LoweredFormatElement(
                 element,
                 elementIndex,
-                slotStart: Slots.Count,
-                slotCount: 0,
+                fieldStart: Fields.Count,
+                fieldCount: 0,
                 isSupported: false));
         }
 
-        private void AddLiteralTokenSlot(string syntheticText, string kindExpr, bool isKeyword)
+        private void AddLiteralTokenField(string syntheticText, string kindExpr, bool isKeyword)
         {
-            Slots.Add(new LiteralTokenSlot
-            {
-                LocalName = "literal" + literalIndex + "Token",
-                SyntheticText = syntheticText,
-                KindExpr = kindExpr,
-                IsKeyword = isKeyword,
-            });
+            Fields.Add(new LiteralTokenField(
+                "literal" + literalIndex + "Token",
+                syntheticText,
+                kindExpr,
+                isKeyword));
             literalIndex++;
         }
     }

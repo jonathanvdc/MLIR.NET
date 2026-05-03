@@ -49,7 +49,7 @@ internal static class AttributeAssemblyFormatEmitter
         var format = attribute.AssemblyFormat!;
         var syntaxClassName = className + "Syntax";
         var lowered = AssemblyFormatLowerer.LowerAttribute(attribute, format);
-        var slots = lowered.Slots;
+        var fields = lowered.Fields;
 
         builder.AppendLine("public sealed class " + syntaxClassName + " : DialectPrefixedAttributeValueSyntax");
         builder.AppendLine("{");
@@ -59,13 +59,13 @@ internal static class AttributeAssemblyFormatEmitter
         // variables as their concrete csharpSyntaxType).  Used when constructing from parsed tokens
         // so that the exact source text is preserved.
         builder.Append("    public " + syntaxClassName + "(DialectAttributePrefix prefix");
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            if (slot is LiteralTokenSlot lit)
+            if (field is LiteralTokenField lit)
             {
                 builder.Append(", Token " + lit.LocalName);
             }
-            else if (slot is VariableSlot v)
+            else if (field is VariableSyntaxField v)
             {
                 builder.Append(", " + v.SyntaxType + " " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
             }
@@ -74,13 +74,13 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine(")");
         builder.AppendLine("        : base(prefix)");
         builder.AppendLine("    {");
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            if (slot is LiteralTokenSlot lit)
+            if (field is LiteralTokenField lit)
             {
                 builder.AppendLine("        " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " = " + lit.LocalName + ";");
             }
-            else if (slot is VariableSlot v)
+            else if (field is VariableSyntaxField v)
             {
                 builder.AppendLine("        " + DialectGeneratorNaming.ToPascalCase(v.Name) + "Syntax = " + EmitterHelpers.LowerFirst(v.Name) + "Syntax;");
             }
@@ -93,9 +93,9 @@ internal static class AttributeAssemblyFormatEmitter
         // tokens for the literal elements.  Used in BuildCustomAssemblySyntax when constructing
         // a syntax node programmatically from typed attribute values.
         builder.Append("    public " + syntaxClassName + "(DialectAttributePrefix prefix");
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            if (slot is VariableSlot v)
+            if (field is VariableSyntaxField v)
             {
                 builder.Append(", " + v.SyntaxType + " " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
             }
@@ -103,16 +103,16 @@ internal static class AttributeAssemblyFormatEmitter
 
         builder.AppendLine(")");
         builder.Append("        : this(prefix");
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            if (slot is LiteralTokenSlot lit)
+            if (field is LiteralTokenField lit)
             {
                 var factoryExpr = lit.IsKeyword
                     ? "TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
                     : "TokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()";
                 builder.Append(", " + factoryExpr);
             }
-            else if (slot is VariableSlot v)
+            else if (field is VariableSyntaxField v)
             {
                 builder.Append(", " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
             }
@@ -122,9 +122,9 @@ internal static class AttributeAssemblyFormatEmitter
 
         // Literal token properties
         var hasLiterals = false;
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            if (slot is LiteralTokenSlot)
+            if (field is LiteralTokenField)
             {
                 hasLiterals = true;
                 break;
@@ -134,9 +134,9 @@ internal static class AttributeAssemblyFormatEmitter
         if (hasLiterals)
         {
             builder.AppendLine();
-            foreach (var slot in slots)
+            foreach (var field in fields)
             {
-                if (slot is LiteralTokenSlot lit)
+                if (field is LiteralTokenField lit)
                 {
                     builder.AppendLine("    public Token " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " { get; }");
                 }
@@ -144,19 +144,19 @@ internal static class AttributeAssemblyFormatEmitter
         }
 
         // Variable syntax properties
-        var variableSlots = new List<VariableSlot>();
-        foreach (var slot in slots)
+        var variableFields = new List<VariableSyntaxField>();
+        foreach (var field in fields)
         {
-            if (slot is VariableSlot v)
+            if (field is VariableSyntaxField v)
             {
-                variableSlots.Add(v);
+                variableFields.Add(v);
             }
         }
 
-        if (variableSlots.Count > 0)
+        if (variableFields.Count > 0)
         {
             builder.AppendLine();
-            foreach (var v in variableSlots)
+            foreach (var v in variableFields)
             {
                 builder.AppendLine("    public " + v.SyntaxType + " " + DialectGeneratorNaming.ToPascalCase(v.Name) + "Syntax { get; }");
             }
@@ -164,9 +164,9 @@ internal static class AttributeAssemblyFormatEmitter
 
         // Location — delegate to first variable's syntax if present.
         builder.AppendLine();
-        if (variableSlots.Count > 0)
+        if (variableFields.Count > 0)
         {
-            builder.AppendLine("    public override SourceLocation Location => " + DialectGeneratorNaming.ToPascalCase(variableSlots[0].Name) + "Syntax.Location;");
+            builder.AppendLine("    public override SourceLocation Location => " + DialectGeneratorNaming.ToPascalCase(variableFields[0].Name) + "Syntax.Location;");
         }
         else
         {
@@ -178,19 +178,19 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer)");
         builder.AppendLine("    {");
         builder.AppendLine("        WritePrefix(writer);");
-        EmitWriteToBody(builder, slots);
+        EmitWriteToBody(builder, fields);
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)");
         builder.AppendLine("    {");
         builder.Append("        return new " + syntaxClassName + "(new DialectAttributePrefix(rewriter.VisitToken(Prefix.HashToken), rewriter.VisitToken(Prefix.NameToken))");
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            if (slot is LiteralTokenSlot lit)
+            if (field is LiteralTokenField lit)
             {
                 builder.Append(", rewriter.VisitToken(" + EmitterHelpers.CapitalizeFirst(lit.LocalName) + ")");
             }
-            else if (slot is VariableSlot v)
+            else if (field is VariableSyntaxField v)
             {
                 builder.Append(", " + SyntaxValueShapeEmitter.GetRewriteExpression(v.Name, v.SyntaxType, v.SyntaxShape));
             }
@@ -209,7 +209,7 @@ internal static class AttributeAssemblyFormatEmitter
     {
         var format = attribute.AssemblyFormat!;
         var lowered = AssemblyFormatLowerer.LowerAttribute(attribute, format);
-        var slots = lowered.Slots;
+        var fields = lowered.Fields;
         var syntaxClassName = className + "Syntax";
         var formatClassName = className + "AssemblyFormat";
 
@@ -239,7 +239,7 @@ internal static class AttributeAssemblyFormatEmitter
         // Bind
         builder.AppendLine("    public static AttributeValue BindValue(AttributeValueSyntax syntax, Binder binder)");
         builder.AppendLine("    {");
-        EmitBindValueBody(builder, attribute, className, slots, syntaxClassName);
+        EmitBindValueBody(builder, attribute, className, fields, syntaxClassName);
         builder.AppendLine("    }");
         builder.AppendLine();
 
@@ -252,7 +252,7 @@ internal static class AttributeAssemblyFormatEmitter
         // BuildCustomAssemblySyntax
         builder.AppendLine("    public override AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)");
         builder.AppendLine("    {");
-        EmitBuildCustomAssemblySyntaxBody(builder, attribute, slots, className, syntaxClassName);
+        EmitBuildCustomAssemblySyntaxBody(builder, attribute, fields, className, syntaxClassName);
         builder.AppendLine("    }");
 
         builder.AppendLine("}");
@@ -263,26 +263,26 @@ internal static class AttributeAssemblyFormatEmitter
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// Emits the body of <c>WriteTo</c> using the pre-built format slots.
-    /// Each <see cref="LiteralTokenSlot"/> writes its stored token property;
-    /// each <see cref="VariableSlot"/> calls <c>WriteTo</c> on its syntax property;
-    /// trivia slots call <c>SuggestTrivia</c>.
+    /// Emits the body of <c>WriteTo</c> using the pre-built format fields.
+    /// Each <see cref="LiteralTokenField"/> writes its stored token property;
+    /// each <see cref="VariableSyntaxField"/> calls <c>WriteTo</c> on its syntax property;
+    /// trivia fields call <c>SuggestTrivia</c>.
     /// </summary>
-    private static void EmitWriteToBody(StringBuilder builder, IReadOnlyList<FormatSlot> slots)
+    private static void EmitWriteToBody(StringBuilder builder, IReadOnlyList<AssemblyFormatSyntaxField> fields)
     {
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            switch (slot)
+            switch (field)
             {
-                case LiteralTokenSlot lit:
+                case LiteralTokenField lit:
                     builder.AppendLine("        writer.WriteToken(" + EmitterHelpers.CapitalizeFirst(lit.LocalName) + ");");
                     break;
 
-                case VariableSlot v:
+                case VariableSyntaxField v:
                     builder.AppendLine("        " + DialectGeneratorNaming.ToPascalCase(v.Name) + "Syntax.WriteTo(writer);");
                     break;
 
-                case TriviaSlot trivia:
+                case TriviaSyntaxField trivia:
                     if (trivia.IsNewline)
                     {
                         builder.AppendLine("        writer.SuggestTrivia(\"\\n\");");
@@ -311,15 +311,15 @@ internal static class AttributeAssemblyFormatEmitter
 
         foreach (var element in lowered.Elements)
         {
-            foreach (var slot in lowered.GetSlots(element))
+            foreach (var field in lowered.GetFields(element))
             {
-                switch (slot)
+                switch (field)
                 {
-                    case LiteralTokenSlot lit:
+                    case LiteralTokenField lit:
                         EmitLiteralTokenParse(builder, lit, ref isFirst);
                         break;
 
-                    case VariableSlot v:
+                    case VariableSyntaxField v:
                     {
                         var stopTokens = AssemblyFormatTraversal.FindStopTokensForVariable(elements, element.ElementIndex);
                         var varLocalName = EmitterHelpers.LowerFirst(v.Name) + "Syntax";
@@ -331,15 +331,15 @@ internal static class AttributeAssemblyFormatEmitter
             }
         }
 
-        // Construct and return the syntax; pass prefix + all slots in order.
+        // Construct and return the syntax; pass prefix + all fields in order.
         builder.Append("        return ParseResult<AttributeValueSyntax>.Success(new " + syntaxClassName + "(prefix");
-        foreach (var slot in lowered.Slots)
+        foreach (var field in lowered.Fields)
         {
-            if (slot is LiteralTokenSlot lit)
+            if (field is LiteralTokenField lit)
             {
                 builder.Append(", " + lit.LocalName);
             }
-            else if (slot is VariableSlot v)
+            else if (field is VariableSyntaxField v)
             {
                 builder.Append(", " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
             }
@@ -348,7 +348,7 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine("));");
     }
 
-    private static void EmitLiteralTokenParse(StringBuilder builder, LiteralTokenSlot lit, ref bool isFirst)
+    private static void EmitLiteralTokenParse(StringBuilder builder, LiteralTokenField lit, ref bool isFirst)
     {
         if (lit.IsKeyword)
         {
@@ -444,7 +444,7 @@ internal static class AttributeAssemblyFormatEmitter
     private static void EmitBuildCustomAssemblySyntaxBody(
         StringBuilder builder,
         AttributeModel attribute,
-        IReadOnlyList<FormatSlot> slots,
+        IReadOnlyList<AssemblyFormatSyntaxField> fields,
         string className,
         string syntaxClassName)
     {
@@ -454,10 +454,10 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine("        if (attr.Syntax is " + syntaxClassName + " existingSyntax)");
         builder.AppendLine("            return existingSyntax;");
 
-        // For each variable slot, build the body syntax from the attribute's typed property.
-        foreach (var slot in slots)
+        // For each variable field, build the body syntax from the attribute's typed property.
+        foreach (var field in fields)
         {
-            if (slot is VariableSlot v)
+            if (field is VariableSyntaxField v)
             {
                 var propertyName = DialectGeneratorNaming.ToPascalCase(v.Name);
                 var localSyntaxName = EmitterHelpers.LowerFirst(v.Name) + "Syntax";
@@ -469,9 +469,9 @@ internal static class AttributeAssemblyFormatEmitter
         // Use a synthetic prefix so that WriteTo always outputs the '#dialect.attr' header
         // even when no real parse tokens are available.
         builder.Append("        return new " + syntaxClassName + "(DialectAttributePrefix.Synthetic(" + EmitterHelpers.ToCSharpStringLiteral(attribute.Name) + ")");
-        foreach (var slot in slots)
+        foreach (var field in fields)
         {
-            if (slot is VariableSlot v)
+            if (field is VariableSyntaxField v)
             {
                 builder.Append(", " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
             }
@@ -484,19 +484,19 @@ internal static class AttributeAssemblyFormatEmitter
         StringBuilder builder,
         AttributeModel attribute,
         string className,
-        IReadOnlyList<FormatSlot> slots,
+        IReadOnlyList<AssemblyFormatSyntaxField> fields,
         string syntaxClassName)
     {
         builder.AppendLine("        if (syntax is not " + syntaxClassName + " structured)");
         builder.AppendLine("            throw new global::System.InvalidOperationException(\"Expected the generated attribute syntax class.\");");
 
         var constructorArguments = new List<string>();
-        foreach (var slot in slots.OfType<VariableSlot>())
+        foreach (var field in fields.OfType<VariableSyntaxField>())
         {
-            var propertyName = DialectGeneratorNaming.ToPascalCase(slot.Name);
-            var localName = EmitterHelpers.LowerFirst(slot.Name) + "Value";
+            var propertyName = DialectGeneratorNaming.ToPascalCase(field.Name);
+            var localName = EmitterHelpers.LowerFirst(field.Name) + "Value";
             var syntaxExpr = "structured." + propertyName + "Syntax";
-            var valueExpr = BuildValueFromSyntaxExpression(slot.ParamModel, syntaxExpr, attribute.Name, slot.Name);
+            var valueExpr = BuildValueFromSyntaxExpression(field.ParamModel, syntaxExpr, attribute.Name, field.Name);
             builder.AppendLine("        var " + localName + " = " + valueExpr + ";");
             constructorArguments.Add(localName);
         }

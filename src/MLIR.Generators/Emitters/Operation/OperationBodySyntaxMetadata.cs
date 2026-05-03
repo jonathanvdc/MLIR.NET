@@ -1,19 +1,19 @@
 namespace MLIR.Generators.Emitters.Operation;
 
 using System.Collections.Generic;
+using MLIR.Generators.Emitters.AssemblyFormat;
 
-internal sealed class BodySyntaxField
+internal sealed class BodySyntaxField : AssemblyFormatSyntaxField
 {
     public BodySyntaxField(string name, string csType, string writeToCode)
+        : this(AssemblyFormatSyntaxFieldKind.Unknown, name, csType, writeToCode)
     {
-        Name = name;
-        CsType = csType;
-        WriteToCode = writeToCode;
     }
 
-    public string Name { get; }
-    public string CsType { get; }
-    public string WriteToCode { get; }
+    public BodySyntaxField(AssemblyFormatSyntaxFieldKind kind, string name, string csType, string writeToCode)
+        : base(kind, name, csType, writeToCode)
+    {
+    }
 }
 
 internal sealed class BodyComponentField

@@ -11,7 +11,7 @@ using MLIR.ODS.Model.AssemblyFormat;
 /// The lowering layer owns the common walk over ODS assembly-format elements and
 /// produces the stable, ordered representation consumed by syntax-class,
 /// parse, bind, build, and write emitters. Domain-specific partials translate
-/// the walked elements into the attr/type slot model or the operation body
+/// the walked elements into the attr/type field model or the operation body
 /// syntax metadata model.
 /// </remarks>
 internal static partial class AssemblyFormatLowerer
@@ -20,14 +20,14 @@ internal static partial class AssemblyFormatLowerer
     {
         var sink = new AttrOrTypeFormatSink(attribute.Parameters, includeTrivia: true);
         LowerElements(format.Elements, sink);
-        return new LoweredAssemblyFormat(sink.Elements, sink.Slots);
+        return new LoweredAssemblyFormat(sink.Elements, sink.Fields);
     }
 
     public static LoweredAssemblyFormat LowerType(TypeModel type, AssemblyFormatModel format)
     {
         var sink = new AttrOrTypeFormatSink(type.Parameters, includeTrivia: false);
         LowerElements(format.Elements, sink);
-        return new LoweredAssemblyFormat(sink.Elements, sink.Slots);
+        return new LoweredAssemblyFormat(sink.Elements, sink.Fields);
     }
 
     public static LoweredOperationAssemblyFormat LowerOperation(OperationModel operation, AssemblyFormatModel format)

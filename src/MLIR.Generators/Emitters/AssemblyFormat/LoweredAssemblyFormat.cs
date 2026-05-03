@@ -6,10 +6,10 @@ using MLIR.ODS.Model.AssemblyFormat;
 
 internal sealed class LoweredAssemblyFormat
 {
-    public LoweredAssemblyFormat(IReadOnlyList<LoweredFormatElement> elements, IReadOnlyList<FormatSlot> slots)
+    public LoweredAssemblyFormat(IReadOnlyList<LoweredFormatElement> elements, IReadOnlyList<AssemblyFormatSyntaxField> fields)
     {
         Elements = elements;
-        Slots = slots;
+        Fields = fields;
     }
 
     /// <summary>
@@ -21,9 +21,9 @@ internal sealed class LoweredAssemblyFormat
     public IReadOnlyList<LoweredFormatElement> Elements { get; }
 
     /// <summary>
-    /// Gets the flattened syntax slots used by the generated syntax class, binder, and builder.
+    /// Gets the flattened syntax fields used by the generated syntax class, binder, and builder.
     /// </summary>
-    public IReadOnlyList<FormatSlot> Slots { get; }
+    public IReadOnlyList<AssemblyFormatSyntaxField> Fields { get; }
 
     public bool IsSupported
     {
@@ -42,13 +42,13 @@ internal sealed class LoweredAssemblyFormat
     }
 
     /// <summary>
-    /// Gets the contiguous slot range produced by a lowered format element.
+    /// Gets the contiguous syntax-field range produced by a lowered format element.
     /// </summary>
-    public IEnumerable<FormatSlot> GetSlots(LoweredFormatElement element)
+    public IEnumerable<AssemblyFormatSyntaxField> GetFields(LoweredFormatElement element)
     {
-        for (var i = 0; i < element.SlotCount; i++)
+        for (var i = 0; i < element.FieldCount; i++)
         {
-            yield return Slots[element.SlotStart + i];
+            yield return Fields[element.FieldStart + i];
         }
     }
 }
@@ -58,21 +58,21 @@ internal sealed class LoweredFormatElement
     public LoweredFormatElement(
         Element source,
         int elementIndex,
-        int slotStart,
-        int slotCount,
+        int fieldStart,
+        int fieldCount,
         bool isSupported)
     {
         Source = source;
         ElementIndex = elementIndex;
-        SlotStart = slotStart;
-        SlotCount = slotCount;
+        FieldStart = fieldStart;
+        FieldCount = fieldCount;
         IsSupported = isSupported;
     }
 
     public Element Source { get; }
     public int ElementIndex { get; }
-    public int SlotStart { get; }
-    public int SlotCount { get; }
+    public int FieldStart { get; }
+    public int FieldCount { get; }
     public bool IsSupported { get; }
 }
 
@@ -89,6 +89,8 @@ internal sealed class LoweredOperationAssemblyFormat
     public IReadOnlyList<LoweredOperationElement> Elements { get; }
 
     public OperationBodySyntaxMetadata Metadata { get; }
+
+    public IReadOnlyList<AssemblyFormatSyntaxField> Fields => Metadata.Fields;
 
     public bool IsSupported
     {
