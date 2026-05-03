@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
-using MLIR.ODS.Model.AssemblyFormat;
 using MLIR.Text;
 
 /// <summary>
@@ -18,7 +17,8 @@ internal static class TypeAssemblyFormatEmitter
     {
         var format = type.AssemblyFormat!;
         var syntaxClassName = className + "Syntax";
-        var slots = AssemblyFormatLowerer.LowerType(type, format).Slots;
+        var lowered = AssemblyFormatLowerer.LowerType(type, format);
+        var slots = lowered.Slots;
 
         builder.AppendLine("public sealed class " + syntaxClassName + " : DialectNamedTypeSyntax");
         builder.AppendLine("{");
@@ -149,16 +149,31 @@ internal static class TypeAssemblyFormatEmitter
     public static void EmitAssemblyFormatClass(StringBuilder builder, TypeModel type, string className)
     {
         var format = type.AssemblyFormat!;
-        var slots = AssemblyFormatLowerer.LowerType(type, format).Slots;
+        var lowered = AssemblyFormatLowerer.LowerType(type, format);
+        var slots = lowered.Slots;
         var syntaxClassName = className + "Syntax";
         var formatClassName = className + "AssemblyFormat";
 
         builder.AppendLine("internal sealed class " + formatClassName + " : ITypeAssemblyFormat");
         builder.AppendLine("{");
         builder.AppendLine();
+        if (!lowered.IsSupported)
+        {
+            builder.AppendLine("    // This declarative format currently includes unsupported constructs for type/attr lowering.");
+            builder.AppendLine("    // The generated format class is still emitted for API completeness, but parsing will fail fast.");
+            builder.AppendLine();
+        }
         builder.AppendLine("    public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)");
         builder.AppendLine("    {");
-        EmitTryParseBody(builder, type, format, slots, syntaxClassName);
+        if (!lowered.IsSupported)
+        {
+            builder.AppendLine("        return ParseResult<TypeSyntax>.Failure(new AssemblyDiagnostic(SourceLocation.Unknown, \"Unsupported declarative assembly format construct for type body.\"));");
+        }
+        else
+        {
+            EmitTryParseBody(builder, lowered, syntaxClassName);
+        }
+
         builder.AppendLine("    }");
         builder.AppendLine();
         builder.AppendLine("    public static TypeReference BindValue(TypeSyntax syntax)");
@@ -180,30 +195,32 @@ internal static class TypeAssemblyFormatEmitter
 
     private static void EmitTryParseBody(
         StringBuilder builder,
-        TypeModel type,
-        AssemblyFormatModel format,
-        IReadOnlyList<FormatSlot> slots,
+        LoweredAssemblyFormat lowered,
         string syntaxClassName)
     {
         builder.AppendLine("        if (!context.TryMatch(TokenKind.Bang, out var bangToken))");
         builder.AppendLine("            return ParseResult<TypeSyntax>.NoMatch();");
         builder.AppendLine("        if (!context.TryMatch(TokenKind.Identifier, out var nameToken))");
         builder.AppendLine("            return ParseResult<TypeSyntax>.NoMatch();");
-        foreach (var slot in slots)
+
+        foreach (var element in lowered.Elements)
         {
-            switch (slot)
+            foreach (var slot in lowered.GetSlots(element))
             {
-                case LiteralTokenSlot lit:
-                    EmitLiteralTokenParse(builder, lit);
-                    break;
-                case VariableSlot v:
-                    EmitVariableParse(builder, v, syntaxClassName);
-                    break;
+                switch (slot)
+                {
+                    case LiteralTokenSlot lit:
+                        EmitLiteralTokenParse(builder, lit);
+                        break;
+                    case VariableSlot v:
+                        EmitVariableParse(builder, v, syntaxClassName);
+                        break;
+                }
             }
         }
 
         builder.Append("        return ParseResult<TypeSyntax>.Success(new " + syntaxClassName + "(new DialectTypePrefix(bangToken, nameToken)");
-        foreach (var slot in slots)
+        foreach (var slot in lowered.Slots)
         {
             if (slot is LiteralTokenSlot lit)
             {

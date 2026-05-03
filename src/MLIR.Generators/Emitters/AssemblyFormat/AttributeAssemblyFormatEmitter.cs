@@ -1,10 +1,10 @@
 namespace MLIR.Generators.Emitters.AssemblyFormat;
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using MLIR.Generators.Emitters;
 using MLIR.ODS.Model;
-using MLIR.ODS.Model.AssemblyFormat;
 using MLIR.Generators.Emitters.Common;
 using MLIR.Text;
 
@@ -48,7 +48,8 @@ internal static class AttributeAssemblyFormatEmitter
     {
         var format = attribute.AssemblyFormat!;
         var syntaxClassName = className + "Syntax";
-        var slots = AssemblyFormatLowerer.LowerAttribute(attribute, format).Slots;
+        var lowered = AssemblyFormatLowerer.LowerAttribute(attribute, format);
+        var slots = lowered.Slots;
 
         builder.AppendLine("public sealed class " + syntaxClassName + " : DialectPrefixedAttributeValueSyntax");
         builder.AppendLine("{");
@@ -207,7 +208,8 @@ internal static class AttributeAssemblyFormatEmitter
     public static void EmitAssemblyFormatClass(StringBuilder builder, AttributeModel attribute, string className)
     {
         var format = attribute.AssemblyFormat!;
-        var slots = AssemblyFormatLowerer.LowerAttribute(attribute, format).Slots;
+        var lowered = AssemblyFormatLowerer.LowerAttribute(attribute, format);
+        var slots = lowered.Slots;
         var syntaxClassName = className + "Syntax";
         var formatClassName = className + "AssemblyFormat";
 
@@ -222,7 +224,15 @@ internal static class AttributeAssemblyFormatEmitter
         // TryParseBody
         builder.AppendLine("    protected override ParseResult<AttributeValueSyntax> TryParseBody(AttributeParsingContext context, DialectAttributePrefix prefix)");
         builder.AppendLine("    {");
-        EmitTryParseBody(builder, attribute, format, slots, syntaxClassName);
+        if (!lowered.IsSupported)
+        {
+            builder.AppendLine("        return ParseResult<AttributeValueSyntax>.Failure(new AssemblyDiagnostic(prefix.Location, \"Unsupported declarative assembly format construct for attribute body.\"));");
+        }
+        else
+        {
+            EmitTryParseBody(builder, lowered, syntaxClassName);
+        }
+
         builder.AppendLine("    }");
         builder.AppendLine();
 
@@ -293,40 +303,37 @@ internal static class AttributeAssemblyFormatEmitter
 
     private static void EmitTryParseBody(
         StringBuilder builder,
-        AttributeModel attribute,
-        AssemblyFormatModel format,
-        IReadOnlyList<FormatSlot> slots,
+        LoweredAssemblyFormat lowered,
         string syntaxClassName)
     {
-        var elements = format.Elements;
+        var elements = lowered.Elements.Select(static element => element.Source).ToArray();
         var isFirst = true;
 
-        for (var i = 0; i < slots.Count; i++)
+        foreach (var element in lowered.Elements)
         {
-            var slot = slots[i];
-
-            switch (slot)
+            foreach (var slot in lowered.GetSlots(element))
             {
-                case LiteralTokenSlot lit:
-                    EmitLiteralTokenParse(builder, lit, ref isFirst);
-                    break;
-
-                case VariableSlot v:
+                switch (slot)
                 {
-                    // For stop-token analysis we need the original element index; map via name.
-                    var elementIndex = AssemblyFormatTraversal.FindElementIndexForVariable(elements, v.Name);
-                    var stopTokens = AssemblyFormatTraversal.FindStopTokensForVariable(elements, elementIndex);
-                    var varLocalName = EmitterHelpers.LowerFirst(v.Name) + "Syntax";
-                    EmitVariableParse(builder, v.Name, varLocalName, stopTokens, v.ParamModel, v.SyntaxType);
-                    isFirst = false;
-                    break;
+                    case LiteralTokenSlot lit:
+                        EmitLiteralTokenParse(builder, lit, ref isFirst);
+                        break;
+
+                    case VariableSlot v:
+                    {
+                        var stopTokens = AssemblyFormatTraversal.FindStopTokensForVariable(elements, element.ElementIndex);
+                        var varLocalName = EmitterHelpers.LowerFirst(v.Name) + "Syntax";
+                        EmitVariableParse(builder, v.Name, varLocalName, stopTokens, v.ParamModel, v.SyntaxType);
+                        isFirst = false;
+                        break;
+                    }
                 }
             }
         }
 
         // Construct and return the syntax; pass prefix + all slots in order.
         builder.Append("        return ParseResult<AttributeValueSyntax>.Success(new " + syntaxClassName + "(prefix");
-        foreach (var slot in slots)
+        foreach (var slot in lowered.Slots)
         {
             if (slot is LiteralTokenSlot lit)
             {

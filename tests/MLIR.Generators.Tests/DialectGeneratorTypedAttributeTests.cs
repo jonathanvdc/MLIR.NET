@@ -530,6 +530,41 @@ public sealed class DialectGeneratorTypedAttributeTests : DialectGeneratorTestBa
     }
 
     [Fact]
+    public void AttrDefWithUnsupportedAssemblyFormatEmitsFastFailParserAndBindBuildMembers()
+    {
+        var source = ComposeSource(
+        [
+            "include \"mlir/IR/AttrTypeBase.td\"",
+            string.Empty,
+            "def TestDialect : Dialect {",
+            "  let name = \"test\";",
+            "  let cppNamespace = \"::mlir::test\";",
+            "};",
+            string.Empty,
+            "class Test_Attr<string name, string m> : AttrDef<TestDialect, name> {",
+            "  let mnemonic = m;",
+            "}",
+            string.Empty,
+            "def Test_UnsupportedAttr : Test_Attr<\"Unsupported\", \"unsupported\"> {",
+            "  let parameters = (ins StringRefParameter<\"the opaque value\">:$value);",
+            "  let assemblyFormat = \"`<` $value (`debug`)? `>`\";",
+            "}",
+        ]);
+
+        var registrationSource = GenerateRegistrationSource("test.td", "TestDialectRegistration.g.cs", source);
+
+        AssertContainsAll(
+            registrationSource,
+            "public sealed class UnsupportedAttrSyntax : DialectPrefixedAttributeValueSyntax",
+            "public StringAttributeValueSyntax ValueSyntax { get; }",
+            "internal sealed class UnsupportedAttrAssemblyFormat : BodyOnlyAttributeAssemblyFormat",
+            "Unsupported declarative assembly format construct for attribute body.",
+            "public static AttributeValue BindValue(AttributeValueSyntax syntax, Binder binder)",
+            "public override AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context)",
+            "StringLiteralAttributeAssemblyFormat.Quote(attr.Value)");
+    }
+
+    [Fact]
     public void AttrDefWithSelfTypeParameterAndAssemblyFormatBindsTypeReferencesThroughBinder()
     {
         var source = ComposeSource(

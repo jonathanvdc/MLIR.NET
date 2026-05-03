@@ -80,6 +80,34 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
     }
 
     [Fact]
+    public void TypeDefWithUnsupportedAssemblyFormatEmitsFastFailParserAndBindBuildMembers()
+    {
+        var registrationSource = GenerateMyDialectRegistrationSource(
+            [
+                "include \"mlir/IR/AttrTypeBase.td\"",
+                string.Empty,
+                "class MyDialect_Type<string name, list<Trait> traits = []> : TypeDef<MyDialect_Dialect, name, traits> {",
+                "  let typeName = \"myp.\" # name;",
+                "};",
+                string.Empty,
+                "def MyDialect_UnsupportedType : MyDialect_Type<\"unsupported\"> {",
+                "  let parameters = (ins StringRefParameter<\"the value\">:$value);",
+                "  let assemblyFormat = \"`<` $value (`debug`)? `>`\";",
+                "};",
+            ]);
+
+        AssertContainsAll(
+            registrationSource,
+            ": DialectNamedTypeSyntax",
+            "public StringAttributeValueSyntax ValueSyntax { get; }",
+            ": ITypeAssemblyFormat",
+            "Unsupported declarative assembly format construct for type body.",
+            "public static TypeReference BindValue(TypeSyntax syntax)",
+            "public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
+            "StringLiteralAttributeAssemblyFormat.Quote(typed.Value)");
+    }
+
+    [Fact]
     public void TypeDefWithParametersAndNoAssemblyFormatGeneratesTypedReferenceClassWithoutFactory()
     {
         var source = ComposeSource(
