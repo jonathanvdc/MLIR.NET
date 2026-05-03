@@ -1,11 +1,9 @@
 namespace MLIR.Generators.Emitters.AssemblyFormat;
 
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
-using MLIR.Text;
 
 /// <summary>
 /// Generates the structured <c>TypeSyntax</c> subclass and the <c>ITypeAssemblyFormat</c>
@@ -18,132 +16,7 @@ internal static class TypeAssemblyFormatEmitter
         var format = type.AssemblyFormat!;
         var syntaxClassName = className + "Syntax";
         var lowered = AssemblyFormatLowerer.LowerType(type, format);
-        var fields = lowered.Fields;
-
-        builder.AppendLine("public sealed class " + syntaxClassName + " : DialectNamedTypeSyntax");
-        builder.AppendLine("{");
-        builder.AppendLine();
-
-        builder.Append("    public " + syntaxClassName + "(DialectTypePrefix prefix");
-        foreach (var field in fields)
-        {
-            if (field is LiteralTokenField lit)
-            {
-                builder.Append(", Token " + lit.LocalName);
-            }
-            else if (field is VariableSyntaxField v)
-            {
-                builder.Append(", " + v.SyntaxType + " " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
-            }
-        }
-
-        builder.AppendLine(")");
-        builder.AppendLine("        : base(prefix)");
-        builder.AppendLine("    {");
-        foreach (var field in fields)
-        {
-            if (field is LiteralTokenField lit)
-            {
-                builder.AppendLine("        " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " = " + lit.LocalName + ";");
-            }
-            else if (field is VariableSyntaxField v)
-            {
-                builder.AppendLine("        " + DialectGeneratorNaming.ToPascalCase(v.Name) + "Syntax = " + EmitterHelpers.LowerFirst(v.Name) + "Syntax;");
-            }
-        }
-        builder.AppendLine("    }");
-        builder.AppendLine();
-
-        builder.Append("    public " + syntaxClassName + "(");
-        var first = true;
-        foreach (var field in fields)
-        {
-            if (field is VariableSyntaxField v)
-            {
-                if (!first)
-                {
-                    builder.Append(", ");
-                }
-
-                builder.Append(v.SyntaxType + " " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
-                first = false;
-            }
-        }
-
-        builder.AppendLine(")");
-        builder.Append("        : this(DialectTypePrefix.Synthetic(" + EmitterHelpers.ToCSharpStringLiteral(type.Name) + ")");
-        foreach (var field in fields)
-        {
-            if (field is LiteralTokenField lit)
-            {
-                builder.Append(", " + (lit.IsKeyword
-                    ? "TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(lit.SyntheticText) + ")"
-                    : "TokenFactory." + lit.KindExpr.Substring("TokenKind.".Length) + "()"));
-            }
-            else if (field is VariableSyntaxField v)
-            {
-                builder.Append(", " + EmitterHelpers.LowerFirst(v.Name) + "Syntax");
-            }
-        }
-        builder.AppendLine(") { }");
-
-        if (fields.Any(static field => field is LiteralTokenField))
-        {
-            builder.AppendLine();
-            foreach (var field in fields)
-            {
-                if (field is LiteralTokenField lit)
-                {
-                    builder.AppendLine("    public Token " + EmitterHelpers.CapitalizeFirst(lit.LocalName) + " { get; }");
-                }
-            }
-        }
-
-        var variableFields = fields.OfType<VariableSyntaxField>().ToArray();
-        if (variableFields.Length > 0)
-        {
-            builder.AppendLine();
-            foreach (var v in variableFields)
-            {
-                builder.AppendLine("    public " + v.SyntaxType + " " + DialectGeneratorNaming.ToPascalCase(v.Name) + "Syntax { get; }");
-            }
-        }
-
-        builder.AppendLine();
-        if (variableFields.Length > 0)
-        {
-            builder.AppendLine("    public override SourceLocation Location => SourceLocation.Merge(Prefix.Location, " + DialectGeneratorNaming.ToPascalCase(variableFields[0].Name) + "Syntax.Location);");
-        }
-        else
-        {
-            builder.AppendLine("    public override SourceLocation Location => Prefix.Location;");
-        }
-
-        builder.AppendLine();
-        builder.AppendLine("    public override void WriteTo(Text.SyntaxWriter writer)");
-        builder.AppendLine("    {");
-        builder.AppendLine("        WritePrefix(writer);");
-        EmitWriteToBody(builder, fields);
-        builder.AppendLine("    }");
-        builder.AppendLine();
-        builder.AppendLine("    public override SyntaxNode Rewrite(SyntaxRewriter rewriter)");
-        builder.AppendLine("    {");
-        builder.Append("        return new " + syntaxClassName + "(new DialectTypePrefix(rewriter.VisitToken(Prefix.BangToken), rewriter.VisitToken(Prefix.NameToken))");
-        foreach (var field in fields)
-        {
-            if (field is LiteralTokenField lit)
-            {
-                builder.Append(", rewriter.VisitToken(" + EmitterHelpers.CapitalizeFirst(lit.LocalName) + ")");
-            }
-            else if (field is VariableSyntaxField v)
-            {
-                builder.Append(", " + SyntaxValueShapeEmitter.GetRewriteExpression(v.Name, v.SyntaxType, v.SyntaxShape));
-            }
-        }
-
-        builder.AppendLine(");");
-        builder.AppendLine("    }");
-        builder.AppendLine("}");
+        new TypeSyntaxClassEmitter(type, syntaxClassName, lowered.Fields).Emit(builder);
     }
 
     public static void EmitAssemblyFormatClass(StringBuilder builder, TypeModel type, string className)
@@ -372,21 +245,4 @@ internal static class TypeAssemblyFormatEmitter
         var message = "Missing syntax for parameter '" + parameterName + "' on type '" + ownerName + "' and no C# extractor/default was defined.";
         return "throw new global::System.InvalidOperationException(" + EmitterHelpers.ToCSharpStringLiteral(message) + ")";
     }
-
-    private static void EmitWriteToBody(StringBuilder builder, IReadOnlyList<AssemblyFormatSyntaxField> fields)
-    {
-        foreach (var field in fields)
-        {
-            switch (field)
-            {
-                case LiteralTokenField lit:
-                    builder.AppendLine("        writer.WriteToken(" + EmitterHelpers.CapitalizeFirst(lit.LocalName) + ");");
-                    break;
-                case VariableSyntaxField v:
-                    builder.AppendLine("        " + DialectGeneratorNaming.ToPascalCase(v.Name) + "Syntax.WriteTo(writer);");
-                    break;
-            }
-        }
-    }
-
 }
