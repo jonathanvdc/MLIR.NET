@@ -74,7 +74,7 @@ using MLIR.Syntax;
 ///     caller-supplied <c>AttributeConstraintDefinition</c> hints are tried next; built-in structured forms
 ///     (arrays, dictionaries, dense arrays, elements) are checked last before falling back to raw syntax.</description></item>
 /// </list>
-/// All custom format handlers receive a context object derived from <see cref="DialectParsingContext"/> rather than the
+/// All custom format handlers receive a context object derived from <see cref="ParsingContext"/> rather than the
 /// parser itself, keeping the parser's internals private and ensuring that dialect code can only advance the token
 /// stream through well-defined primitives.
 /// </para>

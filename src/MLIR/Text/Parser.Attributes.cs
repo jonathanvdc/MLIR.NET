@@ -185,7 +185,7 @@ public sealed partial class Parser
 
     /// <summary>
     /// Bridges unguided attribute value parsing (no stop-at-boundary, no expected definition) for use by
-    /// <see cref="DialectParsingContext"/>.
+    /// <see cref="ParsingContext"/>.
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(params TokenKind[] delimiters)
     {
@@ -193,7 +193,7 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Bridges name-guided attribute value parsing for use by <see cref="DialectParsingContext"/>.
+    /// Bridges name-guided attribute value parsing for use by <see cref="ParsingContext"/>.
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
     {
@@ -201,7 +201,7 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Bridges definition-guided attribute value parsing for use by <see cref="DialectParsingContext"/>.
+    /// Bridges definition-guided attribute value parsing for use by <see cref="ParsingContext"/>.
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {

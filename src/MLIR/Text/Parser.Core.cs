@@ -484,13 +484,13 @@ public sealed partial class Parser
         return new Diagnostic(message, Current.Location);
     }
 
-    /// <summary>Bridges <see cref="Is"/> for use by <see cref="DialectParsingContext"/>.</summary>
+    /// <summary>Bridges <see cref="Is"/> for use by <see cref="ParsingContext"/>.</summary>
     internal bool IsToken(TokenKind kind)
     {
         return Is(kind);
     }
 
-    /// <summary>Bridges <see cref="TryMatch"/> for use by <see cref="DialectParsingContext"/>.</summary>
+    /// <summary>Bridges <see cref="TryMatch"/> for use by <see cref="ParsingContext"/>.</summary>
     internal bool TryMatchToken(TokenKind kind, out Token token)
     {
         return TryMatch(kind, out token);
@@ -513,7 +513,7 @@ public sealed partial class Parser
         return true;
     }
 
-    /// <summary>Bridges <see cref="ExpectTokenResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
+    /// <summary>Bridges <see cref="ExpectTokenResult"/> for use by <see cref="ParsingContext"/>.</summary>
     internal ParseResult<Token> ExpectTokenInternal(TokenKind kind, string message)
     {
         return ExpectTokenResult(kind, message);
@@ -573,19 +573,19 @@ public sealed partial class Parser
         return TryParseAttribute();
     }
 
-    /// <summary>Bridges <see cref="TryParseRawUntilDelimiterResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
+    /// <summary>Bridges <see cref="TryParseRawUntilDelimiterResult"/> for use by <see cref="ParsingContext"/>.</summary>
     internal ParseResult<RawSyntaxText> TryParseRawUntilDelimiterInternal(params TokenKind[] delimiters)
     {
         return TryParseRawUntilDelimiterResult(delimiters);
     }
 
-    /// <summary>Bridges <see cref="TryParseRawUntilDelimiterOrKeywordResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
+    /// <summary>Bridges <see cref="TryParseRawUntilDelimiterOrKeywordResult"/> for use by <see cref="ParsingContext"/>.</summary>
     internal ParseResult<RawSyntaxText> TryParseRawUntilDelimiterOrKeywordInternal(string[] keywords, params TokenKind[] delimiters)
     {
         return TryParseRawUntilDelimiterOrKeywordResult(delimiters, keywords);
     }
 
-    /// <summary>Bridges <see cref="TryParseRawUntilOperationBoundaryResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
+    /// <summary>Bridges <see cref="TryParseRawUntilOperationBoundaryResult"/> for use by <see cref="ParsingContext"/>.</summary>
     internal ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundaryInternal()
     {
         return TryParseRawUntilOperationBoundaryResult();
