@@ -52,20 +52,6 @@ public sealed partial class Parser
         return WrapTypedAttributeValueSyntax(result, allowTypedSuffix);
     }
 
-    private ParseResult<AttributeValueSyntax> TryParseAttributeValue(
-        AttributeValueParsingMode mode,
-        string? expectedDefinitionName,
-        params TokenKind[] stopBefore)
-    {
-        AttributeConstraintDefinition? expectedDefinition = null;
-        if (!string.IsNullOrEmpty(expectedDefinitionName) && dialectRegistry != null)
-        {
-            dialectRegistry.TryResolveAttributeConstraint(expectedDefinitionName!, out expectedDefinition);
-        }
-
-        return TryParseAttributeValue(mode, expectedDefinition, stopBefore);
-    }
-
     private static bool ShouldAllowTypedAttributeSuffix(TokenKind[] stopBefore)
     {
         return !ContainsTokenKind(stopBefore, TokenKind.Colon);
@@ -198,15 +184,6 @@ public sealed partial class Parser
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
         return TryParseAttributeValue(AttributeValueParsingMode.Normal, expectedDefinition, delimiters);
-    }
-
-    /// <summary>
-    /// Bridges definition-guided attribute value parsing with operation-boundary stopping for use by
-    /// <see cref="ParsingContext"/>.
-    /// </summary>
-    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
-    {
-        return TryParseAttributeValue(AttributeValueParsingMode.StopAtOperationBoundary, expectedDefinition, delimiters);
     }
 
     /// <summary>
