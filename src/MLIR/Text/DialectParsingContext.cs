@@ -106,7 +106,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<TypeSyntax> TryParseTypeSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.TryParseTypeSyntax(stopBefore);
+        return Parser.TryParseTypeSyntax();
     }
 
     /// <summary>
@@ -114,15 +114,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<TypeSyntax> TryParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
     {
-        return Parser.TryParseTypeSyntax(stopBeforeKeywords, stopBefore);
-    }
-
-    /// <summary>
-    /// Parses a type syntax node, consuming tokens until an operation boundary is reached.
-    /// </summary>
-    public ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundary()
-    {
-        return Parser.TryParseTypeSyntaxUntilOperationBoundary();
+        return Parser.TryParseTypeSyntax();
     }
 
     /// <summary>

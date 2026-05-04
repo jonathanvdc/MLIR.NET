@@ -149,7 +149,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// </summary>
     public ParseResult<TypeSyntax> TryParseTypeSyntax()
     {
-        return Parser.TryParseTypeSyntaxUntilOperationBoundary();
+        return Parser.TryParseTypeSyntax();
     }
 
     /// <summary>

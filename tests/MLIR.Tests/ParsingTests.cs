@@ -82,7 +82,7 @@ public sealed class ParsingTests
                 return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
             }
 
-            var typeResult = context.TryParseTypeSyntaxUntilOperationBoundary();
+            var typeResult = context.TryParseTypeSyntax();
             if (!typeResult.IsSuccess)
             {
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);

@@ -81,14 +81,10 @@ public sealed partial class Parser
     /// Saves a checkpoint before calling and restores it when the handler returns <c>NoMatch</c>.
     /// Propagates <c>Success</c> and <c>Error</c> unchanged.
     /// </summary>
-    private ParseResult<TypeSyntax> TryParseTypeAssemblyFormat(
-        ITypeAssemblyFormat assemblyFormat,
-        TokenKind[] stopBefore,
-        string[] stopBeforeKeywords,
-        bool stopAtOperationBoundary)
+    private ParseResult<TypeSyntax> TryParseTypeAssemblyFormat(ITypeAssemblyFormat assemblyFormat)
     {
         var checkpoint = Mark();
-        var result = assemblyFormat.TryParse(new TypeParsingContext(this, stopBefore, stopBeforeKeywords, stopAtOperationBoundary));
+        var result = assemblyFormat.TryParse(new TypeParsingContext(this));
         if (result.IsSuccess)
         {
             return result;
@@ -105,7 +101,7 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<TypeSyntax> TryParseStandaloneType()
     {
-        var parsed = TryParseTypeSyntaxUntilOperationBoundary();
+        var parsed = TryParseTypeSyntax();
         if (!parsed.IsSuccess)
         {
             return parsed;
@@ -117,30 +113,12 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Parses a type, stopping before any of the supplied delimiter token kinds.
-    /// Does not stop at operation boundaries.
+    /// Parses a type syntax node, trying builtin assembly formats first and then registered custom formats.
+    /// This is the main entry point for nested type parsing from assembly format handlers.
     /// </summary>
-    internal ParseResult<TypeSyntax> TryParseTypeSyntax(params TokenKind[] stopBefore)
+    internal ParseResult<TypeSyntax> TryParseTypeSyntax()
     {
-        return TryParseTypeSyntaxCoreResult(stopBefore, stopAtOperationBoundary: false);
-    }
-
-    /// <summary>
-    /// Parses a type, stopping before any of the supplied delimiter token kinds or keyword spellings.
-    /// Does not stop at operation boundaries.
-    /// </summary>
-    internal ParseResult<TypeSyntax> TryParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
-    {
-        return TryParseTypeSyntaxCoreResult(stopBefore, stopBeforeKeywords, stopAtOperationBoundary: false);
-    }
-
-    /// <summary>
-    /// Parses a type, stopping at an operation boundary (newline in leading trivia) rather than an explicit delimiter.
-    /// Used for operation type signatures where no closing delimiter token is present.
-    /// </summary>
-    internal ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundary()
-    {
-        return TryParseTypeSyntaxCoreResult([], stopAtOperationBoundary: true);
+        return TryParseTypeSyntaxCoreResult();
     }
 
     /// <summary>
@@ -153,7 +131,7 @@ public sealed partial class Parser
         var items = new List<TypeSyntax>();
         while (true)
         {
-            var itemResult = TryParseTypeSyntaxCoreResult([TokenKind.Comma], stopAtOperationBoundary: true);
+            var itemResult = TryParseTypeSyntaxCoreResult();
             if (!itemResult.IsSuccess)
             {
                 throw new ParseException(itemResult.Diagnostic!);
@@ -170,27 +148,18 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Core type parsing dispatcher: tries default builtin type formats, then registered dialect types, then
-    /// reports an unrecognized type fragment.
-    /// </summary>
-    private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, bool stopAtOperationBoundary)
-    {
-        return TryParseTypeSyntaxCoreResult(stopBefore, [], stopAtOperationBoundary);
-    }
-
-    /// <summary>
-     /// Core type parsing dispatcher with both delimiter and keyword stop conditions.
-     /// <list type="number">
-     ///   <item><description>Tries the default builtin type assembly formats in order.</description></item>
-     ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntaxResult"/>.</description></item>
+    /// Core type parsing dispatcher with both delimiter and keyword stop conditions.
+    /// <list type="number">
+    ///   <item><description>Tries the default builtin type assembly formats in order.</description></item>
+    ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntaxResult"/>.</description></item>
     ///   <item><description>Reports a diagnostic describing the unrecognized type fragment.</description></item>
-     /// </list>
-     /// </summary>
-    private ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
+    /// </list>
+    /// </summary>
+    internal ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult()
     {
         foreach (var assemblyFormat in DefaultTypeAssemblyFormats)
         {
-            var builtinTypeResult = TryParseTypeAssemblyFormat(assemblyFormat, stopBefore, stopBeforeKeywords, stopAtOperationBoundary);
+            var builtinTypeResult = TryParseTypeAssemblyFormat(assemblyFormat);
             if (!builtinTypeResult.IsNoMatch)
             {
                 return builtinTypeResult;
@@ -203,27 +172,13 @@ public sealed partial class Parser
             return customTypeResult;
         }
 
-        return CreateUnrecognizedTypeFailure(stopBefore, stopBeforeKeywords, stopAtOperationBoundary);
+        return CreateUnrecognizedTypeFailure();
     }
 
-    private ParseResult<TypeSyntax> CreateUnrecognizedTypeFailure(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
+    private ParseResult<TypeSyntax> CreateUnrecognizedTypeFailure()
     {
-        var rawResult = stopAtOperationBoundary
-            ? TryParseRawUntilDelimiterOrBoundaryResult(stopBefore)
-            : TryParseRawUntilDelimiterOrKeywordResult(stopBefore, stopBeforeKeywords);
-        if (!rawResult.IsSuccess)
-        {
-            return ParseResult<TypeSyntax>.Failure(rawResult.Diagnostic!);
-        }
-
         return ParseResult<TypeSyntax>.Failure(
-            CreateDiagnostic("Expected a type; unrecognized raw syntax '" + rawResult.Value.Text + "'."));
-    }
-
-    /// <summary>Bridges ambient stop-condition type parsing for use by <see cref="TypeParsingContext"/>.</summary>
-    internal ParseResult<TypeSyntax> TryParseCurrentTypeSyntaxInternal(TokenKind[] stopBefore, string[] stopBeforeKeywords, bool stopAtOperationBoundary)
-    {
-        return TryParseTypeSyntaxCoreResult(stopBefore, stopBeforeKeywords, stopAtOperationBoundary);
+            CreateDiagnostic("Expected a type; unrecognized syntax."));
     }
 
     /// <summary>Bridges standalone nested type fragment parsing for use by <see cref="TypeParsingContext"/>.</summary>

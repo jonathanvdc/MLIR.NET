@@ -522,7 +522,7 @@ public sealed partial class Parser
             }
 
             typeSignatureColonToken = colonResult.Value;
-            var typeResult = TryParseTypeSyntaxUntilOperationBoundary();
+            var typeResult = TryParseTypeSyntax();
             if (!typeResult.IsSuccess)
             {
                 return ParseResult<OperationSyntax>.Failure(typeResult.Diagnostic!);
@@ -621,7 +621,7 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<TypeSyntax> TryParseProjectedCustomLikeTypeSignatureResult()
     {
-        var sourceTypeResult = TryParseTypeSyntax(["to"]);
+        var sourceTypeResult = TryParseTypeSyntax();
         if (!sourceTypeResult.IsSuccess)
         {
             return sourceTypeResult;
@@ -638,7 +638,7 @@ public sealed partial class Parser
             return ParseResult<TypeSyntax>.Failure(toKeywordResult.Diagnostic!);
         }
 
-        var resultTypeResult = TryParseTypeSyntaxUntilOperationBoundary();
+        var resultTypeResult = TryParseTypeSyntax();
         if (!resultTypeResult.IsSuccess)
         {
             return resultTypeResult;
@@ -865,7 +865,7 @@ public sealed partial class Parser
             return ParseResult<BlockArgumentSyntax>.Failure(colonResult.Diagnostic!);
         }
 
-        var typeResult = TryParseTypeSyntax(TokenKind.Comma, TokenKind.RParen);
+        var typeResult = TryParseTypeSyntax();
         if (!typeResult.IsSuccess)
         {
             return ParseResult<BlockArgumentSyntax>.Failure(typeResult.Diagnostic!);

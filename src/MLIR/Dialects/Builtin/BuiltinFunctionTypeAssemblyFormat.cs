@@ -52,7 +52,7 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
         else
         {
             resultTypes = new DelimitedSyntaxList<TypeSyntax>(null, [], [], null);
-            var resultTypeResult = context.TryParseCurrentTypeSyntax();
+            var resultTypeResult = context.TryParseTypeSyntax();
             if (!resultTypeResult.IsSuccess)
             {
                 return ParseResult<TypeSyntax>.Failure(resultTypeResult.Diagnostic!);
