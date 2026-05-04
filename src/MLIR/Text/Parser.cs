@@ -666,24 +666,46 @@ public sealed partial class Parser
             return ParseResult<OperationSyntax>.NoMatch();
         }
 
-        var headerCheckpoint = Mark();
+        // First, set a checkpoint so we can reset if the parse fails or the format doesn't match. Then parse the operation name
+        // and result values (if any) so we can pass them to the custom format handler.
+        // If the name is quoted, it's not a valid candidate for custom-format parsing, so bail early.
+        var checkpoint = Mark();
         var context = new OperationParsingContext(this);
         var headerResult = context.TryParseHeader();
-        Reset(headerCheckpoint);
         if (!headerResult.IsSuccess || headerResult.Value.NameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
         {
+            Reset(checkpoint);
             return ParseResult<OperationSyntax>.NoMatch();
         }
 
+        // Next, look up the operation name in the registry. If it's not found or the format is not an assembly format, bail with
+        // NoMatch so the caller can fall back to generic parsing.
         var nameToken = headerResult.Value.NameToken;
         var normalizedName = NormalizeOperationName(nameToken.Text);
         if (!dialectRegistry.TryGetOperationForParsing(normalizedName, out var definition) || definition.AssemblyFormat == null)
         {
+            Reset(checkpoint);
             return ParseResult<OperationSyntax>.NoMatch();
         }
 
-        var checkpoint = Mark();
-        var result = definition.AssemblyFormat.TryParse(context);
+        // Finally, invoke the custom assembly format's TryParse method. If it returns NoMatch, reset and fall back to generic parsing;
+        // if it returns Error, propagate the error without resetting since the format handler has already committed to this parse path.
+        ParseResult<OperationSyntax> result;
+        if (definition.AssemblyFormat is BodyOnlyOperationAssemblyFormat format)
+        {
+            // Optimization for body-only formats: pass the parsed header components in a context object so the format handler can avoid
+            // re-parsing them from the token stream.
+            result = format.TryParseAfterHeader(headerResult.Value, context);
+        }
+        else
+        {
+            // Otherwise, just call the general TryParse and let the format handler parse everything, including the header.
+            // This is less efficient since the format handler will have to re-parse the operation name and results,
+            // but it allows maximum flexibility.
+            Reset(checkpoint);
+            result = definition.AssemblyFormat.TryParse(context);
+        }
+
         if (result.IsSuccess || result.IsError)
         {
             return result;

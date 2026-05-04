@@ -25,6 +25,8 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// Parses the full operation custom assembly form by parsing the operation header
     /// and delegating body parsing to <see cref="TryParseBody"/>.
     /// </summary>
+    /// <param name="context">The parsing context.</param>
+    /// <returns>The parsed operation syntax, a no-match result, or a diagnostic-producing failure.</returns>
     public ParseResult<OperationSyntax> TryParse(OperationParsingContext context)
     {
         var headerResult = context.TryParseHeader();
@@ -33,9 +35,18 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
             return ParseResult<OperationSyntax>.Failure(headerResult.Diagnostic!);
         }
 
-        var header = headerResult.Value;
-        var bodyResult = TryParseBody(header, context);
-        return bodyResult.Map(body => new OperationSyntax(
+        return TryParseAfterHeader(headerResult.Value, context);
+    }
+
+    /// <summary>
+    /// Parses the body of the operation after the header has been parsed, returning the full operation syntax.
+    /// </summary>
+    /// <param name="context">The parsing context.</param>
+    /// <param name="header">The parsed operation header.</param>
+    /// <returns>The parsed operation syntax, a no-match result, or a diagnostic-producing failure.</returns>
+    public ParseResult<OperationSyntax> TryParseAfterHeader(OperationParseHeader header, OperationParsingContext context)
+    {
+        return TryParseBody(header, context).Map(body => new OperationSyntax(
             header.ResultList,
             header.EqualsToken,
             header.NameToken,
@@ -45,6 +56,9 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <summary>
     /// Parses the custom operation body for the supplied already-parsed operation header.
     /// </summary>
+    /// <param name="header">The already-parsed operation header.</param>
+    /// <param name="context">The parsing context.</param>
+    /// <returns>The parsed operation body syntax, a no-match result, or a diagnostic-producing failure.</returns>
     protected abstract ParseResult<OperationBodySyntax> TryParseBody(
         OperationParseHeader header,
         OperationParsingContext context);
