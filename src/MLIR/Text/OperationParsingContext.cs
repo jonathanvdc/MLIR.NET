@@ -1,6 +1,7 @@
 namespace MLIR.Text;
 
 using System.Collections.Generic;
+using System.Globalization;
 using MLIR.Dialects;
 using MLIR.Syntax;
 
@@ -9,16 +10,94 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class OperationParsingContext : DialectParsingContext
 {
-    internal OperationParsingContext(Parser parser, OperationParseHeader header)
+    internal OperationParsingContext(Parser parser)
         : base(parser)
     {
-        Header = header;
     }
 
     /// <summary>
-    /// Gets the operation header that was parsed before custom assembly dispatch, when available.
+    /// Creates a diagnostic at the current parser position.
     /// </summary>
-    public OperationParseHeader Header { get; }
+    public Diagnostic CreateDiagnostic(string message)
+    {
+        return Parser.CreateDiagnosticInternal(message);
+    }
+
+    /// <summary>
+    /// Parses an operation header: optional SSA result list, optional equals token, and operation name token.
+    /// </summary>
+    public ParseResult<OperationParseHeader> TryParseHeader()
+    {
+        var resultItems = new List<Token>();
+        var resultSeparators = new List<Token>();
+        Token? equalsToken = null;
+
+        if (Is(TokenKind.SsaName))
+        {
+            var firstResultTokenResult = TryParseSsaToken();
+            if (!firstResultTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationParseHeader>.Failure(firstResultTokenResult.Diagnostic!);
+            }
+
+            var firstResultToken = firstResultTokenResult.Value;
+            resultItems.Add(firstResultToken);
+
+            if (TryMatch(TokenKind.Colon, out _))
+            {
+                var countTokenResult = Expect(TokenKind.Integer, "Expected result count after ':'.");
+                if (!countTokenResult.IsSuccess)
+                {
+                    return ParseResult<OperationParseHeader>.Failure(countTokenResult.Diagnostic!);
+                }
+
+                var count = int.Parse(countTokenResult.Value.Text, CultureInfo.InvariantCulture);
+                for (var i = 1; i < count; i++)
+                {
+                    resultItems.Add(TokenFactory.SsaName(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
+                }
+            }
+
+            while (TryMatch(TokenKind.Comma, out var resultCommaToken))
+            {
+                resultSeparators.Add(resultCommaToken);
+                var nextResultToken = TryParseSsaToken();
+                if (!nextResultToken.IsSuccess)
+                {
+                    return ParseResult<OperationParseHeader>.Failure(nextResultToken.Diagnostic!);
+                }
+
+                resultItems.Add(nextResultToken.Value);
+            }
+
+            var equalsTokenResult = Expect(TokenKind.Equal, "Expected '=' after operation result list.");
+            if (!equalsTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationParseHeader>.Failure(equalsTokenResult.Diagnostic!);
+            }
+
+            equalsToken = equalsTokenResult.Value;
+        }
+
+        Token nameToken;
+        if (TryMatch(TokenKind.Identifier, out var identifierToken))
+        {
+            nameToken = identifierToken;
+        }
+        else if (TryMatch(TokenKind.StringLiteral, out var stringLiteralToken))
+        {
+            nameToken = stringLiteralToken;
+        }
+        else
+        {
+            return ParseResult<OperationParseHeader>.Failure(CreateDiagnostic("Expected an operation name."));
+        }
+
+        return ParseResult<OperationParseHeader>.Success(new OperationParseHeader(
+            nameToken,
+            new SeparatedSyntaxList<Token>(resultItems, resultSeparators),
+            equalsToken));
+    }
 
     /// <summary>
     /// Parses an SSA value token.

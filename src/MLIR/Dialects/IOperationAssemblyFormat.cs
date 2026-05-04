@@ -22,12 +22,18 @@ public interface IOperationAssemblyFormat : IAssemblyFormat<OperationSyntax, Ope
 public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
 {
     /// <summary>
-    /// Parses the full operation custom assembly form by using the already-parsed header
-    /// from <paramref name="context"/> and delegating body parsing to <see cref="TryParseBody"/>.
+    /// Parses the full operation custom assembly form by parsing the operation header
+    /// and delegating body parsing to <see cref="TryParseBody"/>.
     /// </summary>
     public ParseResult<OperationSyntax> TryParse(OperationParsingContext context)
     {
-        var header = context.Header;
+        var headerResult = context.TryParseHeader();
+        if (!headerResult.IsSuccess)
+        {
+            return ParseResult<OperationSyntax>.Failure(headerResult.Diagnostic!);
+        }
+
+        var header = headerResult.Value;
         var bodyResult = TryParseBody(header, context);
         return bodyResult.Map(body => new OperationSyntax(
             header.ResultList,

@@ -67,7 +67,7 @@ using MLIR.Syntax;
 /// <list type="bullet">
 ///   <item><description>Operations: the registry is queried by normalized operation name; if a matching
 ///     <c>IOperationAssemblyFormat</c> is found, its <c>TryParse</c> method is called with an
-///     <see cref="OperationParsingContext"/> carrying the already-parsed operation header.</description></item>
+///     <see cref="OperationParsingContext"/> after peeking the operation name.</description></item>
 ///   <item><description>Types: the registry is queried by type name and dispatched to an
 ///     <c>ITypeAssemblyFormat</c> through a <see cref="TypeParsingContext"/>.</description></item>
 ///   <item><description>Attributes: self-identifying attributes (prefixed with <c>#identifier</c>) are looked up first;
@@ -401,6 +401,12 @@ public sealed partial class Parser
     /// </remarks>
     private ParseResult<OperationSyntax> TryParseOperationResult()
     {
+        var customOperationResult = TryParseCustomAssemblyResult();
+        if (customOperationResult.IsSuccess || customOperationResult.IsError)
+        {
+            return customOperationResult;
+        }
+
         var resultItems = new List<Token>();
         var resultSeparators = new List<Token>();
         Token? equalsToken = null;
@@ -462,15 +468,6 @@ public sealed partial class Parser
         }
 
         var nameToken = nameTokenResult.Value;
-        if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
-        {
-            var customOperationResult = TryParseCustomAssemblyResult(nameToken, resultList, equalsToken);
-            if (customOperationResult.IsSuccess || customOperationResult.IsError)
-            {
-                return customOperationResult;
-            }
-        }
-
         if (!nameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
         {
             var projectedBodyResult = TryParseProjectedCustomLikeOperationBodyResult();
@@ -654,27 +651,30 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Attempts to dispatch parsing of an operation body to a dialect-registered custom assembly format.
+    /// Attempts to dispatch parsing of a whole operation to a dialect-registered custom assembly format.
     /// </summary>
-    /// <param name="nameToken">The already-consumed operation name token.</param>
-    /// <param name="resultList">The already-parsed result list (may be empty).</param>
-    /// <param name="equalsToken">The <c>=</c> token that followed the result list, or <see langword="null"/> when there are no results.</param>
     /// <returns>
-    /// A successful result when the dialect handler accepted and parsed the body;
+    /// A successful result when the dialect handler accepted and parsed the operation;
     /// <see cref="ParseOutcome.Error"/> when the handler committed to the format but found malformed syntax;
     /// <see cref="ParseOutcome.NoMatch"/> when no handler is registered for the operation name.
     /// The parser position is reset to the pre-call checkpoint on <c>NoMatch</c>.
     /// </returns>
-    private ParseResult<OperationSyntax> TryParseCustomAssemblyResult(
-        Token nameToken,
-        SeparatedSyntaxList<Token> resultList,
-        Token? equalsToken)
+    private ParseResult<OperationSyntax> TryParseCustomAssemblyResult()
     {
         if (dialectRegistry == null)
         {
             return ParseResult<OperationSyntax>.NoMatch();
         }
 
+        var headerCheckpoint = Mark();
+        var headerResult = new OperationParsingContext(this).TryParseHeader();
+        Reset(headerCheckpoint);
+        if (!headerResult.IsSuccess || headerResult.Value.NameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
+        {
+            return ParseResult<OperationSyntax>.NoMatch();
+        }
+
+        var nameToken = headerResult.Value.NameToken;
         var normalizedName = NormalizeOperationName(nameToken.Text);
         if (!dialectRegistry.TryGetOperationForParsing(normalizedName, out var definition) || definition.AssemblyFormat == null)
         {
@@ -682,12 +682,7 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        var result = definition.AssemblyFormat.TryParse(new OperationParsingContext(
-            this,
-            new OperationParseHeader(
-                nameToken,
-                resultList,
-                equalsToken)));
+        var result = definition.AssemblyFormat.TryParse(new OperationParsingContext(this));
         if (result.IsSuccess || result.IsError)
         {
             return result;
