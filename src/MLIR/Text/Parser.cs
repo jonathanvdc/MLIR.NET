@@ -672,7 +672,7 @@ public sealed partial class Parser
         var checkpoint = Mark();
         var context = new OperationParsingContext(this);
         var headerResult = context.TryParseHeader();
-        if (!headerResult.IsSuccess || headerResult.Value.NameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
+        if (!headerResult.IsSuccess || headerResult.Value.NameToken.Text.StartsWith("\"", StringComparison.Ordinal))
         {
             Reset(checkpoint);
             return ParseResult<OperationSyntax>.NoMatch();
