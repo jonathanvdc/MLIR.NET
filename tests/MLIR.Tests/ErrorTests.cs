@@ -138,7 +138,7 @@ public sealed class ErrorTests
         Assert.False(success);
         Assert.Null(attribute);
         Assert.NotNull(diagnostic);
-        Assert.Contains("raw syntax", diagnostic!.Message);
+        Assert.Contains("Expected an attribute value", diagnostic!.Message);
     }
 
     [Fact]
