@@ -445,7 +445,7 @@ public sealed partial class SemanticTests
 
         protected override ParseResult<OperationBodySyntax> TryParseBody(
             in OperationHeader header,
-            OperationParsingContext context)
+            ParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
             {
@@ -517,7 +517,7 @@ public sealed partial class SemanticTests
 
         protected override ParseResult<OperationBodySyntax> TryParseBody(
             in OperationHeader header,
-            OperationParsingContext context)
+            ParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
             {
@@ -583,7 +583,7 @@ public sealed partial class SemanticTests
             this.definition = definition;
         }
 
-        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+        public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
         {
             if (!context.TryMatch(TokenKind.Hash, out var hashToken))
             {
@@ -663,7 +663,7 @@ public sealed partial class SemanticTests
 
     private sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
     {
-        public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
+        public ParseResult<TypeSyntax> TryParse(ParsingContext context)
         {
             if (!context.TryMatch(TokenKind.Identifier, out var nameToken) ||
                 !IntegerTypeName.TryParse(nameToken.Text, out var signedness, out var width))
@@ -717,7 +717,7 @@ public sealed partial class SemanticTests
             this.definition = definition;
         }
 
-        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+        public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
         {
             if (!context.TryMatch(TokenKind.Integer, out var literalToken))
             {
@@ -755,7 +755,7 @@ public sealed partial class SemanticTests
             this.definition = definition;
         }
 
-        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+        public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
         {
             return singlePrecisionFormat.TryParse(context);
         }
@@ -782,7 +782,7 @@ public sealed partial class SemanticTests
             this.definition = definition;
         }
 
-        public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+        public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
         {
             return doublePrecisionFormat.TryParse(context);
         }

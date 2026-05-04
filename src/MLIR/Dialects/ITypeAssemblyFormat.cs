@@ -8,7 +8,7 @@ using MLIR.Transforms;
 /// <summary>
 /// Parses, binds, and rewrites a dialect-specific type assembly format.
 /// </summary>
-public interface ITypeAssemblyFormat : IAssemblyFormat<TypeSyntax, TypeReference, TypeParsingContext>;
+public interface ITypeAssemblyFormat : IAssemblyFormat<TypeSyntax, TypeReference>;
 
 /// <summary>
 /// Base class for type assembly formats whose custom grammar handles only
@@ -25,7 +25,7 @@ public abstract class BodyOnlyTypeAssemblyFormat(string typeName) : ITypeAssembl
     /// Parses the full self-identifying type form, consuming and validating the
     /// prefix before delegating body parsing to <see cref="TryParseBody"/>.
     /// </summary>
-    public virtual ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
+    public ParseResult<TypeSyntax> TryParse(ParsingContext context)
     {
         if (!context.TryMatch(TokenKind.Bang, out var bangToken))
         {
@@ -59,7 +59,7 @@ public abstract class BodyOnlyTypeAssemblyFormat(string typeName) : ITypeAssembl
     /// Parses the custom body after <paramref name="prefix"/> has been consumed and validated.
     /// </summary>
     protected abstract ParseResult<TypeSyntax> TryParseBody(
-        TypeParsingContext context,
+        ParsingContext context,
         DialectTypePrefix prefix);
 
     /// <summary>

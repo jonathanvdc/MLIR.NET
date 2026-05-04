@@ -120,5 +120,5 @@ public abstract class EnumAttributeAssemblyFormat<T> : IAttributeAssemblyFormat 
     public abstract AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context);
 
     /// <inheritdoc/>
-    public abstract ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context);
+    public abstract ParseResult<AttributeValueSyntax> TryParse(ParsingContext context);
 }

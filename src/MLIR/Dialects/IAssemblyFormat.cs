@@ -7,14 +7,14 @@ namespace MLIR.Dialects;
 /// <summary>
 /// Parses, binds, and rewrites a dialect-specific assembly format.
 /// </summary>
-public interface IAssemblyFormat<TSyntax, TValue, in TParsingContext>
+public interface IAssemblyFormat<TSyntax, TValue>
 {
     /// <summary>
     /// Attempts to parse a dialect-specific custom assembly form.
     /// </summary>
     /// <param name="context">The parsing context.</param>
     /// <returns>The parsed type syntax, a no-match result, or a diagnostic-producing failure.</returns>
-    ParseResult<TSyntax> TryParse(TParsingContext context);
+    ParseResult<TSyntax> TryParse(ParsingContext context);
 
     /// <summary>
     /// Interprets the supplied type syntax into a semantic value.

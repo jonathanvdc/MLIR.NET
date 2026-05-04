@@ -16,7 +16,7 @@ using MLIR.Transforms;
 public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (!context.Is(TokenKind.LBrace))
         {

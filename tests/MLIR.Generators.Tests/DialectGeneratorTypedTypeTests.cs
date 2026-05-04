@@ -72,7 +72,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             "override TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
             "WritePrefix(writer);",
             ": BodyOnlyTypeAssemblyFormat",
-            "ParseResult<TypeSyntax> TryParseBody(TypeParsingContext context, DialectTypePrefix prefix)",
+            "ParseResult<TypeSyntax> TryParseBody(ParsingContext context, DialectTypePrefix prefix)",
             "ParseResult<TypeSyntax>.Success(new");
         AssertDoesNotContainAny(
             registrationSource,

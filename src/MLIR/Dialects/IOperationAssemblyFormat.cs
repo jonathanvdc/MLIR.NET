@@ -13,7 +13,7 @@ using MLIR.Transforms;
 /// Implementations can opt into custom concrete syntax while still projecting the same
 /// semantic operation shape for binding and verification.
 /// </remarks>
-public interface IOperationAssemblyFormat : IAssemblyFormat<OperationSyntax, Operation, OperationParsingContext>;
+public interface IOperationAssemblyFormat : IAssemblyFormat<OperationSyntax, Operation>;
 
 /// <summary>
 /// Base class for operation assembly formats whose custom grammar handles only
@@ -27,7 +27,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// </summary>
     /// <param name="context">The parsing context.</param>
     /// <returns>The parsed operation syntax, a no-match result, or a diagnostic-producing failure.</returns>
-    public ParseResult<OperationSyntax> TryParse(OperationParsingContext context)
+    public ParseResult<OperationSyntax> TryParse(ParsingContext context)
     {
         var headerResult = context.TryParseOperationHeader();
         if (!headerResult.IsSuccess)
@@ -44,7 +44,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <param name="context">The parsing context.</param>
     /// <param name="header">The parsed operation header.</param>
     /// <returns>The parsed operation syntax, a no-match result, or a diagnostic-producing failure.</returns>
-    public ParseResult<OperationSyntax> TryParseAfterHeader(OperationHeader header, in OperationParsingContext context)
+    public ParseResult<OperationSyntax> TryParseAfterHeader(in OperationHeader header, ParsingContext context)
     {
         var result = TryParseBody(header, context);
         if (!result.IsSuccess)
@@ -72,7 +72,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <returns>The parsed operation body syntax, a no-match result, or a diagnostic-producing failure.</returns>
     protected abstract ParseResult<OperationBodySyntax> TryParseBody(
         in OperationHeader header,
-        OperationParsingContext context);
+        ParsingContext context);
 
     /// <summary>
     /// Interprets the supplied concrete syntax tree in the assembly format into semantic properties.

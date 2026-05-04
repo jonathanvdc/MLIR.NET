@@ -8,7 +8,7 @@ using MLIR.Transforms;
 /// <summary>
 /// Parses, binds, and rewrites a dialect-specific attribute assembly format.
 /// </summary>
-public interface IAttributeAssemblyFormat : IAssemblyFormat<AttributeValueSyntax, AttributeValue, AttributeParsingContext>;
+public interface IAttributeAssemblyFormat : IAssemblyFormat<AttributeValueSyntax, AttributeValue>;
 
 /// <summary>
 /// Base class for attribute assembly formats whose custom grammar handles only
@@ -25,7 +25,7 @@ public abstract class BodyOnlyAttributeAssemblyFormat(string attributeName) : IA
     /// Parses the full self-identifying attribute form, consuming and validating
     /// the prefix before delegating body parsing to <see cref="TryParseBody"/>.
     /// </summary>
-    public virtual ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public virtual ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (!context.TryMatch(TokenKind.Hash, out var hashToken))
         {
@@ -59,7 +59,7 @@ public abstract class BodyOnlyAttributeAssemblyFormat(string attributeName) : IA
     /// Parses the custom body after <paramref name="prefix"/> has been consumed and validated.
     /// </summary>
     protected abstract ParseResult<AttributeValueSyntax> TryParseBody(
-        AttributeParsingContext context,
+        ParsingContext context,
         DialectAttributePrefix prefix);
 
     /// <summary>
@@ -82,7 +82,7 @@ public abstract class BodylessSelfIdentifyingAttributeAssemblyFormat(string attr
 {
     /// <inheritdoc/>
     protected sealed override ParseResult<AttributeValueSyntax> TryParseBody(
-        AttributeParsingContext context,
+        ParsingContext context,
         DialectAttributePrefix prefix)
     {
         return ParseResult<AttributeValueSyntax>.Success(CreateSelfIdentifyingSyntax(prefix));

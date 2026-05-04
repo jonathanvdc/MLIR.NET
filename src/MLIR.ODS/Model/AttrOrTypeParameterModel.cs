@@ -111,7 +111,7 @@ public sealed class AttrOrTypeParameterModel(
     /// <summary>
     /// Gets the custom C# parser expression for this parameter, if one was declared via
     /// <c>CSharpParameterExtension.csharpParser</c>.
-    /// <c>$_parser</c> is substituted with the <c>AttributeParsingContext</c> variable name.
+    /// <c>$_parser</c> is substituted with the <c>ParsingContext</c> variable name.
     /// The expression must return <c>ParseResult&lt;AttributeValueSyntax&gt;</c>.
     /// When null the generator uses the default <c>TryParseAttributeValueSyntax</c> call.
     /// </summary>

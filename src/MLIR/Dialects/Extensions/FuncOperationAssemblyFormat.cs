@@ -28,7 +28,7 @@ public sealed class FuncOperationAssemblyFormat : BodyOnlyOperationAssemblyForma
     /// <inheritdoc/>
     protected override ParseResult<OperationBodySyntax> TryParseBody(
         in OperationHeader header,
-        OperationParsingContext context)
+        ParsingContext context)
     {
         if (header.ResultList.Count != 0 || header.EqualsToken.HasValue)
         {
@@ -414,7 +414,7 @@ public sealed class FuncOperationAssemblyFormat : BodyOnlyOperationAssemblyForma
             : rawText;
     }
 
-    private static ParseResult<FuncFunctionArgumentSyntax> TryParseArgument(OperationParsingContext context)
+    private static ParseResult<FuncFunctionArgumentSyntax> TryParseArgument(ParsingContext context)
     {
         var nameResult = context.TryParseSsaToken();
         if (!nameResult.IsSuccess)
@@ -448,7 +448,7 @@ public sealed class FuncOperationAssemblyFormat : BodyOnlyOperationAssemblyForma
                 attrDictResult.Value));
     }
 
-    private static ParseResult<FuncFunctionResultSyntax> TryParseResult(OperationParsingContext context)
+    private static ParseResult<FuncFunctionResultSyntax> TryParseResult(ParsingContext context)
     {
         var typeResult = context.TryParseTypeSyntax(TokenKind.LBrace, TokenKind.Comma, TokenKind.RParen);
         if (!typeResult.IsSuccess)

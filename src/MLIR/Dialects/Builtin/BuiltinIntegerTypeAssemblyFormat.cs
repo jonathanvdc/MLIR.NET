@@ -41,7 +41,7 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
         });
 
     /// <inheritdoc/>
-    public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
+    public ParseResult<TypeSyntax> TryParse(ParsingContext context)
     {
         if (!context.TryMatch(TokenKind.Identifier, out var nameToken))
         {

@@ -63,7 +63,7 @@ public sealed class ParsingTests
     {
         protected override ParseResult<OperationBodySyntax> TryParseBody(
             in OperationHeader header,
-            OperationParsingContext context)
+            ParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
             {
@@ -113,7 +113,7 @@ public sealed class ParsingTests
             Inputs = inputs;
         }
 
-        /// <summary>Gets the SSA tokens that were parsed by <see cref="OperationParsingContext.TryParseSsaTokenList"/>.</summary>
+        /// <summary>Gets the SSA tokens that were parsed by <see cref="ParsingContext.TryParseSsaTokenList"/>.</summary>
         public SeparatedSyntaxList<Token> Inputs { get; }
 
         public override void WriteTo(SyntaxWriter writer)
@@ -136,7 +136,7 @@ public sealed class ParsingTests
     }
 
     /// <summary>
-    /// A custom assembly format that uses <see cref="OperationParsingContext.TryParseSsaTokenList"/>
+    /// A custom assembly format that uses <see cref="ParsingContext.TryParseSsaTokenList"/>
     /// to parse a variadic SSA operand list and stores the result in a
     /// <see cref="SsaListCapturingBodySyntax"/>.
     /// </summary>
@@ -144,7 +144,7 @@ public sealed class ParsingTests
     {
         protected override ParseResult<OperationBodySyntax> TryParseBody(
             in OperationHeader header,
-            OperationParsingContext context)
+            ParsingContext context)
         {
             var listResult = context.TryParseSsaTokenList();
             if (!listResult.IsSuccess)

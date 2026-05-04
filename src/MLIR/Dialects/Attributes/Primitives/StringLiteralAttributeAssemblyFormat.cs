@@ -17,7 +17,7 @@ using MLIR.Transforms;
 public sealed class StringLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (!context.TryMatch(TokenKind.StringLiteral, out var token))
         {

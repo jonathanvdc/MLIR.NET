@@ -173,7 +173,7 @@ public sealed partial class Parser
     private ParseResult<AttributeValueSyntax> TryParseAttributeAssemblyFormat(IAttributeAssemblyFormat assemblyFormat)
     {
         var checkpoint = Mark();
-        var result = assemblyFormat.TryParse(new AttributeParsingContext(this));
+        var result = assemblyFormat.TryParse(new ParsingContext(this));
         if (result.IsSuccess)
         {
             return result;
@@ -209,27 +209,8 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Bridges unguided attribute value parsing with operation-boundary stopping for use by
-    /// <see cref="OperationParsingContext"/>. The boundary stop is required inside custom operation
-    /// assembly formats so that the parser does not consume tokens that belong to the next operation.
-    /// </summary>
-    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueOrBoundaryInternal(params TokenKind[] delimiters)
-    {
-        return TryParseAttributeValue(AttributeValueParsingMode.StopAtOperationBoundary, (AttributeConstraintDefinition?)null, delimiters);
-    }
-
-    /// <summary>
-    /// Bridges name-guided attribute value parsing with operation-boundary stopping for use by
-    /// <see cref="OperationParsingContext"/>.
-    /// </summary>
-    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueOrBoundaryInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
-    {
-        return TryParseAttributeValue(AttributeValueParsingMode.StopAtOperationBoundary, expectedDefinitionName, delimiters);
-    }
-
-    /// <summary>
     /// Bridges definition-guided attribute value parsing with operation-boundary stopping for use by
-    /// <see cref="OperationParsingContext"/>.
+    /// <see cref="ParsingContext"/>.
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueOrBoundaryInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
@@ -301,7 +282,7 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        var result = definition.AssemblyFormat.TryParse(new AttributeParsingContext(this));
+        var result = definition.AssemblyFormat.TryParse(new ParsingContext(this));
         if (result.IsSuccess)
         {
             return result;

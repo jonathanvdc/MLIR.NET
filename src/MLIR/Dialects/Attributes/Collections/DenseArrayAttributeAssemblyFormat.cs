@@ -28,7 +28,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     }
 
     /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (!context.TryMatch(TokenKind.Identifier, out var keywordToken) || keywordToken.Text != "array")
         {

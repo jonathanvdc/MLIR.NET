@@ -19,7 +19,7 @@ using MLIR.Transforms;
 public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
 {
     /// <inheritdoc/>
-    public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
+    public ParseResult<TypeSyntax> TryParse(ParsingContext context)
     {
         if (!context.Is(TokenKind.LParen))
         {
@@ -129,7 +129,7 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
                 TokenFactory.LParen(), resultSyntax, resultCommas, TokenFactory.RParen()));
     }
 
-    private static ParseResult<DelimitedSyntaxList<TypeSyntax>> TryParseTypeList(TypeParsingContext context, TokenKind openKind, TokenKind closeKind)
+    private static ParseResult<DelimitedSyntaxList<TypeSyntax>> TryParseTypeList(ParsingContext context, TokenKind openKind, TokenKind closeKind)
     {
         var openResult = context.Expect(openKind, $"Expected '{TokenText(openKind)}' to start the type list.");
         if (!openResult.IsSuccess)

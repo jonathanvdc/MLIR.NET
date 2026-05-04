@@ -86,7 +86,7 @@ public abstract class SimpleEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<A
     }
 
     /// <inheritdoc/>
-    public override ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public override ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         Token? open = null;
         var allowsAngleBrackets = AngleBracketRequirement != EnumAngleBracketRequirement.Prohibited;

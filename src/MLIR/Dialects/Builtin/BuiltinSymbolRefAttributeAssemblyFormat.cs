@@ -16,7 +16,7 @@ using MLIR.Transforms;
 public sealed class BuiltinSymbolRefAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (!context.TryMatch(TokenKind.SymbolName, out var rootSymbolNameToken))
         {
@@ -100,7 +100,7 @@ public sealed class BuiltinSymbolRefAttributeAssemblyFormat : IAttributeAssembly
             nestedReferences);
     }
 
-    private static bool IsNestedReferenceSeparator(AttributeParsingContext context)
+    private static bool IsNestedReferenceSeparator(ParsingContext context)
     {
         return context.TryPeekToken(0, out var currentKind, out _) &&
             currentKind == TokenKind.Colon &&

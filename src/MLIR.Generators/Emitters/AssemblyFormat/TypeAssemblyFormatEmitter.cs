@@ -40,7 +40,7 @@ internal static class TypeAssemblyFormatEmitter
             builder.AppendLine("    // The generated format class is still emitted for API completeness, but parsing will fail fast.");
             builder.AppendLine();
         }
-        builder.AppendLine("    protected override ParseResult<TypeSyntax> TryParseBody(TypeParsingContext context, DialectTypePrefix prefix)");
+        builder.AppendLine("    protected override ParseResult<TypeSyntax> TryParseBody(ParsingContext context, DialectTypePrefix prefix)");
         builder.AppendLine("    {");
         if (!lowered.IsSupported)
         {

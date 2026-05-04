@@ -66,10 +66,10 @@ using MLIR.Syntax;
 /// to the corresponding dialect-registered assembly-format handler before falling back to generic or raw parsing:
 /// <list type="bullet">
 ///   <item><description>Operations: the registry is queried by normalized operation name; if a matching
-///     <c>IOperationAssemblyFormat</c> is found, its <c>TryParse</c> method is called with an
-///     <see cref="OperationParsingContext"/> after peeking the operation name.</description></item>
+///     <c>IOperationAssemblyFormat</c> is found, its <c>TryParse</c> method is called with a
+///     <see cref="ParsingContext"/> after peeking the operation name.</description></item>
 ///   <item><description>Types: the registry is queried by type name and dispatched to an
-///     <c>ITypeAssemblyFormat</c> through a <see cref="TypeParsingContext"/>.</description></item>
+///     <c>ITypeAssemblyFormat</c> through a <see cref="ParsingContext"/>.</description></item>
 ///   <item><description>Attributes: self-identifying attributes (prefixed with <c>#identifier</c>) are looked up first;
 ///     caller-supplied <c>AttributeConstraintDefinition</c> hints are tried next; built-in structured forms
 ///     (arrays, dictionaries, dense arrays, elements) are checked last before falling back to raw syntax.</description></item>
@@ -134,13 +134,13 @@ using MLIR.Syntax;
 /// <para><strong>Extension pattern – implementing a custom assembly format</strong></para>
 /// <example>
 /// <code>
-/// // Custom operation assembly formats receive an OperationParsingContext that exposes
+/// // Custom operation assembly formats receive a ParsingContext that exposes
 /// // safe, composable parser primitives without exposing the parser internals.
 /// public bool TryParse(
 ///     Token nameToken,
 ///     SeparatedSyntaxList&lt;Token&gt; resultList,
 ///     Token? equalsToken,
-///     OperationParsingContext ctx,
+///     ParsingContext ctx,
 ///     out OperationBodySyntax? body)
 /// {
 ///     // Parse `%operand : type`
@@ -690,7 +690,7 @@ public sealed partial class Parser
 
         // Finally, invoke the custom assembly format's TryParse method. If it returns NoMatch, reset and fall back to generic parsing;
         // if it returns Error, propagate the error without resetting since the format handler has already committed to this parse path.
-        var context = new OperationParsingContext(this);
+        var context = new ParsingContext(this);
         ParseResult<OperationSyntax> result;
         if (definition.AssemblyFormat is BodyOnlyOperationAssemblyFormat format)
         {

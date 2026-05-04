@@ -19,7 +19,7 @@ using MLIR.Transforms;
 public sealed class IntegerLiteralAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (!TryParseSignedIntegerLiteral(context, out var signToken, out var digitsToken, out var value))
         {

@@ -15,7 +15,7 @@ using System.Text.RegularExpressions;
 /// The canonical named placeholders used by the generator are:
 /// </para>
 /// <list type="bullet">
-///   <item><c>${parser}</c> – the <c>AttributeParsingContext</c> or equivalent parsing object.</item>
+///   <item><c>${parser}</c> – the <c>ParsingContext</c> or equivalent parsing object.</item>
 ///   <item><c>${self}</c> – the storage value or source property being converted.</item>
 ///   <item><c>${syntax}</c> – the per-parameter <c>AttributeValueSyntax</c> variable.</item>
 ///   <item><c>${value}</c> – the typed value being encoded into storage (e.g., for const-builder calls).</item>

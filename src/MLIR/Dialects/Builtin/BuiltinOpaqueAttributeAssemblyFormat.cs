@@ -14,7 +14,7 @@ using MLIR.Transforms;
 public sealed class BuiltinOpaqueAttributeAssemblyFormat : IAttributeAssemblyFormat
 {
     /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (!context.TryMatch(TokenKind.Hash, out var hashToken))
         {

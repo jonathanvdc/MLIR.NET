@@ -39,7 +39,7 @@ public sealed class FloatingPointLiteralAttributeAssemblyFormat : IAttributeAsse
     }
 
     /// <inheritdoc/>
-    public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(context, semantics);
     }

@@ -66,7 +66,7 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        var result = definition.AssemblyFormat.TryParse(new TypeParsingContext(this));
+        var result = definition.AssemblyFormat.TryParse(new ParsingContext(this));
         if (result.IsSuccess)
         {
             return result;
@@ -84,7 +84,7 @@ public sealed partial class Parser
     private ParseResult<TypeSyntax> TryParseTypeAssemblyFormat(ITypeAssemblyFormat assemblyFormat)
     {
         var checkpoint = Mark();
-        var result = assemblyFormat.TryParse(new TypeParsingContext(this));
+        var result = assemblyFormat.TryParse(new ParsingContext(this));
         if (result.IsSuccess)
         {
             return result;
@@ -181,7 +181,7 @@ public sealed partial class Parser
             CreateDiagnostic("Expected a type; unrecognized syntax."));
     }
 
-    /// <summary>Bridges standalone nested type fragment parsing for use by <see cref="TypeParsingContext"/>.</summary>
+    /// <summary>Bridges standalone nested type fragment parsing for use by <see cref="ParsingContext"/>.</summary>
     internal ParseResult<TypeSyntax> TryParseStandaloneTypeTextInternal(string text)
     {
         return TryParseType(text, dialectRegistry, out var type, out var diagnostic)
@@ -189,7 +189,7 @@ public sealed partial class Parser
             : ParseResult<TypeSyntax>.Failure(diagnostic!);
     }
 
-    /// <summary>Bridges <see cref="ParseTypeSyntaxListUntilOperationBoundary"/> for use by <see cref="OperationParsingContext"/>.</summary>
+    /// <summary>Bridges <see cref="ParseTypeSyntaxListUntilOperationBoundary"/> for use by <see cref="ParsingContext"/>.</summary>
     internal IReadOnlyList<TypeSyntax> ParseTypeSyntaxListUntilOperationBoundaryInternal()
     {
         return ParseTypeSyntaxListUntilOperationBoundary();

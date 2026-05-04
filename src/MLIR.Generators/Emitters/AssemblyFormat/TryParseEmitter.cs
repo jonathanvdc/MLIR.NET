@@ -2,7 +2,6 @@ namespace MLIR.Generators.Emitters.AssemblyFormat;
 
 using System.Collections.Generic;
 using System.Text;
-using MLIR.Generators.Emitters;
 using MLIR.Generators.Emitters.Common;
 using MLIR.Generators.Emitters.Operation;
 using MLIR.ODS.Model;
@@ -14,7 +13,7 @@ using MLIR.Text;
 /// </summary>
 /// <remarks>
 /// Each supported assembly format element is translated into a call on
-/// <c>MLIR.Text.OperationParsingContext</c>. After all elements have been parsed the generated
+/// <c>MLIR.Text.ParsingContext</c>. After all elements have been parsed the generated
 /// code constructs the typed <c>OperationBodySyntax</c> subclass and returns a parsed result.
 ///
 /// Formats that contain directives that are not yet supported produce a fallback
@@ -54,7 +53,7 @@ internal sealed class TryParseEmitter
 
     private void EmitMethod(StringBuilder builder)
     {
-        builder.AppendLine("    protected override ParseResult<OperationBodySyntax> TryParseBody(in OperationHeader header, OperationParsingContext context)");
+        builder.AppendLine("    protected override ParseResult<OperationBodySyntax> TryParseBody(in OperationHeader header, ParsingContext context)");
         builder.AppendLine("    {");
 
         var format = operation.AssemblyFormat!;

@@ -26,7 +26,7 @@ public sealed class UnitLiteralAttributeAssemblyFormat : BodylessSelfIdentifying
     }
 
     /// <inheritdoc/>
-    public override ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
+    public override ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
         if (context.TryMatch(TokenKind.Identifier, out var token) && token.Text == "unit")
         {

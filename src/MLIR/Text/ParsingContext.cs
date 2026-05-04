@@ -10,9 +10,9 @@ using MLIR.Syntax.Attributes.Primitives;
 /// <summary>
 /// Provides shared parser access for dialect-specific parsing contexts.
 /// </summary>
-public abstract class ParsingContext
+public readonly struct ParsingContext
 {
-    private protected readonly Parser Parser;
+    private readonly Parser Parser;
 
     internal ParsingContext(Parser parser)
     {

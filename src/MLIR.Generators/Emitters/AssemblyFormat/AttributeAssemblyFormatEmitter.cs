@@ -71,7 +71,7 @@ internal static class AttributeAssemblyFormatEmitter
         builder.AppendLine();
 
         // TryParseBody
-        builder.AppendLine("    protected override ParseResult<AttributeValueSyntax> TryParseBody(AttributeParsingContext context, DialectAttributePrefix prefix)");
+        builder.AppendLine("    protected override ParseResult<AttributeValueSyntax> TryParseBody(ParsingContext context, DialectAttributePrefix prefix)");
         builder.AppendLine("    {");
         if (!lowered.IsSupported)
         {

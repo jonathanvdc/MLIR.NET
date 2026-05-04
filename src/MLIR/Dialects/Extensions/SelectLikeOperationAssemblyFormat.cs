@@ -32,7 +32,7 @@ public sealed class SelectLikeOperationAssemblyFormat : BodyOnlyOperationAssembl
     /// <inheritdoc/>
     protected override ParseResult<OperationBodySyntax> TryParseBody(
         in OperationHeader header,
-        OperationParsingContext context)
+        ParsingContext context)
     {
         var conditionResult = context.TryParseSsaToken();
         if (!conditionResult.IsSuccess)

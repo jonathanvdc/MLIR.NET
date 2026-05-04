@@ -19,7 +19,7 @@ using MLIR.Transforms;
 public sealed class BuiltinMemRefTypeAssemblyFormat : ITypeAssemblyFormat
 {
     /// <inheritdoc/>
-    public ParseResult<TypeSyntax> TryParse(TypeParsingContext context)
+    public ParseResult<TypeSyntax> TryParse(ParsingContext context)
     {
         if (!context.IsKeyword("memref"))
         {

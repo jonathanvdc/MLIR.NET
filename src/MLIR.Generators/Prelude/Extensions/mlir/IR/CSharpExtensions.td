@@ -114,7 +114,7 @@ class CSharpInterfacePropertyImplementation<Interface interfaceDef, string cshar
 //
 //   csharpParser    – C# expression that parses one parameter value from text
 //                     and returns a `ParseResult<AttributeValueSyntax>`.  Use
-//                     `$_parser` to refer to the `AttributeParsingContext` local
+//                     `$_parser` to refer to the `ParsingContext` local
 //                     variable.  When absent the generator calls
 //                     `$_parser.TryParseAttributeValueSyntax(…)` with the stop
 //                     tokens inferred from the surrounding assembly format.
@@ -348,7 +348,7 @@ class CSharpParameterExtension {
   // Structured rewrite shape for csharpSyntaxType. If omitted for a typed syntax property,
   // MLIR.NET treats the value as plain rather than guessing from the type name.
   string csharpSyntaxShape = ?;
-  // Custom C# parser expression; `$_parser` refers to the AttributeParsingContext.
+  // Custom C# parser expression; `$_parser` refers to the ParsingContext.
   // Must return `ParseResult<AttributeValueSyntax>`.
   string csharpParser = ?;
   // Custom C# extractor expression; `$_syntax` refers to the AttributeValueSyntax
