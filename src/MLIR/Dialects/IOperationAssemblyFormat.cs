@@ -29,7 +29,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <returns>The parsed operation syntax, a no-match result, or a diagnostic-producing failure.</returns>
     public ParseResult<OperationSyntax> TryParse(OperationParsingContext context)
     {
-        var headerResult = context.TryParseHeader();
+        var headerResult = context.TryParseOperationHeader();
         if (!headerResult.IsSuccess)
         {
             return ParseResult<OperationSyntax>.Failure(headerResult.Diagnostic!);

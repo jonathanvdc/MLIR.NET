@@ -670,8 +670,8 @@ public sealed partial class Parser
         // and result values (if any) so we can pass them to the custom format handler.
         // If the name is quoted, it's not a valid candidate for custom-format parsing, so bail early.
         var checkpoint = Mark();
-        var context = new OperationParsingContext(this);
-        var headerResult = context.TryParseHeader();
+        
+        var headerResult = TryParseOperationHeader();
         if (!headerResult.IsSuccess || headerResult.Value.NameToken.Text.StartsWith("\"", StringComparison.Ordinal))
         {
             Reset(checkpoint);
@@ -690,6 +690,7 @@ public sealed partial class Parser
 
         // Finally, invoke the custom assembly format's TryParse method. If it returns NoMatch, reset and fall back to generic parsing;
         // if it returns Error, propagate the error without resetting since the format handler has already committed to this parse path.
+        var context = new OperationParsingContext(this);
         ParseResult<OperationSyntax> result;
         if (definition.AssemblyFormat is BodyOnlyOperationAssemblyFormat format)
         {
@@ -972,5 +973,81 @@ public sealed partial class Parser
             TryParseBlockLabelTokenResult,
             "Expected '[' for the successor list.",
             "Expected ']' to close the successor list.");
+    }
+
+    /// <summary>
+    /// Parses an operation header: optional SSA result list, optional equals token, and operation name token.
+    /// </summary>
+    internal ParseResult<OperationHeader> TryParseOperationHeader()
+    {
+        var resultItems = new List<Token>();
+        var resultSeparators = new List<Token>();
+        Token? equalsToken = null;
+
+        if (Is(TokenKind.SsaName))
+        {
+            var firstResultTokenResult = TryParseSsaTokenResult();
+            if (!firstResultTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationHeader>.Failure(firstResultTokenResult.Diagnostic!);
+            }
+
+            var firstResultToken = firstResultTokenResult.Value;
+            resultItems.Add(firstResultToken);
+
+            if (TryMatch(TokenKind.Colon, out _))
+            {
+                var countTokenResult = ExpectTokenResult(TokenKind.Integer, "Expected result count after ':'.");
+                if (!countTokenResult.IsSuccess)
+                {
+                    return ParseResult<OperationHeader>.Failure(countTokenResult.Diagnostic!);
+                }
+
+                var count = int.Parse(countTokenResult.Value.Text, CultureInfo.InvariantCulture);
+                for (var i = 1; i < count; i++)
+                {
+                    resultItems.Add(TokenFactory.SsaName(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
+                }
+            }
+
+            while (TryMatch(TokenKind.Comma, out var resultCommaToken))
+            {
+                resultSeparators.Add(resultCommaToken);
+                var nextResultToken = TryParseSsaTokenResult();
+                if (!nextResultToken.IsSuccess)
+                {
+                    return ParseResult<OperationHeader>.Failure(nextResultToken.Diagnostic!);
+                }
+
+                resultItems.Add(nextResultToken.Value);
+            }
+
+            var equalsTokenResult = ExpectTokenResult(TokenKind.Equal, "Expected '=' after operation result list.");
+            if (!equalsTokenResult.IsSuccess)
+            {
+                return ParseResult<OperationHeader>.Failure(equalsTokenResult.Diagnostic!);
+            }
+
+            equalsToken = equalsTokenResult.Value;
+        }
+
+        Token nameToken;
+        if (TryMatch(TokenKind.Identifier, out var identifierToken))
+        {
+            nameToken = identifierToken;
+        }
+        else if (TryMatch(TokenKind.StringLiteral, out var stringLiteralToken))
+        {
+            nameToken = stringLiteralToken;
+        }
+        else
+        {
+            return ParseResult<OperationHeader>.Failure(CreateDiagnostic("Expected an operation name."));
+        }
+
+        return ParseResult<OperationHeader>.Success(new OperationHeader(
+            nameToken,
+            new SeparatedSyntaxList<Token>(resultItems, resultSeparators),
+            equalsToken));
     }
 }

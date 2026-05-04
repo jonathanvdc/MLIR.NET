@@ -18,77 +18,9 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses an operation header: optional SSA result list, optional equals token, and operation name token.
     /// </summary>
-    public ParseResult<OperationHeader> TryParseHeader()
+    public ParseResult<OperationHeader> TryParseOperationHeader()
     {
-        var resultItems = new List<Token>();
-        var resultSeparators = new List<Token>();
-        Token? equalsToken = null;
-
-        if (Is(TokenKind.SsaName))
-        {
-            var firstResultTokenResult = TryParseSsaToken();
-            if (!firstResultTokenResult.IsSuccess)
-            {
-                return ParseResult<OperationHeader>.Failure(firstResultTokenResult.Diagnostic!);
-            }
-
-            var firstResultToken = firstResultTokenResult.Value;
-            resultItems.Add(firstResultToken);
-
-            if (TryMatch(TokenKind.Colon, out _))
-            {
-                var countTokenResult = Expect(TokenKind.Integer, "Expected result count after ':'.");
-                if (!countTokenResult.IsSuccess)
-                {
-                    return ParseResult<OperationHeader>.Failure(countTokenResult.Diagnostic!);
-                }
-
-                var count = int.Parse(countTokenResult.Value.Text, CultureInfo.InvariantCulture);
-                for (var i = 1; i < count; i++)
-                {
-                    resultItems.Add(TokenFactory.SsaName(firstResultToken.Text + "#" + i.ToString(CultureInfo.InvariantCulture)));
-                }
-            }
-
-            while (TryMatch(TokenKind.Comma, out var resultCommaToken))
-            {
-                resultSeparators.Add(resultCommaToken);
-                var nextResultToken = TryParseSsaToken();
-                if (!nextResultToken.IsSuccess)
-                {
-                    return ParseResult<OperationHeader>.Failure(nextResultToken.Diagnostic!);
-                }
-
-                resultItems.Add(nextResultToken.Value);
-            }
-
-            var equalsTokenResult = Expect(TokenKind.Equal, "Expected '=' after operation result list.");
-            if (!equalsTokenResult.IsSuccess)
-            {
-                return ParseResult<OperationHeader>.Failure(equalsTokenResult.Diagnostic!);
-            }
-
-            equalsToken = equalsTokenResult.Value;
-        }
-
-        Token nameToken;
-        if (TryMatch(TokenKind.Identifier, out var identifierToken))
-        {
-            nameToken = identifierToken;
-        }
-        else if (TryMatch(TokenKind.StringLiteral, out var stringLiteralToken))
-        {
-            nameToken = stringLiteralToken;
-        }
-        else
-        {
-            return ParseResult<OperationHeader>.Failure(CreateDiagnostic("Expected an operation name."));
-        }
-
-        return ParseResult<OperationHeader>.Success(new OperationHeader(
-            nameToken,
-            new SeparatedSyntaxList<Token>(resultItems, resultSeparators),
-            equalsToken));
+        return Parser.TryParseOperationHeader();
     }
 
     /// <summary>

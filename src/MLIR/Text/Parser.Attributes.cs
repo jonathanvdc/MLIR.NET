@@ -44,12 +44,12 @@ public sealed partial class Parser
             var expectedResult = TryParseExpectedAttributeValue(expectedDefinition);
             if (!expectedResult.IsNoMatch)
             {
-                return WrapTypedAttributeValueSyntax(expectedResult, false, mode, stopBefore);
+                return WrapTypedAttributeValueSyntax(expectedResult, false);
             }
         }
 
         var result = TryParseDefaultAttributeValue(mode, allowTypedSuffix, stopBefore);
-        return WrapTypedAttributeValueSyntax(result, allowTypedSuffix, mode, stopBefore);
+        return WrapTypedAttributeValueSyntax(result, allowTypedSuffix);
     }
 
     private ParseResult<AttributeValueSyntax> TryParseAttributeValue(
@@ -131,9 +131,7 @@ public sealed partial class Parser
 
     private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(
         ParseResult<AttributeValueSyntax> result,
-        bool allowTypedSuffix,
-        AttributeValueParsingMode mode,
-        TokenKind[] stopBefore)
+        bool allowTypedSuffix)
     {
         if (!allowTypedSuffix || !result.IsSuccess || result.Value is TypedAttributeValueSyntax)
         {
@@ -145,7 +143,7 @@ public sealed partial class Parser
             return result;
         }
 
-        var typeResult = TryParseTypeSyntaxCoreResult(stopBefore, mode == AttributeValueParsingMode.StopAtOperationBoundary);
+        var typeResult = TryParseTypeSyntax();
         if (!typeResult.IsSuccess)
         {
             return ParseResult<AttributeValueSyntax>.Failure(typeResult.Diagnostic!);
