@@ -275,7 +275,7 @@ public sealed partial class Parser
     /// Parses an optional attribute dictionary of the form <c>{ name = value, ... }</c>.
     /// Returns an empty list when no <c>{</c> is present.
     /// </summary>
-    private ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDict()
+    internal ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDict()
     {
         if (!Is(TokenKind.LBrace))
         {

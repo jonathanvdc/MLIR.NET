@@ -65,7 +65,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<Token> Expect(TokenKind kind, string message)
     {
-        return Parser.ExpectTokenInternal(kind, message);
+        return Parser.ExpectToken(kind, message);
     }
 
     /// <summary>
@@ -82,7 +82,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<Token> ExpectKeyword(string spelling, string message)
     {
-        return Parser.ExpectKeywordInternal(spelling, message);
+        return Parser.ExpectKeyword(spelling, message);
     }
 
     /// <summary>
@@ -90,7 +90,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<RawSyntaxText> TryParseRawUntilDelimiter(params TokenKind[] delimiters)
     {
-        return Parser.TryParseRawUntilDelimiterInternal(delimiters);
+        return Parser.TryParseRawUntilDelimiter(delimiters);
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttributeDictionarySyntax()
     {
-        return Parser.TryParseAttrDictInternal();
+        return Parser.TryParseAttrDict();
     }
 
     /// <summary>
@@ -221,7 +221,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<Token> TryParseSsaToken()
     {
-        return Parser.TryParseSsaTokenInternal();
+        return Parser.TryParseSsaToken();
     }
 
     /// <summary>
@@ -232,7 +232,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<SeparatedSyntaxList<Token>> TryParseSsaTokenList()
     {
-        return Parser.TryParseSsaTokenListInternal();
+        return Parser.TryParseSsaTokenList();
     }
 
     /// <summary>
@@ -240,7 +240,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<RegionSyntax> TryParseRegion()
     {
-        return Parser.TryParseRegionInternal();
+        return Parser.TryParseRegion();
     }
 
     /// <summary>
@@ -283,7 +283,7 @@ public readonly struct ParsingContext
     /// </summary>
     public ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDict()
     {
-        return Parser.TryParseAttrDictInternal();
+        return Parser.TryParseAttrDict();
     }
 
     /// <summary>

@@ -80,7 +80,7 @@ public sealed partial class Parser
     /// <param name="allowBlockStart">
     /// When <see langword="true"/>, a block label token preceded by a newline is also accepted as a boundary.
     /// </param>
-    private ParseResult<bool> EnsureOperationBoundaryResult(bool allowBlockStart)
+    private ParseResult<bool> EnsureOperationBoundary(bool allowBlockStart)
     {
         return IsOperationBoundary(Current, allowBlockStart)
             ? ParseResult<bool>.Success(true)
@@ -193,7 +193,7 @@ public sealed partial class Parser
     /// <see cref="Token"/> on success. Returns a failure diagnostic with <paramref name="message"/>
     /// when the token does not match.
     /// </summary>
-    private ParseResult<Token> ExpectTokenResult(TokenKind kind, string message)
+    internal ParseResult<Token> ExpectToken(TokenKind kind, string message)
     {
         if (!TryMatch(kind, out var token))
         {
@@ -262,7 +262,7 @@ public sealed partial class Parser
         string closeMessage)
         where T : IHasSourceLocation
     {
-        return ExpectTokenResult(openKind, openMessage)
+        return ExpectToken(openKind, openMessage)
             .Bind(openToken => TryParseCommaSeparatedDelimitedListCore(openToken, closeKind, parseElement, closeMessage));
     }
 
@@ -288,7 +288,7 @@ public sealed partial class Parser
                 return ParseResult<DelimitedSyntaxList<T>>.Failure(itemsResult.Diagnostic!);
             }
 
-            var closeTokenResult = ExpectTokenResult(closeKind, closeMessage);
+            var closeTokenResult = ExpectToken(closeKind, closeMessage);
             if (!closeTokenResult.TryGetValue(out closeToken))
             {
                 return ParseResult<DelimitedSyntaxList<T>>.Failure(closeTokenResult.Diagnostic!);
@@ -513,31 +513,19 @@ public sealed partial class Parser
         return true;
     }
 
-    /// <summary>Bridges <see cref="ExpectTokenResult"/> for use by <see cref="ParsingContext"/>.</summary>
-    internal ParseResult<Token> ExpectTokenInternal(TokenKind kind, string message)
-    {
-        return ExpectTokenResult(kind, message);
-    }
-
-    /// <summary>Bridges <see cref="TryParseSsaTokenResult"/> for use by <see cref="ParsingContext"/>.</summary>
-    internal ParseResult<Token> TryParseSsaTokenInternal()
-    {
-        return TryParseSsaTokenResult();
-    }
-
     /// <summary>
     /// Parses a comma-separated list of SSA value tokens, consuming as many as are present.
     /// Returns a successful result with an empty list when the current token is not an SSA name.
     /// Stops as soon as a non-SSA, non-comma token is encountered.
     /// Returns a failed result with a diagnostic if an SSA token that was expected to parse fails.
     /// </summary>
-    internal ParseResult<SeparatedSyntaxList<Token>> TryParseSsaTokenListInternal()
+    internal ParseResult<SeparatedSyntaxList<Token>> TryParseSsaTokenList()
     {
         var items = new List<Token>();
         var separators = new List<Token>();
         while (Is(TokenKind.SsaName))
         {
-            var tokenResult = TryParseSsaTokenResult();
+            var tokenResult = TryParseSsaToken();
             if (!tokenResult.IsSuccess)
             {
                 return ParseResult<SeparatedSyntaxList<Token>>.Failure(tokenResult.Diagnostic!);
@@ -553,30 +541,6 @@ public sealed partial class Parser
         }
 
         return ParseResult<SeparatedSyntaxList<Token>>.Success(new SeparatedSyntaxList<Token>(items, separators));
-    }
-
-    /// <summary>Bridges <see cref="TryParseRegionResult"/> for use by <see cref="ParsingContext"/>.</summary>
-    internal ParseResult<RegionSyntax> TryParseRegionInternal()
-    {
-        return TryParseRegionResult();
-    }
-
-    /// <summary>Bridges <see cref="TryParseRawUntilDelimiterResult"/> for use by <see cref="ParsingContext"/>.</summary>
-    internal ParseResult<RawSyntaxText> TryParseRawUntilDelimiterInternal(params TokenKind[] delimiters)
-    {
-        return TryParseRawUntilDelimiterResult(delimiters);
-    }
-
-    /// <summary>Bridges <see cref="TryParseRawUntilOperationBoundaryResult"/> for use by <see cref="ParsingContext"/>.</summary>
-    internal ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundaryInternal()
-    {
-        return TryParseRawUntilOperationBoundaryResult();
-    }
-
-    /// <summary>Bridges <see cref="TryParseAttrDict"/> for use by dialect parsing contexts.</summary>
-    internal ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictInternal()
-    {
-        return TryParseAttrDict();
     }
 
     /// <summary>
@@ -595,18 +559,12 @@ public sealed partial class Parser
         return TryParseAttrDict();
     }
 
-    /// <summary>Bridges <see cref="ExpectKeywordResult"/> for use by <see cref="ParsingContext"/>.</summary>
-    internal ParseResult<Token> ExpectKeywordInternal(string spelling, string message)
-    {
-        return ExpectKeywordResult(spelling, message);
-    }
-
     /// <summary>
     /// Expects an identifier token whose text exactly matches <paramref name="spelling"/>.
     /// Returns a failure diagnostic with <paramref name="message"/> when the current token
     /// does not match.
     /// </summary>
-    private ParseResult<Token> ExpectKeywordResult(string spelling, string message)
+    internal ParseResult<Token> ExpectKeyword(string spelling, string message)
     {
         if (!Is(TokenKind.Identifier) || !string.Equals(Current.Text, spelling, System.StringComparison.Ordinal))
         {

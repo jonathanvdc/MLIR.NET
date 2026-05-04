@@ -55,7 +55,7 @@ using MLIR.Syntax;
 /// <para>
 /// MLIR does not require a terminator token between consecutive operations. Instead, the parser treats a newline
 /// in the leading trivia of the current token as an <em>operation boundary</em>. The method
-/// <see cref="IsOperationBoundary"/> implements this rule, and <see cref="EnsureOperationBoundaryResult"/> enforces it
+/// <see cref="IsOperationBoundary"/> implements this rule, and <see cref="EnsureOperationBoundary"/> enforces it
 /// after each top-level or block-level operation. This matches the upstream MLIR parser's whitespace-sensitivity for
 /// operation separation.
 /// </para>
@@ -365,14 +365,14 @@ public sealed partial class Parser
         var operations = new List<OperationSyntax>();
         while (!Is(TokenKind.EndOfFile))
         {
-            var operationResult = TryParseOperationResult();
+            var operationResult = TryParseOperation();
             if (!operationResult.IsSuccess)
             {
                 return ParseResult<ModuleSyntax>.Failure(operationResult.Diagnostic!);
             }
 
             operations.Add(operationResult.Value);
-            var boundaryResult = EnsureOperationBoundaryResult(false);
+            var boundaryResult = EnsureOperationBoundary(false);
             if (!boundaryResult.IsSuccess)
             {
                 return ParseResult<ModuleSyntax>.Failure(boundaryResult.Diagnostic!);
@@ -393,15 +393,15 @@ public sealed partial class Parser
     ///     mandatory <c>=</c> that follows it.</description></item>
     ///   <item><description>Parse the operation name (bare identifier or quoted string).</description></item>
     ///   <item><description>For unquoted names, attempt a registered custom assembly format via
-    ///     <see cref="TryParseCustomAssemblyResult"/>. If that returns <c>NoMatch</c>, attempt a
+    ///     <see cref="TryParseCustomAssembly"/>. If that returns <c>NoMatch</c>, attempt a
     ///     "projected custom-like" form (bare operands + <c>:</c> + raw type).</description></item>
     ///   <item><description>If no custom form matches, fall through to the full generic format:
     ///     <c>(operands) [successors] { regions } {attrs} : type</c>.</description></item>
     /// </list>
     /// </remarks>
-    private ParseResult<OperationSyntax> TryParseOperationResult()
+    private ParseResult<OperationSyntax> TryParseOperation()
     {
-        var customOperationResult = TryParseCustomAssemblyResult();
+        var customOperationResult = TryParseCustomAssembly();
         if (customOperationResult.IsSuccess || customOperationResult.IsError)
         {
             return customOperationResult;
@@ -413,7 +413,7 @@ public sealed partial class Parser
 
         if (Is(TokenKind.SsaName))
         {
-            var firstResultTokenResult = TryParseSsaTokenResult();
+            var firstResultTokenResult = TryParseSsaToken();
             if (!firstResultTokenResult.IsSuccess)
             {
                 return ParseResult<OperationSyntax>.Failure(firstResultTokenResult.Diagnostic!);
@@ -424,7 +424,7 @@ public sealed partial class Parser
 
             if (TryMatch(TokenKind.Colon, out _))
             {
-                var countTokenResult = ExpectTokenResult(TokenKind.Integer, "Expected result count after ':'.");
+                var countTokenResult = ExpectToken(TokenKind.Integer, "Expected result count after ':'.");
                 if (!countTokenResult.IsSuccess)
                 {
                     return ParseResult<OperationSyntax>.Failure(countTokenResult.Diagnostic!);
@@ -441,7 +441,7 @@ public sealed partial class Parser
             while (TryMatch(TokenKind.Comma, out var resultCommaToken))
             {
                 resultSeparators.Add(resultCommaToken);
-                var nextResultToken = TryParseSsaTokenResult();
+                var nextResultToken = TryParseSsaToken();
                 if (!nextResultToken.IsSuccess)
                 {
                     return ParseResult<OperationSyntax>.Failure(nextResultToken.Diagnostic!);
@@ -450,7 +450,7 @@ public sealed partial class Parser
                 resultItems.Add(nextResultToken.Value);
             }
 
-            var equalsTokenResult = ExpectTokenResult(TokenKind.Equal, "Expected '=' after operation result list.");
+            var equalsTokenResult = ExpectToken(TokenKind.Equal, "Expected '=' after operation result list.");
             if (!equalsTokenResult.IsSuccess)
             {
                 return ParseResult<OperationSyntax>.Failure(equalsTokenResult.Diagnostic!);
@@ -496,7 +496,7 @@ public sealed partial class Parser
         var regions = new List<RegionSyntax>();
         while (Is(TokenKind.LBrace) && IsRegionStart())
         {
-            var regionResult = TryParseRegionResult();
+            var regionResult = TryParseRegion();
             if (!regionResult.IsSuccess)
             {
                 return ParseResult<OperationSyntax>.Failure(regionResult.Diagnostic!);
@@ -515,7 +515,7 @@ public sealed partial class Parser
         TypeSyntax? typeSignatureSyntax = null;
         if (Is(TokenKind.Colon))
         {
-            var colonResult = ExpectTokenResult(TokenKind.Colon, "Expected ':' before the type signature.");
+            var colonResult = ExpectToken(TokenKind.Colon, "Expected ':' before the type signature.");
             if (!colonResult.IsSuccess)
             {
                 return ParseResult<OperationSyntax>.Failure(colonResult.Diagnostic!);
@@ -564,7 +564,7 @@ public sealed partial class Parser
         var operandCommaTokens = new List<Token>();
         if (Is(TokenKind.SsaName))
         {
-            var firstOperandResult = TryParseSsaTokenResult();
+            var firstOperandResult = TryParseSsaToken();
             if (!firstOperandResult.IsSuccess)
             {
                 return ParseResult<OperationBodySyntax>.Failure(firstOperandResult.Diagnostic!);
@@ -574,7 +574,7 @@ public sealed partial class Parser
             while (TryMatch(TokenKind.Comma, out var comma))
             {
                 operandCommaTokens.Add(comma);
-                var operandResult = TryParseSsaTokenResult();
+                var operandResult = TryParseSsaToken();
                 if (!operandResult.IsSuccess)
                 {
                     return ParseResult<OperationBodySyntax>.Failure(operandResult.Diagnostic!);
@@ -632,7 +632,7 @@ public sealed partial class Parser
             return sourceTypeResult;
         }
 
-        var toKeywordResult = ExpectKeywordResult("to", "Expected 'to'.");
+        var toKeywordResult = ExpectKeyword("to", "Expected 'to'.");
         if (!toKeywordResult.IsSuccess)
         {
             return ParseResult<TypeSyntax>.Failure(toKeywordResult.Diagnostic!);
@@ -659,7 +659,7 @@ public sealed partial class Parser
     /// <see cref="ParseOutcome.NoMatch"/> when no handler is registered for the operation name.
     /// The parser position is reset to the pre-call checkpoint on <c>NoMatch</c>.
     /// </returns>
-    private ParseResult<OperationSyntax> TryParseCustomAssemblyResult()
+    private ParseResult<OperationSyntax> TryParseCustomAssembly()
     {
         if (dialectRegistry == null)
         {
@@ -725,9 +725,9 @@ public sealed partial class Parser
     /// always has a uniform block-based structure, regardless of whether the source used explicit
     /// block labels. Empty regions also receive a synthetic empty entry block.
     /// </remarks>
-    private ParseResult<RegionSyntax> TryParseRegionResult()
+    internal ParseResult<RegionSyntax> TryParseRegion()
     {
-        var openBraceResult = ExpectTokenResult(TokenKind.LBrace, "Expected '{' to start a region.");
+        var openBraceResult = ExpectToken(TokenKind.LBrace, "Expected '{' to start a region.");
         if (!openBraceResult.IsSuccess)
         {
             return ParseResult<RegionSyntax>.Failure(openBraceResult.Diagnostic!);
@@ -763,14 +763,14 @@ public sealed partial class Parser
             }
             else
             {
-                var operationResult = TryParseOperationResult();
+                var operationResult = TryParseOperation();
                 if (!operationResult.IsSuccess)
                 {
                     return ParseResult<RegionSyntax>.Failure(operationResult.Diagnostic!);
                 }
 
                 pendingEntryOperations.Add(operationResult.Value);
-                var boundaryResult = EnsureOperationBoundaryResult(true);
+                var boundaryResult = EnsureOperationBoundary(true);
                 if (!boundaryResult.IsSuccess)
                 {
                     return ParseResult<RegionSyntax>.Failure(boundaryResult.Diagnostic!);
@@ -788,7 +788,7 @@ public sealed partial class Parser
                 pendingEntryOperations.ToList()));
         }
 
-        var closeBraceResult = ExpectTokenResult(TokenKind.RBrace, "Expected '}' to close a region.");
+        var closeBraceResult = ExpectToken(TokenKind.RBrace, "Expected '}' to close a region.");
         if (!closeBraceResult.IsSuccess)
         {
             return ParseResult<RegionSyntax>.Failure(closeBraceResult.Diagnostic!);
@@ -803,7 +803,7 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<BlockSyntax> TryParseBlockResult()
     {
-        var labelResult = TryParseBlockLabelTokenResult();
+        var labelResult = TryParseBlockLabelToken();
         if (!labelResult.IsSuccess)
         {
             return ParseResult<BlockSyntax>.Failure(labelResult.Diagnostic!);
@@ -819,7 +819,7 @@ public sealed partial class Parser
             return ParseResult<BlockSyntax>.Failure(argumentsResult.Diagnostic!);
         }
 
-        var colonResult = ExpectTokenResult(TokenKind.Colon, "Expected ':' after block label.");
+        var colonResult = ExpectToken(TokenKind.Colon, "Expected ':' after block label.");
         if (!colonResult.IsSuccess)
         {
             return ParseResult<BlockSyntax>.Failure(colonResult.Diagnostic!);
@@ -828,14 +828,14 @@ public sealed partial class Parser
         var operations = new List<OperationSyntax>();
         while (!Is(TokenKind.RBrace) && !Is(TokenKind.BlockLabel))
         {
-            var operationResult = TryParseOperationResult();
+            var operationResult = TryParseOperation();
             if (!operationResult.IsSuccess)
             {
                 return ParseResult<BlockSyntax>.Failure(operationResult.Diagnostic!);
             }
 
             operations.Add(operationResult.Value);
-            var boundaryResult = EnsureOperationBoundaryResult(true);
+            var boundaryResult = EnsureOperationBoundary(true);
             if (!boundaryResult.IsSuccess)
             {
                 return ParseResult<BlockSyntax>.Failure(boundaryResult.Diagnostic!);
@@ -854,13 +854,13 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<BlockArgumentSyntax> TryParseBlockArgumentResult()
     {
-        var nameResult = TryParseSsaTokenResult();
+        var nameResult = TryParseSsaToken();
         if (!nameResult.IsSuccess)
         {
             return ParseResult<BlockArgumentSyntax>.Failure(nameResult.Diagnostic!);
         }
 
-        var colonResult = ExpectTokenResult(TokenKind.Colon, "Expected ':' after block argument name.");
+        var colonResult = ExpectToken(TokenKind.Colon, "Expected ':' after block argument name.");
         if (!colonResult.IsSuccess)
         {
             return ParseResult<BlockArgumentSyntax>.Failure(colonResult.Diagnostic!);
@@ -907,24 +907,24 @@ public sealed partial class Parser
     /// <summary>
     /// Expects and consumes the current token as an SSA value name (<c>%name</c>).
     /// </summary>
-    private ParseResult<Token> TryParseSsaTokenResult()
+    internal ParseResult<Token> TryParseSsaToken()
     {
-        return ExpectTokenResult(TokenKind.SsaName, "Expected an SSA value name.");
+        return ExpectToken(TokenKind.SsaName, "Expected an SSA value name.");
     }
 
     /// <summary>
     /// Expects and consumes the current token as a block label name (<c>^label</c>).
     /// </summary>
-    private ParseResult<Token> TryParseBlockLabelTokenResult()
+    private ParseResult<Token> TryParseBlockLabelToken()
     {
-        return ExpectTokenResult(TokenKind.BlockLabel, "Expected a block label name.");
+        return ExpectToken(TokenKind.BlockLabel, "Expected a block label name.");
     }
 
     /// <summary>
     /// Scans raw tokens until one of the supplied delimiter token kinds is reached at depth zero,
     /// without stopping at operation boundaries.
     /// </summary>
-    private ParseResult<RawSyntaxText> TryParseRawUntilDelimiterResult(params TokenKind[] delimiters)
+    internal ParseResult<RawSyntaxText> TryParseRawUntilDelimiter(params TokenKind[] delimiters)
     {
         return TryParseRawUntilDelimiterOrKeywordResult(delimiters, []);
     }
@@ -951,7 +951,7 @@ public sealed partial class Parser
         return TryParseRequiredCommaSeparatedDelimitedList(
             TokenKind.LParen,
             TokenKind.RParen,
-            TryParseSsaTokenResult,
+            TryParseSsaToken,
             "Expected '(' for the operand list.",
             "Expected ')' to close the operand list.");
     }
@@ -970,7 +970,7 @@ public sealed partial class Parser
         return TryParseRequiredCommaSeparatedDelimitedList(
             TokenKind.LBracket,
             TokenKind.RBracket,
-            TryParseBlockLabelTokenResult,
+            TryParseBlockLabelToken,
             "Expected '[' for the successor list.",
             "Expected ']' to close the successor list.");
     }
@@ -986,7 +986,7 @@ public sealed partial class Parser
 
         if (Is(TokenKind.SsaName))
         {
-            var firstResultTokenResult = TryParseSsaTokenResult();
+            var firstResultTokenResult = TryParseSsaToken();
             if (!firstResultTokenResult.IsSuccess)
             {
                 return ParseResult<OperationHeader>.Failure(firstResultTokenResult.Diagnostic!);
@@ -997,7 +997,7 @@ public sealed partial class Parser
 
             if (TryMatch(TokenKind.Colon, out _))
             {
-                var countTokenResult = ExpectTokenResult(TokenKind.Integer, "Expected result count after ':'.");
+                var countTokenResult = ExpectToken(TokenKind.Integer, "Expected result count after ':'.");
                 if (!countTokenResult.IsSuccess)
                 {
                     return ParseResult<OperationHeader>.Failure(countTokenResult.Diagnostic!);
@@ -1013,7 +1013,7 @@ public sealed partial class Parser
             while (TryMatch(TokenKind.Comma, out var resultCommaToken))
             {
                 resultSeparators.Add(resultCommaToken);
-                var nextResultToken = TryParseSsaTokenResult();
+                var nextResultToken = TryParseSsaToken();
                 if (!nextResultToken.IsSuccess)
                 {
                     return ParseResult<OperationHeader>.Failure(nextResultToken.Diagnostic!);
@@ -1022,7 +1022,7 @@ public sealed partial class Parser
                 resultItems.Add(nextResultToken.Value);
             }
 
-            var equalsTokenResult = ExpectTokenResult(TokenKind.Equal, "Expected '=' after operation result list.");
+            var equalsTokenResult = ExpectToken(TokenKind.Equal, "Expected '=' after operation result list.");
             if (!equalsTokenResult.IsSuccess)
             {
                 return ParseResult<OperationHeader>.Failure(equalsTokenResult.Diagnostic!);
