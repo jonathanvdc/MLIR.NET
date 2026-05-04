@@ -44,7 +44,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <param name="context">The parsing context.</param>
     /// <param name="header">The parsed operation header.</param>
     /// <returns>The parsed operation syntax, a no-match result, or a diagnostic-producing failure.</returns>
-    public ParseResult<OperationSyntax> TryParseAfterHeader(OperationParseHeader header, in OperationParsingContext context)
+    public ParseResult<OperationSyntax> TryParseAfterHeader(OperationHeader header, in OperationParsingContext context)
     {
         var result = TryParseBody(header, context);
         if (!result.IsSuccess)
@@ -71,7 +71,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <param name="context">The parsing context.</param>
     /// <returns>The parsed operation body syntax, a no-match result, or a diagnostic-producing failure.</returns>
     protected abstract ParseResult<OperationBodySyntax> TryParseBody(
-        in OperationParseHeader header,
+        in OperationHeader header,
         OperationParsingContext context);
 
     /// <summary>

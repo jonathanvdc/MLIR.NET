@@ -18,7 +18,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Parses an operation header: optional SSA result list, optional equals token, and operation name token.
     /// </summary>
-    public ParseResult<OperationParseHeader> TryParseHeader()
+    public ParseResult<OperationHeader> TryParseHeader()
     {
         var resultItems = new List<Token>();
         var resultSeparators = new List<Token>();
@@ -29,7 +29,7 @@ public sealed class OperationParsingContext : DialectParsingContext
             var firstResultTokenResult = TryParseSsaToken();
             if (!firstResultTokenResult.IsSuccess)
             {
-                return ParseResult<OperationParseHeader>.Failure(firstResultTokenResult.Diagnostic!);
+                return ParseResult<OperationHeader>.Failure(firstResultTokenResult.Diagnostic!);
             }
 
             var firstResultToken = firstResultTokenResult.Value;
@@ -40,7 +40,7 @@ public sealed class OperationParsingContext : DialectParsingContext
                 var countTokenResult = Expect(TokenKind.Integer, "Expected result count after ':'.");
                 if (!countTokenResult.IsSuccess)
                 {
-                    return ParseResult<OperationParseHeader>.Failure(countTokenResult.Diagnostic!);
+                    return ParseResult<OperationHeader>.Failure(countTokenResult.Diagnostic!);
                 }
 
                 var count = int.Parse(countTokenResult.Value.Text, CultureInfo.InvariantCulture);
@@ -56,7 +56,7 @@ public sealed class OperationParsingContext : DialectParsingContext
                 var nextResultToken = TryParseSsaToken();
                 if (!nextResultToken.IsSuccess)
                 {
-                    return ParseResult<OperationParseHeader>.Failure(nextResultToken.Diagnostic!);
+                    return ParseResult<OperationHeader>.Failure(nextResultToken.Diagnostic!);
                 }
 
                 resultItems.Add(nextResultToken.Value);
@@ -65,7 +65,7 @@ public sealed class OperationParsingContext : DialectParsingContext
             var equalsTokenResult = Expect(TokenKind.Equal, "Expected '=' after operation result list.");
             if (!equalsTokenResult.IsSuccess)
             {
-                return ParseResult<OperationParseHeader>.Failure(equalsTokenResult.Diagnostic!);
+                return ParseResult<OperationHeader>.Failure(equalsTokenResult.Diagnostic!);
             }
 
             equalsToken = equalsTokenResult.Value;
@@ -82,10 +82,10 @@ public sealed class OperationParsingContext : DialectParsingContext
         }
         else
         {
-            return ParseResult<OperationParseHeader>.Failure(CreateDiagnostic("Expected an operation name."));
+            return ParseResult<OperationHeader>.Failure(CreateDiagnostic("Expected an operation name."));
         }
 
-        return ParseResult<OperationParseHeader>.Success(new OperationParseHeader(
+        return ParseResult<OperationHeader>.Success(new OperationHeader(
             nameToken,
             new SeparatedSyntaxList<Token>(resultItems, resultSeparators),
             equalsToken));

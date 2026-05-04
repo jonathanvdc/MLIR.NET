@@ -1,17 +1,15 @@
-namespace MLIR.Text;
-
-using MLIR.Syntax;
+namespace MLIR.Syntax;
 
 /// <summary>
 /// Carries the operation header parsed before dispatching to a custom operation assembly format.
 /// </summary>
 /// <remarks>
-/// Initializes a new instance of the <see cref="OperationParseHeader"/> class.
+/// Initializes a new instance of the <see cref="OperationHeader"/> class.
 /// </remarks>
 /// <param name="nameToken">The parsed operation name token.</param>
 /// <param name="resultList">The parsed SSA result tokens with their separator tokens.</param>
 /// <param name="equalsToken">The parsed equals token, if present.</param>
-public readonly struct OperationParseHeader(
+public readonly struct OperationHeader(
     Token nameToken,
     SeparatedSyntaxList<Token> resultList,
     Token? equalsToken)

@@ -110,7 +110,7 @@ public sealed class DialectGeneratorAssemblyFormatTests : DialectGeneratorTestBa
         AssertContainsAll(
             registrationSource,
             "protected override ParseResult<OperationBodySyntax> TryParseBody(",
-            "in OperationParseHeader header,",
+            "in OperationHeader header,",
             "var lhsResult = context.TryParseSsaToken();",
             "var rhsResult = context.TryParseSsaToken();",
             "context.Expect(TokenKind.Comma, ",

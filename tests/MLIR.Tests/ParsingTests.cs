@@ -62,7 +62,7 @@ public sealed class ParsingTests
     private sealed class PrefixConstantAssemblyFormat : BodyOnlyOperationAssemblyFormat
     {
         protected override ParseResult<OperationBodySyntax> TryParseBody(
-            in OperationParseHeader header,
+            in OperationHeader header,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -143,7 +143,7 @@ public sealed class ParsingTests
     private sealed class SsaListCapturingAssemblyFormat : BodyOnlyOperationAssemblyFormat
     {
         protected override ParseResult<OperationBodySyntax> TryParseBody(
-            in OperationParseHeader header,
+            in OperationHeader header,
             OperationParsingContext context)
         {
             var listResult = context.TryParseSsaTokenList();
