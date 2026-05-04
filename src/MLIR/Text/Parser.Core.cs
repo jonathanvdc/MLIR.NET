@@ -467,7 +467,7 @@ public sealed partial class Parser
     {
         source ??= string.Empty;
         var document = new StringDocument(string.Empty, source);
-        var lexResult = Lexer.TryLexCore(source, document);
+        var lexResult = Lexer.TryLex(source, document);
         if (!lexResult.IsSuccess)
         {
             return ParseResult<Parser>.Failure(lexResult.Diagnostic!);

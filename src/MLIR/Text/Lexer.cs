@@ -16,7 +16,7 @@ internal static class Lexer
     /// <paramref name="document"/> so that every token carries document-relative offset
     /// information for on-demand line/column resolution.
     /// </summary>
-    internal static ParseResult<IReadOnlyList<Token>> TryLexCore(string source, SourceDocument document)
+    internal static ParseResult<IReadOnlyList<Token>> TryLex(string source, SourceDocument document)
     {
         var tokens = new List<Token>();
         var index = 0;
@@ -179,49 +179,6 @@ internal static class Lexer
 
             tokens.Add(new Token(kind, source.Substring(tokenStart, index - tokenStart), leadingTrivia, document, tokenStart, index - tokenStart));
         }
-    }
-
-    /// <summary>
-    /// Tries to lex MLIR source text into a token stream without throwing on lexical failures.
-    /// </summary>
-    /// <param name="source">The source text to tokenize.</param>
-    /// <param name="tokens">The resulting token stream when lexing succeeds.</param>
-    /// <param name="diagnostic">The diagnostic that describes the lexical failure, if any.</param>
-    /// <returns><see langword="true"/> when lexing succeeded; otherwise, <see langword="false"/>.</returns>
-    public static bool TryLex(string source, out IReadOnlyList<Token> tokens, out Diagnostic? diagnostic)
-    {
-        source ??= string.Empty;
-        var document = new StringDocument(string.Empty, source);
-        var result = TryLexCore(source, document);
-        if (result.IsSuccess)
-        {
-            tokens = result.Value;
-            diagnostic = null;
-            return true;
-        }
-
-        tokens = [];
-        diagnostic = result.Diagnostic;
-        return false;
-    }
-
-    /// <summary>
-    /// Lexes MLIR source text into a token stream.
-    /// </summary>
-    /// <param name="source">The source text to tokenize.</param>
-    /// <returns>The resulting token stream, including an end-of-file token.</returns>
-    /// <exception cref="ParseException">Thrown when the source contains invalid lexical syntax.</exception>
-    public static IReadOnlyList<Token> Lex(string source)
-    {
-        source ??= string.Empty;
-        var document = new StringDocument(string.Empty, source);
-        var result = TryLexCore(source, document);
-        if (result.IsSuccess)
-        {
-            return result.Value;
-        }
-
-        throw new ParseException(result.Diagnostic!);
     }
 
     private static ParseResult<bool> TryConsumeStringLiteral(string source, SourceDocument document, int tokenStart, ref int index)
