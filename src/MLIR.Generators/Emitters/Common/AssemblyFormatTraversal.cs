@@ -22,42 +22,6 @@ internal static class AssemblyFormatTraversal
         }
     }
 
-    public static void VisitElements(
-        IReadOnlyList<Element> elements,
-        Action<LiteralChunk>? onLiteral = null,
-        Action<VariableChunk>? onVariable = null,
-        Action<DirectiveChunk>? onDirective = null)
-    {
-        foreach (var element in elements)
-        {
-            switch (element)
-            {
-                case LiteralChunk literal:
-                    onLiteral?.Invoke(literal);
-                    break;
-                case VariableChunk variable:
-                    onVariable?.Invoke(variable);
-                    break;
-                case DirectiveChunk directive:
-                    onDirective?.Invoke(directive);
-                    break;
-            }
-        }
-    }
-
-    public static int FindElementIndexForVariable(IReadOnlyList<Element> elements, string variableName)
-    {
-        for (var i = 0; i < elements.Count; i++)
-        {
-            if (elements[i] is VariableChunk v && string.Equals(v.Name, variableName, StringComparison.Ordinal))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
     public static IReadOnlyList<TokenKind> FindStopTokensForVariable(IReadOnlyList<Element> elements, int variableIndex)
     {
         var stopTokens = new List<TokenKind>();
@@ -117,27 +81,6 @@ internal static class AssemblyFormatTraversal
         }
 
         return Array.Empty<TokenKind>();
-    }
-
-    public static IReadOnlyList<string> FindNextKeywordDelimiters(int currentIndex, IReadOnlyList<Element> elements)
-    {
-        for (var i = currentIndex + 1; i < elements.Count; i++)
-        {
-            if (elements[i] is not LiteralChunk literalChunk)
-            {
-                continue;
-            }
-
-            foreach (var lit in literalChunk.Value)
-            {
-                if (lit is KeywordLiteral keyword)
-                {
-                    return new[] { keyword.Spelling };
-                }
-            }
-        }
-
-        return Array.Empty<string>();
     }
 
     public static int CountFieldsForElement(Element element)
