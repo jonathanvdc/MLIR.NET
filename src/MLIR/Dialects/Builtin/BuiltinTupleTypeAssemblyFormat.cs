@@ -44,7 +44,7 @@ public sealed class BuiltinTupleTypeAssemblyFormat : ITypeAssemblyFormat
         {
             while (true)
             {
-                var elementResult = context.TryParseTypeSyntax(TokenKind.Comma, TokenKind.GreaterThan);
+                var elementResult = context.TryParseTypeSyntax();
                 if (!elementResult.IsSuccess)
                 {
                     return ParseResult<TypeSyntax>.Failure(elementResult.Diagnostic!);

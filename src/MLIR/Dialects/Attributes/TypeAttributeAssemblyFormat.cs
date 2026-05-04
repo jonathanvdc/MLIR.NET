@@ -16,7 +16,7 @@ public sealed class TypeAttributeAssemblyFormat : IAttributeAssemblyFormat
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(ParsingContext context)
     {
-        return context.TryParseTypeSyntax(TokenKind.Comma)
+        return context.TryParseTypeSyntax()
             .Map<AttributeValueSyntax>(static typeSyntax => new TypeAttributeValueSyntax(typeSyntax));
     }
 

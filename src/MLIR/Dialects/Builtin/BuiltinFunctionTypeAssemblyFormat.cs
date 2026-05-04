@@ -143,7 +143,7 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
         {
             while (true)
             {
-                var itemResult = context.TryParseTypeSyntax(TokenKind.Comma, closeKind);
+                var itemResult = context.TryParseTypeSyntax();
                 if (!itemResult.IsSuccess)
                 {
                     return ParseResult<DelimitedSyntaxList<TypeSyntax>>.Failure(itemResult.Diagnostic!);

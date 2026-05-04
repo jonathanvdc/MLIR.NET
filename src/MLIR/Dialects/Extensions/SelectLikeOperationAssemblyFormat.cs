@@ -76,7 +76,7 @@ public sealed class SelectLikeOperationAssemblyFormat : BodyOnlyOperationAssembl
             return ParseResult<OperationBodySyntax>.Failure(colonTokenResult.Diagnostic!);
         }
 
-        var firstTypeResult = context.TryParseTypeSyntax(TokenKind.Comma);
+        var firstTypeResult = context.TryParseTypeSyntax();
         if (!firstTypeResult.IsSuccess)
         {
             return ParseResult<OperationBodySyntax>.Failure(firstTypeResult.Diagnostic!);

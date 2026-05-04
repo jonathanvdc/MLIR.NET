@@ -664,17 +664,6 @@ internal sealed class TryParseEmitter
             return "context.ParseTypeSyntaxList()";
         }
 
-        var delimiters = AssemblyFormatTraversal.FindNextPunctuationDelimiters(elementIndex, allElements);
-        var keywords = AssemblyFormatTraversal.FindNextKeywordDelimiters(elementIndex, allElements);
-        if (delimiters.Count > 0 || keywords.Count > 0)
-        {
-            var keywordArray = keywords.Count > 0
-                ? "new[] { " + BuildKeywordList(keywords) + " }"
-                : "global::System.Array.Empty<string>()";
-            var delimiterSuffix = delimiters.Count > 0 ? ", " + BuildDelimiterList(delimiters) : string.Empty;
-            return "context.TryParseTypeSyntax(" + keywordArray + delimiterSuffix + ")";
-        }
-
         return "context.TryParseTypeSyntax()";
     }
 

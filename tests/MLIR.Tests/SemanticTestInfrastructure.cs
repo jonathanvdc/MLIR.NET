@@ -623,7 +623,7 @@ public sealed partial class SemanticTests
                     return ParseResult<AttributeValueSyntax>.Failure(colonTokenResult.Diagnostic!);
                 }
 
-                var typeSyntaxResult = context.TryParseTypeSyntax(TokenKind.Comma, TokenKind.RBrace);
+                var typeSyntaxResult = context.TryParseTypeSyntax();
                 if (!typeSyntaxResult.IsSuccess)
                 {
                     return ParseResult<AttributeValueSyntax>.Failure(typeSyntaxResult.Diagnostic!);

@@ -41,7 +41,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             return ParseResult<AttributeValueSyntax>.Failure(lessThanTokenResult.Diagnostic!);
         }
 
-        var elementTypeSyntaxResult = context.TryParseTypeSyntax(TokenKind.Colon);
+        var elementTypeSyntaxResult = context.TryParseTypeSyntax();
         if (!elementTypeSyntaxResult.IsSuccess)
         {
             return ParseResult<AttributeValueSyntax>.Failure(elementTypeSyntaxResult.Diagnostic!);

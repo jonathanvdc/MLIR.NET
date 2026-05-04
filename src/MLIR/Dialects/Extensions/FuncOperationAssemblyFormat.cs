@@ -428,7 +428,7 @@ public sealed class FuncOperationAssemblyFormat : BodyOnlyOperationAssemblyForma
             return ParseResult<FuncFunctionArgumentSyntax>.Failure(colonResult.Diagnostic!);
         }
 
-        var typeResult = context.TryParseTypeSyntax(TokenKind.LBrace, TokenKind.Comma, TokenKind.RParen);
+        var typeResult = context.TryParseTypeSyntax();
         if (!typeResult.IsSuccess)
         {
             return ParseResult<FuncFunctionArgumentSyntax>.Failure(typeResult.Diagnostic!);
@@ -450,7 +450,7 @@ public sealed class FuncOperationAssemblyFormat : BodyOnlyOperationAssemblyForma
 
     private static ParseResult<FuncFunctionResultSyntax> TryParseResult(ParsingContext context)
     {
-        var typeResult = context.TryParseTypeSyntax(TokenKind.LBrace, TokenKind.Comma, TokenKind.RParen);
+        var typeResult = context.TryParseTypeSyntax();
         if (!typeResult.IsSuccess)
         {
             return ParseResult<FuncFunctionResultSyntax>.Failure(typeResult.Diagnostic!);

@@ -94,17 +94,9 @@ public readonly struct ParsingContext
     }
 
     /// <summary>
-    /// Parses a nested type syntax node, stopping before any of the supplied delimiters.
+    /// Parses a type, consuming tokens until an operation boundary is reached.
     /// </summary>
-    public ParseResult<TypeSyntax> TryParseTypeSyntax(params TokenKind[] stopBefore)
-    {
-        return Parser.TryParseTypeSyntax();
-    }
-
-    /// <summary>
-    /// Parses a nested type syntax node, stopping before any of the supplied delimiters or keywords.
-    /// </summary>
-    public ParseResult<TypeSyntax> TryParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
+    public ParseResult<TypeSyntax> TryParseTypeSyntax()
     {
         return Parser.TryParseTypeSyntax();
     }
@@ -275,14 +267,6 @@ public readonly struct ParsingContext
         }
 
         return commas;
-    }
-
-    /// <summary>
-    /// Parses a type, consuming tokens until an operation boundary is reached.
-    /// </summary>
-    public ParseResult<TypeSyntax> TryParseTypeSyntax()
-    {
-        return Parser.TryParseTypeSyntax();
     }
 
     /// <summary>
