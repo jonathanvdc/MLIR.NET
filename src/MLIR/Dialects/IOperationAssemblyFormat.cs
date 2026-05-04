@@ -27,9 +27,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// </summary>
     public ParseResult<OperationSyntax> TryParse(OperationParsingContext context)
     {
-        var header = context.Header ?? throw new InvalidOperationException(
-            "Body-only operation assembly formats require an operation parse header.");
-
+        var header = context.Header;
         var bodyResult = TryParseBody(header, context);
         return bodyResult.Map(body => new OperationSyntax(
             header.ResultList,

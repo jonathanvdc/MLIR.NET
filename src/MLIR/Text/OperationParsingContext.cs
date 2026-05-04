@@ -9,11 +9,6 @@ using MLIR.Syntax;
 /// </summary>
 public sealed class OperationParsingContext : DialectParsingContext
 {
-    internal OperationParsingContext(Parser parser)
-        : base(parser)
-    {
-    }
-
     internal OperationParsingContext(Parser parser, OperationParseHeader header)
         : base(parser)
     {
@@ -23,7 +18,7 @@ public sealed class OperationParsingContext : DialectParsingContext
     /// <summary>
     /// Gets the operation header that was parsed before custom assembly dispatch, when available.
     /// </summary>
-    public OperationParseHeader? Header { get; }
+    public OperationParseHeader Header { get; }
 
     /// <summary>
     /// Parses an SSA value token.
