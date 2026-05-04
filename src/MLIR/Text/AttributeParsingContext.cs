@@ -76,7 +76,7 @@ public sealed class AttributeParsingContext : DialectParsingContext
     /// </remarks>
     public ParseResult<AttributeValueSyntax> TryParseFloatingPointLiteralSyntax()
     {
-        return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(this, FloatSemantics.IEEEDouble);
+        return TryParseFloatingPointLiteralSyntax(FloatSemantics.IEEEDouble);
     }
 
     /// <summary>
