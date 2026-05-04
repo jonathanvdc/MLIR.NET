@@ -143,14 +143,6 @@ public abstract class DialectParsingContext
     }
 
     /// <summary>
-    /// Parses a named attribute entry.
-    /// </summary>
-    public ParseResult<NamedAttributeSyntax> TryParseNamedAttributeSyntax()
-    {
-        return Parser.TryParseAttributeInternal();
-    }
-
-    /// <summary>
     /// Parses an attribute dictionary.
     /// </summary>
     public ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttributeDictionarySyntax()
@@ -228,5 +220,15 @@ public abstract class DialectParsingContext
     public ParseResult<AttributeValueSyntax> TryParseFloatingPointLiteralSyntax(FloatSemantics semantics)
     {
         return FloatingPointAssemblyFormatHelper.TryParseDecimalLiteral(this, semantics);
+    }
+
+    /// <summary>
+    /// Re-parses a standalone type text fragment using the current parser's dialect registry.
+    /// This is used by shaped builtin type formats after splitting the outer raw body into
+    /// dimensions and element-type text.
+    /// </summary>
+    public ParseResult<TypeSyntax> TryParseStandaloneTypeText(string text)
+    {
+        return Parser.TryParseStandaloneTypeTextInternal(text);
     }
 }

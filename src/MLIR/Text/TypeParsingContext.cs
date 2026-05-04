@@ -38,14 +38,4 @@ public sealed class TypeParsingContext : DialectParsingContext
     {
         return Parser.TryParseCurrentTypeSyntaxInternal(defaultTypeStopBefore, defaultTypeStopBeforeKeywords, stopAtOperationBoundary);
     }
-
-    /// <summary>
-    /// Re-parses a standalone type text fragment using the current parser's dialect registry.
-    /// This is used by shaped builtin type formats after splitting the outer raw body into
-    /// dimensions and element-type text.
-    /// </summary>
-    public ParseResult<TypeSyntax> TryParseStandaloneTypeText(string text)
-    {
-        return Parser.TryParseStandaloneTypeTextInternal(text);
-    }
 }

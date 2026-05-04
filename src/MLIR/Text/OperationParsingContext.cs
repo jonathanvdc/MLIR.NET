@@ -178,30 +178,4 @@ public sealed class OperationParsingContext : DialectParsingContext
     {
         return Parser.TryParseAttrDictWithKeywordInternal();
     }
-
-    /// <summary>
-    /// Parses zero or more consecutive regions, each delimited by <c>{ ... }</c>.
-    /// </summary>
-    public ParseResult<IReadOnlyList<RegionSyntax>> TryParseRegions()
-    {
-        return Parser.TryParseRegionsInternal();
-    }
-
-    /// <summary>
-    /// Parses an optional successor list of the form <c>[ ^bb1, ^bb2, ... ]</c>.
-    /// Returns an empty list when no opening bracket is present.
-    /// </summary>
-    public ParseResult<DelimitedSyntaxList<Token>> TryParseSuccessors()
-    {
-        return Parser.TryParseSuccessorsInternal();
-    }
-
-    /// <summary>
-    /// Parses an operand list of the form <c>( %a, %b, ... )</c>.
-    /// </summary>
-    public ParseResult<DelimitedSyntaxList<Token>> TryParseOperands()
-    {
-        return Parser.TryParseOperandsInternal();
-    }
-
 }

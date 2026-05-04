@@ -641,33 +641,6 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Parses zero or more consecutive regions, each delimited by <c>{ ... }</c>.
-    /// Stops as soon as the next token is not <c>{</c>.
-    /// </summary>
-    internal ParseResult<IReadOnlyList<RegionSyntax>> TryParseRegionsInternal()
-    {
-        var regions = new List<RegionSyntax>();
-        while (Is(TokenKind.LBrace))
-        {
-            var regionResult = TryParseRegionResult();
-            if (!regionResult.IsSuccess)
-            {
-                return ParseResult<IReadOnlyList<RegionSyntax>>.Failure(regionResult.Diagnostic!);
-            }
-
-            regions.Add(regionResult.Value);
-        }
-
-        return ParseResult<IReadOnlyList<RegionSyntax>>.Success(regions);
-    }
-
-    /// <summary>Bridges <see cref="TryParseSuccessorsResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
-    internal ParseResult<DelimitedSyntaxList<Token>> TryParseSuccessorsInternal() => TryParseSuccessorsResult();
-
-    /// <summary>Bridges <see cref="TryParseOperandsResult"/> for use by <see cref="OperationParsingContext"/>.</summary>
-    internal ParseResult<DelimitedSyntaxList<Token>> TryParseOperandsInternal() => TryParseOperandsResult();
-
-    /// <summary>
     /// Returns <see langword="true"/> when the current token is an identifier whose text
     /// exactly matches <paramref name="spelling"/>.
     /// </summary>
