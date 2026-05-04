@@ -1,33 +1,11 @@
 namespace MLIR.Text;
 
-using MLIR.Text;
-
 using System.Collections.Generic;
 using MLIR.Syntax;
 using MLIR.Dialects;
 
 public sealed partial class Parser
 {
-    /// <summary>
-    /// Scans raw tokens until the end of the current operation, stopping at a newline
-    /// boundary or the end of file. The scan is bracket-aware and never returns an empty result.
-    /// Used to capture the type signature of an operation in one raw chunk.
-    /// </summary>
-    private ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundaryResult()
-    {
-        return TryScanRawFragment([], [], stopAtOperationBoundary: true, allowEmpty: false, eofMessage: null);
-    }
-
-    /// <summary>
-    /// Scans raw tokens until any of the supplied delimiters is reached at depth zero,
-    /// or an operation boundary is encountered, whichever comes first.
-    /// An empty scan is allowed (returns an empty <see cref="RawSyntaxText"/>).
-    /// </summary>
-    private ParseResult<RawSyntaxText> TryParseRawUntilDelimiterOrBoundaryResult(params TokenKind[] delimiters)
-    {
-        return TryScanRawFragment(delimiters, [], stopAtOperationBoundary: true, allowEmpty: true, eofMessage: null);
-    }
-
     /// <summary>
     /// Determines whether the current <c>{</c> token begins a region rather than an attribute dictionary.
     /// </summary>
