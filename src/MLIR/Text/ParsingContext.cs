@@ -94,14 +94,6 @@ public readonly struct ParsingContext
     }
 
     /// <summary>
-    /// Parses raw syntax until an operation boundary is reached.
-    /// </summary>
-    public ParseResult<RawSyntaxText> TryParseRawUntilOperationBoundary()
-    {
-        return Parser.TryParseRawUntilOperationBoundaryInternal();
-    }
-
-    /// <summary>
     /// Parses a nested type syntax node, stopping before any of the supplied delimiters.
     /// </summary>
     public ParseResult<TypeSyntax> TryParseTypeSyntax(params TokenKind[] stopBefore)
