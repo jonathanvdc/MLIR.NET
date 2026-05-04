@@ -30,9 +30,9 @@ public static class BuiltinDialects
     /// <param name="registry">The dialect registry to populate.</param>
     public static void RegisterAll(DialectRegistry registry)
     {
-        registry.RegisterDialect(global::MLIR.Dialects.Prelude.PreludeDialectRegistration.Create());
-        registry.RegisterDialect(global::MLIR.Dialects.Builtin.BuiltinDialectRegistration.Create());
-        registry.RegisterDialect(global::MLIR.Dialects.Arith.ArithDialectRegistration.Create());
-        registry.RegisterDialect(global::MLIR.Dialects.Func.FuncDialectRegistration.Create());
+        registry.RegisterDialect(Prelude.PreludeDialectRegistration.Create());
+        registry.RegisterDialect(Builtin.BuiltinDialectRegistration.Create());
+        registry.RegisterDialect(Arith.ArithDialectRegistration.Create());
+        registry.RegisterDialect(Func.FuncDialectRegistration.Create());
     }
 }
