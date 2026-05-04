@@ -44,13 +44,24 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <param name="context">The parsing context.</param>
     /// <param name="header">The parsed operation header.</param>
     /// <returns>The parsed operation syntax, a no-match result, or a diagnostic-producing failure.</returns>
-    public ParseResult<OperationSyntax> TryParseAfterHeader(OperationParseHeader header, OperationParsingContext context)
+    public ParseResult<OperationSyntax> TryParseAfterHeader(OperationParseHeader header, in OperationParsingContext context)
     {
-        return TryParseBody(header, context).Map(body => new OperationSyntax(
-            header.ResultList,
-            header.EqualsToken,
-            header.NameToken,
-            body));
+        var result = TryParseBody(header, context);
+        if (!result.IsSuccess)
+        {
+            return result.IsNoMatch
+                ? ParseResult<OperationSyntax>.NoMatch()
+                : ParseResult<OperationSyntax>.Failure(result.Diagnostic!);
+        }
+        else
+        {
+            var body = result.Value;
+            return ParseResult<OperationSyntax>.Success(new OperationSyntax(
+                header.ResultList,
+                header.EqualsToken,
+                header.NameToken,
+                body));
+        }
     }
 
     /// <summary>
