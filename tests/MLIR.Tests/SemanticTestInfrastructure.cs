@@ -434,7 +434,7 @@ public sealed partial class SemanticTests
         }
     }
 
-    private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
+    private sealed class PrefixConstantAssemblyFormat : BodyOnlyOperationAssemblyFormat
     {
         private readonly OperationDefinition definition;
 
@@ -443,10 +443,8 @@ public sealed partial class SemanticTests
             this.definition = definition;
         }
 
-        public ParseResult<OperationBodySyntax> TryParse(
-            Token nameToken,
-            SeparatedSyntaxList<Token> resultList,
-            Token? equalsToken,
+        protected override ParseResult<OperationBodySyntax> TryParseBody(
+            OperationParseHeader header,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -478,7 +476,7 @@ public sealed partial class SemanticTests
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
-        public Operation Bind(OperationSyntax syntax, Binder binder)
+        public override Operation Bind(OperationSyntax syntax, Binder binder)
         {
             var body = (PrefixConstantBodySyntax)syntax.Body;
             return new GeneratedConstantOperation(
@@ -489,7 +487,7 @@ public sealed partial class SemanticTests
                 binder.BindTypeReference(body.TypeSignature));
         }
 
-        public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
+        public override OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
         {
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");
@@ -504,7 +502,7 @@ public sealed partial class SemanticTests
         }
     }
 
-    private sealed class ContextDirectedConstantAssemblyFormat : IOperationAssemblyFormat
+    private sealed class ContextDirectedConstantAssemblyFormat : BodyOnlyOperationAssemblyFormat
     {
         private readonly AttributeConstraintDefinition expectedAttributeDefinition;
         private readonly OperationDefinition definition;
@@ -517,10 +515,8 @@ public sealed partial class SemanticTests
             this.definition = definition;
         }
 
-        public ParseResult<OperationBodySyntax> TryParse(
-            Token nameToken,
-            SeparatedSyntaxList<Token> resultList,
-            Token? equalsToken,
+        protected override ParseResult<OperationBodySyntax> TryParseBody(
+            OperationParseHeader header,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -551,7 +547,7 @@ public sealed partial class SemanticTests
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
-        public Operation Bind(OperationSyntax syntax, Binder binder)
+        public override Operation Bind(OperationSyntax syntax, Binder binder)
         {
             var body = (PrefixConstantBodySyntax)syntax.Body;
             return new GeneratedConstantOperation(
@@ -562,7 +558,7 @@ public sealed partial class SemanticTests
                 binder.BindTypeReference(body.TypeSignature));
         }
 
-        public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
+        public override OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
         {
             var genericBody = context.TransformGenericBody(operation);
             var valueAttr = operation.Attributes.FirstOrDefault(a => a.Name == "value");

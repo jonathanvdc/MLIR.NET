@@ -59,12 +59,10 @@ public sealed class ParsingTests
         }
     }
 
-    private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
+    private sealed class PrefixConstantAssemblyFormat : BodyOnlyOperationAssemblyFormat
     {
-        public ParseResult<OperationBodySyntax> TryParse(
-            Token nameToken,
-            SeparatedSyntaxList<Token> resultList,
-            Token? equalsToken,
+        protected override ParseResult<OperationBodySyntax> TryParseBody(
+            OperationParseHeader header,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -94,12 +92,12 @@ public sealed class ParsingTests
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
-        public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
+        public override OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
         {
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        public Operation Bind(OperationSyntax syntax, Binder binder)
+        public override Operation Bind(OperationSyntax syntax, Binder binder)
         {
             throw new NotImplementedException("This assembly format is only intended for testing CSTs.");
         }
@@ -142,12 +140,10 @@ public sealed class ParsingTests
     /// to parse a variadic SSA operand list and stores the result in a
     /// <see cref="SsaListCapturingBodySyntax"/>.
     /// </summary>
-    private sealed class SsaListCapturingAssemblyFormat : IOperationAssemblyFormat
+    private sealed class SsaListCapturingAssemblyFormat : BodyOnlyOperationAssemblyFormat
     {
-        public ParseResult<OperationBodySyntax> TryParse(
-            Token nameToken,
-            SeparatedSyntaxList<Token> resultList,
-            Token? equalsToken,
+        protected override ParseResult<OperationBodySyntax> TryParseBody(
+            OperationParseHeader header,
             OperationParsingContext context)
         {
             var listResult = context.TryParseSsaTokenList();
@@ -159,12 +155,12 @@ public sealed class ParsingTests
             return ParseResult<OperationBodySyntax>.Success(new SsaListCapturingBodySyntax(listResult.Value));
         }
 
-        public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
+        public override OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
         {
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        public Operation Bind(OperationSyntax syntax, Binder binder)
+        public override Operation Bind(OperationSyntax syntax, Binder binder)
         {
             throw new NotImplementedException("This assembly format is only intended for testing SSA list parsing.");
         }

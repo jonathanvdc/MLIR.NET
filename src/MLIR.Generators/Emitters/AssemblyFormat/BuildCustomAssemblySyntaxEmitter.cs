@@ -55,7 +55,7 @@ internal sealed class BuildCustomAssemblySyntaxEmitter
 
     private void EmitMethod(StringBuilder builder)
     {
-        builder.AppendLine("    public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)");
+        builder.AppendLine("    public override OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)");
         builder.AppendLine("    {");
 
         var format = operation.AssemblyFormat!;

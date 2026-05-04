@@ -13,35 +13,45 @@ using MLIR.Transforms;
 /// Implementations can opt into custom concrete syntax while still projecting the same
 /// semantic operation shape for binding and verification.
 /// </remarks>
-public interface IOperationAssemblyFormat
+public interface IOperationAssemblyFormat : IAssemblyFormat<OperationSyntax, Operation, OperationParsingContext>;
+
+/// <summary>
+/// Base class for operation assembly formats whose custom grammar handles only
+/// the operation body after the operation header has been parsed.
+/// </summary>
+public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
 {
     /// <summary>
-    /// Attempts to parse a dialect-specific custom assembly form for the supplied operation.
+    /// Parses the full operation custom assembly form by using the already-parsed header
+    /// from <paramref name="context"/> and delegating body parsing to <see cref="TryParseBody"/>.
     /// </summary>
-    /// <param name="nameToken">The parsed operation name token.</param>
-    /// <param name="resultList">The parsed SSA result tokens with their separator tokens.</param>
-    /// <param name="equalsToken">The parsed equals token, if present.</param>
-    /// <param name="context">The parsing context.</param>
-    /// <returns>The parsed operation body, a no-match result, or a diagnostic-producing failure.</returns>
-    ParseResult<OperationBodySyntax> TryParse(
-        Token nameToken,
-        SeparatedSyntaxList<Token> resultList,
-        Token? equalsToken,
+    public ParseResult<OperationSyntax> TryParse(OperationParsingContext context)
+    {
+        var header = context.Header ?? throw new InvalidOperationException(
+            "Body-only operation assembly formats require an operation parse header.");
+
+        var bodyResult = TryParseBody(header, context);
+        return bodyResult.Map(body => new OperationSyntax(
+            header.ResultList,
+            header.EqualsToken,
+            header.NameToken,
+            body));
+    }
+
+    /// <summary>
+    /// Parses the custom operation body for the supplied already-parsed operation header.
+    /// </summary>
+    protected abstract ParseResult<OperationBodySyntax> TryParseBody(
+        OperationParseHeader header,
         OperationParsingContext context);
 
     /// <summary>
     /// Interprets the supplied concrete syntax tree in the assembly format into semantic properties.
     /// </summary>
-    /// <param name="syntax">The operation syntax to interpret.</param>
-    /// <param name="binder">The binding context.</param>
-    /// <returns>The interpreted operation.</returns>
-    Operation Bind(OperationSyntax syntax, Binder binder);
+    public abstract Operation Bind(OperationSyntax syntax, Binder binder);
 
     /// <summary>
     /// Builds a custom concrete syntax tree for the supplied operation.
     /// </summary>
-    /// <param name="operation">The operation to rewrite.</param>
-    /// <param name="context">The CST transformation context.</param>
-    /// <returns>The custom assembly operation syntax.</returns>
-    OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context);
+    public abstract OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context);
 }

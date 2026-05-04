@@ -356,11 +356,11 @@ internal static class OperationAssemblyFormatEmitter
         var className = DialectGeneratorNaming.GetOperationClassName(operation);
         var syntaxDescriptor = OperationBodySyntaxDescriptor.Describe(bodySyntaxMetadata);
 
-        builder.AppendLine("public sealed class " + className + "AssemblyFormat : IOperationAssemblyFormat");
+        builder.AppendLine("public sealed class " + className + "AssemblyFormat : BodyOnlyOperationAssemblyFormat");
         builder.AppendLine("{");
         TryParseEmitter.Emit(builder, operation, bodySyntaxMetadata, resolver);
         builder.AppendLine();
-        builder.AppendLine("    public Operation Bind(OperationSyntax syntax, Binder binder)");
+        builder.AppendLine("    public override Operation Bind(OperationSyntax syntax, Binder binder)");
         builder.AppendLine("    {");
         builder.AppendLine("        if (syntax.Body is not " + className + "BodySyntax body)");
         builder.AppendLine("        {");

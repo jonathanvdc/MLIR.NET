@@ -13,7 +13,7 @@ using MLIR.Transforms;
 /// <summary>
 /// Runtime-backed custom assembly strategy for <c>func.func</c>.
 /// </summary>
-public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
+public sealed class FuncOperationAssemblyFormat : BodyOnlyOperationAssemblyFormat
 {
     private readonly OperationDefinition definition;
 
@@ -26,16 +26,14 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public ParseResult<OperationBodySyntax> TryParse(
-        Token nameToken,
-        SeparatedSyntaxList<Token> resultList,
-        Token? equalsToken,
-        OperationParsingContext context)
+    protected override ParseResult<OperationBodySyntax> TryParseBody(
+            OperationParseHeader header,
+            OperationParsingContext context)
     {
-        if (resultList.Count != 0 || equalsToken.HasValue)
+        if (header.ResultList.Count != 0 || header.EqualsToken.HasValue)
         {
             return ParseResult<OperationBodySyntax>.Failure(
-                new Diagnostic("func.func cannot have SSA results.", nameToken.Location));
+                new Diagnostic("func.func cannot have SSA results.", header.NameToken.Location));
         }
 
         Token? visibilityToken = null;
@@ -213,7 +211,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public Operation Bind(OperationSyntax syntax, Binder binder)
+    public override Operation Bind(OperationSyntax syntax, Binder binder)
     {
         if (syntax.Body is not FuncOperationBodySyntax body)
         {
@@ -272,7 +270,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
+    public override OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
     {
         var sourceBody = operation.Syntax?.Body as FuncOperationBodySyntax;
         if (operation.TypeSignatureReference is null || context.BuildTypeSyntax(operation.TypeSignatureReference) is not FunctionTypeSyntax functionTypeSyntax)

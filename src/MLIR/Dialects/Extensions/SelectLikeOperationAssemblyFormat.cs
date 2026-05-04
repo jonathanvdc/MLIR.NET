@@ -17,7 +17,7 @@ using MLIR.Transforms;
 /// recover structure from raw custom syntax later. The current implementation matches the
 /// upstream <c>arith.select</c> custom spelling.
 /// </remarks>
-public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
+public sealed class SelectLikeOperationAssemblyFormat : BodyOnlyOperationAssemblyFormat
 {
     private readonly OperationDefinition definition;
 
@@ -30,11 +30,9 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public ParseResult<OperationBodySyntax> TryParse(
-        Token nameToken,
-        SeparatedSyntaxList<Token> resultList,
-        Token? equalsToken,
-        OperationParsingContext context)
+    protected override ParseResult<OperationBodySyntax> TryParseBody(
+            OperationParseHeader header,
+            OperationParsingContext context)
     {
         var conditionResult = context.TryParseSsaToken();
         if (!conditionResult.IsSuccess)
@@ -112,7 +110,7 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public Operation Bind(OperationSyntax syntax, Binder binder)
+    public override Operation Bind(OperationSyntax syntax, Binder binder)
     {
         if (syntax.Body is not SelectLikeOperationBodySyntax body)
         {
@@ -157,7 +155,7 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
+    public override OperationSyntax BuildCustomAssemblySyntax(Operation operation, ConcreteSyntaxBuilderContext context)
     {
         if (!TryGetPrintedTypes(operation, out var conditionType, out var valueType, out var includeConditionType))
         {

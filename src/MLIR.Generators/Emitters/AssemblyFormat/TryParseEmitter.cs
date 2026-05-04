@@ -54,7 +54,7 @@ internal sealed class TryParseEmitter
 
     private void EmitMethod(StringBuilder builder)
     {
-        builder.AppendLine("    public ParseResult<OperationBodySyntax> TryParse(Token nameToken, SeparatedSyntaxList<Token> resultList, Token? equalsToken, OperationParsingContext context)");
+        builder.AppendLine("    protected override ParseResult<OperationBodySyntax> TryParseBody(OperationParseHeader header, OperationParsingContext context)");
         builder.AppendLine("    {");
 
         var format = operation.AssemblyFormat!;

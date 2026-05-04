@@ -14,6 +14,17 @@ public sealed class OperationParsingContext : DialectParsingContext
     {
     }
 
+    internal OperationParsingContext(Parser parser, OperationParseHeader header)
+        : base(parser)
+    {
+        Header = header;
+    }
+
+    /// <summary>
+    /// Gets the operation header that was parsed before custom assembly dispatch, when available.
+    /// </summary>
+    public OperationParseHeader? Header { get; }
+
     /// <summary>
     /// Parses an SSA value token.
     /// </summary>
