@@ -246,9 +246,9 @@ public readonly struct ParsingContext
     /// <summary>
     /// Parses a comma-separated list of types, consuming items until an operation boundary is reached.
     /// </summary>
-    public IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()
+    public ParseResult<IReadOnlyList<TypeSyntax>> TryParseTypeSyntaxList()
     {
-        return Parser.ParseTypeSyntaxList();
+        return Parser.TryParseTypeSyntaxList();
     }
 
     /// <summary>

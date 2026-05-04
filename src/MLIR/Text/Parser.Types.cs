@@ -131,11 +131,11 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Parses a comma-separated list of types until an operation boundary is reached.
-    /// This is used by custom operation assembly formats such as <c>type($variadic)</c>,
-    /// where the list is not enclosed in parentheses but still needs depth-aware parsing.
+    /// Parses a comma-separated list of types, consuming items until an operation boundary is reached.
+    /// This is used by the <c>type($variadic)</c> custom assembly format, where the list is not enclosed in parentheses but still needs depth-aware parsing.
     /// </summary>
-    internal IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()
+    /// <returns>A successful result with the list of parsed types, or a failure if any item fails to parse.</returns>
+    internal ParseResult<IReadOnlyList<TypeSyntax>> TryParseTypeSyntaxList()
     {
         var items = new List<TypeSyntax>();
         while (true)
@@ -143,7 +143,7 @@ public sealed partial class Parser
             var itemResult = TryParseTypeSyntax();
             if (!itemResult.IsSuccess)
             {
-                throw new ParseException(itemResult.Diagnostic!);
+                return ParseResult<IReadOnlyList<TypeSyntax>>.Failure(itemResult.Diagnostic!);
             }
 
             items.Add(itemResult.Value);
@@ -153,7 +153,7 @@ public sealed partial class Parser
             }
         }
 
-        return items;
+        return ParseResult<IReadOnlyList<TypeSyntax>>.Success(items);
     }
 
     private ParseResult<TypeSyntax> CreateUnrecognizedTypeFailure()

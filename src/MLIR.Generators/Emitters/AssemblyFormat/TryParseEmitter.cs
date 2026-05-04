@@ -661,7 +661,7 @@ internal sealed class TryParseEmitter
         var field = metadata.Fields[fieldIndex - 1];
         if (field.CsType == "IReadOnlyList<TypeSyntax>")
         {
-            return "context.ParseTypeSyntaxList()";
+            return "context.TryParseTypeSyntaxList()";
         }
 
         return "context.TryParseTypeSyntax()";
@@ -669,12 +669,6 @@ internal sealed class TryParseEmitter
 
     private void EmitTypeAssignment(StringBuilder builder, string indent, string varName, string expr, bool declare, string csType)
     {
-        if (csType == "IReadOnlyList<TypeSyntax>")
-        {
-            builder.AppendLine(indent + DeclareOrAssign(varName, expr, declare, csType) + ";");
-            return;
-        }
-
         EmitParseResultAssignment(builder, indent, varName, expr, declare, csType);
     }
 
@@ -699,17 +693,6 @@ internal sealed class TryParseEmitter
         foreach (var d in delimiters)
         {
             parts.Add("TokenKind." + d);
-        }
-
-        return string.Join(", ", parts);
-    }
-
-    private static string BuildKeywordList(IReadOnlyList<string> keywords)
-    {
-        var parts = new List<string>(keywords.Count);
-        foreach (var keyword in keywords)
-        {
-            parts.Add(EmitterHelpers.ToCSharpStringLiteral(keyword));
         }
 
         return string.Join(", ", parts);
