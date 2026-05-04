@@ -27,14 +27,7 @@ public sealed partial class Parser
         new UnitLiteralAttributeAssemblyFormat(parseSelfIdentifyingSyntax: false)
     ];
 
-    private enum AttributeValueParsingMode
-    {
-        Normal,
-        StopAtOperationBoundary,
-    }
-
     private ParseResult<AttributeValueSyntax> TryParseAttributeValue(
-        AttributeValueParsingMode mode,
         AttributeConstraintDefinition? expectedDefinition,
         params TokenKind[] stopBefore)
     {
@@ -48,7 +41,7 @@ public sealed partial class Parser
             }
         }
 
-        var result = TryParseDefaultAttributeValue(mode, allowTypedSuffix, stopBefore);
+        var result = TryParseDefaultAttributeValue();
         return WrapTypedAttributeValueSyntax(result, allowTypedSuffix);
     }
 
@@ -74,10 +67,7 @@ public sealed partial class Parser
         return result;
     }
 
-    private ParseResult<AttributeValueSyntax> TryParseDefaultAttributeValue(
-        AttributeValueParsingMode mode,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> TryParseDefaultAttributeValue()
     {
         var selfIdentifyingResult = TryParseSelfIdentifyingAttribute();
         if (!selfIdentifyingResult.IsNoMatch)
@@ -94,25 +84,13 @@ public sealed partial class Parser
             }
         }
 
-        return CreateUnrecognizedAttributeValueFailure(mode, allowTypedSuffix, stopBefore);
+        return CreateUnrecognizedAttributeValueFailure();
     }
 
-    private ParseResult<AttributeValueSyntax> CreateUnrecognizedAttributeValueFailure(
-        AttributeValueParsingMode mode,
-        bool allowTypedSuffix,
-        TokenKind[] stopBefore)
+    private ParseResult<AttributeValueSyntax> CreateUnrecognizedAttributeValueFailure()
     {
-        var rawStopBefore = allowTypedSuffix ? [.. stopBefore, TokenKind.Colon] : stopBefore;
-        var rawResult = mode == AttributeValueParsingMode.StopAtOperationBoundary
-            ? TryParseRawUntilDelimiterOrBoundaryResult(rawStopBefore)
-            : TryParseRawUntilDelimiterResult(rawStopBefore);
-        if (!rawResult.IsSuccess)
-        {
-            return ParseResult<AttributeValueSyntax>.Failure(rawResult.Diagnostic!);
-        }
-
         return ParseResult<AttributeValueSyntax>.Failure(
-            CreateDiagnostic("Expected an attribute value; unrecognized raw syntax '" + rawResult.Value.Text + "'."));
+            CreateDiagnostic("Expected an attribute value; found unrecognized syntax."));
     }
 
     private ParseResult<AttributeValueSyntax> WrapTypedAttributeValueSyntax(
@@ -175,7 +153,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(AttributeValueParsingMode.Normal, (AttributeConstraintDefinition?)null, delimiters);
+        return TryParseAttributeValue(null, delimiters);
     }
 
     /// <summary>
@@ -183,7 +161,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
     {
-        return TryParseAttributeValue(AttributeValueParsingMode.Normal, expectedDefinition, delimiters);
+        return TryParseAttributeValue(expectedDefinition, delimiters);
     }
 
     /// <summary>
@@ -216,7 +194,7 @@ public sealed partial class Parser
             return ParseResult<NamedAttributeSyntax>.Failure(CreateDiagnostic("Expected '=' or ':' after attribute name."));
         }
 
-        return TryParseAttributeValue(AttributeValueParsingMode.Normal, (AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace)
+        return TryParseAttributeValue((AttributeConstraintDefinition?)null, TokenKind.Comma, TokenKind.RBrace)
             .Map(valueSyntax => new NamedAttributeSyntax(nameToken, separatorToken, valueSyntax));
     }
 
@@ -227,7 +205,7 @@ public sealed partial class Parser
     /// </summary>
     private ParseResult<AttributeValueSyntax> TryParseStandaloneAttributeValue(AttributeConstraintDefinition? expectedDefinition)
     {
-        var parsed = TryParseAttributeValue(AttributeValueParsingMode.Normal, expectedDefinition);
+        var parsed = TryParseAttributeValue(expectedDefinition);
         if (!parsed.IsSuccess)
         {
             return parsed;
@@ -311,5 +289,4 @@ public sealed partial class Parser
             "Expected '{' to start the attribute dictionary.",
             "Expected '}' to close the attribute dictionary.");
     }
-
 }
