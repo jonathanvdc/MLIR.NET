@@ -23,12 +23,6 @@ public sealed partial class Parser
         new BuiltinNoneTypeAssemblyFormat()
     ];
 
-    /// <summary>Returns <see langword="true"/> when the current token is an identifier matching <paramref name="text"/>.</summary>
-    private bool IsKeyword(string text)
-    {
-        return Is(TokenKind.Identifier) && Current.Text == text;
-    }
-
     /// <summary>
     /// Attempts to parse a type using a dialect-registered custom assembly format.
     /// Peeks at the current position to determine the type name, looks it up in the dialect registry,

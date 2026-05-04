@@ -74,7 +74,7 @@ public readonly struct ParsingContext
     /// </summary>
     public bool IsKeyword(string spelling)
     {
-        return Parser.IsKeywordInternal(spelling);
+        return Parser.IsKeyword(spelling);
     }
 
     /// <summary>

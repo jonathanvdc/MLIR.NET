@@ -586,7 +586,7 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictWithKeywordInternal()
     {
-        if (!Is(TokenKind.Identifier) || !string.Equals(Current.Text, "attributes", System.StringComparison.Ordinal))
+        if (!IsKeyword("attributes"))
         {
             return ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>>.Success(EmptyDelimitedSyntaxList<NamedAttributeSyntax>());
         }
@@ -620,7 +620,7 @@ public sealed partial class Parser
     /// Returns <see langword="true"/> when the current token is an identifier whose text
     /// exactly matches <paramref name="spelling"/>.
     /// </summary>
-    internal bool IsKeywordInternal(string spelling)
+    internal bool IsKeyword(string spelling)
     {
         return Is(TokenKind.Identifier) && string.Equals(Current.Text, spelling, StringComparison.Ordinal);
     }
