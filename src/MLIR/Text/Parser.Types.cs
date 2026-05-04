@@ -118,45 +118,6 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<TypeSyntax> TryParseTypeSyntax()
     {
-        return TryParseTypeSyntaxCoreResult();
-    }
-
-    /// <summary>
-    /// Parses a comma-separated list of types until an operation boundary is reached.
-    /// This is used by custom operation assembly formats such as <c>type($variadic)</c>,
-    /// where the list is not enclosed in parentheses but still needs depth-aware parsing.
-    /// </summary>
-    internal IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()
-    {
-        var items = new List<TypeSyntax>();
-        while (true)
-        {
-            var itemResult = TryParseTypeSyntaxCoreResult();
-            if (!itemResult.IsSuccess)
-            {
-                throw new ParseException(itemResult.Diagnostic!);
-            }
-
-            items.Add(itemResult.Value);
-            if (!TryMatch(TokenKind.Comma, out _))
-            {
-                break;
-            }
-        }
-
-        return items;
-    }
-
-    /// <summary>
-    /// Core type parsing dispatcher with both delimiter and keyword stop conditions.
-    /// <list type="number">
-    ///   <item><description>Tries the default builtin type assembly formats in order.</description></item>
-    ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntax"/>.</description></item>
-    ///   <item><description>Reports a diagnostic describing the unrecognized type fragment.</description></item>
-    /// </list>
-    /// </summary>
-    internal ParseResult<TypeSyntax> TryParseTypeSyntaxCoreResult()
-    {
         foreach (var assemblyFormat in DefaultTypeAssemblyFormats)
         {
             var builtinTypeResult = TryParseTypeAssemblyFormat(assemblyFormat);
@@ -173,6 +134,32 @@ public sealed partial class Parser
         }
 
         return CreateUnrecognizedTypeFailure();
+    }
+
+    /// <summary>
+    /// Parses a comma-separated list of types until an operation boundary is reached.
+    /// This is used by custom operation assembly formats such as <c>type($variadic)</c>,
+    /// where the list is not enclosed in parentheses but still needs depth-aware parsing.
+    /// </summary>
+    internal IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()
+    {
+        var items = new List<TypeSyntax>();
+        while (true)
+        {
+            var itemResult = TryParseTypeSyntax();
+            if (!itemResult.IsSuccess)
+            {
+                throw new ParseException(itemResult.Diagnostic!);
+            }
+
+            items.Add(itemResult.Value);
+            if (!TryMatch(TokenKind.Comma, out _))
+            {
+                break;
+            }
+        }
+
+        return items;
     }
 
     private ParseResult<TypeSyntax> CreateUnrecognizedTypeFailure()
