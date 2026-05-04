@@ -16,6 +16,14 @@ public abstract class DialectParsingContext
     }
 
     /// <summary>
+    /// Creates a diagnostic at the current parser position.
+    /// </summary>
+    public Diagnostic CreateDiagnostic(string message)
+    {
+        return Parser.CreateDiagnostic(message);
+    }
+
+    /// <summary>
     /// Determines whether the current token has the supplied kind.
     /// </summary>
     public bool Is(TokenKind kind)

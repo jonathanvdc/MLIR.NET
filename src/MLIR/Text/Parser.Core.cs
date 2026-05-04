@@ -479,15 +479,9 @@ public sealed partial class Parser
     /// <summary>
     /// Creates a <see cref="Diagnostic"/> pointing at the current token position.
     /// </summary>
-    private Diagnostic CreateDiagnostic(string message)
+    internal Diagnostic CreateDiagnostic(string message)
     {
         return new Diagnostic(message, Current.Location);
-    }
-
-    /// <summary>Bridges <see cref="CreateDiagnostic"/> for use by dialect parsing contexts.</summary>
-    internal Diagnostic CreateDiagnosticInternal(string message)
-    {
-        return CreateDiagnostic(message);
     }
 
     /// <summary>Bridges <see cref="Is"/> for use by <see cref="DialectParsingContext"/>.</summary>

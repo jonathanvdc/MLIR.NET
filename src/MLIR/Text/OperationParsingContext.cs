@@ -16,14 +16,6 @@ public sealed class OperationParsingContext : DialectParsingContext
     }
 
     /// <summary>
-    /// Creates a diagnostic at the current parser position.
-    /// </summary>
-    public Diagnostic CreateDiagnostic(string message)
-    {
-        return Parser.CreateDiagnosticInternal(message);
-    }
-
-    /// <summary>
     /// Parses an operation header: optional SSA result list, optional equals token, and operation name token.
     /// </summary>
     public ParseResult<OperationParseHeader> TryParseHeader()
