@@ -193,14 +193,6 @@ public sealed partial class Parser
     }
 
     /// <summary>
-    /// Bridges name-guided attribute value parsing for use by <see cref="ParsingContext"/>.
-    /// </summary>
-    internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(string? expectedDefinitionName, params TokenKind[] delimiters)
-    {
-        return TryParseAttributeValue(AttributeValueParsingMode.Normal, expectedDefinitionName, delimiters);
-    }
-
-    /// <summary>
     /// Bridges definition-guided attribute value parsing for use by <see cref="ParsingContext"/>.
     /// </summary>
     internal ParseResult<AttributeValueSyntax> TryParseAttributeValueInternal(AttributeConstraintDefinition expectedDefinition, params TokenKind[] delimiters)
