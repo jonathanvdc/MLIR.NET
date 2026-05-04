@@ -622,7 +622,7 @@ public sealed partial class Parser
     /// </summary>
     internal bool IsKeywordInternal(string spelling)
     {
-        return Is(TokenKind.Identifier) && string.Equals(Current.Text, spelling, System.StringComparison.Ordinal);
+        return Is(TokenKind.Identifier) && string.Equals(Current.Text, spelling, StringComparison.Ordinal);
     }
 
     /// <summary>
