@@ -274,7 +274,7 @@ public readonly struct ParsingContext
     /// </summary>
     public IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()
     {
-        return Parser.ParseTypeSyntaxListUntilOperationBoundaryInternal();
+        return Parser.ParseTypeSyntaxList();
     }
 
     /// <summary>

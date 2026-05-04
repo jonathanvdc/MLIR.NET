@@ -126,7 +126,7 @@ public sealed partial class Parser
     /// This is used by custom operation assembly formats such as <c>type($variadic)</c>,
     /// where the list is not enclosed in parentheses but still needs depth-aware parsing.
     /// </summary>
-    private IReadOnlyList<TypeSyntax> ParseTypeSyntaxListUntilOperationBoundary()
+    internal IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()
     {
         var items = new List<TypeSyntax>();
         while (true)
@@ -187,11 +187,5 @@ public sealed partial class Parser
         return TryParseType(text, dialectRegistry, out var type, out var diagnostic)
             ? ParseResult<TypeSyntax>.Success(type!)
             : ParseResult<TypeSyntax>.Failure(diagnostic!);
-    }
-
-    /// <summary>Bridges <see cref="ParseTypeSyntaxListUntilOperationBoundary"/> for use by <see cref="ParsingContext"/>.</summary>
-    internal IReadOnlyList<TypeSyntax> ParseTypeSyntaxListUntilOperationBoundaryInternal()
-    {
-        return ParseTypeSyntaxListUntilOperationBoundary();
     }
 }
