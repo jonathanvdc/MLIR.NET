@@ -69,7 +69,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             "new TypeDefinition(\"myp.opaque\",",
             "TypeSyntax? syntax = null)",
             ": base(syntax)",
-            "TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
+            "override TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
             "WritePrefix(writer);",
             ": BodyOnlyTypeAssemblyFormat",
             "ParseResult<TypeSyntax> TryParseBody(TypeParsingContext context, DialectTypePrefix prefix)",
@@ -105,7 +105,7 @@ public sealed class DialectGeneratorTypedTypeTests : DialectGeneratorTestBase
             ": BodyOnlyTypeAssemblyFormat",
             "Unsupported declarative assembly format construct for type body.",
             "public static TypeReference BindValue(TypeSyntax syntax, Binder binder)",
-            "public TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
+            "public override TypeSyntax BuildCustomAssemblySyntax(TypeReference type, ConcreteSyntaxBuilderContext context)",
             "StringLiteralAttributeAssemblyFormat.Quote(typed.Value)");
     }
 
