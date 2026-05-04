@@ -1,10 +1,6 @@
 namespace MLIR.Text;
 
-using System.Globalization;
-using MLIR.Dialects.Attributes.Primitives;
-using MLIR.Numerics;
 using MLIR.Syntax;
-using MLIR.Syntax.Attributes.Primitives;
 
 /// <summary>
 /// Provides dialect-specific type parsers controlled access to the MLIR parser.
@@ -30,22 +26,6 @@ public sealed class TypeParsingContext : DialectParsingContext
         this.defaultTypeStopBefore = defaultTypeStopBefore;
         this.defaultTypeStopBeforeKeywords = defaultTypeStopBeforeKeywords;
         this.stopAtOperationBoundary = stopAtOperationBoundary;
-    }
-
-    /// <summary>
-    /// Tries to match a string literal token and returns it as a
-    /// <see cref="StringAttributeValueSyntax"/> with the surrounding double-quotes stripped
-    /// and escape sequences resolved.
-    /// </summary>
-    public ParseResult<AttributeValueSyntax> TryParseStringLiteralSyntax()
-    {
-        if (!TryMatch(TokenKind.StringLiteral, out var token))
-        {
-            return ParseResult<AttributeValueSyntax>.NoMatch();
-        }
-
-        return ParseResult<AttributeValueSyntax>.Success(
-            new StringAttributeValueSyntax(token, StringLiteralAttributeAssemblyFormat.Unescape(token.Text)));
     }
 
     /// <summary>
