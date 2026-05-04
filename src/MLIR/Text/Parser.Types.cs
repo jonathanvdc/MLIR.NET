@@ -35,7 +35,7 @@ public sealed partial class Parser
     /// and invokes the registered format handler. Resets the position on <c>NoMatch</c>.
     /// Returns <see cref="ParseOutcome.NoMatch"/> when no registry is available or the name is not registered.
     /// </summary>
-    private ParseResult<TypeSyntax> TryParseCustomTypeSyntaxResult()
+    private ParseResult<TypeSyntax> TryParseCustomTypeSyntax()
     {
         if (dialectRegistry == null)
         {
@@ -151,7 +151,7 @@ public sealed partial class Parser
     /// Core type parsing dispatcher with both delimiter and keyword stop conditions.
     /// <list type="number">
     ///   <item><description>Tries the default builtin type assembly formats in order.</description></item>
-    ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntaxResult"/>.</description></item>
+    ///   <item><description>Tries registered dialect types via <see cref="TryParseCustomTypeSyntax"/>.</description></item>
     ///   <item><description>Reports a diagnostic describing the unrecognized type fragment.</description></item>
     /// </list>
     /// </summary>
@@ -166,7 +166,7 @@ public sealed partial class Parser
             }
         }
 
-        var customTypeResult = TryParseCustomTypeSyntaxResult();
+        var customTypeResult = TryParseCustomTypeSyntax();
         if (!customTypeResult.IsNoMatch)
         {
             return customTypeResult;
