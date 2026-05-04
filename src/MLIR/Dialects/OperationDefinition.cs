@@ -6,62 +6,73 @@ using MLIR.Semantics;
 /// <summary>
 /// Describes the semantic behavior of a dialect operation.
 /// </summary>
-/// <remarks>
-/// Initializes a new instance of the <see cref="OperationDefinition"/> class.
-/// </remarks>
-/// <param name="name">The canonical operation name without MLIR string-literal quoting.</param>
-/// <param name="operandDefinitions">The declarative operand segments, if available.</param>
-/// <param name="resultDefinitions">The declarative result segments, if available.</param>
-/// <param name="regionDefinitions">The declarative region segments, if available.</param>
-/// <param name="successorDefinitions">The declarative successor segments, if available.</param>
-/// <param name="attributeDefinitions">The declarative operation attribute definitions, if available.</param>
-/// <param name="verifier">The optional verifier for the operation.</param>
-/// <param name="assemblyFormat">The optional custom assembly format.</param>
-/// <param name="assemblyFormatFactory">The optional custom assembly format factory.</param>
-/// <param name="factory">The optional typed operation factory.</param>
-public sealed class OperationDefinition(
-    string name,
-    IReadOnlyList<OperationSegmentDefinition>? operandDefinitions = null,
-    IReadOnlyList<OperationSegmentDefinition>? resultDefinitions = null,
-    IReadOnlyList<OperationSegmentDefinition>? regionDefinitions = null,
-    IReadOnlyList<OperationSegmentDefinition>? successorDefinitions = null,
-    IReadOnlyList<OperationAttributeDefinition>? attributeDefinitions = null,
-    IOperationVerifier? verifier = null,
-    IOperationAssemblyFormat? assemblyFormat = null,
-    System.Func<OperationDefinition, IOperationAssemblyFormat>? assemblyFormatFactory = null,
-    System.Func<OperationConstructionContext, Operation>? factory = null)
+public sealed class OperationDefinition
 {
-    private IOperationAssemblyFormat? assemblyFormat = assemblyFormat;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OperationDefinition"/> class.
+    /// </summary>
+    /// <param name="name">The canonical operation name without MLIR string-literal quoting.</param>
+    /// <param name="operandDefinitions">The declarative operand segments, if available.</param>
+    /// <param name="resultDefinitions">The declarative result segments, if available.</param>
+    /// <param name="regionDefinitions">The declarative region segments, if available.</param>
+    /// <param name="successorDefinitions">The declarative successor segments, if available.</param>
+    /// <param name="attributeDefinitions">The declarative operation attribute definitions, if available.</param>
+    /// <param name="verifier">The optional verifier for the operation.</param>
+    /// <param name="assemblyFormat">The optional custom assembly format.</param>
+    /// <param name="assemblyFormatFactory">The optional custom assembly format factory.</param>
+    /// <param name="factory">The optional typed operation factory.</param>
+    public OperationDefinition(
+        string name,
+        IReadOnlyList<OperationSegmentDefinition>? operandDefinitions = null,
+        IReadOnlyList<OperationSegmentDefinition>? resultDefinitions = null,
+        IReadOnlyList<OperationSegmentDefinition>? regionDefinitions = null,
+        IReadOnlyList<OperationSegmentDefinition>? successorDefinitions = null,
+        IReadOnlyList<OperationAttributeDefinition>? attributeDefinitions = null,
+        IOperationVerifier? verifier = null,
+        IOperationAssemblyFormat? assemblyFormat = null,
+        System.Func<OperationDefinition, IOperationAssemblyFormat>? assemblyFormatFactory = null,
+        System.Func<OperationConstructionContext, Operation>? factory = null)
+    {
+        Name = name;
+        OperandDefinitions = operandDefinitions ?? EmptySegmentDefinitions;
+        ResultDefinitions = resultDefinitions ?? EmptySegmentDefinitions;
+        RegionDefinitions = regionDefinitions ?? EmptySegmentDefinitions;
+        SuccessorDefinitions = successorDefinitions ?? EmptySegmentDefinitions;
+        AttributeDefinitions = attributeDefinitions ?? EmptyAttributeDefinitions;
+        Verifier = verifier;
+        AssemblyFormat = assemblyFormat ?? assemblyFormatFactory?.Invoke(this);
+        Factory = factory ?? CreateDefaultFactory();
+    }
 
     /// <summary>
     /// Gets the canonical operation name without MLIR string-literal quoting.
     /// </summary>
-    public string Name { get; } = name;
+    public string Name { get; }
 
     /// <summary>
     /// Gets the declarative operand segments, if available.
     /// </summary>
-    public IReadOnlyList<OperationSegmentDefinition> OperandDefinitions { get; } = operandDefinitions ?? EmptySegmentDefinitions;
+    public IReadOnlyList<OperationSegmentDefinition> OperandDefinitions { get; }
 
     /// <summary>
     /// Gets the declarative result segments, if available.
     /// </summary>
-    public IReadOnlyList<OperationSegmentDefinition> ResultDefinitions { get; } = resultDefinitions ?? EmptySegmentDefinitions;
+    public IReadOnlyList<OperationSegmentDefinition> ResultDefinitions { get; }
 
     /// <summary>
     /// Gets the declarative region segments, if available.
     /// </summary>
-    public IReadOnlyList<OperationSegmentDefinition> RegionDefinitions { get; } = regionDefinitions ?? EmptySegmentDefinitions;
+    public IReadOnlyList<OperationSegmentDefinition> RegionDefinitions { get; }
 
     /// <summary>
     /// Gets the declarative successor segments, if available.
     /// </summary>
-    public IReadOnlyList<OperationSegmentDefinition> SuccessorDefinitions { get; } = successorDefinitions ?? EmptySegmentDefinitions;
+    public IReadOnlyList<OperationSegmentDefinition> SuccessorDefinitions { get; }
 
     /// <summary>
     /// Gets the declarative attribute definitions, if available.
     /// </summary>
-    public IReadOnlyList<OperationAttributeDefinition> AttributeDefinitions { get; } = attributeDefinitions ?? EmptyAttributeDefinitions;
+    public IReadOnlyList<OperationAttributeDefinition> AttributeDefinitions { get; }
 
     /// <summary>
     /// Gets the exact number of operands expected by the operation, if constrained.
@@ -106,17 +117,17 @@ public sealed class OperationDefinition(
     /// <summary>
     /// Gets the verifier for the operation, if one is registered.
     /// </summary>
-    public IOperationVerifier? Verifier { get; } = verifier;
+    public IOperationVerifier? Verifier { get; }
 
     /// <summary>
     /// Gets the custom assembly format for the operation, if one is registered.
     /// </summary>
-    public IOperationAssemblyFormat? AssemblyFormat => assemblyFormat ??= assemblyFormatFactory?.Invoke(this);
+    public IOperationAssemblyFormat? AssemblyFormat { get; }
 
     /// <summary>
     /// Gets the typed operation factory for the operation, if one is registered.
     /// </summary>
-    public System.Func<OperationConstructionContext, Operation> Factory { get; } = factory ?? CreateDefaultFactory();
+    public System.Func<OperationConstructionContext, Operation> Factory { get; }
 
     private static readonly IReadOnlyList<OperationSegmentDefinition> EmptySegmentDefinitions = new OperationSegmentDefinition[0];
     private static readonly IReadOnlyList<OperationAttributeDefinition> EmptyAttributeDefinitions = new OperationAttributeDefinition[0];
