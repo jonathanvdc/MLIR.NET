@@ -11,7 +11,7 @@ namespace MLIR.Dialects;
 /// <para>
 /// A <see cref="TypeDefinition"/> carries registered metadata (canonical name and optional assembly
 /// format) for a dialect type. Binding is driven by
-/// <see cref="ITypeAssemblyFormat.Bind(MLIR.Syntax.TypeSyntax, TypeDefinition, MLIR.Semantics.Binder)"/>
+/// <see cref="ITypeAssemblyFormat"/>
 /// when an assembly format is present. When no assembly format is registered, the binder falls back to
 /// producing an <c>UnknownTypeReference</c> with the definition attached.
 /// </para>

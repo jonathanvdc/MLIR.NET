@@ -178,6 +178,8 @@ internal sealed class TypeBindBuildEmitter : AttrOrTypeBindBuildEmitter
     protected override string ExistingSyntaxExpression => "typed.Syntax";
 
     protected override string SyntheticPrefixExpression => "DialectTypePrefix.Synthetic(" + EmitterHelpers.ToCSharpStringLiteral(Type.Name ?? string.Empty) + ")";
+
+    protected override string BuildCustomAssemblySyntaxOverrideModifier => "override ";
 }
 
 internal sealed class AttributeBindBuildEmitter : AttrOrTypeBindBuildEmitter

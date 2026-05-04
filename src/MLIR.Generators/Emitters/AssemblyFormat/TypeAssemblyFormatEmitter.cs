@@ -55,7 +55,7 @@ internal static class TypeAssemblyFormatEmitter
         builder.AppendLine();
         bindBuildEmitter.EmitBindValueMethod(builder);
         builder.AppendLine();
-        builder.AppendLine("    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)");
+        builder.AppendLine("    public override TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)");
         builder.AppendLine("    {");
         builder.AppendLine("        return BindValue(syntax, binder);");
         builder.AppendLine("    }");
