@@ -8,7 +8,7 @@ using MLIR.Transforms;
 /// <summary>
 /// Parses, binds, and rewrites a dialect-specific attribute assembly format.
 /// </summary>
-public interface IAttributeAssemblyFormat : IAssemblyFormat<AttributeValueSyntax, AttributeValue, AttributeConstraintDefinition, AttributeParsingContext>;
+public interface IAttributeAssemblyFormat : IAssemblyFormat<AttributeValueSyntax, AttributeValue, AttributeParsingContext>;
 
 /// <summary>
 /// Base class for attribute assembly formats whose custom grammar handles only
@@ -65,7 +65,7 @@ public abstract class BodyOnlyAttributeAssemblyFormat(string attributeName) : IA
     /// <summary>
     /// Interprets the supplied attribute-value syntax into a semantic attribute value.
     /// </summary>
-    public abstract AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder);
+    public abstract AttributeValue Bind(AttributeValueSyntax syntax, Binder binder);
 
     /// <summary>
     /// Builds a custom concrete syntax tree for the supplied attribute value.

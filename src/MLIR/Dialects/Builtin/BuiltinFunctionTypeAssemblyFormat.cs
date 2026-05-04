@@ -65,7 +65,7 @@ public sealed class BuiltinFunctionTypeAssemblyFormat : ITypeAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
+    public TypeReference Bind(TypeSyntax syntax, Binder binder)
     {
         if (syntax is not FunctionTypeSyntax functionSyntax)
         {

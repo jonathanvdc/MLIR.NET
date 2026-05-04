@@ -15,14 +15,15 @@ using MLIR.Transforms;
 /// </summary>
 public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
 {
-    private FuncOperationAssemblyFormat()
-    {
-    }
+    private readonly OperationDefinition definition;
 
     /// <summary>
-    /// Gets the singleton instance of the func.func assembly format.
+    /// Initializes a new <c>func.func</c> assembly format bound to the operation definition being registered.
     /// </summary>
-    public static FuncOperationAssemblyFormat Instance { get; } = new();
+    public FuncOperationAssemblyFormat(OperationDefinition definition)
+    {
+        this.definition = definition;
+    }
 
     /// <inheritdoc/>
     public ParseResult<OperationBodySyntax> TryParse(
@@ -212,7 +213,7 @@ public sealed class FuncOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+    public Operation Bind(OperationSyntax syntax, Binder binder)
     {
         if (syntax.Body is not FuncOperationBodySyntax body)
         {

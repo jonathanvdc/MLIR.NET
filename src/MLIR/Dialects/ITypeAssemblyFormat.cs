@@ -8,7 +8,7 @@ using MLIR.Transforms;
 /// <summary>
 /// Parses, binds, and rewrites a dialect-specific type assembly format.
 /// </summary>
-public interface ITypeAssemblyFormat : IAssemblyFormat<TypeSyntax, TypeReference, TypeDefinition, TypeParsingContext>;
+public interface ITypeAssemblyFormat : IAssemblyFormat<TypeSyntax, TypeReference, TypeParsingContext>;
 
 /// <summary>
 /// Base class for type assembly formats whose custom grammar handles only
@@ -65,7 +65,7 @@ public abstract class BodyOnlyTypeAssemblyFormat(string typeName) : ITypeAssembl
     /// <summary>
     /// Interprets the supplied type syntax into a semantic type reference.
     /// </summary>
-    public abstract TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder);
+    public abstract TypeReference Bind(TypeSyntax syntax, Binder binder);
 
     /// <summary>
     /// Builds a custom concrete syntax tree for the supplied type reference.

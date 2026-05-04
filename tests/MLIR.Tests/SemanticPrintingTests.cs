@@ -30,7 +30,7 @@ public sealed partial class SemanticTests
                             operation.Result("result")
                                 .RequiredAttribute("value")
                                 .WithFactory(static context => new GeneratedConstantOperation(context))
-                                .WithAssemblyFormat(new PrefixConstantAssemblyFormat());
+                                .WithAssemblyFormat(static definition => new PrefixConstantAssemblyFormat(definition));
                         });
                 }));
 
@@ -44,7 +44,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void SemanticPrinterRebuildsF32AttributesFromTheirNumericValue()
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
+        var f32AttributeDefinition = new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition));
         var registry = new DialectRegistry();
         registry.RegisterDialect(
             Dialect.Create(
@@ -57,7 +57,7 @@ public sealed partial class SemanticTests
                         {
                             operation.Result("result")
                                 .WithFactory(static context => new GeneratedConstantOperation(context))
-                                .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(f32AttributeDefinition));
+                                .WithAssemblyFormat(definition => new ContextDirectedConstantAssemblyFormat(f32AttributeDefinition, definition));
                         });
                 }));
 
@@ -72,7 +72,7 @@ public sealed partial class SemanticTests
     [InlineData("+1.500")]
     public void SemanticPrinterNormalizesAndRoundTripsF32Attributes(string sourceValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
+        var f32AttributeDefinition = new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -97,7 +97,7 @@ public sealed partial class SemanticTests
     [InlineData("-3.125e200")]
     public void SemanticPrinterNormalizesAndRoundTripsF64Attributes(string sourceValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
+        var f64AttributeDefinition = new AttributeDefinition("f64", assemblyFormatFactory: static definition => new TestF64AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -136,9 +136,9 @@ public sealed partial class SemanticTests
                         "arith.constant",
                         operation => operation
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(source.Contains(": f32", StringComparison.Ordinal) || source.Contains("f32", StringComparison.Ordinal)
-                                ? new ContextDirectedConstantAssemblyFormat(new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat()))
-                                : new ContextDirectedConstantAssemblyFormat(new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat()))));
+                            .WithAssemblyFormat(definition => source.Contains(": f32", StringComparison.Ordinal) || source.Contains("f32", StringComparison.Ordinal)
+                                ? new ContextDirectedConstantAssemblyFormat(new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition)), definition)
+                                : new ContextDirectedConstantAssemblyFormat(new AttributeDefinition("f64", assemblyFormatFactory: static definition => new TestF64AttributeAssemblyFormat(definition)), definition)));
                 }));
 
         var module = Parser.ParseModule(source, registry);
@@ -152,7 +152,7 @@ public sealed partial class SemanticTests
     [InlineData("nan", "nan")]
     public void SemanticPrinterCanonicalizesF32HexAndSpecialForms(string sourceValue, string normalizedValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
+        var f32AttributeDefinition = new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -168,7 +168,7 @@ public sealed partial class SemanticTests
     [InlineData("nan", "nan")]
     public void SemanticPrinterCanonicalizesF64HexAndSpecialForms(string sourceValue, string normalizedValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
+        var f64AttributeDefinition = new AttributeDefinition("f64", assemblyFormatFactory: static definition => new TestF64AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -191,7 +191,7 @@ public sealed partial class SemanticTests
                         "arith.constant",
                         operation => operation
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                            .WithAssemblyFormat(static definition => new PrefixConstantAssemblyFormat(definition)));
                 }));
 
         var module = Parser.ParseModule("%0 = arith.constant 0 : i32", registry);
@@ -218,7 +218,7 @@ public sealed partial class SemanticTests
                         "arith.constant",
                         operation => operation
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                            .WithAssemblyFormat(static definition => new PrefixConstantAssemblyFormat(definition)));
                 }));
 
         var document = Document.Parse("%0 = arith.constant 0 : i32", registry);
@@ -241,7 +241,7 @@ public sealed partial class SemanticTests
                         "arith.constant",
                         operation => operation
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                            .WithAssemblyFormat(static definition => new PrefixConstantAssemblyFormat(definition)));
                 }));
 
         const string source = "%0 = arith.constant  0  :  i32\n";
@@ -266,7 +266,7 @@ public sealed partial class SemanticTests
                         operation => operation
                             .RequiredAttribute("value")
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                            .WithAssemblyFormat(static definition => new PrefixConstantAssemblyFormat(definition)));
                 }));
 
         var module = Binder.BindModule(
@@ -290,7 +290,7 @@ public sealed partial class SemanticTests
             new Dialect(
                 "builtin",
                 [],
-                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
+                [new AttributeDefinition("dense", assemblyFormatFactory: static definition => new DenseAttributeAssemblyFormat(definition))],
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
 
         var module = Binder.BindModule(
@@ -324,7 +324,7 @@ public sealed partial class SemanticTests
                         "arith.constant",
                         operation => operation
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                            .WithAssemblyFormat(static definition => new PrefixConstantAssemblyFormat(definition)));
                 }));
 
         var module = Binder.BindModule(

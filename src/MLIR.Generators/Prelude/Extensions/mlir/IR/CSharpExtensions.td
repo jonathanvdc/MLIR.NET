@@ -5,6 +5,9 @@
 // without editing the vendored upstream files directly.
 
 class CSharpOpExtension {
+  // C# expression that creates an IOperationAssemblyFormat. Use $_definition to
+  // refer to the OperationDefinition being registered when the format needs
+  // definition metadata.
   string csharpAsmFormatCode = ?;
 }
 

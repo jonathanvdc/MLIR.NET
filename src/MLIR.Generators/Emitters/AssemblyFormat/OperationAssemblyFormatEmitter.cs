@@ -360,12 +360,12 @@ internal static class OperationAssemblyFormatEmitter
         builder.AppendLine("{");
         TryParseEmitter.Emit(builder, operation, bodySyntaxMetadata, resolver);
         builder.AppendLine();
-        builder.AppendLine("    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)");
+        builder.AppendLine("    public Operation Bind(OperationSyntax syntax, Binder binder)");
         builder.AppendLine("    {");
         builder.AppendLine("        if (syntax.Body is not " + className + "BodySyntax body)");
         builder.AppendLine("        {");
         builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, \"Expected a " + className + "BodySyntax but found \" + syntax.Body.GetType().Name + \".\"));");
-        builder.AppendLine("            return new UninterpretedOperation(syntax, definition.Name);");
+            builder.AppendLine("            return new UninterpretedOperation(syntax, " + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + ");");
         builder.AppendLine("        }");
         var hasVariadicResults = operation.Results.Any(static result => result.IsVariadic);
         var minimumResultCount = 0;
@@ -388,7 +388,7 @@ internal static class OperationAssemblyFormatEmitter
         builder.AppendLine("        if (" + resultCountCondition + ")");
         builder.AppendLine("        {");
         builder.AppendLine("            binder.Report(new AssemblyDiagnostic(syntax.Location, " + resultCountMessage + "));");
-        builder.AppendLine("            return new UninterpretedOperation(syntax, definition.Name);");
+            builder.AppendLine("            return new UninterpretedOperation(syntax, " + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + ");");
         builder.AppendLine("        }");
         builder.AppendLine("        return new " + className + "(");
         builder.AppendLine("            syntax,");

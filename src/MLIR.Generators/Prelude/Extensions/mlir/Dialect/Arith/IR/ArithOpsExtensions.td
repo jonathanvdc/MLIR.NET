@@ -4,7 +4,7 @@ include "mlir/Extensions/IR/CSharpExtensions.td"
 #define ARITH_OPS_EXTENSIONS_TD
 
 extends SelectOp : CSharpOpExtension {
-  let csharpAsmFormatCode = "global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance";
+  let csharpAsmFormatCode = "new global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat($_definition)";
 }
 
 #endif // ARITH_OPS_EXTENSIONS_TD

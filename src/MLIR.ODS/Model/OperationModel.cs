@@ -90,7 +90,8 @@ public sealed class OperationModel
     public IReadOnlyList<TraitModel> Traits { get; }
 
     /// <summary>
-    /// Gets C# code for any custom assembly format, if specified.
+    /// Gets C# expression-template code for any custom assembly format, if specified.
+    /// The generator accepts <c>$_definition</c> as the operation-definition placeholder.
     /// </summary>
     public string? AssemblyFormatCode { get; }
 

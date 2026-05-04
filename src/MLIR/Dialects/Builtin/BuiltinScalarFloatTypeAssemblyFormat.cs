@@ -83,7 +83,7 @@ public sealed class BuiltinScalarFloatTypeAssemblyFormat : ITypeAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
+    public TypeReference Bind(TypeSyntax syntax, Binder binder)
     {
         return _create(syntax as BuiltinFloatTypeSyntax);
     }

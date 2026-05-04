@@ -33,10 +33,9 @@ public interface IOperationAssemblyFormat
     /// Interprets the supplied concrete syntax tree in the assembly format into semantic properties.
     /// </summary>
     /// <param name="syntax">The operation syntax to interpret.</param>
-    /// <param name="definition">The operation definition.</param>
     /// <param name="binder">The binding context.</param>
     /// <returns>The interpreted operation.</returns>
-    Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder);
+    Operation Bind(OperationSyntax syntax, Binder binder);
 
     /// <summary>
     /// Builds a custom concrete syntax tree for the supplied operation.

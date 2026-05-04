@@ -29,7 +29,7 @@ public sealed partial class SemanticTests
                     "arith.constant",
                     operation => operation
                         .WithFactory(static context => new GeneratedConstantOperation(context))
-                        .WithAssemblyFormat(new PrefixConstantAssemblyFormat()));
+                        .WithAssemblyFormat(static definition => new PrefixConstantAssemblyFormat(definition)));
             });
     }
 
@@ -52,7 +52,7 @@ public sealed partial class SemanticTests
                         operation => operation
                             .Result("result")
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(valueDefinition)));
+                            .WithAssemblyFormat(definition => new ContextDirectedConstantAssemblyFormat(valueDefinition, definition)));
                 }));
 
         return registry;
@@ -436,6 +436,13 @@ public sealed partial class SemanticTests
 
     private sealed class PrefixConstantAssemblyFormat : IOperationAssemblyFormat
     {
+        private readonly OperationDefinition definition;
+
+        public PrefixConstantAssemblyFormat(OperationDefinition definition)
+        {
+            this.definition = definition;
+        }
+
         public ParseResult<OperationBodySyntax> TryParse(
             Token nameToken,
             SeparatedSyntaxList<Token> resultList,
@@ -471,7 +478,7 @@ public sealed partial class SemanticTests
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
-        public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+        public Operation Bind(OperationSyntax syntax, Binder binder)
         {
             var body = (PrefixConstantBodySyntax)syntax.Body;
             return new GeneratedConstantOperation(
@@ -500,10 +507,14 @@ public sealed partial class SemanticTests
     private sealed class ContextDirectedConstantAssemblyFormat : IOperationAssemblyFormat
     {
         private readonly AttributeConstraintDefinition expectedAttributeDefinition;
+        private readonly OperationDefinition definition;
 
-        public ContextDirectedConstantAssemblyFormat(AttributeConstraintDefinition expectedAttributeDefinition)
+        public ContextDirectedConstantAssemblyFormat(
+            AttributeConstraintDefinition expectedAttributeDefinition,
+            OperationDefinition definition)
         {
             this.expectedAttributeDefinition = expectedAttributeDefinition;
+            this.definition = definition;
         }
 
         public ParseResult<OperationBodySyntax> TryParse(
@@ -540,7 +551,7 @@ public sealed partial class SemanticTests
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 
-        public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+        public Operation Bind(OperationSyntax syntax, Binder binder)
         {
             var body = (PrefixConstantBodySyntax)syntax.Body;
             return new GeneratedConstantOperation(
@@ -569,6 +580,13 @@ public sealed partial class SemanticTests
 
     private sealed class DenseAttributeAssemblyFormat : IAttributeAssemblyFormat
     {
+        private readonly AttributeConstraintDefinition definition;
+
+        public DenseAttributeAssemblyFormat(AttributeConstraintDefinition definition)
+        {
+            this.definition = definition;
+        }
+
         public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
             if (!context.TryMatch(TokenKind.Hash, out var hashToken))
@@ -629,7 +647,7 @@ public sealed partial class SemanticTests
                 typeSyntax));
         }
 
-        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+        public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
         {
             var denseAttribute = new DenseAttributeValue(syntax, "dense", definition);
             denseAttribute.BindDense();
@@ -665,7 +683,7 @@ public sealed partial class SemanticTests
             }, width));
         }
 
-        public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
+        public TypeReference Bind(TypeSyntax syntax, Binder binder)
         {
             if (syntax is not Syntax.Types.Primitives.BuiltinIntegerTypeSyntax integerSyntax)
             {
@@ -696,6 +714,13 @@ public sealed partial class SemanticTests
 
     private sealed class I32AttributeAssemblyFormat : IAttributeAssemblyFormat
     {
+        private readonly AttributeConstraintDefinition definition;
+
+        public I32AttributeAssemblyFormat(AttributeConstraintDefinition definition)
+        {
+            this.definition = definition;
+        }
+
         public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
             if (!context.TryMatch(TokenKind.Integer, out var literalToken))
@@ -706,7 +731,7 @@ public sealed partial class SemanticTests
             return ParseResult<AttributeValueSyntax>.Success(new IntegerLiteralAttributeSyntax(literalToken));
         }
 
-        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+        public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
         {
             var attribute = new I32AttributeValue(syntax, definition.Name, definition);
             attribute.BindValue(int.Parse(syntax.ToString()));
@@ -727,13 +752,19 @@ public sealed partial class SemanticTests
     private sealed class TestF32AttributeAssemblyFormat : IAttributeAssemblyFormat
     {
         private readonly FloatingPointLiteralAttributeAssemblyFormat singlePrecisionFormat = new(FloatSemantics.IEEESingle);
+        private readonly AttributeConstraintDefinition definition;
+
+        public TestF32AttributeAssemblyFormat(AttributeConstraintDefinition definition)
+        {
+            this.definition = definition;
+        }
 
         public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
             return singlePrecisionFormat.TryParse(context);
         }
 
-        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+        public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
         {
             return new TestF32AttributeValue(
                 syntax, definition.Name, definition);
@@ -748,13 +779,19 @@ public sealed partial class SemanticTests
     private sealed class TestF64AttributeAssemblyFormat : IAttributeAssemblyFormat
     {
         private readonly FloatingPointLiteralAttributeAssemblyFormat doublePrecisionFormat = new(FloatSemantics.IEEEDouble);
+        private readonly AttributeConstraintDefinition definition;
+
+        public TestF64AttributeAssemblyFormat(AttributeConstraintDefinition definition)
+        {
+            this.definition = definition;
+        }
 
         public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
         {
             return doublePrecisionFormat.TryParse(context);
         }
 
-        public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+        public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
         {
             return new TestF64AttributeValue(
                 syntax, definition.Name, definition);

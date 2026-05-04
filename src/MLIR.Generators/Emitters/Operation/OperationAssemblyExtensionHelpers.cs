@@ -9,13 +9,22 @@ internal static class OperationAssemblyExtensionHelpers
         return operation.AssemblyFormat != null || operation.AssemblyFormatCode != null;
     }
 
-    public static string? GetAssemblyFormatInstantiationExpression(OperationModel operation, string operationClassName)
+    public static string? GetAssemblyFormatFactoryExpression(OperationModel operation, string operationClassName)
     {
         if (operation.AssemblyFormat != null)
         {
-            return "new " + operationClassName + "AssemblyFormat()";
+            return "static _ => new " + operationClassName + "AssemblyFormat()";
         }
 
-        return operation.AssemblyFormatCode;
+        var template = CodeTemplate.From(operation.AssemblyFormatCode, CodeTemplateKind.Expression);
+        if (template == null)
+        {
+            return null;
+        }
+
+        template.RequireOnly("definition");
+        return template.PlaceholderNames.Count == 0
+            ? "static _ => " + template.Text
+            : "static definition => " + template.Render("definition", "definition");
     }
 }

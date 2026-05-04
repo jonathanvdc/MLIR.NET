@@ -57,7 +57,7 @@ public sealed class BuiltinIntegerTypeAssemblyFormat : ITypeAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
+    public TypeReference Bind(TypeSyntax syntax, Binder binder)
     {
         if (syntax is not BuiltinIntegerTypeSyntax integerSyntax)
         {

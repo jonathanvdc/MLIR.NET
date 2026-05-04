@@ -17,6 +17,16 @@ using MLIR.Transforms;
 /// </summary>
 public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAssemblyFormat
 {
+    private readonly AttributeConstraintDefinition? definition;
+
+    /// <summary>
+    /// Initializes a new dense-array assembly format, optionally bound to a concrete attribute definition.
+    /// </summary>
+    protected DenseArrayAttributeAssemblyFormat(AttributeConstraintDefinition? definition = null)
+    {
+        this.definition = definition;
+    }
+
     /// <inheritdoc/>
     public ParseResult<AttributeValueSyntax> TryParse(AttributeParsingContext context)
     {
@@ -83,17 +93,18 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
     }
 
     /// <inheritdoc/>
-    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
     {
         var resultSyntax = syntax;
-        var normalizedSyntax = NormalizeSyntax(syntax, definition, binder);
+        var normalizedSyntax = NormalizeSyntax(syntax, binder);
+        var constraintName = definition?.Name ?? InferConstraintName(normalizedSyntax.ElementTypeSyntax);
         var items = new List<TElement>(normalizedSyntax.Items.Count);
         for (var i = 0; i < normalizedSyntax.Items.Count; i++)
         {
             items.Add(ElementFromSyntax(normalizedSyntax.Items[i]));
         }
 
-        return CreateDenseArrayAttribute(resultSyntax, definition.Name, items);
+        return CreateDenseArrayAttribute(resultSyntax, constraintName, items);
     }
 
     /// <inheritdoc/>
@@ -174,7 +185,7 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
             syntax);
     }
 
-    private static DenseArrayAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    private static DenseArrayAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, Binder binder)
     {
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
@@ -187,5 +198,19 @@ public abstract class DenseArrayAttributeAssemblyFormat<TElement> : IAttributeAs
         }
 
         throw new System.InvalidOperationException("Unexpected syntax for dense array attribute. Expected a dense array attribute literal such as 'array<i32: 1, 2>'.");
+    }
+
+    private static string? InferConstraintName(TypeSyntax elementType)
+    {
+        return elementType.ToString() switch
+        {
+            "i1" => "DenseBoolArrayAttr",
+            "i8" => "DenseI8ArrayAttr",
+            "i16" => "DenseI16ArrayAttr",
+            "i64" => "DenseI64ArrayAttr",
+            "f32" => "DenseF32ArrayAttr",
+            "f64" => "DenseF64ArrayAttr",
+            _ => "DenseI32ArrayAttr"
+        };
     }
 }

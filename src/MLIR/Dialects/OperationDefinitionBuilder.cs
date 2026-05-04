@@ -17,6 +17,7 @@ public sealed class OperationDefinitionBuilder
     private readonly List<OperationAttributeDefinition> attributeDefinitions = new List<OperationAttributeDefinition>();
     private IOperationVerifier? verifier;
     private IOperationAssemblyFormat? assemblyFormat;
+    private Func<OperationDefinition, IOperationAssemblyFormat>? assemblyFormatFactory;
     private Func<OperationConstructionContext, Operation> factory = static context => new GenericOperation(
         context.Syntax,
         context.Name,
@@ -207,6 +208,17 @@ public sealed class OperationDefinitionBuilder
     public OperationDefinitionBuilder WithAssemblyFormat(IOperationAssemblyFormat format)
     {
         assemblyFormat = format;
+        assemblyFormatFactory = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a custom assembly format factory that can capture the completed operation definition.
+    /// </summary>
+    public OperationDefinitionBuilder WithAssemblyFormat(Func<OperationDefinition, IOperationAssemblyFormat> formatFactory)
+    {
+        assemblyFormat = null;
+        assemblyFormatFactory = formatFactory;
         return this;
     }
 
@@ -233,6 +245,7 @@ public sealed class OperationDefinitionBuilder
             attributeDefinitions,
             verifier,
             assemblyFormat,
+            assemblyFormatFactory,
             factory);
     }
 }

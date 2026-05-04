@@ -60,7 +60,7 @@ public abstract class FlagsEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<Ap
     }
 
     /// <inheritdoc/>
-    public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public override AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
     {
         if (syntax is EnumAttributeValueSyntax enumSyntax)
         {

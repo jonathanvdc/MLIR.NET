@@ -47,7 +47,7 @@ public sealed class DialectGeneratorRegistrationTests : DialectGeneratorTestBase
             "dialect.AddOperation(MiniArith_ConstantOp.OperationDefinition);",
             "dialect.AddOperation(MiniArith_AddIOp.OperationDefinition);",
             ".WithFactory(static context => new MiniArith_AddIOp(context))",
-            ".WithAssemblyFormat(new MiniArith_AddIOpAssemblyFormat())",
+            ".WithAssemblyFormat(static _ => new MiniArith_AddIOpAssemblyFormat())",
             "public MiniArith_ConstantOp(OperationConstructionContext context)",
             "public MiniArith_AddIOp(OperationConstructionContext context)");
         Assert.DoesNotContain("RewriteChildren", registrationSource);

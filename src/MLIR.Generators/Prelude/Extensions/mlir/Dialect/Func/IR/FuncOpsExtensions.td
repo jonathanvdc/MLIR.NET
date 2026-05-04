@@ -4,7 +4,7 @@ include "mlir/Extensions/IR/CSharpExtensions.td"
 #define FUNC_OPS_EXTENSIONS_TD
 
 extends FuncOp : CSharpOpExtension {
-  let csharpAsmFormatCode = "global::MLIR.Dialects.Extensions.FuncOperationAssemblyFormat.Instance";
+  let csharpAsmFormatCode = "new global::MLIR.Dialects.Extensions.FuncOperationAssemblyFormat($_definition)";
 }
 
 #endif // FUNC_OPS_EXTENSIONS_TD

@@ -33,7 +33,7 @@ public abstract class SimpleEnumAttributeAssemblyFormat<T>(IReadOnlyDictionary<A
     }
 
     /// <inheritdoc/>
-    public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public override AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
     {
         if (syntax is EnumAttributeValueSyntax enumSyntax)
         {

@@ -17,6 +17,7 @@ using MLIR.Semantics;
 /// <param name="attributeDefinitions">The declarative operation attribute definitions, if available.</param>
 /// <param name="verifier">The optional verifier for the operation.</param>
 /// <param name="assemblyFormat">The optional custom assembly format.</param>
+/// <param name="assemblyFormatFactory">The optional custom assembly format factory.</param>
 /// <param name="factory">The optional typed operation factory.</param>
 public sealed class OperationDefinition(
     string name,
@@ -27,8 +28,11 @@ public sealed class OperationDefinition(
     IReadOnlyList<OperationAttributeDefinition>? attributeDefinitions = null,
     IOperationVerifier? verifier = null,
     IOperationAssemblyFormat? assemblyFormat = null,
+    System.Func<OperationDefinition, IOperationAssemblyFormat>? assemblyFormatFactory = null,
     System.Func<OperationConstructionContext, Operation>? factory = null)
 {
+    private IOperationAssemblyFormat? assemblyFormat = assemblyFormat;
+
     /// <summary>
     /// Gets the canonical operation name without MLIR string-literal quoting.
     /// </summary>
@@ -107,7 +111,7 @@ public sealed class OperationDefinition(
     /// <summary>
     /// Gets the custom assembly format for the operation, if one is registered.
     /// </summary>
-    public IOperationAssemblyFormat? AssemblyFormat { get; } = assemblyFormat;
+    public IOperationAssemblyFormat? AssemblyFormat => assemblyFormat ??= assemblyFormatFactory?.Invoke(this);
 
     /// <summary>
     /// Gets the typed operation factory for the operation, if one is registered.

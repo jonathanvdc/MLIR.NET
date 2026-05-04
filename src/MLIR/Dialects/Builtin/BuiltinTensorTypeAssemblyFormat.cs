@@ -89,7 +89,7 @@ public sealed class BuiltinTensorTypeAssemblyFormat : ITypeAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
+    public TypeReference Bind(TypeSyntax syntax, Binder binder)
     {
         if (syntax is not TensorTypeSyntax tensorSyntax)
         {

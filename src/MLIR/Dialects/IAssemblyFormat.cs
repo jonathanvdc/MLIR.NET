@@ -7,7 +7,7 @@ namespace MLIR.Dialects;
 /// <summary>
 /// Parses, binds, and rewrites a dialect-specific assembly format.
 /// </summary>
-public interface IAssemblyFormat<TSyntax, TValue, in TDefinition, in TParsingContext>
+public interface IAssemblyFormat<TSyntax, TValue, in TParsingContext>
 {
     /// <summary>
     /// Attempts to parse a dialect-specific custom assembly form.
@@ -20,10 +20,9 @@ public interface IAssemblyFormat<TSyntax, TValue, in TDefinition, in TParsingCon
     /// Interprets the supplied type syntax into a semantic value.
     /// </summary>
     /// <param name="syntax">The type syntax to interpret.</param>
-    /// <param name="definition">The type definition.</param>
     /// <param name="binder">The binding context.</param>
     /// <returns>The interpreted value.</returns>
-    TValue Bind(TSyntax syntax, TDefinition definition, Binder binder);
+    TValue Bind(TSyntax syntax, Binder binder);
 
     /// <summary>
     /// Builds a custom concrete syntax tree for the supplied value.

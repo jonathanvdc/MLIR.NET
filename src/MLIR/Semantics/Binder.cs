@@ -91,7 +91,7 @@ public sealed class Binder
         }
         else if (definition != null && definition.AssemblyFormat != null)
         {
-            return definition.AssemblyFormat.Bind(syntax, definition, this);
+            return definition.AssemblyFormat.Bind(syntax, this);
         }
         else
         {
@@ -505,7 +505,7 @@ public sealed class Binder
         attributeSelfTypeReferences.Push(selfTypeReference);
         try
         {
-            return definition.AssemblyFormat!.Bind(syntax, definition, this);
+            return definition.AssemblyFormat!.Bind(syntax, this);
         }
         finally
         {
@@ -757,7 +757,7 @@ public sealed class Binder
         // UnknownTypeReference that carries the definition metadata so callers can still identify
         // the type family.
         return definition.AssemblyFormat != null
-            ? definition.AssemblyFormat.Bind(syntax, definition, this)
+            ? definition.AssemblyFormat.Bind(syntax, this)
             : new UnknownTypeReference(syntax, canonicalName, definition);
     }
 
@@ -797,7 +797,7 @@ public sealed class Binder
             // UnknownTypeReference that carries the definition metadata so callers can still identify
             // the type family.
             type = definition.AssemblyFormat != null
-                ? definition.AssemblyFormat.Bind(syntaxNode, definition, this)
+                ? definition.AssemblyFormat.Bind(syntaxNode, this)
                 : new UnknownTypeReference(syntaxNode, canonicalName, definition);
         }
         else

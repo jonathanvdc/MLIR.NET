@@ -99,7 +99,7 @@ public sealed class ParsingTests
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+        public Operation Bind(OperationSyntax syntax, Binder binder)
         {
             throw new NotImplementedException("This assembly format is only intended for testing CSTs.");
         }
@@ -164,7 +164,7 @@ public sealed class ParsingTests
             return context.RewriteOperation(operation, context.TransformGenericBody(operation));
         }
 
-        public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+        public Operation Bind(OperationSyntax syntax, Binder binder)
         {
             throw new NotImplementedException("This assembly format is only intended for testing SSA list parsing.");
         }

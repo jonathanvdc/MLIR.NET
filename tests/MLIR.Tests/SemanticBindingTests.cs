@@ -361,7 +361,7 @@ public sealed partial class SemanticTests
             new Dialect(
                 "builtin",
                 [],
-                [new AttributeDefinition("dense", new DenseAttributeAssemblyFormat())],
+                [new AttributeDefinition("dense", assemblyFormatFactory: static definition => new DenseAttributeAssemblyFormat(definition))],
                 [new TypeDefinition("i32", new BuiltinIntegerTypeAssemblyFormat())]));
 
         var module = Binder.BindModule(
@@ -385,7 +385,7 @@ public sealed partial class SemanticTests
     public void OperationAssemblyFormatCanParseAttributesUsingExpectedDefinition()
     {
         var registry = new DialectRegistry();
-        var i32AttributeDefinition = new AttributeDefinition("i32", new I32AttributeAssemblyFormat());
+        var i32AttributeDefinition = new AttributeDefinition("i32", assemblyFormatFactory: static definition => new I32AttributeAssemblyFormat(definition));
         registry.RegisterDialect(
             new Dialect(
                 "builtin",
@@ -402,7 +402,7 @@ public sealed partial class SemanticTests
                         operation => operation
                             .RequiredAttribute("value")
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(i32AttributeDefinition)));
+                            .WithAssemblyFormat(definition => new ContextDirectedConstantAssemblyFormat(i32AttributeDefinition, definition)));
                 }));
 
         var module = Binder.BindModule(
@@ -419,7 +419,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void OperationAssemblyFormatCanBindF32AttributesAsSinglePrecisionValues()
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
+        var f32AttributeDefinition = new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition));
         var registry = new DialectRegistry();
         registry.RegisterDialect(
             Dialect.Create(
@@ -431,7 +431,7 @@ public sealed partial class SemanticTests
                         operation => operation
                             .Result("result")
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(f32AttributeDefinition)));
+                            .WithAssemblyFormat(definition => new ContextDirectedConstantAssemblyFormat(f32AttributeDefinition, definition)));
                 }));
 
         var module = Binder.BindModule(
@@ -447,7 +447,7 @@ public sealed partial class SemanticTests
     [Fact]
     public void OperationAssemblyFormatCanBindF64AttributesAsDoublePrecisionValues()
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
+        var f64AttributeDefinition = new AttributeDefinition("f64", assemblyFormatFactory: static definition => new TestF64AttributeAssemblyFormat(definition));
         var registry = new DialectRegistry();
         registry.RegisterDialect(
             Dialect.Create(
@@ -459,7 +459,7 @@ public sealed partial class SemanticTests
                         operation => operation
                             .Result("result")
                             .WithFactory(static context => new GeneratedConstantOperation(context))
-                            .WithAssemblyFormat(new ContextDirectedConstantAssemblyFormat(f64AttributeDefinition)));
+                            .WithAssemblyFormat(definition => new ContextDirectedConstantAssemblyFormat(f64AttributeDefinition, definition)));
                 }));
 
         var module = Binder.BindModule(
@@ -476,7 +476,7 @@ public sealed partial class SemanticTests
     [InlineData("+1.500", 1.5f)]
     public void OperationAssemblyFormatCanRoundTripF32Attributes(string sourceValue, float expectedValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
+        var f32AttributeDefinition = new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var source = $"%0 = arith.constant {sourceValue} : f32";
@@ -495,7 +495,7 @@ public sealed partial class SemanticTests
     [InlineData("-3.125e200", -3.125e200)]
     public void OperationAssemblyFormatCanRoundTripF64Attributes(string sourceValue, double expectedValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
+        var f64AttributeDefinition = new AttributeDefinition("f64", assemblyFormatFactory: static definition => new TestF64AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var source = $"%0 = arith.constant {sourceValue} : f64";
@@ -515,7 +515,7 @@ public sealed partial class SemanticTests
     [InlineData("+1.", 1f)]
     public void OperationAssemblyFormatCanParseAdditionalF32FloatForms(string sourceValue, float expectedValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
+        var f32AttributeDefinition = new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -534,7 +534,7 @@ public sealed partial class SemanticTests
     [InlineData("0x7fc00000", "nan", 0f)]
     public void OperationAssemblyFormatCanBindMoreF32FloatForms(string sourceValue, string kind, float expectedValue)
     {
-        var f32AttributeDefinition = new AttributeDefinition("f32", new TestF32AttributeAssemblyFormat());
+        var f32AttributeDefinition = new AttributeDefinition("f32", assemblyFormatFactory: static definition => new TestF32AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f32AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -566,7 +566,7 @@ public sealed partial class SemanticTests
     [InlineData("+1.", 1d)]
     public void OperationAssemblyFormatCanParseAdditionalF64FloatForms(string sourceValue, double expectedValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
+        var f64AttributeDefinition = new AttributeDefinition("f64", assemblyFormatFactory: static definition => new TestF64AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var module = Binder.BindModule(
@@ -585,7 +585,7 @@ public sealed partial class SemanticTests
     [InlineData("0x7ff8000000000000", "nan", 0d)]
     public void OperationAssemblyFormatCanBindMoreF64FloatForms(string sourceValue, string kind, double expectedValue)
     {
-        var f64AttributeDefinition = new AttributeDefinition("f64", new TestF64AttributeAssemblyFormat());
+        var f64AttributeDefinition = new AttributeDefinition("f64", assemblyFormatFactory: static definition => new TestF64AttributeAssemblyFormat(definition));
         var registry = CreateFloatingPointConstantRegistry(f64AttributeDefinition);
 
         var module = Binder.BindModule(

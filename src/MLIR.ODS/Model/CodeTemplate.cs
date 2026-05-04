@@ -20,6 +20,7 @@ using System.Text.RegularExpressions;
 ///   <item><c>${syntax}</c> – the per-parameter <c>AttributeValueSyntax</c> variable.</item>
 ///   <item><c>${value}</c> – the typed value being encoded into storage (e.g., for const-builder calls).</item>
 ///   <item><c>${context}</c> – an optional builder or printing context.</item>
+///   <item><c>${definition}</c> – the definition object being registered (e.g., for assembly-format factories).</item>
 /// </list>
 /// <para>
 /// Legacy <c>$_name</c>-style placeholders are normalized to canonical

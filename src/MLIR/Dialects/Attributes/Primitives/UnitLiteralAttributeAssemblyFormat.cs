@@ -45,7 +45,7 @@ public sealed class UnitLiteralAttributeAssemblyFormat : BodylessSelfIdentifying
     }
 
     /// <inheritdoc/>
-    public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public override AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
     {
         return new UnitAttr(syntax);
     }

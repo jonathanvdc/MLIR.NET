@@ -27,7 +27,7 @@ public sealed class BuiltinIndexTypeAssemblyFormat : ITypeAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public TypeReference Bind(TypeSyntax syntax, TypeDefinition definition, Binder binder)
+    public TypeReference Bind(TypeSyntax syntax, Binder binder)
     {
         return new IndexType(syntax);
     }

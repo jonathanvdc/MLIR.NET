@@ -1,5 +1,6 @@
 namespace MLIR.Dialects;
 
+using System;
 using MLIR.Semantics;
 
 /// <summary>
@@ -10,10 +11,14 @@ using MLIR.Semantics;
 /// </remarks>
 /// <param name="name">The logical constraint name, if one is known.</param>
 /// <param name="assemblyFormat">The optional custom assembly interpretation hook.</param>
+/// <param name="assemblyFormatFactory">The optional custom assembly interpretation hook factory.</param>
 public class TypeConstraintDefinition(
     string? name = null,
-    ITypeAssemblyFormat? assemblyFormat = null)
+    ITypeAssemblyFormat? assemblyFormat = null,
+    Func<TypeConstraintDefinition, ITypeAssemblyFormat>? assemblyFormatFactory = null)
 {
+    private ITypeAssemblyFormat? assemblyFormat = assemblyFormat;
+
     /// <summary>
     /// Gets the logical constraint name, if one is known.
     /// </summary>
@@ -22,5 +27,5 @@ public class TypeConstraintDefinition(
     /// <summary>
     /// Gets the custom assembly interpretation hook, if one is registered.
     /// </summary>
-    public ITypeAssemblyFormat? AssemblyFormat { get; } = assemblyFormat;
+    public ITypeAssemblyFormat? AssemblyFormat => assemblyFormat ??= assemblyFormatFactory?.Invoke(this);
 }

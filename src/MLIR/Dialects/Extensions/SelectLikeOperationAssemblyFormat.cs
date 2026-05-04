@@ -19,14 +19,15 @@ using MLIR.Transforms;
 /// </remarks>
 public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
 {
-    private SelectLikeOperationAssemblyFormat()
-    {
-    }
+    private readonly OperationDefinition definition;
 
     /// <summary>
-    /// Gets the singleton instance of the select-like operation assembly format.
+    /// Initializes a new select-like assembly format bound to the operation definition being registered.
     /// </summary>
-    public static SelectLikeOperationAssemblyFormat Instance { get; } = new();
+    public SelectLikeOperationAssemblyFormat(OperationDefinition definition)
+    {
+        this.definition = definition;
+    }
 
     /// <inheritdoc/>
     public ParseResult<OperationBodySyntax> TryParse(
@@ -111,7 +112,7 @@ public sealed class SelectLikeOperationAssemblyFormat : IOperationAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public Operation Bind(OperationSyntax syntax, OperationDefinition definition, Binder binder)
+    public Operation Bind(OperationSyntax syntax, Binder binder)
     {
         if (syntax.Body is not SelectLikeOperationBodySyntax body)
         {

@@ -55,7 +55,7 @@ public sealed class BuiltinOpaqueAttributeAssemblyFormat : IAttributeAssemblyFor
     }
 
     /// <inheritdoc/>
-    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
     {
         var resultSyntax = syntax;
         if (syntax is TypedAttributeValueSyntax typedSyntax)

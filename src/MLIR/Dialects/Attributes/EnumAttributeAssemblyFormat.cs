@@ -114,7 +114,7 @@ public abstract class EnumAttributeAssemblyFormat<T> : IAttributeAssemblyFormat 
     public abstract ApInt EnumToInt(T value);
 
     /// <inheritdoc/>
-    public abstract AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder);
+    public abstract AttributeValue Bind(AttributeValueSyntax syntax, Binder binder);
 
     /// <inheritdoc/>
     public abstract AttributeValueSyntax BuildCustomAssemblySyntax(AttributeValue attribute, ConcreteSyntaxBuilderContext context);

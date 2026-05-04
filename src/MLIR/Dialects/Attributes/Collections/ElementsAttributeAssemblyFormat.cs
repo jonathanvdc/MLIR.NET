@@ -63,7 +63,7 @@ public sealed class ElementsAttributeAssemblyFormat : IAttributeAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
     {
         var normalizedSyntax = NormalizeSyntax(syntax);
         var payload = binder.BindAttributeValue(normalizedSyntax.Payload, expectedDefinition: null);

@@ -89,7 +89,7 @@ internal static class AttributeAssemblyFormatEmitter
         bindBuildEmitter.EmitBindValueMethod(builder);
         builder.AppendLine();
 
-        builder.AppendLine("    public override AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)");
+        builder.AppendLine("    public override AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)");
         builder.AppendLine("    {");
         builder.AppendLine("        return BindValue(syntax, binder);");
         builder.AppendLine("    }");

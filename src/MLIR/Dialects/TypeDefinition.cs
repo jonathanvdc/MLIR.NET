@@ -18,10 +18,15 @@ namespace MLIR.Dialects;
 /// </remarks>
 /// <param name="name">The canonical type name.</param>
 /// <param name="assemblyFormat">The optional custom assembly interpretation hook.</param>
+/// <param name="assemblyFormatFactory">The optional custom assembly interpretation hook factory.</param>
 public sealed class TypeDefinition(
     string name,
-    ITypeAssemblyFormat? assemblyFormat = null)
-    : TypeConstraintDefinition(name, assemblyFormat)
+    ITypeAssemblyFormat? assemblyFormat = null,
+    System.Func<TypeDefinition, ITypeAssemblyFormat>? assemblyFormatFactory = null)
+    : TypeConstraintDefinition(
+        name,
+        assemblyFormat,
+        assemblyFormatFactory is null ? null : definition => assemblyFormatFactory((TypeDefinition)definition))
 {
     /// <summary>
     /// Gets the canonical type name.

@@ -53,10 +53,10 @@ internal static class OperationDefinitionEmitter
         }
 
         builder.AppendLine("        operation.WithFactory(static context => new " + className + "(context));");
-        var assemblyFormatExpr = OperationAssemblyExtensionHelpers.GetAssemblyFormatInstantiationExpression(operation, className);
-        if (assemblyFormatExpr != null)
+        var assemblyFormatFactoryExpr = OperationAssemblyExtensionHelpers.GetAssemblyFormatFactoryExpression(operation, className);
+        if (assemblyFormatFactoryExpr != null)
         {
-            builder.AppendLine("        operation.WithAssemblyFormat(" + assemblyFormatExpr + ");");
+            builder.AppendLine("        operation.WithAssemblyFormat(" + assemblyFormatFactoryExpr + ");");
         }
 
         builder.AppendLine("        return operation.Build();");

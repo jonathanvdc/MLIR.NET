@@ -512,7 +512,7 @@ public sealed class DialectImporterTests
         var select = Assert.Single(arith.Operations, static operation => operation.Name == "arith.select");
 
         Assert.Null(select.AssemblyFormat);
-        Assert.Equal("global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat.Instance", select.AssemblyFormatCode);
+        Assert.Equal("new global::MLIR.Dialects.Extensions.SelectLikeOperationAssemblyFormat($_definition)", select.AssemblyFormatCode);
     }
 
     [Fact]
@@ -539,7 +539,7 @@ public sealed class DialectImporterTests
         var funcOp = Assert.Single(func.Operations, static operation => operation.Name == "func.func");
 
         Assert.Null(funcOp.AssemblyFormat);
-        Assert.Equal("global::MLIR.Dialects.Extensions.FuncOperationAssemblyFormat.Instance", funcOp.AssemblyFormatCode);
+        Assert.Equal("new global::MLIR.Dialects.Extensions.FuncOperationAssemblyFormat($_definition)", funcOp.AssemblyFormatCode);
     }
 
     [Fact]

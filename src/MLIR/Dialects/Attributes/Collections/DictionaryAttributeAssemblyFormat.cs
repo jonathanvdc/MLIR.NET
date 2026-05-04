@@ -28,10 +28,10 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
     }
 
     /// <inheritdoc/>
-    public AttributeValue Bind(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    public AttributeValue Bind(AttributeValueSyntax syntax, Binder binder)
     {
         var resultSyntax = syntax;
-        var normalizedSyntax = NormalizeSyntax(syntax, definition, binder);
+        var normalizedSyntax = NormalizeSyntax(syntax, binder);
         return new DictionaryAttr(BindAttributesFromSyntax(normalizedSyntax.Attributes.Items, binder), resultSyntax);
     }
 
@@ -75,7 +75,7 @@ public sealed class DictionaryAttributeAssemblyFormat : IAttributeAssemblyFormat
         return binder.BindNamedAttributes(attributes);
     }
 
-    private static DictionaryAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, AttributeConstraintDefinition definition, Binder binder)
+    private static DictionaryAttributeValueSyntax NormalizeSyntax(AttributeValueSyntax syntax, Binder binder)
     {
         if (syntax is TypedAttributeValueSyntax typedSyntax)
         {
