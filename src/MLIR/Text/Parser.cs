@@ -667,7 +667,8 @@ public sealed partial class Parser
         }
 
         var headerCheckpoint = Mark();
-        var headerResult = new OperationParsingContext(this).TryParseHeader();
+        var context = new OperationParsingContext(this);
+        var headerResult = context.TryParseHeader();
         Reset(headerCheckpoint);
         if (!headerResult.IsSuccess || headerResult.Value.NameToken.Text.StartsWith("\"", System.StringComparison.Ordinal))
         {
@@ -682,7 +683,7 @@ public sealed partial class Parser
         }
 
         var checkpoint = Mark();
-        var result = definition.AssemblyFormat.TryParse(new OperationParsingContext(this));
+        var result = definition.AssemblyFormat.TryParse(context);
         if (result.IsSuccess || result.IsError)
         {
             return result;
