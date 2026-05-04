@@ -110,7 +110,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<TypeSyntax> TryParseTypeSyntax(params TokenKind[] stopBefore)
     {
-        return Parser.TryParseTypeSyntaxInternal(stopBefore);
+        return Parser.TryParseTypeSyntax(stopBefore);
     }
 
     /// <summary>
@@ -118,7 +118,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<TypeSyntax> TryParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
     {
-        return Parser.TryParseTypeSyntaxInternal(stopBeforeKeywords, stopBefore);
+        return Parser.TryParseTypeSyntax(stopBeforeKeywords, stopBefore);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public abstract class DialectParsingContext
     /// </summary>
     public ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundary()
     {
-        return Parser.TryParseTypeSyntaxUntilOperationBoundaryInternal();
+        return Parser.TryParseTypeSyntaxUntilOperationBoundary();
     }
 
     /// <summary>
@@ -135,15 +135,6 @@ public abstract class DialectParsingContext
     public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(params TokenKind[] stopBefore)
     {
         return Parser.TryParseAttributeValueInternal(stopBefore);
-    }
-
-    /// <summary>
-    /// Parses a nested attribute value syntax node, preferring the supplied expected attribute definition
-    /// when one is known, and stopping before any of the supplied delimiters.
-    /// </summary>
-    public ParseResult<AttributeValueSyntax> TryParseAttributeValueSyntax(string expectedDefinitionName, params TokenKind[] stopBefore)
-    {
-        return Parser.TryParseAttributeValueInternal(expectedDefinitionName, stopBefore);
     }
 
     /// <summary>

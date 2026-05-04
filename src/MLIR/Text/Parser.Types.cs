@@ -103,9 +103,9 @@ public sealed partial class Parser
     /// Returns a failure when tokens remain after the type.
     /// Used by the public <see cref="ParseType"/> and <c>TryParseType</c> entry points.
     /// </summary>
-    private ParseResult<TypeSyntax> TryParseStandaloneTypeResult()
+    private ParseResult<TypeSyntax> TryParseStandaloneType()
     {
-        var parsed = TryParseTypeSyntaxUntilOperationBoundaryResult();
+        var parsed = TryParseTypeSyntaxUntilOperationBoundary();
         if (!parsed.IsSuccess)
         {
             return parsed;
@@ -120,7 +120,7 @@ public sealed partial class Parser
     /// Parses a type, stopping before any of the supplied delimiter token kinds.
     /// Does not stop at operation boundaries.
     /// </summary>
-    private ParseResult<TypeSyntax> TryParseTypeSyntaxResult(params TokenKind[] stopBefore)
+    internal ParseResult<TypeSyntax> TryParseTypeSyntax(params TokenKind[] stopBefore)
     {
         return TryParseTypeSyntaxCoreResult(stopBefore, stopAtOperationBoundary: false);
     }
@@ -129,7 +129,7 @@ public sealed partial class Parser
     /// Parses a type, stopping before any of the supplied delimiter token kinds or keyword spellings.
     /// Does not stop at operation boundaries.
     /// </summary>
-    private ParseResult<TypeSyntax> TryParseTypeSyntaxResult(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
+    internal ParseResult<TypeSyntax> TryParseTypeSyntax(string[] stopBeforeKeywords, params TokenKind[] stopBefore)
     {
         return TryParseTypeSyntaxCoreResult(stopBefore, stopBeforeKeywords, stopAtOperationBoundary: false);
     }
@@ -138,7 +138,7 @@ public sealed partial class Parser
     /// Parses a type, stopping at an operation boundary (newline in leading trivia) rather than an explicit delimiter.
     /// Used for operation type signatures where no closing delimiter token is present.
     /// </summary>
-    private ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundaryResult()
+    internal ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundary()
     {
         return TryParseTypeSyntaxCoreResult([], stopAtOperationBoundary: true);
     }
@@ -218,24 +218,6 @@ public sealed partial class Parser
 
         return ParseResult<TypeSyntax>.Failure(
             CreateDiagnostic("Expected a type; unrecognized raw syntax '" + rawResult.Value.Text + "'."));
-    }
-
-    /// <summary>Bridges <see cref="TryParseTypeSyntaxResult(TokenKind[])"/> for use by <see cref="DialectParsingContext"/>.</summary>
-    internal ParseResult<TypeSyntax> TryParseTypeSyntaxInternal(params TokenKind[] delimiters)
-    {
-        return TryParseTypeSyntaxResult(delimiters);
-    }
-
-    /// <summary>Bridges <see cref="TryParseTypeSyntaxResult(string[], TokenKind[])"/> for use by <see cref="DialectParsingContext"/>.</summary>
-    internal ParseResult<TypeSyntax> TryParseTypeSyntaxInternal(string[] stopBeforeKeywords, params TokenKind[] delimiters)
-    {
-        return TryParseTypeSyntaxResult(stopBeforeKeywords, delimiters);
-    }
-
-    /// <summary>Bridges <see cref="TryParseTypeSyntaxUntilOperationBoundaryResult"/> for use by <see cref="DialectParsingContext"/>.</summary>
-    internal ParseResult<TypeSyntax> TryParseTypeSyntaxUntilOperationBoundaryInternal()
-    {
-        return TryParseTypeSyntaxUntilOperationBoundaryResult();
     }
 
     /// <summary>Bridges ambient stop-condition type parsing for use by <see cref="TypeParsingContext"/>.</summary>
