@@ -88,7 +88,7 @@ public sealed class ParsingTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueResult.Value)]);
+            var attributes = SemanticTests.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueResult.Value)]);
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
 

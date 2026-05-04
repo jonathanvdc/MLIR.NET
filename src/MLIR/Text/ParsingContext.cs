@@ -244,32 +244,6 @@ public readonly struct ParsingContext
     }
 
     /// <summary>
-    /// Creates an attribute dictionary for a projected operation body.
-    /// </summary>
-    public DelimitedSyntaxList<NamedAttributeSyntax> CreateAttributeDictionary(IReadOnlyList<NamedAttributeSyntax> attributes)
-    {
-        return new DelimitedSyntaxList<NamedAttributeSyntax>(
-            attributes.Count > 0 ? TokenFactory.LBrace() : null,
-            attributes,
-            CreateCommaTokens(attributes.Count),
-            attributes.Count > 0 ? TokenFactory.RBrace() : null);
-    }
-
-    /// <summary>
-    /// Creates comma tokens for a projected delimited list.
-    /// </summary>
-    public IReadOnlyList<Token> CreateCommaTokens(int itemCount)
-    {
-        var commas = new List<Token>();
-        for (var i = 1; i < itemCount; i++)
-        {
-            commas.Add(TokenFactory.Comma());
-        }
-
-        return commas;
-    }
-
-    /// <summary>
     /// Parses a comma-separated list of types, consuming items until an operation boundary is reached.
     /// </summary>
     public IReadOnlyList<TypeSyntax> ParseTypeSyntaxList()

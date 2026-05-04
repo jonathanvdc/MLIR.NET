@@ -58,14 +58,30 @@ public sealed partial class SemanticTests
         return registry;
     }
 
-    private static GenericOperationBodySyntax GetGenericBody(OperationSyntax operation)
+    /// <summary>
+    /// Creates an attribute dictionary for a projected operation body.
+    /// </summary>
+    public static DelimitedSyntaxList<NamedAttributeSyntax> CreateAttributeDictionary(IReadOnlyList<NamedAttributeSyntax> attributes)
     {
-        if (operation.Body is GenericOperationBodySyntax genericBody)
+        return new DelimitedSyntaxList<NamedAttributeSyntax>(
+            attributes.Count > 0 ? TokenFactory.LBrace() : null,
+            attributes,
+            CreateCommaTokens(attributes.Count),
+            attributes.Count > 0 ? TokenFactory.RBrace() : null);
+    }
+
+    /// <summary>
+    /// Creates comma tokens for a projected delimited list.
+    /// </summary>
+    private static IReadOnlyList<Token> CreateCommaTokens(int itemCount)
+    {
+        var commas = new List<Token>();
+        for (var i = 1; i < itemCount; i++)
         {
-            return genericBody;
+            commas.Add(TokenFactory.Comma());
         }
 
-        throw new InvalidOperationException("Expected a generic operation body syntax node.");
+        return commas;
     }
 
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
@@ -471,7 +487,7 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueAttrSyntax)]);
+            var attributes = CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueAttrSyntax)]);
 
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueAttrSyntax, colonTokenResult.Value, typeResult.Value, attributes));
         }
@@ -542,7 +558,7 @@ public sealed partial class SemanticTests
                 return ParseResult<OperationBodySyntax>.Failure(typeResult.Diagnostic!);
             }
 
-            var attributes = context.CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueResult.Value)]);
+            var attributes = CreateAttributeDictionary([new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(), valueResult.Value)]);
 
             return ParseResult<OperationBodySyntax>.Success(new PrefixConstantBodySyntax(valueResult.Value, colonTokenResult.Value, typeResult.Value, attributes));
         }
