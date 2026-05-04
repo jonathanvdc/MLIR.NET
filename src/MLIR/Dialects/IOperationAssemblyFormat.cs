@@ -71,7 +71,7 @@ public abstract class BodyOnlyOperationAssemblyFormat : IOperationAssemblyFormat
     /// <param name="context">The parsing context.</param>
     /// <returns>The parsed operation body syntax, a no-match result, or a diagnostic-producing failure.</returns>
     protected abstract ParseResult<OperationBodySyntax> TryParseBody(
-        OperationParseHeader header,
+        in OperationParseHeader header,
         OperationParsingContext context);
 
     /// <summary>

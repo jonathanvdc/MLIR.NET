@@ -444,7 +444,7 @@ public sealed partial class SemanticTests
         }
 
         protected override ParseResult<OperationBodySyntax> TryParseBody(
-            OperationParseHeader header,
+            in OperationParseHeader header,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))
@@ -516,7 +516,7 @@ public sealed partial class SemanticTests
         }
 
         protected override ParseResult<OperationBodySyntax> TryParseBody(
-            OperationParseHeader header,
+            in OperationParseHeader header,
             OperationParsingContext context)
         {
             if (context.Is(TokenKind.LParen))

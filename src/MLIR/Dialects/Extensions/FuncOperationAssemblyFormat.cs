@@ -27,8 +27,8 @@ public sealed class FuncOperationAssemblyFormat : BodyOnlyOperationAssemblyForma
 
     /// <inheritdoc/>
     protected override ParseResult<OperationBodySyntax> TryParseBody(
-            OperationParseHeader header,
-            OperationParsingContext context)
+        in OperationParseHeader header,
+        OperationParsingContext context)
     {
         if (header.ResultList.Count != 0 || header.EqualsToken.HasValue)
         {
