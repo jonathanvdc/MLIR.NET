@@ -21,6 +21,25 @@ internal sealed class GeneratedDialectSourceResult
     /// <summary>Gets the diagnostics produced while attempting to emit the dialect.</summary>
     public IReadOnlyList<Diagnostic> Diagnostics { get; }
 
-    /// <summary>Gets whether generation completed without any diagnostics.</summary>
-    public bool IsSuccess => Diagnostics.Count == 0;
+    /// <summary>
+    /// Gets whether generation completed without error diagnostics.
+    /// Warning diagnostics document degraded generated behavior, but they must not suppress the
+    /// generated source because unsupported assembly-format features intentionally compile into
+    /// runtime-failing format classes.
+    /// </summary>
+    public bool IsSuccess
+    {
+        get
+        {
+            foreach (var diagnostic in Diagnostics)
+            {
+                if (diagnostic.Severity == DiagnosticSeverity.Error)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
 }

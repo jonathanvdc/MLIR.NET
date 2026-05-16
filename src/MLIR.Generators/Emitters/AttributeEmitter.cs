@@ -7,7 +7,7 @@ using MLIR.ODS.Model;
 
 internal static class AttributeEmitter
 {
-    public static void Emit(StringBuilder builder, AttributeModel attribute)
+    public static void Emit(StringBuilder builder, AttributeModel attribute, IList<Microsoft.CodeAnalysis.Diagnostic> diagnostics)
     {
         var className = DialectGeneratorNaming.GetAttributeClassName(attribute);
 
@@ -17,13 +17,9 @@ internal static class AttributeEmitter
         }
         else if (attribute.AssemblyFormat != null)
         {
-            // Parametrised attribute with a declarative assembly format: emit the structured
-            // syntax class, the typed attribute-value class, and the assembly format class.
-            AttributeAssemblyFormatEmitter.EmitSyntaxClass(builder, attribute, className);
+            UnifiedAssemblyFormatEmitter.EmitAttribute(builder, attribute, className, diagnostics);
             builder.AppendLine();
             EmitTypedAttributeClass(builder, attribute, className);
-            builder.AppendLine();
-            AttributeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, attribute, className);
         }
         else
         {
@@ -102,7 +98,7 @@ internal static class AttributeEmitter
                 builder.Append(", ");
             }
 
-            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(parameters[i]);
+            var csharpType = UnifiedAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
             builder.Append(csharpType + " " + EmitterHelpers.LowerFirst(parameters[i].Name));
         }
 
@@ -127,7 +123,7 @@ internal static class AttributeEmitter
     {
         foreach (var param in parameters)
         {
-            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(param);
+            var csharpType = UnifiedAssemblyFormatEmitter.GetResolvedCSharpType(param);
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
             builder.AppendLine("    public " + csharpType + " " + propertyName + " { get; }");
         }

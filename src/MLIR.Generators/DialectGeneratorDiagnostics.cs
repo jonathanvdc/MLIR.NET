@@ -27,4 +27,12 @@ internal static class DialectGeneratorDiagnostics
         category: "MLIR.Generators",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedAssemblyFormatFeature = new DiagnosticDescriptor(
+        id: "MLIRGEN004",
+        title: "Unsupported declarative assembly format feature",
+        messageFormat: "Declarative assembly format for {0} '{1}' contains unsupported construct '{2}'. Generated custom assembly format will fail until this construct is implemented.",
+        category: "MLIR.Generators",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 }

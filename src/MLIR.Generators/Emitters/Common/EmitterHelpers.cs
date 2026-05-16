@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
-using MLIR.Generators.Emitters.Operation;
 using MLIR.ODS.Model;
 using MLIR.ODS.Model.AssemblyFormat;
 using MLIR.Text;
@@ -152,55 +151,6 @@ internal static class EmitterHelpers
             TokenKind.Arrow => "->",
             _ => kind.ToString(),
         };
-    }
-
-    /// <summary>
-    /// Returns the C# expression used to synthesize a token of the supplied kind.
-    /// Fixed-text punctuation maps to the dedicated <c>TokenFactory</c> methods, while
-    /// variable-text tokens use the corresponding factory method that accepts text.
-    /// </summary>
-    public static string GetSyntaxTokenFactoryExpression(TokenKind kind, string? textLiteral = null)
-    {
-        return kind switch
-        {
-            TokenKind.Comma => "TokenFactory.Comma()",
-            TokenKind.LParen => "TokenFactory.LParen()",
-            TokenKind.RParen => "TokenFactory.RParen()",
-            TokenKind.LBracket => "TokenFactory.LBracket()",
-            TokenKind.RBracket => "TokenFactory.RBracket()",
-            TokenKind.LBrace => "TokenFactory.LBrace()",
-            TokenKind.RBrace => "TokenFactory.RBrace()",
-            TokenKind.LessThan => "TokenFactory.LessThan()",
-            TokenKind.GreaterThan => "TokenFactory.GreaterThan()",
-            TokenKind.Question => "TokenFactory.Question()",
-            TokenKind.Star => "TokenFactory.Star()",
-            TokenKind.Plus => "TokenFactory.Plus()",
-            TokenKind.Minus => "TokenFactory.Minus()",
-            TokenKind.Dot => "TokenFactory.Dot()",
-            TokenKind.Colon => "TokenFactory.Colon()",
-            TokenKind.Equal => "TokenFactory.Equal()",
-            TokenKind.At => "TokenFactory.At()",
-            TokenKind.Hash => "TokenFactory.Hash()",
-            TokenKind.Arrow => "TokenFactory.Arrow()",
-            TokenKind.Identifier => "TokenFactory.Identifier(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.Integer => "TokenFactory.Integer(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.StringLiteral => "TokenFactory.StringLiteral(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.SymbolName => "TokenFactory.SymbolName(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.SsaName => "TokenFactory.SsaName(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.BlockLabel => "TokenFactory.BlockLabel(" + ToCSharpStringLiteral(textLiteral ?? string.Empty) + ")",
-            TokenKind.EndOfFile => "TokenFactory.EndOfFile()",
-            _ => throw new NotSupportedException("Unsupported token kind: " + kind),
-        };
-    }
-
-    public static BodySyntaxField NextBodySyntaxField(IReadOnlyList<BodySyntaxField> fields, ref int fieldIndex)
-    {
-        return fields[fieldIndex++];
-    }
-
-    public static string GetBodySyntaxFieldLocalName(BodySyntaxField field)
-    {
-        return LowerFirst(field.Name);
     }
 
     public static void AppendSeparated(StringBuilder builder, int count, Action<int> emitItem, string separator = ", ")
@@ -395,26 +345,6 @@ internal static class EmitterHelpers
         return null;
     }
 
-    public static BodyComponentKind GetComponentKindForVariable(OperationModel operation, string variableName)
-    {
-        if (ContainsName(operation.Regions, variableName, static region => region.Name))
-        {
-            return BodyComponentKind.Regions;
-        }
-
-        if (ContainsName(operation.Results, variableName, static result => result.Name))
-        {
-            return BodyComponentKind.Result;
-        }
-
-        if (ContainsName(operation.Operands, variableName, static operand => operand.Name))
-        {
-            return BodyComponentKind.Operand;
-        }
-
-        return BodyComponentKind.Unknown;
-    }
-
     public static string GetDirectiveOperandName(DirectiveOperand operand)
     {
         return operand switch
@@ -422,52 +352,5 @@ internal static class EmitterHelpers
             VariableOperand variable => variable.Name,
             _ => operand?.GetType().Name ?? "Operand"
         };
-    }
-
-    /// <summary>
-    /// Returns the C# statement(s) that merge the source location contribution of a
-    /// generated body-syntax field into a local variable named <c>result</c>.
-    /// </summary>
-    /// <param name="field">The body syntax field whose location is to be merged.</param>
-    /// <returns>One or more C# statements, each terminated with a semicolon.</returns>
-    public static string GetLocationMergeCode(BodySyntaxField field)
-    {
-        var name = field.Name;
-        var type = field.CsType;
-
-        // Nullable Token
-        if (string.Equals(type, "Token?", StringComparison.Ordinal))
-        {
-            return "if (" + name + ".HasValue) result = SourceLocation.Merge(result, " + name + ".Value.Location);";
-        }
-
-        // Non-nullable Token
-        if (string.Equals(type, "Token", StringComparison.Ordinal))
-        {
-            return "result = SourceLocation.Merge(result, " + name + ".Location);";
-        }
-
-        // DelimitedSyntaxList<T> – merge the open and close delimiter tokens
-        if (type.StartsWith("DelimitedSyntaxList<", StringComparison.Ordinal))
-        {
-            return
-                "if (" + name + ".OpenToken.HasValue) result = SourceLocation.Merge(result, " + name + ".OpenToken.Value.Location);\n" +
-                "if (" + name + ".CloseToken.HasValue) result = SourceLocation.Merge(result, " + name + ".CloseToken.Value.Location);";
-        }
-
-        // IReadOnlyList<T> (regions, tokens, types, etc.) – merge every element
-        if (type.Contains("IReadOnlyList<"))
-        {
-            return "foreach (var _loc_item in " + name + ") result = SourceLocation.Merge(result, _loc_item.Location);";
-        }
-
-        // Nullable reference types (TypeSyntax?, RegionSyntax?, AttributeValueSyntax?, …)
-        if (type.EndsWith("?", StringComparison.Ordinal))
-        {
-            return "if (" + name + " != null) result = SourceLocation.Merge(result, " + name + ".Location);";
-        }
-
-        // Non-nullable reference types with a Location property (TypeSyntax, RegionSyntax, …)
-        return "result = SourceLocation.Merge(result, " + name + ".Location);";
     }
 }

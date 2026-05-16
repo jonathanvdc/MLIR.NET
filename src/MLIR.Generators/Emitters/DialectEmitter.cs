@@ -45,10 +45,12 @@ internal sealed class DialectEmitter
 
                 if (operation.AssemblyFormat != null)
                 {
-                    var metadata = OperationBodySyntaxEmitter.Emit(builder, operation);
-                    builder.AppendLine();
-
-                    OperationAssemblyFormatEmitter.Emit(builder, operation, metadata, resolver);
+                    UnifiedAssemblyFormatEmitter.EmitOperation(
+                        builder,
+                        operation,
+                        DialectGeneratorNaming.GetOperationClassName(operation),
+                        resolver,
+                        diagnostics);
                     builder.AppendLine();
                 }
             }))
@@ -61,7 +63,7 @@ internal sealed class DialectEmitter
         {
             if (!TryEmit(dialect, "attribute", attribute.RecordName, () =>
             {
-                AttributeEmitter.Emit(builder, attribute);
+                AttributeEmitter.Emit(builder, attribute, diagnostics);
                 builder.AppendLine();
             }))
             {
@@ -116,7 +118,7 @@ internal sealed class DialectEmitter
             if (!TryEmit(dialect, "type", type.RecordName, () =>
             {
                 var typeInterfaces = ResolveTypeInterfaces(type);
-                TypeEmitter.Emit(builder, type, typeInterfaces);
+                TypeEmitter.Emit(builder, type, typeInterfaces, diagnostics);
                 builder.AppendLine();
             }))
             {

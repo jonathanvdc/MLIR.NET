@@ -42,6 +42,11 @@ public readonly struct DialectAttributePrefix
     public Token NameToken { get; }
 
     /// <summary>
+    /// Gets the merged source location for the attribute prefix.
+    /// </summary>
+    public SourceLocation Location => SourceLocation.Merge(HashToken.Location, NameToken.Location);
+
+    /// <summary>
     /// Creates a <see cref="DialectAttributePrefix"/> with synthetic (source-location-free)
     /// tokens for the given canonical attribute name.
     /// </summary>

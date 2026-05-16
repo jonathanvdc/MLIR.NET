@@ -7,19 +7,17 @@ using MLIR.ODS.Model;
 
 internal static class TypeEmitter
 {
-    public static void Emit(StringBuilder builder, TypeModel type, IReadOnlyList<ResolvedTypeInterfaceModel> interfaces)
+    public static void Emit(StringBuilder builder, TypeModel type, IReadOnlyList<ResolvedTypeInterfaceModel> interfaces, IList<Microsoft.CodeAnalysis.Diagnostic> diagnostics)
     {
         var className = DialectGeneratorNaming.GetTypeClassName(type);
 
         if (type.AssemblyFormat != null)
         {
-            TypeAssemblyFormatEmitter.EmitSyntaxClass(builder, type, className);
+            UnifiedAssemblyFormatEmitter.EmitType(builder, type, className, diagnostics);
             builder.AppendLine();
             builder.AppendLine();
             EmitterHelpers.AppendXmlDocComment(builder, type.Summary, type.Description);
             EmitParametrisedTypeClass(builder, type, className, interfaces);
-            builder.AppendLine();
-            TypeAssemblyFormatEmitter.EmitAssemblyFormatClass(builder, type, className);
         }
         else
         {
@@ -91,7 +89,7 @@ internal static class TypeEmitter
                 builder.Append(", ");
             }
 
-            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(parameters[i]);
+            var csharpType = UnifiedAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
             builder.Append(csharpType + " " + EmitterHelpers.LowerFirst(parameters[i].Name));
         }
 
@@ -119,7 +117,7 @@ internal static class TypeEmitter
     {
         foreach (var param in parameters)
         {
-            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(param);
+            var csharpType = UnifiedAssemblyFormatEmitter.GetResolvedCSharpType(param);
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
             if (TryFindMappedInterfaceMember(interfaces, propertyName, csharpType, out var mappedMember, out var upstreamMethod))
             {
@@ -151,7 +149,7 @@ internal static class TypeEmitter
             }
 
             var propertyName = DialectGeneratorNaming.ToPascalCase(parameters[i].Name);
-            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(parameters[i]);
+            var csharpType = UnifiedAssemblyFormatEmitter.GetResolvedCSharpType(parameters[i]);
             builder.Append(GetSemanticEqualsExpression(csharpType, propertyName, "typedOther." + propertyName));
         }
 
@@ -171,7 +169,7 @@ internal static class TypeEmitter
         foreach (var param in parameters)
         {
             var propertyName = DialectGeneratorNaming.ToPascalCase(param.Name);
-            var csharpType = AssemblyFormatLowerer.GetResolvedCSharpType(param);
+            var csharpType = UnifiedAssemblyFormatEmitter.GetResolvedCSharpType(param);
             EmitHashContribution(builder, csharpType, propertyName);
         }
 

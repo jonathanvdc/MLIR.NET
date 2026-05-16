@@ -56,7 +56,7 @@ internal static class TypeInterfaceImplementationEmitter
         foreach (var parameter in type.Parameters)
         {
             var propertyName = DialectGeneratorNaming.ToPascalCase(parameter.Name);
-            var propertyType = AssemblyFormatLowerer.GetResolvedCSharpType(parameter);
+            var propertyType = UnifiedAssemblyFormatEmitter.GetResolvedCSharpType(parameter);
             if (string.Equals(propertyName, member.CsharpName, StringComparison.Ordinal))
             {
                 if (!string.Equals(propertyType, member.CsharpType, StringComparison.Ordinal))
