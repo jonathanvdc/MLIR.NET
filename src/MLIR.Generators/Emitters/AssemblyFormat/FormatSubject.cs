@@ -356,20 +356,21 @@ internal sealed class OperationFormatSubject : FormatSubject
         builder.AppendLine("        var typed = (" + ClassName + ")operation;");
         builder.AppendLine("        if (typed.Syntax != null)");
         builder.AppendLine("            return typed.Syntax;");
-        foreach (var slot in plan.Slots)
+        var syntaxSlots = plan.SyntaxSlots.ToArray();
+        foreach (var slot in syntaxSlots)
         {
             builder.AppendLine("        var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
         }
 
         builder.Append("        var body = new " + SyntaxClassName + "(");
-        for (var i = 0; i < plan.Slots.Count; i++)
+        for (var i = 0; i < syntaxSlots.Length; i++)
         {
             if (i > 0)
             {
                 builder.Append(", ");
             }
 
-            builder.Append(plan.Slots[i].ParameterName);
+            builder.Append(syntaxSlots[i].ParameterName);
         }
 
         builder.AppendLine(");");

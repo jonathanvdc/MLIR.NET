@@ -48,7 +48,7 @@ internal static class AssemblyFormatClassEmitter
 
     private static void EmitTryParseBody(StringBuilder builder, FormatSubject subject, AssemblyFormatPlan plan)
     {
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             builder.AppendLine("        var " + slot.ParameterName + "Result = " + slot.ParseExpression + ";");
             builder.AppendLine("        if (!" + slot.ParameterName + "Result.IsSuccess)");
@@ -64,7 +64,7 @@ internal static class AssemblyFormatClassEmitter
             needsComma = true;
         }
 
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             if (needsComma)
             {

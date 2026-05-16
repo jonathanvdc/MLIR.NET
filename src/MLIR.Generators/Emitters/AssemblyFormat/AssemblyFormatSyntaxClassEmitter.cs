@@ -34,7 +34,7 @@ internal static class AssemblyFormatSyntaxClassEmitter
         }
 
         var firstParameter = !subject.HasPrefix;
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             if (!firstParameter)
             {
@@ -52,7 +52,7 @@ internal static class AssemblyFormatSyntaxClassEmitter
         }
 
         builder.AppendLine("    {");
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             builder.AppendLine("        " + slot.PropertyName + " = " + slot.ParameterName + ";");
         }
@@ -63,12 +63,12 @@ internal static class AssemblyFormatSyntaxClassEmitter
 
     private static void EmitProperties(StringBuilder builder, AssemblyFormatPlan plan)
     {
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             builder.AppendLine("    public " + slot.CsType + " " + slot.PropertyName + " { get; }");
         }
 
-        if (plan.Slots.Count > 0)
+        if (plan.SyntaxSlots.Any())
         {
             builder.AppendLine();
         }
@@ -83,10 +83,16 @@ internal static class AssemblyFormatSyntaxClassEmitter
             builder.AppendLine("        WritePrefix(writer);");
         }
 
-        for (var slotIndex = 0; slotIndex < plan.Slots.Count; slotIndex++)
+        var spacing = AssemblyFormatPrinterSpacing.Initial;
+        foreach (var slot in plan.Slots)
         {
-            var slot = plan.Slots[slotIndex];
-            var trivia = GetLeadingTrivia(subject, plan.Slots, slotIndex);
+            if (!slot.IsSyntaxSlot)
+            {
+                spacing.ApplyExplicitTrivia(slot.TriviaText ?? string.Empty);
+                continue;
+            }
+
+            var trivia = spacing.GetLeadingTrivia(slot, subject);
             switch (slot.Kind)
             {
                 case FormatSlotKind.LiteralToken:
@@ -107,6 +113,8 @@ internal static class AssemblyFormatSyntaxClassEmitter
                     builder.AppendLine("        writer.WriteDelimitedList(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(trivia) + ");");
                     break;
             }
+
+            spacing.MarkEmitted(slot);
         }
 
         builder.AppendLine("    }");
@@ -124,7 +132,7 @@ internal static class AssemblyFormatSyntaxClassEmitter
             needsComma = true;
         }
 
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             if (needsComma)
             {
@@ -139,45 +147,6 @@ internal static class AssemblyFormatSyntaxClassEmitter
         builder.AppendLine("    }");
     }
 
-    private static string GetLeadingTrivia(FormatSubject subject, IReadOnlyList<FormatSlot> slots, int slotIndex)
-    {
-        var slot = slots[slotIndex];
-        if (slot.Kind == FormatSlotKind.LiteralToken && IsTightClosingLiteral(slot.TokenText))
-        {
-            return string.Empty;
-        }
-
-        if (slotIndex == 0)
-        {
-            return subject.HasPrefix ? string.Empty : " ";
-        }
-
-        var previous = slots[slotIndex - 1];
-        if (previous.Kind == FormatSlotKind.LiteralToken && IsTightOpeningLiteral(previous.TokenText))
-        {
-            return string.Empty;
-        }
-
-        if (slot.Kind == FormatSlotKind.LiteralToken && string.Equals(slot.TokenText, ",", StringComparison.Ordinal))
-        {
-            return string.Empty;
-        }
-
-        return " ";
-    }
-
-    private static bool IsTightOpeningLiteral(string? text)
-        => string.Equals(text, "<", StringComparison.Ordinal)
-        || string.Equals(text, "(", StringComparison.Ordinal)
-        || string.Equals(text, "[", StringComparison.Ordinal)
-        || string.Equals(text, "{", StringComparison.Ordinal);
-
-    private static bool IsTightClosingLiteral(string? text)
-        => string.Equals(text, ">", StringComparison.Ordinal)
-        || string.Equals(text, ")", StringComparison.Ordinal)
-        || string.Equals(text, "]", StringComparison.Ordinal)
-        || string.Equals(text, "}", StringComparison.Ordinal);
-
     private static void EmitLocationProperty(StringBuilder builder, FormatSubject subject, AssemblyFormatPlan plan)
     {
         var locations = new List<string>();
@@ -186,7 +155,7 @@ internal static class AssemblyFormatSyntaxClassEmitter
             locations.Add("Prefix.Location");
         }
 
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             locations.Add(slot.LocationExpression);
         }

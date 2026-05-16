@@ -82,8 +82,12 @@ internal sealed class AssemblyFormatPlanCompiler
                     isKeyword: true));
                 ordinal++;
                 break;
-            case WhitespaceLiteral:
+            case WhitespaceLiteral whitespace:
+                slots.Add(FormatSlot.ForWhitespace(whitespace.Spaces));
+                break;
             case NewlineLiteral:
+                slots.Add(FormatSlot.ForNewline());
+                break;
             case EmptyLiteral:
                 break;
             default:

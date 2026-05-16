@@ -20,13 +20,13 @@ internal static class AssemblyFormatEmitterHelpers
         builder.AppendLine("        var " + typedLocalName + " = (" + plan.Subject.ClassName + ")" + valueParameterName + ";");
         builder.AppendLine("        if (" + typedLocalName + ".Syntax is " + plan.Subject.SyntaxClassName + " existingSyntax)");
         builder.AppendLine("            return existingSyntax;");
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             builder.AppendLine("        var " + slot.ParameterName + " = " + slot.BuildExpression(typedLocalName) + ";");
         }
 
         builder.Append("        return new " + plan.Subject.SyntaxClassName + "(" + prefixExpression);
-        foreach (var slot in plan.Slots)
+        foreach (var slot in plan.SyntaxSlots)
         {
             builder.Append(", " + slot.ParameterName);
         }

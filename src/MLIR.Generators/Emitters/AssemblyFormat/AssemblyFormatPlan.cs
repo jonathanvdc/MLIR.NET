@@ -1,6 +1,7 @@
 namespace MLIR.Generators.Emitters.AssemblyFormat;
 
 using System.Collections.Generic;
+using System.Linq;
 using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model;
 
@@ -15,6 +16,7 @@ internal sealed class AssemblyFormatPlan
 
     public FormatSubject Subject { get; }
     public IReadOnlyList<FormatSlot> Slots { get; }
+    public IEnumerable<FormatSlot> SyntaxSlots => Slots.Where(static slot => slot.IsSyntaxSlot);
     public IReadOnlyList<string> UnsupportedFeatures { get; }
     public bool IsSupported => UnsupportedFeatures.Count == 0;
 }
@@ -22,6 +24,8 @@ internal sealed class AssemblyFormatPlan
 internal enum FormatSlotKind
 {
     LiteralToken,
+    Whitespace,
+    Newline,
     AttributeValue,
     Type,
     SsaValue,
@@ -39,6 +43,7 @@ internal sealed class FormatSlot
         AttrOrTypeParameterModel? parameterModel = null,
         string? tokenText = null,
         string? tokenKindExpression = null,
+        string? triviaText = null,
         bool isKeyword = false)
     {
         SourceName = sourceName;
@@ -49,6 +54,7 @@ internal sealed class FormatSlot
         ParameterModel = parameterModel;
         TokenText = tokenText;
         TokenKindExpression = tokenKindExpression;
+        TriviaText = triviaText;
         IsKeyword = isKeyword;
     }
 
@@ -60,7 +66,9 @@ internal sealed class FormatSlot
     public AttrOrTypeParameterModel? ParameterModel { get; }
     public string? TokenText { get; }
     public string? TokenKindExpression { get; }
+    public string? TriviaText { get; }
     public bool IsKeyword { get; }
+    public bool IsSyntaxSlot => Kind != FormatSlotKind.Whitespace && Kind != FormatSlotKind.Newline;
     public string PropertyName => DialectGeneratorNaming.ToPascalCase(BaseName);
     public string ParameterName => EmitterHelpers.LowerFirst(PropertyName);
 
@@ -82,6 +90,8 @@ internal sealed class FormatSlot
         FormatSlotKind.Type => "(" + CsType + ")rewriter.Visit(" + PropertyName + ")",
         FormatSlotKind.SsaValue => "rewriter.VisitToken(" + PropertyName + ")",
         FormatSlotKind.AttrDict => "rewriter.VisitDelimitedList(" + PropertyName + ")",
+        FormatSlotKind.Whitespace => string.Empty,
+        FormatSlotKind.Newline => string.Empty,
         _ => PropertyName,
     };
 
@@ -94,6 +104,12 @@ internal sealed class FormatSlot
             : "context.Expect(" + tokenKindExpression + ", " + EmitterHelpers.ToCSharpStringLiteral("Expected '" + text + "'.") + ")";
         return new FormatSlot(name, name, FormatSlotKind.LiteralToken, "global::MLIR.Syntax.Token", parseExpression, tokenText: text, tokenKindExpression: tokenKindExpression, isKeyword: isKeyword);
     }
+
+    public static FormatSlot ForWhitespace(string spaces)
+        => new("whitespace", "whitespace", FormatSlotKind.Whitespace, string.Empty, string.Empty, triviaText: spaces);
+
+    public static FormatSlot ForNewline()
+        => new("newline", "newline", FormatSlotKind.Newline, string.Empty, string.Empty, triviaText: "\n");
 
     public static FormatSlot ForParameter(string name, int ordinal, AttrOrTypeParameterModel parameter)
     {
