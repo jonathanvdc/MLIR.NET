@@ -27,7 +27,7 @@ internal struct AssemblyFormatPrinterSpacing
         lastWasPunctuation = false;
     }
 
-    public string GetLeadingTrivia(FormatSlot slot, FormatSubject subject)
+    public string GetLeadingTrivia(FormatNode node, FormatSubject? subject)
     {
         if (explicitTrivia != null)
         {
@@ -36,7 +36,7 @@ internal struct AssemblyFormatPrinterSpacing
             return trivia;
         }
 
-        if (slot.Kind == FormatSlotKind.LiteralToken)
+        if (node is FormatSlot { Kind: FormatSlotKind.LiteralToken } slot)
         {
             return ShouldEmitSpaceBefore(slot.TokenText ?? string.Empty, lastWasPunctuation) ? " " : string.Empty;
         }
@@ -44,9 +44,9 @@ internal struct AssemblyFormatPrinterSpacing
         return shouldEmitSpace || !lastWasPunctuation ? " " : string.Empty;
     }
 
-    public void MarkEmitted(FormatSlot slot)
+    public void MarkEmitted(FormatNode node)
     {
-        if (slot.Kind == FormatSlotKind.LiteralToken)
+        if (node is FormatSlot { Kind: FormatSlotKind.LiteralToken } slot)
         {
             var text = slot.TokenText ?? string.Empty;
             shouldEmitSpace = text != "<" && text != "(" && text != "{" && text != "[" && text != "->";

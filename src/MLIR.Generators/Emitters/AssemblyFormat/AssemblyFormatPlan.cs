@@ -7,18 +7,98 @@ using MLIR.ODS.Model;
 
 internal sealed class AssemblyFormatPlan
 {
-    public AssemblyFormatPlan(FormatSubject subject, IReadOnlyList<FormatSlot> slots, IReadOnlyList<string> unsupportedFeatures)
+    public AssemblyFormatPlan(FormatSubject subject, IReadOnlyList<FormatNode> nodes, IReadOnlyList<string> unsupportedFeatures)
     {
         Subject = subject;
-        Slots = slots;
+        Nodes = nodes;
         UnsupportedFeatures = unsupportedFeatures;
     }
 
     public FormatSubject Subject { get; }
-    public IReadOnlyList<FormatSlot> Slots { get; }
+    public IReadOnlyList<FormatNode> Nodes { get; }
+    public IEnumerable<FormatSlot> Slots => Nodes.DescendantSlots();
+    public IEnumerable<FormatNode> SyntaxNodes => Nodes.DescendantSyntaxNodes();
     public IEnumerable<FormatSlot> SyntaxSlots => Slots.Where(static slot => slot.IsSyntaxSlot);
     public IReadOnlyList<string> UnsupportedFeatures { get; }
     public bool IsSupported => UnsupportedFeatures.Count == 0;
+}
+
+internal abstract class FormatNode
+{
+    public virtual bool IsSyntaxNode => false;
+    public virtual string PropertyName => string.Empty;
+    public virtual string ParameterName => string.Empty;
+    public virtual string CsType => string.Empty;
+    public virtual string LocationExpression => PropertyName + ".Location";
+    public virtual string RewriteExpression => PropertyName;
+
+    public virtual IEnumerable<FormatSlot> DescendantSlots()
+    {
+        yield break;
+    }
+
+    public virtual IEnumerable<FormatNode> DescendantSyntaxNodes()
+    {
+        if (IsSyntaxNode)
+        {
+            yield return this;
+        }
+    }
+}
+
+internal sealed class OptionalGroupNode : FormatNode
+{
+    public OptionalGroupNode(string name, string syntaxClassName, string anchorName, IReadOnlyList<FormatNode> nodes)
+    {
+        Name = name;
+        SyntaxClassName = syntaxClassName;
+        AnchorName = anchorName;
+        Nodes = nodes;
+        foreach (var slot in nodes.DescendantSlots())
+        {
+            slot.ContainingOptionalGroup = this;
+        }
+    }
+
+    public string Name { get; }
+    public string SyntaxClassName { get; }
+    public string AnchorName { get; }
+    public IReadOnlyList<FormatNode> Nodes { get; }
+    public FormatSlot? AnchorSlot => Nodes.DescendantSlots().FirstOrDefault(slot => slot.SourceName == AnchorName);
+    public override bool IsSyntaxNode => true;
+    public override string PropertyName => Name;
+    public override string ParameterName => EmitterHelpers.LowerFirst(Name);
+    public override string CsType => SyntaxClassName + "?";
+    public override string LocationExpression => PropertyName + "?.Location ?? SourceLocation.Unknown";
+    public override string RewriteExpression => PropertyName + " is null ? null : (" + SyntaxClassName + ")rewriter.Visit(" + PropertyName + ")";
+
+    public override IEnumerable<FormatSlot> DescendantSlots()
+        => Nodes.DescendantSlots();
+}
+
+internal static class FormatNodeExtensions
+{
+    public static IEnumerable<FormatSlot> DescendantSlots(this IEnumerable<FormatNode> nodes)
+        => nodes.SelectMany(static node => node.DescendantSlots());
+
+    public static IEnumerable<FormatNode> DescendantSyntaxNodes(this IEnumerable<FormatNode> nodes)
+        => nodes.SelectMany(static node => node.DescendantSyntaxNodes());
+}
+
+internal sealed class OilistNode : FormatNode
+{
+    public OilistNode(IReadOnlyList<OptionalGroupNode> clauses)
+    {
+        Clauses = clauses;
+    }
+
+    public IReadOnlyList<OptionalGroupNode> Clauses { get; }
+
+    public override IEnumerable<FormatSlot> DescendantSlots()
+        => Clauses.DescendantSlots();
+
+    public override IEnumerable<FormatNode> DescendantSyntaxNodes()
+        => Clauses;
 }
 
 internal enum FormatSlotKind
@@ -29,10 +109,11 @@ internal enum FormatSlotKind
     AttributeValue,
     Type,
     SsaValue,
+    SsaValueList,
     AttrDict,
 }
 
-internal sealed class FormatSlot
+internal sealed class FormatSlot : FormatNode
 {
     private FormatSlot(
         string sourceName,
@@ -61,16 +142,18 @@ internal sealed class FormatSlot
     public string SourceName { get; }
     public string BaseName { get; }
     public FormatSlotKind Kind { get; }
-    public string CsType { get; }
+    public override string CsType { get; }
     public string ParseExpression { get; }
     public AttrOrTypeParameterModel? ParameterModel { get; }
     public string? TokenText { get; }
     public string? TokenKindExpression { get; }
     public string? TriviaText { get; }
+    public OptionalGroupNode? ContainingOptionalGroup { get; internal set; }
     public bool IsKeyword { get; }
     public bool IsSyntaxSlot => Kind != FormatSlotKind.Whitespace && Kind != FormatSlotKind.Newline;
-    public string PropertyName => DialectGeneratorNaming.ToPascalCase(BaseName);
-    public string ParameterName => EmitterHelpers.LowerFirst(PropertyName);
+    public override bool IsSyntaxNode => IsSyntaxSlot;
+    public override string PropertyName => DialectGeneratorNaming.ToPascalCase(BaseName);
+    public override string ParameterName => EmitterHelpers.LowerFirst(PropertyName);
 
     public string ParseValueExpression
     {
@@ -83,19 +166,31 @@ internal sealed class FormatSlot
         }
     }
 
-    public string RewriteExpression => Kind switch
+    public override string RewriteExpression => Kind switch
     {
         FormatSlotKind.LiteralToken => "rewriter.VisitToken(" + PropertyName + ")",
         FormatSlotKind.AttributeValue => "(" + CsType + ")rewriter.Visit(" + PropertyName + ")",
         FormatSlotKind.Type => "(" + CsType + ")rewriter.Visit(" + PropertyName + ")",
         FormatSlotKind.SsaValue => "rewriter.VisitToken(" + PropertyName + ")",
+        FormatSlotKind.SsaValueList => "rewriter.VisitSeparatedTokenList(" + PropertyName + ")",
         FormatSlotKind.AttrDict => "rewriter.VisitDelimitedList(" + PropertyName + ")",
         FormatSlotKind.Whitespace => string.Empty,
         FormatSlotKind.Newline => string.Empty,
         _ => PropertyName,
     };
 
-    public string LocationExpression => PropertyName + ".Location";
+    public override string LocationExpression => PropertyName + ".Location";
+    public string BodyAccessExpression => ContainingOptionalGroup == null
+        ? "body." + PropertyName
+        : "body." + ContainingOptionalGroup.PropertyName + "!." + PropertyName;
+    public string OptionalBodyAccessExpression => ContainingOptionalGroup == null
+        ? "body." + PropertyName
+        : "body." + ContainingOptionalGroup.PropertyName + "?." + PropertyName;
+
+    public override IEnumerable<FormatSlot> DescendantSlots()
+    {
+        yield return this;
+    }
 
     public static FormatSlot ForLiteral(string name, string text, string tokenKindExpression, bool isKeyword = false)
     {
@@ -129,9 +224,12 @@ internal sealed class FormatSlot
 
     public static FormatSlot ForOperationVariable(string name, int ordinal, FormatSlotKind kind, string parseExpression)
     {
-        var csType = kind == FormatSlotKind.SsaValue
-            ? "global::MLIR.Syntax.Token"
-            : "global::MLIR.Syntax.AttributeValueSyntax";
+        var csType = kind switch
+        {
+            FormatSlotKind.SsaValue => "global::MLIR.Syntax.Token",
+            FormatSlotKind.SsaValueList => "global::MLIR.Syntax.SeparatedSyntaxList<global::MLIR.Syntax.Token>",
+            _ => "global::MLIR.Syntax.AttributeValueSyntax",
+        };
         return new FormatSlot(name, name, kind, csType, parseExpression);
     }
 

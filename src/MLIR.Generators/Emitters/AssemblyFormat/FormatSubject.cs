@@ -217,7 +217,7 @@ internal sealed class OperationFormatSubject : FormatSubject
         if (operand != null)
         {
             return operand.IsVariadic
-                ? null
+                ? FormatSlot.ForOperationVariable(variable.Name, ordinal, FormatSlotKind.SsaValueList, "context.TryParseSsaTokenList()")
                 : FormatSlot.ForOperationVariable(variable.Name, ordinal, FormatSlotKind.SsaValue, "context.TryParseSsaToken()");
         }
 
@@ -249,6 +249,31 @@ internal sealed class OperationFormatSubject : FormatSubject
             return FormatSlot.ForDirective(GetTypeDirectiveSlotName(typeDirective, ordinal), ordinal, FormatSlotKind.Type, "context.TryParseTypeSyntax()", "global::MLIR.Syntax.TypeSyntax");
         }
 
+        if (directive is QualifiedDirectiveChunk qualifiedDirective)
+        {
+            return ResolveQualifiedDirective(qualifiedDirective, ordinal);
+        }
+
+        if (directive is FunctionalTypeDirectiveChunk)
+        {
+            return FormatSlot.ForDirective("functionType" + ordinal.ToString(CultureInfo.InvariantCulture), ordinal, FormatSlotKind.Type, "context.TryParseTypeSyntax()", "global::MLIR.Syntax.TypeSyntax");
+        }
+
+        return null;
+    }
+
+    private FormatSlot? ResolveQualifiedDirective(QualifiedDirectiveChunk directive, int ordinal)
+    {
+        if (directive.Operand is TypeDirectiveOperand typeOperand)
+        {
+            return FormatSlot.ForDirective(GetTypeDirectiveSlotName(new TypeDirectiveChunk(typeOperand.Operand), ordinal), ordinal, FormatSlotKind.Type, "context.TryParseTypeSyntax()", "global::MLIR.Syntax.TypeSyntax");
+        }
+
+        if (directive.Operand is VariableOperand variable)
+        {
+            return ResolveVariable(new VariableChunk(variable.Name), ordinal);
+        }
+
         return null;
     }
 
@@ -278,15 +303,23 @@ internal sealed class OperationFormatSubject : FormatSubject
                 ? resolver.TryResolveAttributeConstraintDefinitionExpression(expectedConstraint!)
                 : null;
             var bindExpr = !string.IsNullOrEmpty(expectedDefinitionExpr)
-                ? "binder.BindAttributeValue(body." + slot.PropertyName + ", " + expectedDefinitionExpr + ")"
-                : "binder.BindAttributeValue(body." + slot.PropertyName + ")";
-            builder.AppendLine("        attributes.Add(new global::MLIR.Semantics.NamedAttribute(" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + ", " + bindExpr + "));");
+                ? "binder.BindAttributeValue(" + slot.BodyAccessExpression + ", " + expectedDefinitionExpr + ")"
+                : "binder.BindAttributeValue(" + slot.BodyAccessExpression + ")";
+            if (slot.ContainingOptionalGroup != null)
+            {
+                builder.AppendLine("        if (body." + slot.ContainingOptionalGroup.PropertyName + " != null)");
+                builder.AppendLine("            attributes.Add(new global::MLIR.Semantics.NamedAttribute(" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + ", " + bindExpr + "));");
+            }
+            else
+            {
+                builder.AppendLine("        attributes.Add(new global::MLIR.Semantics.NamedAttribute(" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + ", " + bindExpr + "));");
+            }
         }
 
         var attrDict = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.AttrDict);
         if (attrDict != null)
         {
-            builder.AppendLine("        foreach (var attr in body." + attrDict.PropertyName + ")");
+            builder.AppendLine("        foreach (var attr in " + attrDict.BodyAccessExpression + ")");
             builder.AppendLine("            attributes.Add(binder.BindNamedAttribute(attr, " + ClassName + ".OperationDefinition));");
         }
 
@@ -294,7 +327,15 @@ internal sealed class OperationFormatSubject : FormatSubject
         var typeSlot = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.Type);
         if (typeSlot != null)
         {
-            builder.AppendLine("        typeSignatureReference = binder.BindTypeReference(body." + typeSlot.PropertyName + ");");
+            if (typeSlot.ContainingOptionalGroup != null)
+            {
+                builder.AppendLine("        if (body." + typeSlot.ContainingOptionalGroup.PropertyName + " != null)");
+                builder.AppendLine("            typeSignatureReference = binder.BindTypeReference(" + typeSlot.BodyAccessExpression + ");");
+            }
+            else
+            {
+                builder.AppendLine("        typeSignatureReference = binder.BindTypeReference(" + typeSlot.BodyAccessExpression + ");");
+            }
         }
 
         builder.AppendLine("        return new " + ClassName + "(");
@@ -309,12 +350,32 @@ internal sealed class OperationFormatSubject : FormatSubject
             var slot = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.SsaValue && string.Equals(s.SourceName, member.SourceName, StringComparison.Ordinal));
             if (member.IsVariadic)
             {
-                builder.AppendLine("            " + member.ParameterName + ": global::System.Array.Empty<global::MLIR.Semantics.Value>(),");
+                var listSlot = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.SsaValueList && string.Equals(s.SourceName, member.SourceName, StringComparison.Ordinal));
+                if (listSlot != null)
+                {
+                    var bindList = "global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Select(" + listSlot.BodyAccessExpression + ", binder.BindValueReference))";
+                    if (listSlot.ContainingOptionalGroup != null)
+                    {
+                        bindList = "body." + listSlot.ContainingOptionalGroup.PropertyName + " == null ? new global::System.Collections.Generic.List<global::MLIR.Semantics.Value>() : " + bindList;
+                    }
+
+                    builder.AppendLine("            " + member.ParameterName + ": " + bindList + ",");
+                }
+                else
+                {
+                    builder.AppendLine("            " + member.ParameterName + ": global::System.Array.Empty<global::MLIR.Semantics.Value>(),");
+                }
             }
             else if (slot != null)
             {
                 var nullableSuffix = member.TypeName.EndsWith("?", StringComparison.Ordinal) ? string.Empty : "!";
-                builder.AppendLine("            " + member.ParameterName + ": binder.BindValueReference(body." + slot.PropertyName + ")" + nullableSuffix + ",");
+                var bindValue = "binder.BindValueReference(" + slot.BodyAccessExpression + ")" + nullableSuffix;
+                if (slot.ContainingOptionalGroup != null)
+                {
+                    bindValue = "body." + slot.ContainingOptionalGroup.PropertyName + " == null ? null : " + bindValue;
+                }
+
+                builder.AppendLine("            " + member.ParameterName + ": " + bindValue + ",");
             }
             else
             {
@@ -354,28 +415,143 @@ internal sealed class OperationFormatSubject : FormatSubject
         }
 
         builder.AppendLine("        var typed = (" + ClassName + ")operation;");
-        builder.AppendLine("        if (typed.Syntax != null)");
-        builder.AppendLine("            return typed.Syntax;");
-        var syntaxSlots = plan.SyntaxSlots.ToArray();
-        foreach (var slot in syntaxSlots)
+        var syntaxNodes = plan.SyntaxNodes.ToArray();
+        foreach (var node in syntaxNodes)
         {
-            builder.AppendLine("        var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
+            EmitBuildOperationNode(builder, plan, node);
         }
 
         builder.Append("        var body = new " + SyntaxClassName + "(");
-        for (var i = 0; i < syntaxSlots.Length; i++)
+        for (var i = 0; i < syntaxNodes.Length; i++)
         {
             if (i > 0)
             {
                 builder.Append(", ");
             }
 
-            builder.Append(syntaxSlots[i].ParameterName);
+            builder.Append(syntaxNodes[i].ParameterName);
         }
 
         builder.AppendLine(");");
         builder.AppendLine("        return context.RewriteOperation(operation, body, global::MLIR.Syntax.TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(operation.Name) + "));");
         builder.AppendLine("    }");
+    }
+
+    private void EmitBuildOperationNode(StringBuilder builder, AssemblyFormatPlan plan, FormatNode node)
+    {
+        if (node is FormatSlot slot)
+        {
+            builder.AppendLine("        var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
+            return;
+        }
+
+        if (node is not OptionalGroupNode group)
+        {
+            throw new InvalidOperationException("Unsupported operation format node '" + node.GetType().Name + "'.");
+        }
+
+        builder.AppendLine("        " + group.CsType + " " + group.ParameterName + " = null;");
+        builder.AppendLine("        if (" + GetOperationGroupPresenceExpression(group) + ")");
+        builder.AppendLine("        {");
+        foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
+        {
+            EmitBuildOperationGroupChildNode(builder, plan, child);
+        }
+
+        builder.Append("            " + group.ParameterName + " = new " + group.SyntaxClassName + "(");
+        var needsComma = false;
+        foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
+        {
+            if (needsComma)
+            {
+                builder.Append(", ");
+            }
+
+            needsComma = true;
+            builder.Append(child.ParameterName);
+        }
+
+        builder.AppendLine(");");
+        builder.AppendLine("        }");
+    }
+
+    private void EmitBuildOperationGroupChildNode(StringBuilder builder, AssemblyFormatPlan plan, FormatNode node)
+    {
+        if (node is FormatSlot slot)
+        {
+            builder.AppendLine("            var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
+            return;
+        }
+
+        if (node is OptionalGroupNode group)
+        {
+            builder.AppendLine("            " + group.CsType + " " + group.ParameterName + " = null;");
+            builder.AppendLine("            if (" + GetOperationGroupPresenceExpression(group) + ")");
+            builder.AppendLine("            {");
+            foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
+            {
+                EmitBuildOperationGroupChildNode(builder, plan, child);
+            }
+
+            builder.Append("                " + group.ParameterName + " = new " + group.SyntaxClassName + "(");
+            var needsComma = false;
+            foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
+            {
+                if (needsComma)
+                {
+                    builder.Append(", ");
+                }
+
+                needsComma = true;
+                builder.Append(child.ParameterName);
+            }
+
+            builder.AppendLine(");");
+            builder.AppendLine("            }");
+            return;
+        }
+
+        throw new InvalidOperationException("Unsupported operation format node '" + node.GetType().Name + "'.");
+    }
+
+    private string GetOperationGroupPresenceExpression(OptionalGroupNode group)
+    {
+        var anchor = group.AnchorSlot;
+        if (anchor == null)
+        {
+            return "false";
+        }
+
+        return anchor.Kind switch
+        {
+            FormatSlotKind.AttributeValue => "typed.Attributes.Contains(" + EmitterHelpers.ToCSharpStringLiteral(anchor.SourceName) + ")",
+            FormatSlotKind.SsaValue => GetOperandPresenceExpression(anchor.SourceName),
+            FormatSlotKind.SsaValueList => GetOperandListPresenceExpression(anchor.SourceName),
+            FormatSlotKind.Type => "typed.TypeSignatureReference != null",
+            _ => "true",
+        };
+    }
+
+    private string GetOperandPresenceExpression(string sourceName)
+    {
+        var member = memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, sourceName, StringComparison.Ordinal));
+        if (member == null)
+        {
+            return "false";
+        }
+
+        return "typed." + member.PropertyName + " != null";
+    }
+
+    private string GetOperandListPresenceExpression(string sourceName)
+    {
+        var member = memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, sourceName, StringComparison.Ordinal));
+        if (member == null)
+        {
+            return "false";
+        }
+
+        return "typed." + member.PropertyName + ".Count > 0";
     }
 
     private string BuildOperationSlotExpression(AssemblyFormatPlan plan, FormatSlot slot)
@@ -389,6 +565,14 @@ internal sealed class OperationFormatSubject : FormatSubject
                 var member = memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, slot.SourceName, StringComparison.Ordinal));
                 var valueExpr = member != null ? "typed." + member.PropertyName : "null";
                 return valueExpr + ".Token ?? global::MLIR.Syntax.TokenFactory.SsaName(" + valueExpr + ".Name)";
+            }
+            case FormatSlotKind.SsaValueList:
+            {
+                var member = memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, slot.SourceName, StringComparison.Ordinal));
+                var valueExpr = member != null ? "typed." + member.PropertyName : "global::System.Array.Empty<global::MLIR.Semantics.Value>()";
+                return "new global::MLIR.Syntax.SeparatedSyntaxList<global::MLIR.Syntax.Token>("
+                    + "global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(" + valueExpr + ", static value => value.Token ?? global::MLIR.Syntax.TokenFactory.SsaName(value.Name))), "
+                    + "global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.Range(0, global::System.Math.Max(0, " + valueExpr + ".Count - 1)), static _ => global::MLIR.Syntax.TokenFactory.Comma())))";
             }
             case FormatSlotKind.AttributeValue:
                 return "context.BuildAttributeValueSyntax(typed.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + "].Value)";

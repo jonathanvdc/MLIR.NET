@@ -8,13 +8,13 @@ using MLIR.Generators.Emitters.Common;
 using MLIR.ODS.Model.AssemblyFormat;
 
 /// <summary>
-/// Lowers the parsed declarative assembly-format elements into a flat list of slots.
+/// Lowers the parsed declarative assembly-format elements into the generated format tree.
 /// Unsupported constructs are recorded as plan diagnostics so generated code can fail loudly.
 /// </summary>
 internal sealed class AssemblyFormatPlanCompiler
 {
     private readonly FormatSubject subject;
-    private readonly List<FormatSlot> slots = [];
+    private readonly List<FormatNode> nodes = [];
     private readonly List<string> unsupported = [];
     private int ordinal;
 
@@ -27,35 +27,35 @@ internal sealed class AssemblyFormatPlanCompiler
     {
         foreach (var element in subject.Elements)
         {
-            Lower(element);
+            Lower(element, nodes);
         }
 
-        return new AssemblyFormatPlan(subject, slots, unsupported.Distinct(StringComparer.Ordinal).ToArray());
+        return new AssemblyFormatPlan(subject, nodes, unsupported.Distinct(StringComparer.Ordinal).ToArray());
     }
 
-    private void Lower(Element element)
+    private void Lower(Element element, List<FormatNode> target)
     {
         switch (element)
         {
             case LiteralChunk literal:
                 foreach (var literalElement in literal.Value)
                 {
-                    LowerLiteral(literalElement);
+                    LowerLiteral(literalElement, target);
                 }
                 break;
             case VariableChunk variable:
-                AddResolved(subject.ResolveVariable(variable, ordinal), "variable $" + variable.Name);
+                AddResolved(target, subject.ResolveVariable(variable, ordinal), "variable $" + variable.Name);
                 ordinal++;
                 break;
-            case OilistDirectiveChunk:
-                unsupported.Add("oilist");
+            case OilistDirectiveChunk oilist:
+                LowerOilist(oilist, target);
                 break;
             case DirectiveChunk directive:
-                AddResolved(subject.ResolveDirective(directive, ordinal), GetFeatureName(directive));
+                AddResolved(target, subject.ResolveDirective(directive, ordinal), GetFeatureName(directive));
                 ordinal++;
                 break;
-            case OptionalGroup:
-                unsupported.Add("optional group");
+            case OptionalGroup optionalGroup:
+                LowerOptionalGroup(optionalGroup, target);
                 break;
             default:
                 unsupported.Add(element.GetType().Name);
@@ -63,19 +63,107 @@ internal sealed class AssemblyFormatPlanCompiler
         }
     }
 
-    private void LowerLiteral(Literal literal)
+    private void LowerOptionalGroup(OptionalGroup optionalGroup, List<FormatNode> target)
+    {
+        if (optionalGroup.ElseElements is { Count: > 0 })
+        {
+            unsupported.Add("optional group else branch");
+            return;
+        }
+
+        var groupNodes = new List<FormatNode>();
+        foreach (var element in optionalGroup.ThenElements)
+        {
+            Lower(element, groupNodes);
+        }
+
+        var name = DialectGeneratorNaming.ToPascalCase(optionalGroup.AnchorName) + "Group";
+        target.Add(new OptionalGroupNode(
+            name,
+            subject.SyntaxClassName + name + "Syntax",
+            optionalGroup.AnchorName,
+            groupNodes));
+    }
+
+    private void LowerOilist(OilistDirectiveChunk oilist, List<FormatNode> target)
+    {
+        var clauses = new List<OptionalGroupNode>();
+        foreach (var clause in oilist.Clauses)
+        {
+            var clauseNodes = new List<FormatNode>
+            {
+                FormatSlot.ForLiteral(
+                    clause.Keyword + "Keyword",
+                    clause.Keyword,
+                    "global::MLIR.Text.TokenKind.Identifier",
+                    isKeyword: true),
+            };
+
+            ordinal++;
+            foreach (var element in clause.Elements)
+            {
+                LowerOilistElement(element, clauseNodes);
+            }
+
+            var anchor = clauseNodes
+                .OfType<FormatSlot>()
+                .FirstOrDefault(static slot => slot.Kind is FormatSlotKind.AttributeValue or FormatSlotKind.Type or FormatSlotKind.SsaValue or FormatSlotKind.SsaValueList)
+                ?.SourceName ?? clause.Keyword + "Keyword";
+            var name = DialectGeneratorNaming.ToPascalCase(clause.Keyword) + "Clause";
+            clauses.Add(new OptionalGroupNode(
+                name,
+                subject.SyntaxClassName + name + "Syntax",
+                anchor,
+                clauseNodes));
+        }
+
+        target.Add(new OilistNode(clauses));
+    }
+
+    private void LowerOilistElement(OilistElement element, List<FormatNode> target)
+    {
+        switch (element)
+        {
+            case OilistLiteralElement literal:
+                AddOilistLiteral(literal.Value, target);
+                break;
+            case OilistVariableElement variable:
+                AddResolved(target, subject.ResolveVariable(new VariableChunk(variable.Name), ordinal), "oilist variable $" + variable.Name);
+                ordinal++;
+                break;
+            case OilistTypeDirectiveElement typeDirective:
+                AddResolved(target, subject.ResolveDirective(new TypeDirectiveChunk(typeDirective.Operand), ordinal), "oilist type directive");
+                ordinal++;
+                break;
+            default:
+                unsupported.Add(element.GetType().Name);
+                break;
+        }
+    }
+
+    private void AddOilistLiteral(string value, List<FormatNode> target)
+    {
+        target.Add(FormatSlot.ForLiteral(
+            "literal" + ordinal.ToString(CultureInfo.InvariantCulture),
+            value,
+            "global::MLIR.Text.TokenKind.Identifier",
+            isKeyword: true));
+        ordinal++;
+    }
+
+    private void LowerLiteral(Literal literal, List<FormatNode> target)
     {
         switch (literal)
         {
             case PunctuationLiteral punctuation:
-                slots.Add(FormatSlot.ForLiteral(
+                target.Add(FormatSlot.ForLiteral(
                     "literal" + ordinal.ToString(CultureInfo.InvariantCulture),
                     EmitterHelpers.GetPunctuationText(punctuation.TokenKind),
                     "global::MLIR.Text.TokenKind." + punctuation.TokenKind));
                 ordinal++;
                 break;
             case KeywordLiteral keyword:
-                slots.Add(FormatSlot.ForLiteral(
+                target.Add(FormatSlot.ForLiteral(
                     "literal" + ordinal.ToString(CultureInfo.InvariantCulture),
                     keyword.Spelling,
                     "global::MLIR.Text.TokenKind.Identifier",
@@ -83,10 +171,10 @@ internal sealed class AssemblyFormatPlanCompiler
                 ordinal++;
                 break;
             case WhitespaceLiteral whitespace:
-                slots.Add(FormatSlot.ForWhitespace(whitespace.Spaces));
+                target.Add(FormatSlot.ForWhitespace(whitespace.Spaces));
                 break;
             case NewlineLiteral:
-                slots.Add(FormatSlot.ForNewline());
+                target.Add(FormatSlot.ForNewline());
                 break;
             case EmptyLiteral:
                 break;
@@ -96,7 +184,7 @@ internal sealed class AssemblyFormatPlanCompiler
         }
     }
 
-    private void AddResolved(FormatSlot? slot, string featureName)
+    private void AddResolved(List<FormatNode> target, FormatSlot? slot, string featureName)
     {
         if (slot == null)
         {
@@ -104,7 +192,7 @@ internal sealed class AssemblyFormatPlanCompiler
             return;
         }
 
-        slots.Add(slot);
+        target.Add(slot);
     }
 
     private static string GetFeatureName(DirectiveChunk directive)

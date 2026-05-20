@@ -40,8 +40,6 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
         Assert.True(registry.TryGetOperation("func.func", out var funcDef));
         Assert.True(registry.TryGetOperation("func.return", out var returnDef));
 
-        // CallOp falls back to generic parsing (functional-type is unsupported in TryParse),
-        // but it should still have an assembly format object registered.
         Assert.NotNull(callDef?.AssemblyFormat);
 
         // These operations have declarative assembly formats.
@@ -62,7 +60,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// Format: attr-dict ($operands^ ':' type($operands))?
     /// Example from FuncOps.td: func.return
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Fact]
     public void BindsReturnOpWithNoOperands()
     {
         var op = BindSingleOperation<ReturnOp>(
@@ -78,7 +76,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// Format: attr-dict ($operands^ ':' type($operands))?
     /// Example from FuncOps.td: return %operand : i32
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Fact]
     public void BindsReturnOpWithSingleOperand()
     {
         var op = BindSingleOperation<ReturnOp>(
@@ -92,7 +90,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// <summary>
     /// Round-trip: parse → reprint → reparse for func.return with no operands.
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Fact]
     public void ReprintsReturnOpWithNoOperands()
     {
         var op = ReprintAndRebindSingleOperation<ReturnOp>(
@@ -107,7 +105,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// <summary>
     /// Round-trip: parse → reprint → reparse for func.return with one operand.
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Fact]
     public void ReprintsReturnOpWithSingleOperand()
     {
         var op = ReprintAndRebindSingleOperation<ReturnOp>(
@@ -127,7 +125,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// call that reads <c>i32</c> and leaves <c>, f32</c> stranded, causing a
     /// "Expected end of operation" error.
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while optional groups and variadic type lists are rebuilt on the unified emitter.")]
+    [Fact(Skip = "Temporarily disabled while variadic type lists are rebuilt on the unified emitter.")]
     public void BindsReturnOpWithMultipleOperands()
     {
         var op = BindSingleOperation<ReturnOp>(
@@ -149,7 +147,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// Example from FuncOps.td:
     ///   %result = func.call_indirect %func(%0) : (tensor&lt;16xf32&gt;) -> tensor&lt;16xf32&gt;
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while variadic operands are rebuilt on the unified emitter.")]
+    [Fact]
     public void BindsCallIndirectOpWithSingleOperand()
     {
         var op = BindSingleOperation<CallIndirectOp>(
@@ -165,7 +163,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// <summary>
     /// Round-trip for func.call_indirect with a single operand.
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while variadic operands are rebuilt on the unified emitter.")]
+    [Fact]
     public void ReprintsCallIndirectOpWithSingleOperand()
     {
         var op = ReprintAndRebindSingleOperation<CallIndirectOp>(
@@ -185,7 +183,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// func.call_indirect with no operands — now supported via variadic operand parsing.
     /// Format: $callee '(' $callee_operands ')' attr-dict ':' type($callee)
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while variadic operands are rebuilt on the unified emitter.")]
+    [Fact]
     public void BindsCallIndirectOpWithNoOperands()
     {
         var op = BindSingleOperation<CallIndirectOp>(
@@ -200,7 +198,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// func.call_indirect with multiple operands — now supported via variadic operand parsing.
     /// Format: $callee '(' $callee_operands ')' attr-dict ':' type($callee)
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while variadic operands are rebuilt on the unified emitter.")]
+    [Fact]
     public void BindsCallIndirectOpWithMultipleOperands()
     {
         var op = BindSingleOperation<CallIndirectOp>(
@@ -218,13 +216,11 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     // ---------------------------------------------------------------------------
 
     /// <summary>
-    /// func.call uses 'functional-type($operands, results)' in its assembly format,
-    /// which the generator's TryParse cannot handle.  The parser falls back to the
-    /// generic format and the binding produces an UninterpretedOperation.
+    /// func.call uses 'functional-type($operands, results)' in its assembly format.
     /// Example from FuncOps.td:
     ///   %result = func.call @my_add(%0, %1) : (f32, f32) -> f32
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while variadic operands and functional-type directives are rebuilt on the unified emitter.")]
+    [Fact]
     public void BindsCallOpFromCustomFormat()
     {
         var op = BindSingleOperation<CallOp>(

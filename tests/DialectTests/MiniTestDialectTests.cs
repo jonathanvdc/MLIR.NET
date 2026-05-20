@@ -76,7 +76,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         Assert.Equal(rhsName, operation.Rhs?.Name);
     }
 
-    [Theory(Skip = "Temporarily disabled while oilists are rebuilt on the unified emitter.")]
+    [Theory]
     [InlineData("minitest.config\n    stride 4\n    padding 0\n    {}", true, true)]
     [InlineData("minitest.config\n    padding 0\n    stride 4\n    {}", true, true)]
     [InlineData("minitest.config\n    stride 4\n    {}", true, false)]
@@ -93,7 +93,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
     }
 #endif
 
-    [Theory(Skip = "Temporarily disabled while oilists are rebuilt on the unified emitter.")]
+    [Theory]
     [InlineData("minitest.config\n    stride 4\n    padding 0\n    {}", 4, 0)]
     [InlineData("minitest.config\n    stride 4\n    {}", 4, null)]
     [InlineData("minitest.config {}", null, null)]
@@ -106,7 +106,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         Assert.Equal(padding is null ? null : (uint?)padding.Value, operation.Padding);
     }
 
-    [Fact(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Fact]
     public void GeneratedOperandSetterUpdatesOptionalOperandAndCustomPrinting()
     {
         const string source =
@@ -129,7 +129,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         Assert.Equal("%rhs", reboundOperation.Rhs!.Name);
     }
 
-    [Fact(Skip = "Temporarily disabled while oilists are rebuilt on the unified emitter.")]
+    [Fact]
     public void GeneratedAttributeSetterAddsAndRemovesOptionalAttribute()
     {
         var module = ParseAndBind("minitest.config {}", CreateMiniTestRegistry());

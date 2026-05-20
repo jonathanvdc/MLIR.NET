@@ -37,7 +37,7 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 
-    [Fact(Skip = "Temporarily disabled while qualified directives are rebuilt on the unified emitter.")]
+    [Fact]
     public void MiniTestCastOpPrintsAndRoundTripsAsCustomAssembly()
     {
         var operation = ReprintAndRebindSingleOperation<MiniTest_CastOp>(
@@ -51,7 +51,7 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 
-    [Theory(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Theory]
     [InlineData("%result = minitest.binary %lhs, %rhs : i32", "%rhs")]
     [InlineData("%result = minitest.binary %lhs : i32", null)]
     public void MiniTestBinaryOpPrintsOptionalGroupWhenAppropriate(string source, string? rhsName)
@@ -67,7 +67,7 @@ public sealed class GeneratedDialectPrintingTests : DialectIntegrationTestBase
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 
-    [Theory(Skip = "Temporarily disabled while oilists are rebuilt on the unified emitter.")]
+    [Theory]
     [InlineData("minitest.config\n    stride 4\n    padding 0\n    {}", true, true)]
     [InlineData("minitest.config\n    stride 4\n    {}", true, false)]
     public void MiniTestConfigOpPrintsOnlyPresentOilistClauses(string source, bool hasStride, bool hasPadding)
