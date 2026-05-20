@@ -418,7 +418,7 @@ internal sealed class OperationFormatSubject : FormatSubject
         var syntaxNodes = plan.SyntaxNodes.ToArray();
         foreach (var node in syntaxNodes)
         {
-            EmitBuildOperationNode(builder, plan, node);
+            EmitBuildOperationNode(builder, plan, node, "        ");
         }
 
         builder.Append("        var body = new " + SyntaxClassName + "(");
@@ -437,11 +437,11 @@ internal sealed class OperationFormatSubject : FormatSubject
         builder.AppendLine("    }");
     }
 
-    private void EmitBuildOperationNode(StringBuilder builder, AssemblyFormatPlan plan, FormatNode node)
+    private void EmitBuildOperationNode(StringBuilder builder, AssemblyFormatPlan plan, FormatNode node, string indent)
     {
         if (node is FormatSlot slot)
         {
-            builder.AppendLine("        var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
+            builder.AppendLine(indent + "var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
             return;
         }
 
@@ -450,15 +450,15 @@ internal sealed class OperationFormatSubject : FormatSubject
             throw new InvalidOperationException("Unsupported operation format node '" + node.GetType().Name + "'.");
         }
 
-        builder.AppendLine("        " + group.CsType + " " + group.ParameterName + " = null;");
-        builder.AppendLine("        if (" + GetOperationGroupPresenceExpression(group) + ")");
-        builder.AppendLine("        {");
+        builder.AppendLine(indent + group.CsType + " " + group.ParameterName + " = null;");
+        builder.AppendLine(indent + "if (" + GetOperationGroupPresenceExpression(group) + ")");
+        builder.AppendLine(indent + "{");
         foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
         {
-            EmitBuildOperationGroupChildNode(builder, plan, child);
+            EmitBuildOperationNode(builder, plan, child, indent + "    ");
         }
 
-        builder.Append("            " + group.ParameterName + " = new " + group.SyntaxClassName + "(");
+        builder.Append(indent + "    " + group.ParameterName + " = new " + group.SyntaxClassName + "(");
         var needsComma = false;
         foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
         {
@@ -472,46 +472,7 @@ internal sealed class OperationFormatSubject : FormatSubject
         }
 
         builder.AppendLine(");");
-        builder.AppendLine("        }");
-    }
-
-    private void EmitBuildOperationGroupChildNode(StringBuilder builder, AssemblyFormatPlan plan, FormatNode node)
-    {
-        if (node is FormatSlot slot)
-        {
-            builder.AppendLine("            var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
-            return;
-        }
-
-        if (node is OptionalGroupNode group)
-        {
-            builder.AppendLine("            " + group.CsType + " " + group.ParameterName + " = null;");
-            builder.AppendLine("            if (" + GetOperationGroupPresenceExpression(group) + ")");
-            builder.AppendLine("            {");
-            foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
-            {
-                EmitBuildOperationGroupChildNode(builder, plan, child);
-            }
-
-            builder.Append("                " + group.ParameterName + " = new " + group.SyntaxClassName + "(");
-            var needsComma = false;
-            foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
-            {
-                if (needsComma)
-                {
-                    builder.Append(", ");
-                }
-
-                needsComma = true;
-                builder.Append(child.ParameterName);
-            }
-
-            builder.AppendLine(");");
-            builder.AppendLine("            }");
-            return;
-        }
-
-        throw new InvalidOperationException("Unsupported operation format node '" + node.GetType().Name + "'.");
+        builder.AppendLine(indent + "}");
     }
 
     private string GetOperationGroupPresenceExpression(OptionalGroupNode group)

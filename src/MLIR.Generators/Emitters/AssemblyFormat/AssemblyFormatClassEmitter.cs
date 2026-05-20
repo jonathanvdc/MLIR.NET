@@ -52,7 +52,7 @@ internal static class AssemblyFormatClassEmitter
     {
         foreach (var node in plan.Nodes)
         {
-            EmitParseNode(builder, subject, node);
+            EmitParseNode(builder, subject, node, "        ");
         }
 
         builder.Append("        return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Success(new " + subject.SyntaxClassName + "(");
@@ -77,7 +77,7 @@ internal static class AssemblyFormatClassEmitter
         builder.AppendLine("));");
     }
 
-    private static void EmitParseNode(StringBuilder builder, FormatSubject subject, FormatNode node)
+    private static void EmitParseNode(StringBuilder builder, FormatSubject subject, FormatNode node, string indent)
     {
         if (!node.IsSyntaxNode && node is not OilistNode)
         {
@@ -86,52 +86,34 @@ internal static class AssemblyFormatClassEmitter
 
         if (node is FormatSlot slot)
         {
-            EmitParseSlot(builder, subject, slot);
+            EmitParseSlot(builder, subject, slot, indent);
             return;
         }
 
         if (node is OptionalGroupNode group)
         {
-            builder.AppendLine("        " + group.CsType + " " + group.ParameterName + " = null;");
-            builder.AppendLine("        if (" + GetCanStartExpression(group) + ")");
-            builder.AppendLine("        {");
-            foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
-            {
-                EmitParseNode(builder, subject, child);
-            }
-
-            builder.Append("            " + group.ParameterName + " = new " + group.SyntaxClassName + "(");
-            var needsComma = false;
-            foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
-            {
-                if (needsComma)
-                {
-                    builder.Append(", ");
-                }
-
-                needsComma = true;
-                builder.Append(child.ParameterName);
-            }
-
-            builder.AppendLine(");");
-            builder.AppendLine("        }");
+            builder.AppendLine(indent + group.CsType + " " + group.ParameterName + " = null;");
+            builder.AppendLine(indent + "if (" + GetCanStartExpression(group) + ")");
+            builder.AppendLine(indent + "{");
+            EmitParseNodeBody(builder, subject, group, indent + "    ");
+            builder.AppendLine(indent + "}");
             return;
         }
 
         if (node is OilistNode oilist)
         {
-            EmitParseOilist(builder, subject, oilist);
+            EmitParseOilist(builder, subject, oilist, indent);
             return;
         }
 
         throw new InvalidOperationException("Unsupported format node '" + node.GetType().Name + "'.");
     }
 
-    private static void EmitParseOilist(StringBuilder builder, FormatSubject subject, OilistNode oilist)
+    private static void EmitParseOilist(StringBuilder builder, FormatSubject subject, OilistNode oilist, string indent)
     {
         foreach (var clause in oilist.Clauses)
         {
-            builder.AppendLine("        " + clause.CsType + " " + clause.ParameterName + " = null;");
+            builder.AppendLine(indent + clause.CsType + " " + clause.ParameterName + " = null;");
         }
 
         if (oilist.Clauses.Count == 0)
@@ -139,50 +121,54 @@ internal static class AssemblyFormatClassEmitter
             return;
         }
 
-        builder.AppendLine("        while (" + string.Join(" || ", oilist.Clauses.Select(GetCanStartExpression)) + ")");
-        builder.AppendLine("        {");
+        builder.AppendLine(indent + "while (" + string.Join(" || ", oilist.Clauses.Select(GetCanStartExpression)) + ")");
+        builder.AppendLine(indent + "{");
         for (var i = 0; i < oilist.Clauses.Count; i++)
         {
             var clause = oilist.Clauses[i];
-            builder.AppendLine((i == 0 ? "            if (" : "            else if (") + GetCanStartExpression(clause) + ")");
-            builder.AppendLine("            {");
-            builder.AppendLine("                if (" + clause.ParameterName + " != null)");
-            builder.AppendLine("                    return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Failure(context.CreateDiagnostic(\"Duplicate oilist clause '" + clause.Name + "'.\"));");
-            foreach (var child in clause.Nodes.Where(static child => child.IsSyntaxNode))
-            {
-                EmitParseNode(builder, subject, child);
-            }
-
-            builder.Append("                " + clause.ParameterName + " = new " + clause.SyntaxClassName + "(");
-            var needsComma = false;
-            foreach (var child in clause.Nodes.Where(static child => child.IsSyntaxNode))
-            {
-                if (needsComma)
-                {
-                    builder.Append(", ");
-                }
-
-                needsComma = true;
-                builder.Append(child.ParameterName);
-            }
-
-            builder.AppendLine(");");
-            builder.AppendLine("            }");
+            builder.AppendLine((i == 0 ? indent + "    if (" : indent + "    else if (") + GetCanStartExpression(clause) + ")");
+            builder.AppendLine(indent + "    {");
+            builder.AppendLine(indent + "        if (" + clause.ParameterName + " != null)");
+            builder.AppendLine(indent + "            return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Failure(context.CreateDiagnostic(\"Duplicate oilist clause '" + clause.Name + "'.\"));");
+            EmitParseNodeBody(builder, subject, clause, indent + "        ");
+            builder.AppendLine(indent + "    }");
         }
 
-        builder.AppendLine("            else");
-        builder.AppendLine("            {");
-        builder.AppendLine("                break;");
-        builder.AppendLine("            }");
-        builder.AppendLine("        }");
+        builder.AppendLine(indent + "    else");
+        builder.AppendLine(indent + "    {");
+        builder.AppendLine(indent + "        break;");
+        builder.AppendLine(indent + "    }");
+        builder.AppendLine(indent + "}");
     }
 
-    private static void EmitParseSlot(StringBuilder builder, FormatSubject subject, FormatSlot slot)
+    private static void EmitParseNodeBody(StringBuilder builder, FormatSubject subject, OptionalGroupNode group, string indent)
     {
-        builder.AppendLine("        var " + slot.ParameterName + "Result = " + slot.ParseExpression + ";");
-        builder.AppendLine("        if (!" + slot.ParameterName + "Result.IsSuccess)");
-        builder.AppendLine("            return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Failure(" + slot.ParameterName + "Result.Diagnostic!);");
-        builder.AppendLine("        var " + slot.ParameterName + " = " + slot.ParseValueExpression + ";");
+        var syntaxNodes = group.Nodes.Where(static child => child.IsSyntaxNode).ToArray();
+        foreach (var child in syntaxNodes)
+        {
+            EmitParseNode(builder, subject, child, indent);
+        }
+
+        builder.Append(indent + group.ParameterName + " = new " + group.SyntaxClassName + "(");
+        for (var i = 0; i < syntaxNodes.Length; i++)
+        {
+            if (i > 0)
+            {
+                builder.Append(", ");
+            }
+
+            builder.Append(syntaxNodes[i].ParameterName);
+        }
+
+        builder.AppendLine(");");
+    }
+
+    private static void EmitParseSlot(StringBuilder builder, FormatSubject subject, FormatSlot slot, string indent)
+    {
+        builder.AppendLine(indent + "var " + slot.ParameterName + "Result = " + slot.ParseExpression + ";");
+        builder.AppendLine(indent + "if (!" + slot.ParameterName + "Result.IsSuccess)");
+        builder.AppendLine(indent + "    return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Failure(" + slot.ParameterName + "Result.Diagnostic!);");
+        builder.AppendLine(indent + "var " + slot.ParameterName + " = " + slot.ParseValueExpression + ";");
     }
 
     private static string GetCanStartExpression(OptionalGroupNode group)
