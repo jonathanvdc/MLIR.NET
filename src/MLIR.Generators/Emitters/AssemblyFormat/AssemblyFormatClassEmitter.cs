@@ -52,7 +52,7 @@ internal static class AssemblyFormatClassEmitter
     {
         foreach (var node in plan.Nodes)
         {
-            EmitParseNode(builder, subject, node, "        ");
+            node.Accept(new ParseNodeVisitor(builder, subject, "        "));
         }
 
         builder.Append("        return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Success(new " + subject.SyntaxClassName + "(");
@@ -77,36 +77,42 @@ internal static class AssemblyFormatClassEmitter
         builder.AppendLine("));");
     }
 
-    private static void EmitParseNode(StringBuilder builder, FormatSubject subject, FormatNode node, string indent)
+    private sealed class ParseNodeVisitor : IFormatNodeVisitor
     {
-        if (!node.IsSyntaxNode && node is not OilistNode)
+        private readonly StringBuilder builder;
+        private readonly FormatSubject subject;
+        private readonly string indent;
+
+        public ParseNodeVisitor(StringBuilder builder, FormatSubject subject, string indent)
         {
-            return;
+            this.builder = builder;
+            this.subject = subject;
+            this.indent = indent;
         }
 
-        if (node is FormatSlot slot)
+        public void VisitSlot(FormatSlot slot)
         {
+            if (!slot.IsSyntaxNode)
+            {
+                return;
+            }
+
             EmitParseSlot(builder, subject, slot, indent);
-            return;
         }
 
-        if (node is OptionalGroupNode group)
+        public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
-            builder.AppendLine(indent + group.CsType + " " + group.ParameterName + " = null;");
-            builder.AppendLine(indent + "if (" + GetCanStartExpression(group) + ")");
+            builder.AppendLine(indent + optionalSyntax.CsType + " " + optionalSyntax.ParameterName + " = null;");
+            builder.AppendLine(indent + "if (" + optionalSyntax.CanStartExpression + ")");
             builder.AppendLine(indent + "{");
-            EmitParseNodeBody(builder, subject, group, indent + "    ");
+            EmitParseNodeBody(builder, subject, optionalSyntax, indent + "    ");
             builder.AppendLine(indent + "}");
-            return;
         }
 
-        if (node is OilistNode oilist)
+        public void VisitOilist(OilistNode oilist)
         {
             EmitParseOilist(builder, subject, oilist, indent);
-            return;
         }
-
-        throw new InvalidOperationException("Unsupported format node '" + node.GetType().Name + "'.");
     }
 
     private static void EmitParseOilist(StringBuilder builder, FormatSubject subject, OilistNode oilist, string indent)
@@ -121,12 +127,12 @@ internal static class AssemblyFormatClassEmitter
             return;
         }
 
-        builder.AppendLine(indent + "while (" + string.Join(" || ", oilist.Clauses.Select(GetCanStartExpression)) + ")");
+        builder.AppendLine(indent + "while (" + string.Join(" || ", oilist.Clauses.Select(static clause => clause.CanStartExpression)) + ")");
         builder.AppendLine(indent + "{");
         for (var i = 0; i < oilist.Clauses.Count; i++)
         {
             var clause = oilist.Clauses[i];
-            builder.AppendLine((i == 0 ? indent + "    if (" : indent + "    else if (") + GetCanStartExpression(clause) + ")");
+            builder.AppendLine((i == 0 ? indent + "    if (" : indent + "    else if (") + clause.CanStartExpression + ")");
             builder.AppendLine(indent + "    {");
             builder.AppendLine(indent + "        if (" + clause.ParameterName + " != null)");
             builder.AppendLine(indent + "            return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Failure(context.CreateDiagnostic(\"Duplicate oilist clause '" + clause.Name + "'.\"));");
@@ -141,12 +147,12 @@ internal static class AssemblyFormatClassEmitter
         builder.AppendLine(indent + "}");
     }
 
-    private static void EmitParseNodeBody(StringBuilder builder, FormatSubject subject, OptionalGroupNode group, string indent)
+    private static void EmitParseNodeBody(StringBuilder builder, FormatSubject subject, OptionalSyntaxNode group, string indent)
     {
         var syntaxNodes = group.Nodes.Where(static child => child.IsSyntaxNode).ToArray();
         foreach (var child in syntaxNodes)
         {
-            EmitParseNode(builder, subject, child, indent);
+            child.Accept(new ParseNodeVisitor(builder, subject, indent));
         }
 
         builder.Append(indent + group.ParameterName + " = new " + group.SyntaxClassName + "(");
@@ -169,31 +175,5 @@ internal static class AssemblyFormatClassEmitter
         builder.AppendLine(indent + "if (!" + slot.ParameterName + "Result.IsSuccess)");
         builder.AppendLine(indent + "    return global::MLIR.Text.ParseResult<" + subject.SyntaxReturnType + ">.Failure(" + slot.ParameterName + "Result.Diagnostic!);");
         builder.AppendLine(indent + "var " + slot.ParameterName + " = " + slot.ParseValueExpression + ";");
-    }
-
-    private static string GetCanStartExpression(OptionalGroupNode group)
-    {
-        var first = group.Nodes.FirstOrDefault(static node => node.IsSyntaxNode);
-        if (first is FormatSlot { Kind: FormatSlotKind.LiteralToken, IsKeyword: true } keyword)
-        {
-            return "context.IsKeyword(" + EmitterHelpers.ToCSharpStringLiteral(keyword.TokenText ?? string.Empty) + ")";
-        }
-
-        if (first is FormatSlot { Kind: FormatSlotKind.LiteralToken } literal)
-        {
-            return "context.Is(" + literal.TokenKindExpression + ")";
-        }
-
-        if (first is FormatSlot { Kind: FormatSlotKind.SsaValue })
-        {
-            return "context.Is(global::MLIR.Text.TokenKind.SsaName)";
-        }
-
-        if (first is FormatSlot { Kind: FormatSlotKind.SsaValueList })
-        {
-            return "context.Is(global::MLIR.Text.TokenKind.SsaName)";
-        }
-
-        return "false";
     }
 }

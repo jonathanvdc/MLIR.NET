@@ -36,9 +36,9 @@ internal struct AssemblyFormatPrinterSpacing
             return trivia;
         }
 
-        if (node is FormatSlot { Kind: FormatSlotKind.LiteralToken } slot)
+        if (node.LiteralTextForSpacing is { } literalText)
         {
-            return ShouldEmitSpaceBefore(slot.TokenText ?? string.Empty, lastWasPunctuation) ? " " : string.Empty;
+            return ShouldEmitSpaceBefore(literalText, lastWasPunctuation) ? " " : string.Empty;
         }
 
         return shouldEmitSpace || !lastWasPunctuation ? " " : string.Empty;
@@ -46,11 +46,10 @@ internal struct AssemblyFormatPrinterSpacing
 
     public void MarkEmitted(FormatNode node)
     {
-        if (node is FormatSlot { Kind: FormatSlotKind.LiteralToken } slot)
+        if (node.LiteralTextForSpacing is { } literalText)
         {
-            var text = slot.TokenText ?? string.Empty;
-            shouldEmitSpace = text != "<" && text != "(" && text != "{" && text != "[" && text != "->";
-            lastWasPunctuation = IsPunctuation(text);
+            shouldEmitSpace = literalText != "<" && literalText != "(" && literalText != "{" && literalText != "[" && literalText != "->";
+            lastWasPunctuation = IsPunctuation(literalText);
             return;
         }
 

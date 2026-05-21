@@ -31,6 +31,10 @@ internal abstract class FormatNode
     public virtual string CsType => string.Empty;
     public virtual string LocationExpression => PropertyName + ".Location";
     public virtual string RewriteExpression => PropertyName;
+    public virtual string CanStartExpression => "false";
+    public virtual string? LiteralTextForSpacing => null;
+
+    public abstract void Accept(IFormatNodeVisitor visitor);
 
     public virtual IEnumerable<FormatSlot> DescendantSlots()
     {
@@ -46,9 +50,18 @@ internal abstract class FormatNode
     }
 }
 
-internal sealed class OptionalGroupNode : FormatNode
+internal interface IFormatNodeVisitor
 {
-    public OptionalGroupNode(string name, string syntaxClassName, string anchorName, IReadOnlyList<FormatNode> nodes)
+    void VisitSlot(FormatSlot slot);
+
+    void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax);
+
+    void VisitOilist(OilistNode oilist);
+}
+
+internal abstract class OptionalSyntaxNode : FormatNode
+{
+    protected OptionalSyntaxNode(string name, string syntaxClassName, string anchorName, IReadOnlyList<FormatNode> nodes)
     {
         Name = name;
         SyntaxClassName = syntaxClassName;
@@ -56,7 +69,7 @@ internal sealed class OptionalGroupNode : FormatNode
         Nodes = nodes;
         foreach (var slot in nodes.DescendantSlots())
         {
-            slot.ContainingOptionalGroup = this;
+            slot.ContainingOptionalSyntax = this;
         }
     }
 
@@ -71,9 +84,21 @@ internal sealed class OptionalGroupNode : FormatNode
     public override string CsType => SyntaxClassName + "?";
     public override string LocationExpression => PropertyName + "?.Location ?? SourceLocation.Unknown";
     public override string RewriteExpression => PropertyName + " is null ? null : (" + SyntaxClassName + ")rewriter.Visit(" + PropertyName + ")";
+    public override string CanStartExpression => Nodes.FirstOrDefault(static node => node.IsSyntaxNode)?.CanStartExpression ?? "false";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitOptionalSyntax(this);
 
     public override IEnumerable<FormatSlot> DescendantSlots()
         => Nodes.DescendantSlots();
+}
+
+internal sealed class OptionalGroupNode : OptionalSyntaxNode
+{
+    public OptionalGroupNode(string name, string syntaxClassName, string anchorName, IReadOnlyList<FormatNode> nodes)
+        : base(name, syntaxClassName, anchorName, nodes)
+    {
+    }
 }
 
 internal static class FormatNodeExtensions
@@ -99,6 +124,9 @@ internal sealed class OilistNode : FormatNode
 
     public override IEnumerable<FormatNode> DescendantSyntaxNodes()
         => Clauses;
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitOilist(this);
 }
 
 internal enum FormatSlotKind
@@ -148,7 +176,7 @@ internal sealed class FormatSlot : FormatNode
     public string? TokenText { get; }
     public string? TokenKindExpression { get; }
     public string? TriviaText { get; }
-    public OptionalGroupNode? ContainingOptionalGroup { get; internal set; }
+    public OptionalSyntaxNode? ContainingOptionalSyntax { get; internal set; }
     public bool IsKeyword { get; }
     public bool IsSyntaxSlot => Kind != FormatSlotKind.Whitespace && Kind != FormatSlotKind.Newline;
     public override bool IsSyntaxNode => IsSyntaxSlot;
@@ -180,12 +208,24 @@ internal sealed class FormatSlot : FormatNode
     };
 
     public override string LocationExpression => PropertyName + ".Location";
-    public string BodyAccessExpression => ContainingOptionalGroup == null
+    public override string CanStartExpression => Kind switch
+    {
+        FormatSlotKind.LiteralToken when IsKeyword => "context.IsKeyword(" + EmitterHelpers.ToCSharpStringLiteral(TokenText ?? string.Empty) + ")",
+        FormatSlotKind.LiteralToken => "context.Is(" + TokenKindExpression + ")",
+        FormatSlotKind.SsaValue => "context.Is(global::MLIR.Text.TokenKind.SsaName)",
+        FormatSlotKind.SsaValueList => "context.Is(global::MLIR.Text.TokenKind.SsaName)",
+        _ => "false",
+    };
+    public string BodyAccessExpression => ContainingOptionalSyntax == null
         ? "body." + PropertyName
-        : "body." + ContainingOptionalGroup.PropertyName + "!." + PropertyName;
-    public string OptionalBodyAccessExpression => ContainingOptionalGroup == null
+        : "body." + ContainingOptionalSyntax.PropertyName + "!." + PropertyName;
+    public string OptionalBodyAccessExpression => ContainingOptionalSyntax == null
         ? "body." + PropertyName
-        : "body." + ContainingOptionalGroup.PropertyName + "?." + PropertyName;
+        : "body." + ContainingOptionalSyntax.PropertyName + "?." + PropertyName;
+    public override string? LiteralTextForSpacing => Kind == FormatSlotKind.LiteralToken ? TokenText ?? string.Empty : null;
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitSlot(this);
 
     public override IEnumerable<FormatSlot> DescendantSlots()
     {

@@ -37,30 +37,15 @@ internal static class AssemblyFormatSyntaxClassEmitter
             subject);
     }
 
-    private static IEnumerable<OptionalGroupNode> EnumerateGroupClasses(IEnumerable<FormatNode> nodes)
+    private static IEnumerable<OptionalSyntaxNode> EnumerateGroupClasses(IEnumerable<FormatNode> nodes)
     {
+        var collector = new GroupClassCollector();
         foreach (var node in nodes)
         {
-            if (node is OptionalGroupNode group)
-            {
-                yield return group;
-                foreach (var childGroup in EnumerateGroupClasses(group.Nodes))
-                {
-                    yield return childGroup;
-                }
-            }
-            else if (node is OilistNode oilist)
-            {
-                foreach (var clause in oilist.Clauses)
-                {
-                    yield return clause;
-                    foreach (var childGroup in EnumerateGroupClasses(clause.Nodes))
-                    {
-                        yield return childGroup;
-                    }
-                }
-            }
+            node.Accept(collector);
         }
+
+        return collector.Groups;
     }
 
     private static void EmitSyntaxClass(
@@ -198,44 +183,83 @@ internal static class AssemblyFormatSyntaxClassEmitter
         FormatSubject? subject,
         string indent)
     {
-        var spacing = AssemblyFormatPrinterSpacing.Initial;
+        var visitor = new WriteToNodeVisitor(builder, subject, indent);
         foreach (var node in nodes)
         {
-            if (node is OilistNode oilist)
-            {
-                foreach (var clause in oilist.Clauses)
-                {
-                    EmitWriteOptionalNode(builder, clause, subject, indent, ref spacing);
-                }
+            node.Accept(visitor);
+        }
+    }
 
-                continue;
+    private sealed class GroupClassCollector : IFormatNodeVisitor
+    {
+        public List<OptionalSyntaxNode> Groups { get; } = [];
+
+        public void VisitSlot(FormatSlot slot)
+        {
+        }
+
+        public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
+        {
+            Groups.Add(optionalSyntax);
+
+            foreach (var child in optionalSyntax.Nodes)
+            {
+                child.Accept(this);
+            }
+        }
+
+        public void VisitOilist(OilistNode oilist)
+        {
+            foreach (var clause in oilist.Clauses)
+            {
+                VisitOptionalSyntax(clause);
+            }
+        }
+    }
+
+    private sealed class WriteToNodeVisitor : IFormatNodeVisitor
+    {
+        private readonly StringBuilder builder;
+        private readonly FormatSubject? subject;
+        private readonly string indent;
+        private AssemblyFormatPrinterSpacing spacing = AssemblyFormatPrinterSpacing.Initial;
+
+        public WriteToNodeVisitor(StringBuilder builder, FormatSubject? subject, string indent)
+        {
+            this.builder = builder;
+            this.subject = subject;
+            this.indent = indent;
+        }
+
+        public void VisitSlot(FormatSlot slot)
+        {
+            if (!slot.IsSyntaxNode)
+            {
+                spacing.ApplyExplicitTrivia(slot.TriviaText ?? string.Empty);
+                return;
             }
 
-            if (!node.IsSyntaxNode)
-            {
-                if (node is FormatSlot triviaSlot)
-                {
-                    spacing.ApplyExplicitTrivia(triviaSlot.TriviaText ?? string.Empty);
-                }
-
-                continue;
-            }
-
-            if (node is OptionalGroupNode group)
-            {
-                EmitWriteOptionalNode(builder, group, subject, indent, ref spacing);
-                continue;
-            }
-
-            var slot = (FormatSlot)node;
             EmitWriteSlot(builder, slot, spacing.GetLeadingTrivia(slot, subject), indent);
             spacing.MarkEmitted(slot);
+        }
+
+        public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
+        {
+            EmitWriteOptionalNode(builder, optionalSyntax, subject, indent, ref spacing);
+        }
+
+        public void VisitOilist(OilistNode oilist)
+        {
+            foreach (var clause in oilist.Clauses)
+            {
+                VisitOptionalSyntax(clause);
+            }
         }
     }
 
     private static void EmitWriteOptionalNode(
         StringBuilder builder,
-        OptionalGroupNode group,
+        OptionalSyntaxNode group,
         FormatSubject? subject,
         string indent,
         ref AssemblyFormatPrinterSpacing spacing)

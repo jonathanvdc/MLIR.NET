@@ -305,9 +305,9 @@ internal sealed class OperationFormatSubject : FormatSubject
             var bindExpr = !string.IsNullOrEmpty(expectedDefinitionExpr)
                 ? "binder.BindAttributeValue(" + slot.BodyAccessExpression + ", " + expectedDefinitionExpr + ")"
                 : "binder.BindAttributeValue(" + slot.BodyAccessExpression + ")";
-            if (slot.ContainingOptionalGroup != null)
+            if (slot.ContainingOptionalSyntax != null)
             {
-                builder.AppendLine("        if (body." + slot.ContainingOptionalGroup.PropertyName + " != null)");
+                builder.AppendLine("        if (body." + slot.ContainingOptionalSyntax.PropertyName + " != null)");
                 builder.AppendLine("            attributes.Add(new global::MLIR.Semantics.NamedAttribute(" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + ", " + bindExpr + "));");
             }
             else
@@ -327,9 +327,9 @@ internal sealed class OperationFormatSubject : FormatSubject
         var typeSlot = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.Type);
         if (typeSlot != null)
         {
-            if (typeSlot.ContainingOptionalGroup != null)
+            if (typeSlot.ContainingOptionalSyntax != null)
             {
-                builder.AppendLine("        if (body." + typeSlot.ContainingOptionalGroup.PropertyName + " != null)");
+                builder.AppendLine("        if (body." + typeSlot.ContainingOptionalSyntax.PropertyName + " != null)");
                 builder.AppendLine("            typeSignatureReference = binder.BindTypeReference(" + typeSlot.BodyAccessExpression + ");");
             }
             else
@@ -354,9 +354,9 @@ internal sealed class OperationFormatSubject : FormatSubject
                 if (listSlot != null)
                 {
                     var bindList = "global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Select(" + listSlot.BodyAccessExpression + ", binder.BindValueReference))";
-                    if (listSlot.ContainingOptionalGroup != null)
+                    if (listSlot.ContainingOptionalSyntax != null)
                     {
-                        bindList = "body." + listSlot.ContainingOptionalGroup.PropertyName + " == null ? new global::System.Collections.Generic.List<global::MLIR.Semantics.Value>() : " + bindList;
+                        bindList = "body." + listSlot.ContainingOptionalSyntax.PropertyName + " == null ? new global::System.Collections.Generic.List<global::MLIR.Semantics.Value>() : " + bindList;
                     }
 
                     builder.AppendLine("            " + member.ParameterName + ": " + bindList + ",");
@@ -370,9 +370,9 @@ internal sealed class OperationFormatSubject : FormatSubject
             {
                 var nullableSuffix = member.TypeName.EndsWith("?", StringComparison.Ordinal) ? string.Empty : "!";
                 var bindValue = "binder.BindValueReference(" + slot.BodyAccessExpression + ")" + nullableSuffix;
-                if (slot.ContainingOptionalGroup != null)
+                if (slot.ContainingOptionalSyntax != null)
                 {
-                    bindValue = "body." + slot.ContainingOptionalGroup.PropertyName + " == null ? null : " + bindValue;
+                    bindValue = "body." + slot.ContainingOptionalSyntax.PropertyName + " == null ? null : " + bindValue;
                 }
 
                 builder.AppendLine("            " + member.ParameterName + ": " + bindValue + ",");
@@ -418,7 +418,7 @@ internal sealed class OperationFormatSubject : FormatSubject
         var syntaxNodes = plan.SyntaxNodes.ToArray();
         foreach (var node in syntaxNodes)
         {
-            EmitBuildOperationNode(builder, plan, node, "        ");
+            node.Accept(new OperationBuildNodeVisitor(this, builder, plan, "        "));
         }
 
         builder.Append("        var body = new " + SyntaxClassName + "(");
@@ -437,45 +437,63 @@ internal sealed class OperationFormatSubject : FormatSubject
         builder.AppendLine("    }");
     }
 
-    private void EmitBuildOperationNode(StringBuilder builder, AssemblyFormatPlan plan, FormatNode node, string indent)
+    private sealed class OperationBuildNodeVisitor : IFormatNodeVisitor
     {
-        if (node is FormatSlot slot)
+        private readonly OperationFormatSubject owner;
+        private readonly StringBuilder builder;
+        private readonly AssemblyFormatPlan plan;
+        private readonly string indent;
+
+        public OperationBuildNodeVisitor(OperationFormatSubject owner, StringBuilder builder, AssemblyFormatPlan plan, string indent)
         {
-            builder.AppendLine(indent + "var " + slot.ParameterName + " = " + BuildOperationSlotExpression(plan, slot) + ";");
-            return;
+            this.owner = owner;
+            this.builder = builder;
+            this.plan = plan;
+            this.indent = indent;
         }
 
-        if (node is not OptionalGroupNode group)
+        public void VisitSlot(FormatSlot slot)
         {
-            throw new InvalidOperationException("Unsupported operation format node '" + node.GetType().Name + "'.");
+            builder.AppendLine(indent + "var " + slot.ParameterName + " = " + owner.BuildOperationSlotExpression(plan, slot) + ";");
         }
 
-        builder.AppendLine(indent + group.CsType + " " + group.ParameterName + " = null;");
-        builder.AppendLine(indent + "if (" + GetOperationGroupPresenceExpression(group) + ")");
-        builder.AppendLine(indent + "{");
-        foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
+        public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
-            EmitBuildOperationNode(builder, plan, child, indent + "    ");
-        }
-
-        builder.Append(indent + "    " + group.ParameterName + " = new " + group.SyntaxClassName + "(");
-        var needsComma = false;
-        foreach (var child in group.Nodes.Where(static child => child.IsSyntaxNode))
-        {
-            if (needsComma)
+            builder.AppendLine(indent + optionalSyntax.CsType + " " + optionalSyntax.ParameterName + " = null;");
+            builder.AppendLine(indent + "if (" + owner.GetOperationGroupPresenceExpression(optionalSyntax) + ")");
+            builder.AppendLine(indent + "{");
+            foreach (var child in optionalSyntax.Nodes.Where(static child => child.IsSyntaxNode))
             {
-                builder.Append(", ");
+                child.Accept(new OperationBuildNodeVisitor(owner, builder, plan, indent + "    "));
             }
 
-            needsComma = true;
-            builder.Append(child.ParameterName);
+            builder.Append(indent + "    " + optionalSyntax.ParameterName + " = new " + optionalSyntax.SyntaxClassName + "(");
+            var needsComma = false;
+            foreach (var child in optionalSyntax.Nodes.Where(static child => child.IsSyntaxNode))
+            {
+                if (needsComma)
+                {
+                    builder.Append(", ");
+                }
+
+                needsComma = true;
+                builder.Append(child.ParameterName);
+            }
+
+            builder.AppendLine(");");
+            builder.AppendLine(indent + "}");
         }
 
-        builder.AppendLine(");");
-        builder.AppendLine(indent + "}");
+        public void VisitOilist(OilistNode oilist)
+        {
+            foreach (var clause in oilist.Clauses)
+            {
+                VisitOptionalSyntax(clause);
+            }
+        }
     }
 
-    private string GetOperationGroupPresenceExpression(OptionalGroupNode group)
+    private string GetOperationGroupPresenceExpression(OptionalSyntaxNode group)
     {
         var anchor = group.AnchorSlot;
         if (anchor == null)
