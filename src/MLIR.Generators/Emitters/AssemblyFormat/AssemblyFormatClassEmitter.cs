@@ -90,13 +90,27 @@ internal static class AssemblyFormatClassEmitter
             this.indent = indent;
         }
 
-        public void VisitSlot(FormatSlot slot)
+        public void VisitTrivia(TriviaNode trivia)
         {
-            if (!slot.IsSyntaxNode)
-            {
-                return;
-            }
+        }
 
+        public void VisitLiteralToken(LiteralTokenSlot slot)
+            => EmitParseSlot(builder, subject, slot, indent);
+
+        public void VisitAttributeValue(AttributeValueSlot slot)
+            => EmitParseSlot(builder, subject, slot, indent);
+
+        public void VisitType(TypeSlot slot)
+            => EmitParseSlot(builder, subject, slot, indent);
+
+        public void VisitSsaValue(SsaValueSlot slot)
+            => EmitParseSlot(builder, subject, slot, indent);
+
+        public void VisitSsaValueList(SsaValueListSlot slot)
+            => EmitParseSlot(builder, subject, slot, indent);
+
+        public void VisitAttrDict(AttrDictSlot slot)
+        {
             EmitParseSlot(builder, subject, slot, indent);
         }
 

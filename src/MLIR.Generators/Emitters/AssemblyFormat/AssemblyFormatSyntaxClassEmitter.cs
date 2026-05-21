@@ -194,9 +194,21 @@ internal static class AssemblyFormatSyntaxClassEmitter
     {
         public List<OptionalSyntaxNode> Groups { get; } = [];
 
-        public void VisitSlot(FormatSlot slot)
+        public void VisitTrivia(TriviaNode trivia)
         {
         }
+
+        public void VisitLiteralToken(LiteralTokenSlot slot) { }
+
+        public void VisitAttributeValue(AttributeValueSlot slot) { }
+
+        public void VisitType(TypeSlot slot) { }
+
+        public void VisitSsaValue(SsaValueSlot slot) { }
+
+        public void VisitSsaValueList(SsaValueListSlot slot) { }
+
+        public void VisitAttrDict(AttrDictSlot slot) { }
 
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
@@ -231,15 +243,39 @@ internal static class AssemblyFormatSyntaxClassEmitter
             this.indent = indent;
         }
 
-        public void VisitSlot(FormatSlot slot)
+        public void VisitTrivia(TriviaNode trivia)
         {
-            if (!slot.IsSyntaxNode)
-            {
-                spacing.ApplyExplicitTrivia(slot.TriviaText ?? string.Empty);
-                return;
-            }
+            spacing.ApplyExplicitTrivia(trivia.Text);
+        }
 
-            EmitWriteSlot(builder, slot, spacing.GetLeadingTrivia(slot, subject), indent);
+        public void VisitLiteralToken(LiteralTokenSlot slot)
+        {
+            builder.AppendLine(indent + "writer.WriteToken(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            spacing.MarkEmitted(slot);
+        }
+
+        public void VisitAttributeValue(AttributeValueSlot slot)
+            => EmitWriteSyntaxNode(slot);
+
+        public void VisitType(TypeSlot slot)
+            => EmitWriteSyntaxNode(slot);
+
+        public void VisitSsaValue(SsaValueSlot slot)
+        {
+            builder.AppendLine(indent + "writer.WriteToken(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            spacing.MarkEmitted(slot);
+        }
+
+        public void VisitSsaValueList(SsaValueListSlot slot)
+        {
+            builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            builder.AppendLine(indent + "writer.WriteSeparatedList(" + slot.PropertyName + ");");
+            spacing.MarkEmitted(slot);
+        }
+
+        public void VisitAttrDict(AttrDictSlot slot)
+        {
+            builder.AppendLine(indent + "writer.WriteDelimitedList(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
             spacing.MarkEmitted(slot);
         }
 
@@ -254,6 +290,13 @@ internal static class AssemblyFormatSyntaxClassEmitter
             {
                 VisitOptionalSyntax(clause);
             }
+        }
+
+        private void EmitWriteSyntaxNode(FormatSlot slot)
+        {
+            builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            builder.AppendLine(indent + slot.PropertyName + ".WriteTo(writer);");
+            spacing.MarkEmitted(slot);
         }
     }
 
@@ -270,34 +313,6 @@ internal static class AssemblyFormatSyntaxClassEmitter
         builder.AppendLine(indent + "    " + group.PropertyName + ".WriteTo(writer);");
         builder.AppendLine(indent + "}");
         spacing.MarkEmitted(group);
-    }
-
-    private static void EmitWriteSlot(StringBuilder builder, FormatSlot slot, string trivia, string indent)
-    {
-        switch (slot.Kind)
-        {
-            case FormatSlotKind.LiteralToken:
-                builder.AppendLine(indent + "writer.WriteToken(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(trivia) + ");");
-                break;
-            case FormatSlotKind.AttributeValue:
-                builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(trivia) + ");");
-                builder.AppendLine(indent + slot.PropertyName + ".WriteTo(writer);");
-                break;
-            case FormatSlotKind.Type:
-                builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(trivia) + ");");
-                builder.AppendLine(indent + slot.PropertyName + ".WriteTo(writer);");
-                break;
-            case FormatSlotKind.SsaValue:
-                builder.AppendLine(indent + "writer.WriteToken(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(trivia) + ");");
-                break;
-            case FormatSlotKind.SsaValueList:
-                builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(trivia) + ");");
-                builder.AppendLine(indent + "writer.WriteSeparatedList(" + slot.PropertyName + ");");
-                break;
-            case FormatSlotKind.AttrDict:
-                builder.AppendLine(indent + "writer.WriteDelimitedList(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(trivia) + ");");
-                break;
-        }
     }
 
     private static void EmitRewrite(

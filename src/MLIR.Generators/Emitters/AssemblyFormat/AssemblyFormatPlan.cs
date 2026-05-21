@@ -18,7 +18,7 @@ internal sealed class AssemblyFormatPlan
     public IReadOnlyList<FormatNode> Nodes { get; }
     public IEnumerable<FormatSlot> Slots => Nodes.DescendantSlots();
     public IEnumerable<FormatNode> SyntaxNodes => Nodes.DescendantSyntaxNodes();
-    public IEnumerable<FormatSlot> SyntaxSlots => Slots.Where(static slot => slot.IsSyntaxSlot);
+    public IEnumerable<FormatSlot> SyntaxSlots => Slots;
     public IReadOnlyList<string> UnsupportedFeatures { get; }
     public bool IsSupported => UnsupportedFeatures.Count == 0;
 }
@@ -52,7 +52,19 @@ internal abstract class FormatNode
 
 internal interface IFormatNodeVisitor
 {
-    void VisitSlot(FormatSlot slot);
+    void VisitTrivia(TriviaNode trivia);
+
+    void VisitLiteralToken(LiteralTokenSlot slot);
+
+    void VisitAttributeValue(AttributeValueSlot slot);
+
+    void VisitType(TypeSlot slot);
+
+    void VisitSsaValue(SsaValueSlot slot);
+
+    void VisitSsaValueList(SsaValueListSlot slot);
+
+    void VisitAttrDict(AttrDictSlot slot);
 
     void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax);
 
@@ -129,122 +141,63 @@ internal sealed class OilistNode : FormatNode
         => visitor.VisitOilist(this);
 }
 
-internal enum FormatSlotKind
+internal sealed class TriviaNode : FormatNode
 {
-    LiteralToken,
-    Whitespace,
-    Newline,
-    AttributeValue,
-    Type,
-    SsaValue,
-    SsaValueList,
-    AttrDict,
+    public TriviaNode(string text)
+    {
+        Text = text;
+    }
+
+    public string Text { get; }
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitTrivia(this);
 }
 
-internal sealed class FormatSlot : FormatNode
+internal abstract class FormatSlot : FormatNode
 {
-    private FormatSlot(
-        string sourceName,
-        string baseName,
-        FormatSlotKind kind,
-        string csType,
-        string parseExpression,
-        AttrOrTypeParameterModel? parameterModel = null,
-        string? tokenText = null,
-        string? tokenKindExpression = null,
-        string? triviaText = null,
-        bool isKeyword = false)
+    protected FormatSlot(string sourceName, string baseName, string csType, string parseExpression)
     {
         SourceName = sourceName;
         BaseName = baseName;
-        Kind = kind;
         CsType = csType;
         ParseExpression = parseExpression;
-        ParameterModel = parameterModel;
-        TokenText = tokenText;
-        TokenKindExpression = tokenKindExpression;
-        TriviaText = triviaText;
-        IsKeyword = isKeyword;
     }
 
     public string SourceName { get; }
     public string BaseName { get; }
-    public FormatSlotKind Kind { get; }
     public override string CsType { get; }
     public string ParseExpression { get; }
-    public AttrOrTypeParameterModel? ParameterModel { get; }
-    public string? TokenText { get; }
-    public string? TokenKindExpression { get; }
-    public string? TriviaText { get; }
     public OptionalSyntaxNode? ContainingOptionalSyntax { get; internal set; }
-    public bool IsKeyword { get; }
-    public bool IsSyntaxSlot => Kind != FormatSlotKind.Whitespace && Kind != FormatSlotKind.Newline;
-    public override bool IsSyntaxNode => IsSyntaxSlot;
+    public override bool IsSyntaxNode => true;
     public override string PropertyName => DialectGeneratorNaming.ToPascalCase(BaseName);
     public override string ParameterName => EmitterHelpers.LowerFirst(PropertyName);
 
-    public string ParseValueExpression
-    {
-        get
-        {
-            var value = ParameterName + "Result.Value";
-            return Kind == FormatSlotKind.AttributeValue || Kind == FormatSlotKind.Type
-                ? "(" + CsType + ")" + value
-                : value;
-        }
-    }
-
-    public override string RewriteExpression => Kind switch
-    {
-        FormatSlotKind.LiteralToken => "rewriter.VisitToken(" + PropertyName + ")",
-        FormatSlotKind.AttributeValue => "(" + CsType + ")rewriter.Visit(" + PropertyName + ")",
-        FormatSlotKind.Type => "(" + CsType + ")rewriter.Visit(" + PropertyName + ")",
-        FormatSlotKind.SsaValue => "rewriter.VisitToken(" + PropertyName + ")",
-        FormatSlotKind.SsaValueList => "rewriter.VisitSeparatedTokenList(" + PropertyName + ")",
-        FormatSlotKind.AttrDict => "rewriter.VisitDelimitedList(" + PropertyName + ")",
-        FormatSlotKind.Whitespace => string.Empty,
-        FormatSlotKind.Newline => string.Empty,
-        _ => PropertyName,
-    };
+    public virtual string ParseValueExpression => ParameterName + "Result.Value";
 
     public override string LocationExpression => PropertyName + ".Location";
-    public override string CanStartExpression => Kind switch
-    {
-        FormatSlotKind.LiteralToken when IsKeyword => "context.IsKeyword(" + EmitterHelpers.ToCSharpStringLiteral(TokenText ?? string.Empty) + ")",
-        FormatSlotKind.LiteralToken => "context.Is(" + TokenKindExpression + ")",
-        FormatSlotKind.SsaValue => "context.Is(global::MLIR.Text.TokenKind.SsaName)",
-        FormatSlotKind.SsaValueList => "context.Is(global::MLIR.Text.TokenKind.SsaName)",
-        _ => "false",
-    };
     public string BodyAccessExpression => ContainingOptionalSyntax == null
         ? "body." + PropertyName
         : "body." + ContainingOptionalSyntax.PropertyName + "!." + PropertyName;
     public string OptionalBodyAccessExpression => ContainingOptionalSyntax == null
         ? "body." + PropertyName
         : "body." + ContainingOptionalSyntax.PropertyName + "?." + PropertyName;
-    public override string? LiteralTextForSpacing => Kind == FormatSlotKind.LiteralToken ? TokenText ?? string.Empty : null;
-
-    public override void Accept(IFormatNodeVisitor visitor)
-        => visitor.VisitSlot(this);
 
     public override IEnumerable<FormatSlot> DescendantSlots()
     {
         yield return this;
     }
 
-    public static FormatSlot ForLiteral(string name, string text, string tokenKindExpression, bool isKeyword = false)
-    {
-        var parseExpression = isKeyword
-            ? "context.ExpectKeyword(" + EmitterHelpers.ToCSharpStringLiteral(text) + ", " + EmitterHelpers.ToCSharpStringLiteral("Expected '" + text + "'.") + ")"
-            : "context.Expect(" + tokenKindExpression + ", " + EmitterHelpers.ToCSharpStringLiteral("Expected '" + text + "'.") + ")";
-        return new FormatSlot(name, name, FormatSlotKind.LiteralToken, "global::MLIR.Syntax.Token", parseExpression, tokenText: text, tokenKindExpression: tokenKindExpression, isKeyword: isKeyword);
-    }
+    public abstract string BuildExpression(string typedLocalName);
 
-    public static FormatSlot ForWhitespace(string spaces)
-        => new("whitespace", "whitespace", FormatSlotKind.Whitespace, string.Empty, string.Empty, triviaText: spaces);
+    public static LiteralTokenSlot ForLiteral(string name, string text, string tokenKindExpression, bool isKeyword = false)
+        => new(name, text, tokenKindExpression, isKeyword);
 
-    public static FormatSlot ForNewline()
-        => new("newline", "newline", FormatSlotKind.Newline, string.Empty, string.Empty, triviaText: "\n");
+    public static TriviaNode ForWhitespace(string spaces)
+        => new(spaces);
+
+    public static TriviaNode ForNewline()
+        => new("\n");
 
     public static FormatSlot ForParameter(string name, int ordinal, AttrOrTypeParameterModel parameter)
     {
@@ -253,51 +206,164 @@ internal sealed class FormatSlot : FormatNode
             : "global::MLIR.Syntax.AttributeValueSyntax";
         if (syntaxType == "TypeSyntax" || syntaxType == "global::MLIR.Syntax.TypeSyntax")
         {
-            return new FormatSlot(name, name, FormatSlotKind.Type, "global::MLIR.Syntax.TypeSyntax", "context.TryParseTypeSyntax()", parameter);
+            return new TypeSlot(name, name, "context.TryParseTypeSyntax()", parameter);
         }
 
         var parseExpression = parameter.CsharpParserTemplate != null
             ? parameter.CsharpParserTemplate.Render("parser", "context")
             : "context.TryParseAttributeValueSyntax()";
-        return new FormatSlot(name, name, FormatSlotKind.AttributeValue, syntaxType, parseExpression, parameter);
+        return new AttributeValueSlot(name, name, syntaxType, parseExpression, parameter);
     }
 
-    public static FormatSlot ForOperationVariable(string name, int ordinal, FormatSlotKind kind, string parseExpression)
+    public static FormatSlot ForOperationVariable(string name, int ordinal, OperationVariableSlotKind kind, string parseExpression)
     {
-        var csType = kind switch
+        return kind switch
         {
-            FormatSlotKind.SsaValue => "global::MLIR.Syntax.Token",
-            FormatSlotKind.SsaValueList => "global::MLIR.Syntax.SeparatedSyntaxList<global::MLIR.Syntax.Token>",
-            _ => "global::MLIR.Syntax.AttributeValueSyntax",
+            OperationVariableSlotKind.SsaValue => new SsaValueSlot(name, name, parseExpression),
+            OperationVariableSlotKind.SsaValueList => new SsaValueListSlot(name, name, parseExpression),
+            OperationVariableSlotKind.AttributeValue => new AttributeValueSlot(name, name, "global::MLIR.Syntax.AttributeValueSyntax", parseExpression, null),
+            _ => throw new System.ArgumentOutOfRangeException(nameof(kind)),
         };
-        return new FormatSlot(name, name, kind, csType, parseExpression);
     }
 
-    public static FormatSlot ForDirective(string name, int ordinal, FormatSlotKind kind, string parseExpression, string csType)
-        => new(name, name, kind, csType, parseExpression);
+    public static AttrDictSlot ForAttrDictDirective(string name, int ordinal, string parseExpression, string csType)
+        => new(name, name, parseExpression, csType);
 
-    public string BuildExpression(string typedLocalName)
+    public static TypeSlot ForTypeDirective(string name, int ordinal, string parseExpression)
+        => new(name, name, parseExpression, null);
+}
+
+internal enum OperationVariableSlotKind
+{
+    AttributeValue,
+    SsaValue,
+    SsaValueList,
+}
+
+internal sealed class LiteralTokenSlot : FormatSlot
+{
+    public LiteralTokenSlot(string name, string text, string tokenKindExpression, bool isKeyword)
+        : base(name, name, "global::MLIR.Syntax.Token", isKeyword
+            ? "context.ExpectKeyword(" + EmitterHelpers.ToCSharpStringLiteral(text) + ", " + EmitterHelpers.ToCSharpStringLiteral("Expected '" + text + "'.") + ")"
+            : "context.Expect(" + tokenKindExpression + ", " + EmitterHelpers.ToCSharpStringLiteral("Expected '" + text + "'.") + ")")
     {
-        if (Kind == FormatSlotKind.LiteralToken)
-        {
-            return IsKeyword
-                ? "global::MLIR.Syntax.TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(TokenText ?? string.Empty) + ")"
-                : "new global::MLIR.Syntax.Token(" + TokenKindExpression + ", " + EmitterHelpers.ToCSharpStringLiteral(TokenText ?? string.Empty) + ")";
-        }
-
-        var propertyExpression = typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
-        if (Kind == FormatSlotKind.Type)
-        {
-            return ParameterModel?.CsharpPrinterTemplate != null
-                ? ParameterModel.CsharpPrinterTemplate.Render("self", propertyExpression)
-                : propertyExpression;
-        }
-
-        if (ParameterModel?.CsharpPrinterTemplate != null)
-        {
-            return ParameterModel.CsharpPrinterTemplate.Render("self", propertyExpression);
-        }
-
-        return propertyExpression;
+        Text = text;
+        TokenKindExpression = tokenKindExpression;
+        IsKeyword = isKeyword;
     }
+
+    public string Text { get; }
+    public string TokenKindExpression { get; }
+    public bool IsKeyword { get; }
+    public override string RewriteExpression => "rewriter.VisitToken(" + PropertyName + ")";
+    public override string CanStartExpression => IsKeyword
+        ? "context.IsKeyword(" + EmitterHelpers.ToCSharpStringLiteral(Text) + ")"
+        : "context.Is(" + TokenKindExpression + ")";
+    public override string? LiteralTextForSpacing => Text;
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitLiteralToken(this);
+
+    public override string BuildExpression(string typedLocalName)
+        => IsKeyword
+            ? "global::MLIR.Syntax.TokenFactory.Identifier(" + EmitterHelpers.ToCSharpStringLiteral(Text) + ")"
+            : "new global::MLIR.Syntax.Token(" + TokenKindExpression + ", " + EmitterHelpers.ToCSharpStringLiteral(Text) + ")";
+}
+
+internal sealed class AttributeValueSlot : FormatSlot
+{
+    public AttributeValueSlot(string sourceName, string baseName, string csType, string parseExpression, AttrOrTypeParameterModel? parameterModel)
+        : base(sourceName, baseName, csType, parseExpression)
+    {
+        ParameterModel = parameterModel;
+    }
+
+    public AttrOrTypeParameterModel? ParameterModel { get; }
+    public override string ParseValueExpression => "(" + CsType + ")" + base.ParseValueExpression;
+    public override string RewriteExpression => "(" + CsType + ")rewriter.Visit(" + PropertyName + ")";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitAttributeValue(this);
+
+    public override string BuildExpression(string typedLocalName)
+    {
+        var propertyExpression = typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
+        return ParameterModel?.CsharpPrinterTemplate != null
+            ? ParameterModel.CsharpPrinterTemplate.Render("self", propertyExpression)
+            : propertyExpression;
+    }
+}
+
+internal sealed class TypeSlot : FormatSlot
+{
+    public TypeSlot(string sourceName, string baseName, string parseExpression, AttrOrTypeParameterModel? parameterModel)
+        : base(sourceName, baseName, "global::MLIR.Syntax.TypeSyntax", parseExpression)
+    {
+        ParameterModel = parameterModel;
+    }
+
+    public AttrOrTypeParameterModel? ParameterModel { get; }
+    public override string ParseValueExpression => "(" + CsType + ")" + base.ParseValueExpression;
+    public override string RewriteExpression => "(" + CsType + ")rewriter.Visit(" + PropertyName + ")";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitType(this);
+
+    public override string BuildExpression(string typedLocalName)
+    {
+        var propertyExpression = typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
+        return ParameterModel?.CsharpPrinterTemplate != null
+            ? ParameterModel.CsharpPrinterTemplate.Render("self", propertyExpression)
+            : propertyExpression;
+    }
+}
+
+internal sealed class SsaValueSlot : FormatSlot
+{
+    public SsaValueSlot(string sourceName, string baseName, string parseExpression)
+        : base(sourceName, baseName, "global::MLIR.Syntax.Token", parseExpression)
+    {
+    }
+
+    public override string RewriteExpression => "rewriter.VisitToken(" + PropertyName + ")";
+    public override string CanStartExpression => "context.Is(global::MLIR.Text.TokenKind.SsaName)";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitSsaValue(this);
+
+    public override string BuildExpression(string typedLocalName)
+        => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
+}
+
+internal sealed class SsaValueListSlot : FormatSlot
+{
+    public SsaValueListSlot(string sourceName, string baseName, string parseExpression)
+        : base(sourceName, baseName, "global::MLIR.Syntax.SeparatedSyntaxList<global::MLIR.Syntax.Token>", parseExpression)
+    {
+    }
+
+    public override string RewriteExpression => "rewriter.VisitSeparatedTokenList(" + PropertyName + ")";
+    public override string CanStartExpression => "context.Is(global::MLIR.Text.TokenKind.SsaName)";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitSsaValueList(this);
+
+    public override string BuildExpression(string typedLocalName)
+        => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
+}
+
+internal sealed class AttrDictSlot : FormatSlot
+{
+    public AttrDictSlot(string sourceName, string baseName, string parseExpression, string csType)
+        : base(sourceName, baseName, csType, parseExpression)
+    {
+    }
+
+    public override string RewriteExpression => "rewriter.VisitDelimitedList(" + PropertyName + ")";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitAttrDict(this);
+
+    public override string BuildExpression(string typedLocalName)
+        => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
 }

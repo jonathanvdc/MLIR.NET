@@ -107,7 +107,7 @@ internal sealed class AssemblyFormatPlanCompiler
 
             var anchor = clauseNodes
                 .OfType<FormatSlot>()
-                .FirstOrDefault(static slot => slot.Kind is FormatSlotKind.AttributeValue or FormatSlotKind.Type or FormatSlotKind.SsaValue or FormatSlotKind.SsaValueList)
+                .FirstOrDefault(static slot => slot is AttributeValueSlot or TypeSlot or SsaValueSlot or SsaValueListSlot)
                 ?.SourceName ?? clause.Keyword + "Keyword";
             var name = DialectGeneratorNaming.ToPascalCase(clause.Keyword) + "Clause";
             clauses.Add(new OptionalGroupNode(

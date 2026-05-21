@@ -83,15 +83,19 @@ internal sealed class AttributeFormatSubject : FormatSubject
         builder.AppendLine("        if (syntax is not " + SyntaxClassName + " structured)");
         builder.AppendLine("            throw new global::System.InvalidOperationException(\"Expected the generated attribute syntax class.\");");
         var args = new List<string>();
-        foreach (var slot in plan.Slots.Where(s => s.Kind == FormatSlotKind.AttributeValue || s.Kind == FormatSlotKind.Type))
+        foreach (var slot in plan.Slots.Where(static s => s is AttributeValueSlot or TypeSlot))
         {
-            if (slot.ParameterModel?.IsSelfTypeParameter == true)
+            if (slot is AttributeValueSlot { ParameterModel.IsSelfTypeParameter: true })
             {
                 args.Add("binder.BindTypeReference(structured." + slot.PropertyName + ")");
             }
-            else if (slot.ParameterModel?.CsharpExtractorTemplate != null)
+            else if (slot is AttributeValueSlot { ParameterModel.CsharpExtractorTemplate: { } attrExtractor })
             {
-                args.Add(slot.ParameterModel.CsharpExtractorTemplate.Render("syntax", "structured." + slot.PropertyName));
+                args.Add(attrExtractor.Render("syntax", "structured." + slot.PropertyName));
+            }
+            else if (slot is TypeSlot { ParameterModel.CsharpExtractorTemplate: { } typeExtractor })
+            {
+                args.Add(typeExtractor.Render("syntax", "structured." + slot.PropertyName));
             }
             else
             {
@@ -161,11 +165,14 @@ internal sealed class TypeFormatSubject : FormatSubject
         builder.AppendLine("        if (syntax is not " + SyntaxClassName + " structured)");
         builder.AppendLine("            throw new global::System.InvalidOperationException(\"Expected the generated type syntax class.\");");
         var args = new List<string>();
-        foreach (var slot in plan.Slots.Where(s => s.Kind == FormatSlotKind.AttributeValue || s.Kind == FormatSlotKind.Type))
+        foreach (var slot in plan.Slots.Where(static s => s is AttributeValueSlot or TypeSlot))
         {
-            args.Add(slot.ParameterModel?.CsharpExtractorTemplate != null
-                ? slot.ParameterModel.CsharpExtractorTemplate.Render("syntax", "structured." + slot.PropertyName)
-                : "structured." + slot.PropertyName);
+            args.Add(slot switch
+            {
+                AttributeValueSlot { ParameterModel.CsharpExtractorTemplate: { } extractor } => extractor.Render("syntax", "structured." + slot.PropertyName),
+                TypeSlot { ParameterModel.CsharpExtractorTemplate: { } extractor } => extractor.Render("syntax", "structured." + slot.PropertyName),
+                _ => "structured." + slot.PropertyName,
+            });
         }
 
         builder.AppendLine("        return new " + ClassName + "(" + string.Join(", ", args) + ", syntax);");
@@ -217,8 +224,8 @@ internal sealed class OperationFormatSubject : FormatSubject
         if (operand != null)
         {
             return operand.IsVariadic
-                ? FormatSlot.ForOperationVariable(variable.Name, ordinal, FormatSlotKind.SsaValueList, "context.TryParseSsaTokenList()")
-                : FormatSlot.ForOperationVariable(variable.Name, ordinal, FormatSlotKind.SsaValue, "context.TryParseSsaToken()");
+                ? FormatSlot.ForOperationVariable(variable.Name, ordinal, OperationVariableSlotKind.SsaValueList, "context.TryParseSsaTokenList()")
+                : FormatSlot.ForOperationVariable(variable.Name, ordinal, OperationVariableSlotKind.SsaValue, "context.TryParseSsaToken()");
         }
 
         var attribute = operation.Attributes.FirstOrDefault(a => string.Equals(a.Name, variable.Name, StringComparison.Ordinal));
@@ -231,7 +238,7 @@ internal sealed class OperationFormatSubject : FormatSubject
             var parseExpr = !string.IsNullOrEmpty(expectedDefinitionExpr)
                 ? "context.TryParseAttributeValueSyntax(" + expectedDefinitionExpr + ")"
                 : "context.TryParseAttributeValueSyntax()";
-            return FormatSlot.ForOperationVariable(variable.Name, ordinal, FormatSlotKind.AttributeValue, parseExpr);
+            return FormatSlot.ForOperationVariable(variable.Name, ordinal, OperationVariableSlotKind.AttributeValue, parseExpr);
         }
 
         return null;
@@ -241,12 +248,12 @@ internal sealed class OperationFormatSubject : FormatSubject
     {
         if (directive is AttrDictDirectiveChunk)
         {
-            return FormatSlot.ForDirective("attrDict", ordinal, FormatSlotKind.AttrDict, "context.TryParseAttrDict()", "global::MLIR.Syntax.DelimitedSyntaxList<global::MLIR.Syntax.NamedAttributeSyntax>");
+            return FormatSlot.ForAttrDictDirective("attrDict", ordinal, "context.TryParseAttrDict()", "global::MLIR.Syntax.DelimitedSyntaxList<global::MLIR.Syntax.NamedAttributeSyntax>");
         }
 
         if (directive is TypeDirectiveChunk typeDirective)
         {
-            return FormatSlot.ForDirective(GetTypeDirectiveSlotName(typeDirective, ordinal), ordinal, FormatSlotKind.Type, "context.TryParseTypeSyntax()", "global::MLIR.Syntax.TypeSyntax");
+            return FormatSlot.ForTypeDirective(GetTypeDirectiveSlotName(typeDirective, ordinal), ordinal, "context.TryParseTypeSyntax()");
         }
 
         if (directive is QualifiedDirectiveChunk qualifiedDirective)
@@ -256,7 +263,7 @@ internal sealed class OperationFormatSubject : FormatSubject
 
         if (directive is FunctionalTypeDirectiveChunk)
         {
-            return FormatSlot.ForDirective("functionType" + ordinal.ToString(CultureInfo.InvariantCulture), ordinal, FormatSlotKind.Type, "context.TryParseTypeSyntax()", "global::MLIR.Syntax.TypeSyntax");
+            return FormatSlot.ForTypeDirective("functionType" + ordinal.ToString(CultureInfo.InvariantCulture), ordinal, "context.TryParseTypeSyntax()");
         }
 
         return null;
@@ -266,7 +273,7 @@ internal sealed class OperationFormatSubject : FormatSubject
     {
         if (directive.Operand is TypeDirectiveOperand typeOperand)
         {
-            return FormatSlot.ForDirective(GetTypeDirectiveSlotName(new TypeDirectiveChunk(typeOperand.Operand), ordinal), ordinal, FormatSlotKind.Type, "context.TryParseTypeSyntax()", "global::MLIR.Syntax.TypeSyntax");
+            return FormatSlot.ForTypeDirective(GetTypeDirectiveSlotName(new TypeDirectiveChunk(typeOperand.Operand), ordinal), ordinal, "context.TryParseTypeSyntax()");
         }
 
         if (directive.Operand is VariableOperand variable)
@@ -296,7 +303,7 @@ internal sealed class OperationFormatSubject : FormatSubject
         builder.AppendLine("        if (syntax.Body is not " + SyntaxClassName + " body)");
         builder.AppendLine("            throw new global::System.InvalidOperationException(\"Expected the generated operation body syntax class.\");");
         builder.AppendLine("        var attributes = new global::System.Collections.Generic.List<global::MLIR.Semantics.NamedAttribute>();");
-        foreach (var slot in plan.Slots.Where(s => s.Kind == FormatSlotKind.AttributeValue))
+        foreach (var slot in plan.Slots.OfType<AttributeValueSlot>())
         {
             var expectedConstraint = EmitterHelpers.TryGetAttributeConstraint(operation, slot.SourceName);
             var expectedDefinitionExpr = !string.IsNullOrEmpty(expectedConstraint)
@@ -316,7 +323,7 @@ internal sealed class OperationFormatSubject : FormatSubject
             }
         }
 
-        var attrDict = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.AttrDict);
+        var attrDict = plan.Slots.OfType<AttrDictSlot>().FirstOrDefault();
         if (attrDict != null)
         {
             builder.AppendLine("        foreach (var attr in " + attrDict.BodyAccessExpression + ")");
@@ -324,7 +331,7 @@ internal sealed class OperationFormatSubject : FormatSubject
         }
 
         builder.AppendLine("        global::MLIR.Semantics.TypeReference? typeSignatureReference = null;");
-        var typeSlot = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.Type);
+        var typeSlot = plan.Slots.OfType<TypeSlot>().FirstOrDefault();
         if (typeSlot != null)
         {
             if (typeSlot.ContainingOptionalSyntax != null)
@@ -347,10 +354,10 @@ internal sealed class OperationFormatSubject : FormatSubject
 
         foreach (var member in memberPlan.Operands)
         {
-            var slot = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.SsaValue && string.Equals(s.SourceName, member.SourceName, StringComparison.Ordinal));
+            var slot = plan.Slots.OfType<SsaValueSlot>().FirstOrDefault(s => string.Equals(s.SourceName, member.SourceName, StringComparison.Ordinal));
             if (member.IsVariadic)
             {
-                var listSlot = plan.Slots.FirstOrDefault(s => s.Kind == FormatSlotKind.SsaValueList && string.Equals(s.SourceName, member.SourceName, StringComparison.Ordinal));
+                var listSlot = plan.Slots.OfType<SsaValueListSlot>().FirstOrDefault(s => string.Equals(s.SourceName, member.SourceName, StringComparison.Ordinal));
                 if (listSlot != null)
                 {
                     var bindList = "global::System.Linq.Enumerable.ToList(global::System.Linq.Enumerable.Select(" + listSlot.BodyAccessExpression + ", binder.BindValueReference))";
@@ -452,10 +459,25 @@ internal sealed class OperationFormatSubject : FormatSubject
             this.indent = indent;
         }
 
-        public void VisitSlot(FormatSlot slot)
-        {
-            builder.AppendLine(indent + "var " + slot.ParameterName + " = " + owner.BuildOperationSlotExpression(plan, slot) + ";");
-        }
+        public void VisitTrivia(TriviaNode trivia) { }
+
+        public void VisitLiteralToken(LiteralTokenSlot slot)
+            => EmitSlot(slot);
+
+        public void VisitAttributeValue(AttributeValueSlot slot)
+            => EmitSlot(slot);
+
+        public void VisitType(TypeSlot slot)
+            => EmitSlot(slot);
+
+        public void VisitSsaValue(SsaValueSlot slot)
+            => EmitSlot(slot);
+
+        public void VisitSsaValueList(SsaValueListSlot slot)
+            => EmitSlot(slot);
+
+        public void VisitAttrDict(AttrDictSlot slot)
+            => EmitSlot(slot);
 
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
@@ -491,6 +513,11 @@ internal sealed class OperationFormatSubject : FormatSubject
                 VisitOptionalSyntax(clause);
             }
         }
+
+        private void EmitSlot(FormatSlot slot)
+        {
+            builder.AppendLine(indent + "var " + slot.ParameterName + " = " + owner.BuildOperationSlotExpression(plan, slot) + ";");
+        }
     }
 
     private string GetOperationGroupPresenceExpression(OptionalSyntaxNode group)
@@ -501,14 +528,9 @@ internal sealed class OperationFormatSubject : FormatSubject
             return "false";
         }
 
-        return anchor.Kind switch
-        {
-            FormatSlotKind.AttributeValue => "typed.Attributes.Contains(" + EmitterHelpers.ToCSharpStringLiteral(anchor.SourceName) + ")",
-            FormatSlotKind.SsaValue => GetOperandPresenceExpression(anchor.SourceName),
-            FormatSlotKind.SsaValueList => GetOperandListPresenceExpression(anchor.SourceName),
-            FormatSlotKind.Type => "typed.TypeSignatureReference != null",
-            _ => "true",
-        };
+        var visitor = new OperationPresenceExpressionVisitor(this);
+        anchor.Accept(visitor);
+        return visitor.Expression;
     }
 
     private string GetOperandPresenceExpression(string sourceName)
@@ -535,39 +557,15 @@ internal sealed class OperationFormatSubject : FormatSubject
 
     private string BuildOperationSlotExpression(AssemblyFormatPlan plan, FormatSlot slot)
     {
-        switch (slot.Kind)
-        {
-            case FormatSlotKind.LiteralToken:
-                return slot.BuildExpression("typed");
-            case FormatSlotKind.SsaValue:
-            {
-                var member = memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, slot.SourceName, StringComparison.Ordinal));
-                var valueExpr = member != null ? "typed." + member.PropertyName : "null";
-                return valueExpr + ".Token ?? global::MLIR.Syntax.TokenFactory.SsaName(" + valueExpr + ".Name)";
-            }
-            case FormatSlotKind.SsaValueList:
-            {
-                var member = memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, slot.SourceName, StringComparison.Ordinal));
-                var valueExpr = member != null ? "typed." + member.PropertyName : "global::System.Array.Empty<global::MLIR.Semantics.Value>()";
-                return "new global::MLIR.Syntax.SeparatedSyntaxList<global::MLIR.Syntax.Token>("
-                    + "global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(" + valueExpr + ", static value => value.Token ?? global::MLIR.Syntax.TokenFactory.SsaName(value.Name))), "
-                    + "global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.Range(0, global::System.Math.Max(0, " + valueExpr + ".Count - 1)), static _ => global::MLIR.Syntax.TokenFactory.Comma())))";
-            }
-            case FormatSlotKind.AttributeValue:
-                return "context.BuildAttributeValueSyntax(typed.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + "].Value)";
-            case FormatSlotKind.AttrDict:
-                return "context.BuildAttrDict(" + BuildAttributeDictionaryExpression(plan) + ")";
-            case FormatSlotKind.Type:
-                return "context.BuildTypeSyntax(typed.TypeSignatureReference!)";
-            default:
-                throw new InvalidOperationException("Unsupported operation slot kind '" + slot.Kind + "'.");
-        }
+        var visitor = new OperationSlotBuildExpressionVisitor(this, plan);
+        slot.Accept(visitor);
+        return visitor.Expression ?? throw new InvalidOperationException("Unsupported operation slot kind '" + slot.GetType().Name + "'.");
     }
 
     private static string BuildAttributeDictionaryExpression(AssemblyFormatPlan plan)
     {
         var expression = "typed.Attributes";
-        foreach (var explicitAttribute in plan.Slots.Where(s => s.Kind == FormatSlotKind.AttributeValue))
+        foreach (var explicitAttribute in plan.Slots.OfType<AttributeValueSlot>())
         {
             expression += ".Remove(" + EmitterHelpers.ToCSharpStringLiteral(explicitAttribute.SourceName) + ")";
         }
@@ -582,5 +580,98 @@ internal sealed class OperationFormatSubject : FormatSubject
             VariableOperand variable => variable.Name + "Type",
             _ => "type" + ordinal.ToString(CultureInfo.InvariantCulture),
         };
+    }
+
+    private sealed class OperationPresenceExpressionVisitor : IFormatNodeVisitor
+    {
+        private readonly OperationFormatSubject owner;
+
+        public OperationPresenceExpressionVisitor(OperationFormatSubject owner)
+        {
+            this.owner = owner;
+        }
+
+        public string Expression { get; private set; } = "true";
+
+        public void VisitTrivia(TriviaNode trivia)
+            => Expression = "false";
+
+        public void VisitLiteralToken(LiteralTokenSlot slot)
+            => Expression = "true";
+
+        public void VisitAttributeValue(AttributeValueSlot slot)
+            => Expression = "typed.Attributes.Contains(" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + ")";
+
+        public void VisitType(TypeSlot slot)
+            => Expression = "typed.TypeSignatureReference != null";
+
+        public void VisitSsaValue(SsaValueSlot slot)
+            => Expression = owner.GetOperandPresenceExpression(slot.SourceName);
+
+        public void VisitSsaValueList(SsaValueListSlot slot)
+            => Expression = owner.GetOperandListPresenceExpression(slot.SourceName);
+
+        public void VisitAttrDict(AttrDictSlot slot)
+            => Expression = "true";
+
+        public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
+            => Expression = "true";
+
+        public void VisitOilist(OilistNode oilist)
+            => Expression = "true";
+    }
+
+    private sealed class OperationSlotBuildExpressionVisitor : IFormatNodeVisitor
+    {
+        private readonly OperationFormatSubject owner;
+        private readonly AssemblyFormatPlan plan;
+
+        public OperationSlotBuildExpressionVisitor(OperationFormatSubject owner, AssemblyFormatPlan plan)
+        {
+            this.owner = owner;
+            this.plan = plan;
+        }
+
+        public string? Expression { get; private set; }
+
+        public void VisitTrivia(TriviaNode trivia)
+        {
+        }
+
+        public void VisitLiteralToken(LiteralTokenSlot slot)
+            => Expression = slot.BuildExpression("typed");
+
+        public void VisitAttributeValue(AttributeValueSlot slot)
+            => Expression = "context.BuildAttributeValueSyntax(typed.Attributes[" + EmitterHelpers.ToCSharpStringLiteral(slot.SourceName) + "].Value)";
+
+        public void VisitType(TypeSlot slot)
+            => Expression = "context.BuildTypeSyntax(typed.TypeSignatureReference!)";
+
+        public void VisitSsaValue(SsaValueSlot slot)
+        {
+            var member = owner.memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, slot.SourceName, StringComparison.Ordinal));
+            var valueExpr = member != null ? "typed." + member.PropertyName : "null";
+            Expression = valueExpr + ".Token ?? global::MLIR.Syntax.TokenFactory.SsaName(" + valueExpr + ".Name)";
+        }
+
+        public void VisitSsaValueList(SsaValueListSlot slot)
+        {
+            var member = owner.memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, slot.SourceName, StringComparison.Ordinal));
+            var valueExpr = member != null ? "typed." + member.PropertyName : "global::System.Array.Empty<global::MLIR.Semantics.Value>()";
+            Expression = "new global::MLIR.Syntax.SeparatedSyntaxList<global::MLIR.Syntax.Token>("
+                + "global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(" + valueExpr + ", static value => value.Token ?? global::MLIR.Syntax.TokenFactory.SsaName(value.Name))), "
+                + "global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.Range(0, global::System.Math.Max(0, " + valueExpr + ".Count - 1)), static _ => global::MLIR.Syntax.TokenFactory.Comma())))";
+        }
+
+        public void VisitAttrDict(AttrDictSlot slot)
+            => Expression = "context.BuildAttrDict(" + BuildAttributeDictionaryExpression(plan) + ")";
+
+        public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
+        {
+        }
+
+        public void VisitOilist(OilistNode oilist)
+        {
+        }
     }
 }
