@@ -32,6 +32,31 @@ public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
     }
 
     [Fact]
+    public void ModuleStyleBodyRegionDirectiveIsSupported()
+    {
+        var result = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: true,
+            (
+                "mydialect.td",
+                ComposeMyDialectSource(
+                [
+                    "include \"mlir/IR/RegionKindInterface.td\"",
+                    string.Empty,
+                    "def MyDialect_ModuleOp : MyDialect_Op<\"module\", [",
+                    "    Symbol, SymbolTable, NoRegionArguments",
+                    "  ] # GraphRegionNoTerminator.traits> {",
+                    "  let arguments = (ins OptionalAttr<SymbolNameAttr>:$sym_name);",
+                    "  let regions = (region SizedRegion<1>:$bodyRegion);",
+                    "  let assemblyFormat = \"($sym_name^)? attr-dict-with-keyword $bodyRegion\";",
+                    "};",
+                ])));
+
+        Assert.DoesNotContain(result.Diagnostics, static diagnostic => diagnostic.Id == "MLIRGEN004");
+        Assert.DoesNotContain(result.Diagnostics, static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
     public void OptionalAttributeAccessUsesDeclaredOptionalValueAccessMetadata()
     {
         var registrationSource = GenerateMiniArithRegistrationSource(

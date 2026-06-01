@@ -212,6 +212,8 @@ internal static class AssemblyFormatSyntaxClassEmitter
 
         public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot) { }
 
+        public void VisitRegion(RegionSlot slot) { }
+
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
             Groups.Add(optionalSyntax);
@@ -285,6 +287,13 @@ internal static class AssemblyFormatSyntaxClassEmitter
         {
             builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
             builder.AppendLine(indent + slot.PropertyName + ".WriteTo(writer);");
+            spacing.MarkEmitted(slot);
+        }
+
+        public void VisitRegion(RegionSlot slot)
+        {
+            builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            builder.AppendLine(indent + "writer.WriteRegion(" + slot.PropertyName + ");");
             spacing.MarkEmitted(slot);
         }
 

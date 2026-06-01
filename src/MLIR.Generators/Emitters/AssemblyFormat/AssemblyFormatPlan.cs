@@ -68,6 +68,8 @@ internal interface IFormatNodeVisitor
 
     void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot);
 
+    void VisitRegion(RegionSlot slot);
+
     void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax);
 
     void VisitOilist(OilistNode oilist);
@@ -224,6 +226,7 @@ internal abstract class FormatSlot : FormatNode
             OperationVariableSlotKind.SsaValue => new SsaValueSlot(name, name, parseExpression),
             OperationVariableSlotKind.SsaValueList => new SsaValueListSlot(name, name, parseExpression),
             OperationVariableSlotKind.AttributeValue => new AttributeValueSlot(name, name, "global::MLIR.Syntax.AttributeValueSyntax", parseExpression, null),
+            OperationVariableSlotKind.Region => new RegionSlot(name, name, parseExpression),
             _ => throw new System.ArgumentOutOfRangeException(nameof(kind)),
         };
     }
@@ -241,6 +244,7 @@ internal abstract class FormatSlot : FormatNode
 internal enum OperationVariableSlotKind
 {
     AttributeValue,
+    Region,
     SsaValue,
     SsaValueList,
 }
@@ -390,6 +394,24 @@ internal sealed class AttrDictWithKeywordSlot : FormatSlot
 
     public override void Accept(IFormatNodeVisitor visitor)
         => visitor.VisitAttrDictWithKeyword(this);
+
+    public override string BuildExpression(string typedLocalName)
+        => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
+}
+
+internal sealed class RegionSlot : FormatSlot
+{
+    public RegionSlot(string sourceName, string baseName, string parseExpression)
+        : base(sourceName, baseName, "global::MLIR.Syntax.RegionSyntax", parseExpression)
+    {
+    }
+
+    public override string RewriteExpression => "(global::MLIR.Syntax.RegionSyntax)rewriter.Visit(" + PropertyName + ")";
+
+    public override string CanStartExpression => "context.Is(global::MLIR.Text.TokenKind.LBrace)";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitRegion(this);
 
     public override string BuildExpression(string typedLocalName)
         => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);

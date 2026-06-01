@@ -117,15 +117,14 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
         Assert.NotNull(reboundFunc.TypeSignatureReference);
     }
 
-#if false
-    [Fact(Skip = "Temporarily disabled while module operation body syntax is rebuilt on the unified emitter.")]
+    [Fact]
     public void ScaleModuleParsesBindsPrintsAndRoundsTrip()
     {
         var document = Document.Parse(ScaleModuleSource, CreateMixedPreludeRegistry());
         var moduleSyntax = document.Module;
         var moduleSyntaxOp = Assert.Single(moduleSyntax.Operations);
-        var moduleBody = Assert.IsType<ModuleOpBodySyntax>(moduleSyntaxOp.Body);
-        var moduleRegion = moduleBody.BodyRegion;
+        Assert.Equal("ModuleOpSyntax", moduleSyntaxOp.Body.GetType().Name);
+        var moduleRegion = GetBodyRegion(moduleSyntaxOp.Body);
         var moduleBlock = Assert.Single(moduleRegion.Blocks);
         var funcSyntax = Assert.IsType<OperationSyntax>(moduleBlock.Operations[0]);
         var funcBody = Assert.IsType<FuncOperationBodySyntax>(funcSyntax.Body);
@@ -161,14 +160,14 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
         Assert.Equal(printed, rebound.ToText(CustomAssemblyOptions));
     }
 
-    [Fact(Skip = "Temporarily disabled while module operation body syntax is rebuilt on the unified emitter.")]
+    [Fact]
     public void LinearModuleParsesBindsPrintsAndRoundsTrip()
     {
         var document = Document.Parse(LinearModuleSource, CreateMixedPreludeRegistry());
         var moduleSyntax = document.Module;
         var moduleSyntaxOp = Assert.Single(moduleSyntax.Operations);
-        var moduleBody = Assert.IsType<ModuleOpBodySyntax>(moduleSyntaxOp.Body);
-        var moduleRegion = moduleBody.BodyRegion;
+        Assert.Equal("ModuleOpSyntax", moduleSyntaxOp.Body.GetType().Name);
+        var moduleRegion = GetBodyRegion(moduleSyntaxOp.Body);
         var moduleBlock = Assert.Single(moduleRegion.Blocks);
         var funcSyntax = Assert.IsType<OperationSyntax>(moduleBlock.Operations[0]);
         var funcBody = Assert.IsType<FuncOperationBodySyntax>(funcSyntax.Body);
@@ -205,5 +204,11 @@ public sealed class MixedPreludeDialectTests : DialectIntegrationTestBase
         Assert.Empty(rebound.AssemblyDiagnostics);
         Assert.Equal(printed, rebound.ToText(CustomAssemblyOptions));
     }
-#endif
+
+    private static RegionSyntax GetBodyRegion(OperationBodySyntax body)
+    {
+        var property = body.GetType().GetProperty("BodyRegion");
+        Assert.NotNull(property);
+        return Assert.IsType<RegionSyntax>(property.GetValue(body));
+    }
 }

@@ -241,6 +241,12 @@ internal sealed class OperationFormatSubject : FormatSubject
             return FormatSlot.ForOperationVariable(variable.Name, ordinal, OperationVariableSlotKind.AttributeValue, parseExpr);
         }
 
+        var region = operation.Regions.FirstOrDefault(r => string.Equals(r.Name, variable.Name, StringComparison.Ordinal));
+        if (region is { IsVariadic: false })
+        {
+            return FormatSlot.ForOperationVariable(variable.Name, ordinal, OperationVariableSlotKind.Region, "context.TryParseRegion()");
+        }
+
         return null;
     }
 
@@ -361,7 +367,7 @@ internal sealed class OperationFormatSubject : FormatSubject
         builder.AppendLine("            syntax: syntax,");
         if (memberPlan.Regions.Count > 0)
         {
-            builder.AppendLine("            regions: global::System.Array.Empty<global::MLIR.Semantics.Region>(),");
+            builder.AppendLine("            regions: " + BuildRegionListExpression(plan) + ",");
         }
 
         foreach (var member in memberPlan.Operands)
@@ -494,6 +500,9 @@ internal sealed class OperationFormatSubject : FormatSubject
         public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
             => EmitSlot(slot);
 
+        public void VisitRegion(RegionSlot slot)
+            => EmitSlot(slot);
+
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
             builder.AppendLine(indent + optionalSyntax.CsType + " " + optionalSyntax.ParameterName + " = null;");
@@ -570,6 +579,17 @@ internal sealed class OperationFormatSubject : FormatSubject
         return "typed." + member.PropertyName + ".Count > 0";
     }
 
+    private string GetRegionPresenceExpression(string sourceName)
+    {
+        var member = memberPlan.Regions.FirstOrDefault(m => string.Equals(m.SourceName, sourceName, StringComparison.Ordinal));
+        if (member == null)
+        {
+            return "false";
+        }
+
+        return "typed." + member.PropertyName + " != null";
+    }
+
     private string BuildOperationSlotExpression(AssemblyFormatPlan plan, FormatSlot slot)
     {
         var visitor = new OperationSlotBuildExpressionVisitor(this, plan);
@@ -586,6 +606,48 @@ internal sealed class OperationFormatSubject : FormatSubject
         }
 
         return expression;
+    }
+
+    private string BuildRegionListExpression(AssemblyFormatPlan plan)
+    {
+        var values = new List<string>();
+        foreach (var member in memberPlan.Regions)
+        {
+            if (member.IsVariadic)
+            {
+                continue;
+            }
+
+            var slot = plan.Slots
+                .OfType<RegionSlot>()
+                .FirstOrDefault(s => string.Equals(s.SourceName, member.SourceName, StringComparison.Ordinal));
+            if (slot == null)
+            {
+                values.Add("new global::MLIR.Semantics.Region(null, global::System.Array.Empty<global::MLIR.Semantics.Block>())");
+                continue;
+            }
+
+            var bindExpression = "binder.BindRegion(" + slot.BodyAccessExpression + ")";
+            if (slot.ContainingOptionalSyntax != null)
+            {
+                bindExpression = "body." + slot.ContainingOptionalSyntax.PropertyName + " == null ? new global::MLIR.Semantics.Region(null, global::System.Array.Empty<global::MLIR.Semantics.Block>()) : " + bindExpression;
+            }
+
+            values.Add(bindExpression);
+        }
+
+        return "new global::MLIR.Semantics.Region[] { " + string.Join(", ", values) + " }";
+    }
+
+    private string BuildRegionSyntaxExpression(RegionSlot slot)
+    {
+        var member = memberPlan.Regions.FirstOrDefault(m => string.Equals(m.SourceName, slot.SourceName, StringComparison.Ordinal));
+        if (member == null)
+        {
+            return "new global::MLIR.Syntax.RegionSyntax(global::System.Array.Empty<global::MLIR.Syntax.BlockSyntax>())";
+        }
+
+        return "context.TransformRegion(typed." + member.PropertyName + "!)";
     }
 
     private static string GetTypeDirectiveSlotName(TypeDirectiveChunk directive, int ordinal)
@@ -631,6 +693,9 @@ internal sealed class OperationFormatSubject : FormatSubject
 
         public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
             => Expression = "true";
+
+        public void VisitRegion(RegionSlot slot)
+            => Expression = owner.GetRegionPresenceExpression(slot.SourceName);
 
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
             => Expression = "true";
@@ -686,6 +751,9 @@ internal sealed class OperationFormatSubject : FormatSubject
 
         public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
             => Expression = "context.BuildKeywordedAttrDict(" + BuildAttributeDictionaryExpression(plan) + ")";
+
+        public void VisitRegion(RegionSlot slot)
+            => Expression = owner.BuildRegionSyntaxExpression(slot);
 
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {

@@ -107,7 +107,7 @@ internal sealed class AssemblyFormatPlanCompiler
 
             var anchor = clauseNodes
                 .OfType<FormatSlot>()
-                .FirstOrDefault(static slot => slot is AttributeValueSlot or TypeSlot or SsaValueSlot or SsaValueListSlot)
+                .FirstOrDefault(static slot => slot is AttributeValueSlot or TypeSlot or SsaValueSlot or SsaValueListSlot or RegionSlot)
                 ?.SourceName ?? clause.Keyword + "Keyword";
             var name = DialectGeneratorNaming.ToPascalCase(clause.Keyword) + "Clause";
             clauses.Add(new OptionalGroupNode(
@@ -200,6 +200,7 @@ internal sealed class AssemblyFormatPlanCompiler
         return directive switch
         {
             AttrDictDirectiveChunk => "attr-dict",
+            AttrDictWithKeywordDirectiveChunk => "attr-dict-with-keyword",
             TypeDirectiveChunk => "type directive",
             _ => directive.GetType().Name,
         };
