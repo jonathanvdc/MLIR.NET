@@ -80,7 +80,7 @@ internal sealed class AssemblyFormatPlanCompiler
         var name = DialectGeneratorNaming.ToPascalCase(optionalGroup.AnchorName) + "Group";
         target.Add(new OptionalGroupNode(
             name,
-            subject.SyntaxClassName + name + "Syntax",
+            subject.ClassName + name + "Syntax",
             optionalGroup.AnchorName,
             groupNodes));
     }
@@ -112,7 +112,7 @@ internal sealed class AssemblyFormatPlanCompiler
             var name = DialectGeneratorNaming.ToPascalCase(clause.Keyword) + "Clause";
             clauses.Add(new OptionalGroupNode(
                 name,
-                subject.SyntaxClassName + name + "Syntax",
+                subject.ClassName + name + "Syntax",
                 anchor,
                 clauseNodes));
         }
