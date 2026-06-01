@@ -210,6 +210,8 @@ internal static class AssemblyFormatSyntaxClassEmitter
 
         public void VisitAttrDict(AttrDictSlot slot) { }
 
+        public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot) { }
+
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
             Groups.Add(optionalSyntax);
@@ -276,6 +278,13 @@ internal static class AssemblyFormatSyntaxClassEmitter
         public void VisitAttrDict(AttrDictSlot slot)
         {
             builder.AppendLine(indent + "writer.WriteDelimitedList(" + slot.PropertyName + ", " + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            spacing.MarkEmitted(slot);
+        }
+
+        public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
+        {
+            builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            builder.AppendLine(indent + slot.PropertyName + ".WriteTo(writer);");
             spacing.MarkEmitted(slot);
         }
 

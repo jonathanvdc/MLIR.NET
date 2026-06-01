@@ -269,4 +269,14 @@ public readonly struct ParsingContext
     {
         return Parser.TryParseAttrDictWithKeywordInternal();
     }
+
+    /// <summary>
+    /// Parses an optional keyword-prefixed attribute dictionary of the form
+    /// <c>attributes { name = value, ... }</c>, preserving the <c>attributes</c>
+    /// keyword token when present.
+    /// </summary>
+    public ParseResult<KeywordedAttributeDictionarySyntax> TryParseKeywordedAttrDictSyntax()
+    {
+        return Parser.TryParseKeywordedAttrDictSyntaxInternal();
+    }
 }

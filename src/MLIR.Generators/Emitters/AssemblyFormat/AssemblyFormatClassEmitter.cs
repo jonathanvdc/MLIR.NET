@@ -114,6 +114,11 @@ internal static class AssemblyFormatClassEmitter
             EmitParseSlot(builder, subject, slot, indent);
         }
 
+        public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
+        {
+            EmitParseSlot(builder, subject, slot, indent);
+        }
+
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
             builder.AppendLine(indent + optionalSyntax.CsType + " " + optionalSyntax.ParameterName + " = null;");

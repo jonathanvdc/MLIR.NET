@@ -66,6 +66,8 @@ internal interface IFormatNodeVisitor
 
     void VisitAttrDict(AttrDictSlot slot);
 
+    void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot);
+
     void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax);
 
     void VisitOilist(OilistNode oilist);
@@ -229,6 +231,9 @@ internal abstract class FormatSlot : FormatNode
     public static AttrDictSlot ForAttrDictDirective(string name, int ordinal, string parseExpression, string csType)
         => new(name, name, parseExpression, csType);
 
+    public static AttrDictWithKeywordSlot ForAttrDictWithKeywordDirective(string name, int ordinal)
+        => new(name, name);
+
     public static TypeSlot ForTypeDirective(string name, int ordinal, string parseExpression)
         => new(name, name, parseExpression, null);
 }
@@ -363,6 +368,28 @@ internal sealed class AttrDictSlot : FormatSlot
 
     public override void Accept(IFormatNodeVisitor visitor)
         => visitor.VisitAttrDict(this);
+
+    public override string BuildExpression(string typedLocalName)
+        => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
+}
+
+internal sealed class AttrDictWithKeywordSlot : FormatSlot
+{
+    public AttrDictWithKeywordSlot(string sourceName, string baseName)
+        : base(
+            sourceName,
+            baseName,
+            "global::MLIR.Syntax.KeywordedAttributeDictionarySyntax",
+            "context.TryParseKeywordedAttrDictSyntax()")
+    {
+    }
+
+    public override string RewriteExpression => "(global::MLIR.Syntax.KeywordedAttributeDictionarySyntax)rewriter.Visit(" + PropertyName + ")";
+
+    public override string CanStartExpression => "context.IsKeyword(\"attributes\")";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitAttrDictWithKeyword(this);
 
     public override string BuildExpression(string typedLocalName)
         => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);

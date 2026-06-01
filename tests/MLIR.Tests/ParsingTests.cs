@@ -17,6 +17,29 @@ using Xunit.Sdk;
 
 public sealed class ParsingTests
 {
+    [Fact]
+    public void KeywordedAttributeDictionaryPreservesKeywordToken()
+    {
+        var value = Parser.ParseAttributeValue("1 : i32");
+        var attributes = SemanticTests.CreateAttributeDictionary(
+        [
+            new NamedAttributeSyntax(TokenFactory.Identifier("value"), TokenFactory.Equal(" "), value),
+        ]);
+        var syntax = new KeywordedAttributeDictionarySyntax(TokenFactory.Identifier("attributes", "\n  "), attributes);
+        var writer = new SyntaxWriter();
+        syntax.WriteTo(writer);
+
+        Assert.Equal("\n  attributes {value =1 : i32}", writer.ToString());
+        Assert.Equal("\n  ", syntax.KeywordToken!.Value.LeadingTrivia);
+
+        var rewritten = Assert.IsType<KeywordedAttributeDictionarySyntax>(new SyntaxRewriter().Visit(syntax));
+        writer = new SyntaxWriter();
+        rewritten.WriteTo(writer);
+
+        Assert.Equal("\n  attributes {value =1 : i32}", writer.ToString());
+        Assert.Equal("\n  ", rewritten.KeywordToken!.Value.LeadingTrivia);
+    }
+
     private sealed class PrefixConstantBodySyntax : OperationBodySyntax
     {
         private readonly GenericOperationBodySyntax genericBody;

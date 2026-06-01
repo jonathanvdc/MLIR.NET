@@ -528,13 +528,39 @@ public sealed partial class Parser
     /// </summary>
     internal ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>> TryParseAttrDictWithKeywordInternal()
     {
+        var result = TryParseKeywordedAttrDictSyntaxInternal();
+        return result.IsSuccess
+            ? ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>>.Success(result.Value.Attributes)
+            : ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>>.Failure(result.Diagnostic!);
+    }
+
+    /// <summary>
+    /// Parses an optional keyword-prefixed attribute dictionary while preserving the
+    /// <c>attributes</c> keyword token when it is present.
+    /// </summary>
+    internal ParseResult<KeywordedAttributeDictionarySyntax> TryParseKeywordedAttrDictSyntaxInternal()
+    {
         if (!IsKeyword("attributes"))
         {
-            return ParseResult<DelimitedSyntaxList<NamedAttributeSyntax>>.Success(EmptyDelimitedSyntaxList<NamedAttributeSyntax>());
+            return ParseResult<KeywordedAttributeDictionarySyntax>.Success(
+                new KeywordedAttributeDictionarySyntax(null, EmptyDelimitedSyntaxList<NamedAttributeSyntax>()));
         }
 
-        ConsumeToken();
-        return TryParseAttrDict();
+        var keyword = ConsumeToken();
+        var attrDictResult = TryParseAttrDict();
+        if (!attrDictResult.IsSuccess)
+        {
+            return ParseResult<KeywordedAttributeDictionarySyntax>.Failure(attrDictResult.Diagnostic!);
+        }
+
+        if (!attrDictResult.Value.OpenToken.HasValue)
+        {
+            return ParseResult<KeywordedAttributeDictionarySyntax>.Failure(
+                CreateDiagnostic("Expected '{' after 'attributes'."));
+        }
+
+        return ParseResult<KeywordedAttributeDictionarySyntax>.Success(
+            new KeywordedAttributeDictionarySyntax(keyword, attrDictResult.Value));
     }
 
     /// <summary>

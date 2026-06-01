@@ -109,4 +109,16 @@ public sealed class ConcreteSyntaxBuilderContext
     {
         return builder.BuildAttrDict(attributes);
     }
+
+    /// <summary>
+    /// Builds an optional keyword-prefixed attribute dictionary for an
+    /// <c>attr-dict-with-keyword</c> declarative assembly-format directive.
+    /// </summary>
+    public KeywordedAttributeDictionarySyntax BuildKeywordedAttrDict(NamedAttributeCollection attributes)
+    {
+        var attrDict = builder.BuildAttrDict(attributes);
+        return new KeywordedAttributeDictionarySyntax(
+            attrDict.OpenToken.HasValue ? TokenFactory.Identifier("attributes") : null,
+            attrDict);
+    }
 }

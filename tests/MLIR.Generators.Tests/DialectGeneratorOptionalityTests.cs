@@ -1,9 +1,36 @@
 namespace MLIR.Generators.Tests;
 
+using System.Linq;
+using Microsoft.CodeAnalysis;
+using MLIR.Generators;
 using Xunit;
 
 public sealed class DialectGeneratorOptionalityTests : DialectGeneratorTestBase
 {
+    [Fact]
+    public void AttrDictWithKeywordDirectiveIsSupported()
+    {
+        var result = GeneratorTestHelpers.RunGeneratorDetailed(
+            new DialectGenerator(),
+            ensureUpstreamPrelude: true,
+            (
+                "miniarith.td",
+                ComposeMiniArithSource(
+                [
+                    "def MiniArith_KeywordAttrsOp : MiniArith_Op<\"keyword_attrs\", []> {",
+                    "  let arguments = (ins I32Attr:$value);",
+                    "  let results = (outs I32:$result);",
+                    "  let assemblyFormat = \"$value attr-dict-with-keyword `:` type($result)\";",
+                    "};",
+                ])));
+
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            static diagnostic => diagnostic.Id == "MLIRGEN004"
+                && diagnostic.GetMessage().Contains("attr-dict-with-keyword", System.StringComparison.Ordinal));
+        Assert.DoesNotContain(result.Diagnostics, static diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+    }
+
     [Fact]
     public void OptionalAttributeAccessUsesDeclaredOptionalValueAccessMetadata()
     {

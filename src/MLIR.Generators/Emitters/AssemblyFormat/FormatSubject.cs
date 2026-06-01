@@ -251,6 +251,11 @@ internal sealed class OperationFormatSubject : FormatSubject
             return FormatSlot.ForAttrDictDirective("attrDict", ordinal, "context.TryParseAttrDict()", "global::MLIR.Syntax.DelimitedSyntaxList<global::MLIR.Syntax.NamedAttributeSyntax>");
         }
 
+        if (directive is AttrDictWithKeywordDirectiveChunk)
+        {
+            return FormatSlot.ForAttrDictWithKeywordDirective("attrDict", ordinal);
+        }
+
         if (directive is TypeDirectiveChunk typeDirective)
         {
             return FormatSlot.ForTypeDirective(GetTypeDirectiveSlotName(typeDirective, ordinal), ordinal, "context.TryParseTypeSyntax()");
@@ -327,6 +332,13 @@ internal sealed class OperationFormatSubject : FormatSubject
         if (attrDict != null)
         {
             builder.AppendLine("        foreach (var attr in " + attrDict.BodyAccessExpression + ")");
+            builder.AppendLine("            attributes.Add(binder.BindNamedAttribute(attr, " + ClassName + ".OperationDefinition));");
+        }
+
+        var attrDictWithKeyword = plan.Slots.OfType<AttrDictWithKeywordSlot>().FirstOrDefault();
+        if (attrDictWithKeyword != null)
+        {
+            builder.AppendLine("        foreach (var attr in " + attrDictWithKeyword.BodyAccessExpression + ".Attributes)");
             builder.AppendLine("            attributes.Add(binder.BindNamedAttribute(attr, " + ClassName + ".OperationDefinition));");
         }
 
@@ -479,6 +491,9 @@ internal sealed class OperationFormatSubject : FormatSubject
         public void VisitAttrDict(AttrDictSlot slot)
             => EmitSlot(slot);
 
+        public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
+            => EmitSlot(slot);
+
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
             builder.AppendLine(indent + optionalSyntax.CsType + " " + optionalSyntax.ParameterName + " = null;");
@@ -614,6 +629,9 @@ internal sealed class OperationFormatSubject : FormatSubject
         public void VisitAttrDict(AttrDictSlot slot)
             => Expression = "true";
 
+        public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
+            => Expression = "true";
+
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
             => Expression = "true";
 
@@ -665,6 +683,9 @@ internal sealed class OperationFormatSubject : FormatSubject
 
         public void VisitAttrDict(AttrDictSlot slot)
             => Expression = "context.BuildAttrDict(" + BuildAttributeDictionaryExpression(plan) + ")";
+
+        public void VisitAttrDictWithKeyword(AttrDictWithKeywordSlot slot)
+            => Expression = "context.BuildKeywordedAttrDict(" + BuildAttributeDictionaryExpression(plan) + ")";
 
         public void VisitOptionalSyntax(OptionalSyntaxNode optionalSyntax)
         {
