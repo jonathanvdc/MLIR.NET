@@ -91,7 +91,15 @@ public sealed class Binder
         }
         else if (definition != null && definition.AssemblyFormat != null)
         {
-            return definition.AssemblyFormat.Bind(syntax, this);
+            try
+            {
+                return definition.AssemblyFormat.Bind(syntax, this);
+            }
+            catch (Exception ex)
+            {
+                Report(new AssemblyDiagnostic(syntax.Location, $"Failed to bind custom assembly for operation '{name}': {ex.Message}"));
+                return new UninterpretedOperation(syntax, name);
+            }
         }
         else
         {

@@ -23,19 +23,18 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         Assert.NotNull(configDef!.AssemblyFormat);
     }
 
-#if false
-    [Fact(Skip = "Temporarily disabled while unsupported assembly-format directives are rebuilt on the unified emitter.")]
+    [Fact]
     public void CastOpParsesQualifiedTypeFormat()
     {
         var document = Document.Parse("%result = minitest.cast %input : i32", CreateMiniTestRegistry());
 
         var operation = Assert.Single(document.Module.Operations);
-        var body = Assert.IsType<MiniTest_CastOpBodySyntax>(operation.Body);
+        var body = Assert.IsType<MiniTest_CastOpSyntax>(operation.Body);
         Assert.Equal("%input", body.Input.Text);
         Assert.Equal("i32", body.ResultType.ToString());
     }
 
-    [Fact(Skip = "Temporarily disabled while qualified directives are rebuilt on the unified emitter.")]
+    [Fact]
     public void CastOpBindsToTypedOperation()
     {
         var operation = BindSingleOperation<MiniTest_CastOp>(
@@ -47,7 +46,7 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         Assert.Equal("%result", operation.ResultValue.Name);
     }
 
-    [Theory(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Theory]
     [InlineData("%result = minitest.binary %lhs, %rhs : i32", true, "%rhs")]
     [InlineData("%result = minitest.binary %lhs : i32", false, null)]
     public void BinaryOpParsesOptionalOperandGroup(string source, bool hasRhs, string? rhsName)
@@ -55,15 +54,14 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         var document = Document.Parse(source, CreateMiniTestRegistry());
 
         var operation = Assert.Single(document.Module.Operations);
-        var body = Assert.IsType<MiniTest_BinaryOpBodySyntax>(operation.Body);
+        var body = Assert.IsType<MiniTest_BinaryOpSyntax>(operation.Body);
         Assert.Equal("%lhs", body.Lhs.Text);
-        Assert.Equal(hasRhs, body.CommaToken.HasValue);
-        Assert.Equal(hasRhs, body.Rhs.HasValue);
+        Assert.Equal(hasRhs, body.RhsGroup is not null);
         Assert.Equal("i32", body.ResultType.ToString());
-        Assert.Equal(rhsName, body.Rhs.HasValue ? body.Rhs!.Value.Text : null);
+        Assert.Equal(rhsName, body.RhsGroup?.Rhs.Text);
     }
 
-    [Theory(Skip = "Temporarily disabled while optional groups are rebuilt on the unified emitter.")]
+    [Theory]
     [InlineData("%result = minitest.binary %lhs, %rhs : i32", "%rhs")]
     [InlineData("%result = minitest.binary %lhs : i32", null)]
     public void BinaryOpBindsOptionalOperand(string source, string? rhsName)
@@ -85,13 +83,10 @@ public sealed class MiniTestDialectTests : DialectIntegrationTestBase
         var document = Document.Parse(source, CreateMiniTestRegistry());
 
         var operation = Assert.Single(document.Module.Operations);
-        var body = Assert.IsType<MiniTest_ConfigOpBodySyntax>(operation.Body);
-        Assert.Equal(hasStride, body.StrideKeyword.HasValue);
-        Assert.Equal(hasStride, body.Stride is not null);
-        Assert.Equal(hasPadding, body.PaddingKeyword.HasValue);
-        Assert.Equal(hasPadding, body.Padding is not null);
+        var body = Assert.IsType<MiniTest_ConfigOpSyntax>(operation.Body);
+        Assert.Equal(hasStride, body.StrideClause is not null);
+        Assert.Equal(hasPadding, body.PaddingClause is not null);
     }
-#endif
 
     [Theory]
     [InlineData("minitest.config\n    stride 4\n    padding 0\n    {}", 4, 0)]

@@ -69,11 +69,10 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         Assert.Equal(source, Document.Parse(source).Bind(CreateMiniArithRegistry()).ToText());
     }
 
-#if false
-    [Fact(Skip = "Temporarily disabled while the unified assembly-format emitter rebuilds generated body syntax compatibility.")]
+    [Fact]
     public void GeneratedAssemblyFormatBindProducesTypedAddIOpFromCustomBodySyntax()
     {
-        var body = new MiniArith_AddIOpBodySyntax(
+        var body = new MiniArith_AddIOpSyntax(
             TokenFactory.SsaName("%lhs"),
             TokenFactory.Comma(),
             TokenFactory.SsaName("%rhs"),
@@ -98,10 +97,10 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         Assert.NotNull(operation.TypeSignatureReference);
     }
 
-    [Fact(Skip = "Temporarily disabled while the unified assembly-format emitter rebuilds generated body syntax compatibility.")]
+    [Fact]
     public void GeneratedAssemblyFormatBindProducesTypedConstantOpFromCustomBodySyntax()
     {
-        var body = new MiniArith_ConstantOpBodySyntax(
+        var body = new MiniArith_ConstantOpSyntax(
             new IntegerAttributeValueSyntax(TokenFactory.Integer("42"), ApInt.Parse(64, "42")),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
@@ -121,10 +120,10 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         Assert.Null(operation.TypeSignatureReference);
     }
 
-    [Fact(Skip = "Temporarily disabled while the unified assembly-format emitter rebuilds generated body syntax compatibility.")]
+    [Fact]
     public void GeneratedAssemblyFormatBindReportsDiagnosticForWrongBodyType()
     {
-        var body = new MiniArith_ConstantOpBodySyntax(
+        var body = new MiniArith_ConstantOpSyntax(
             new IntegerAttributeValueSyntax(TokenFactory.Integer("42"), ApInt.Parse(64, "42")),
             new DelimitedSyntaxList<NamedAttributeSyntax>(null, [], [], null));
 
@@ -140,10 +139,10 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         Assert.IsType<UninterpretedOperation>(Assert.Single(module.Operations));
     }
 
-    [Fact(Skip = "Temporarily disabled while the unified assembly-format emitter rebuilds generated body syntax compatibility.")]
+    [Fact]
     public void GeneratedAssemblyFormatBindReportsDiagnosticForWrongResultCount()
     {
-        var body = new MiniArith_AddIOpBodySyntax(
+        var body = new MiniArith_AddIOpSyntax(
             TokenFactory.SsaName("%lhs"),
             TokenFactory.Comma(),
             TokenFactory.SsaName("%rhs"),
@@ -162,7 +161,6 @@ public sealed class MiniArithDialectTests : DialectIntegrationTestBase
         Assert.Single(module.AssemblyDiagnostics);
         Assert.IsType<UninterpretedOperation>(Assert.Single(module.Operations));
     }
-#endif
 
     [Fact]
     public void ParsesIntegerImmediateBeforeOperand()
