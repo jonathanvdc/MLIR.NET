@@ -204,6 +204,8 @@ internal static class AssemblyFormatSyntaxClassEmitter
 
         public void VisitType(TypeSlot slot) { }
 
+        public void VisitTypeList(TypeListSlot slot) { }
+
         public void VisitSsaValue(SsaValueSlot slot) { }
 
         public void VisitSsaValueList(SsaValueListSlot slot) { }
@@ -263,6 +265,13 @@ internal static class AssemblyFormatSyntaxClassEmitter
 
         public void VisitType(TypeSlot slot)
             => EmitWriteSyntaxNode(slot);
+
+        public void VisitTypeList(TypeListSlot slot)
+        {
+            builder.AppendLine(indent + "writer.SuggestTrivia(" + EmitterHelpers.ToCSharpStringLiteral(spacing.GetLeadingTrivia(slot, subject)) + ");");
+            builder.AppendLine(indent + "writer.WriteTypeList(" + slot.PropertyName + ");");
+            spacing.MarkEmitted(slot);
+        }
 
         public void VisitSsaValue(SsaValueSlot slot)
         {

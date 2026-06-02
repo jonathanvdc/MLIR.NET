@@ -1,7 +1,11 @@
 namespace MLIR.Transforms;
 
+using System;
+using System.Linq;
+using MLIR.Dialects.Builtin;
 using MLIR.Semantics;
 using MLIR.Syntax;
+using MLIR.Syntax.Types.Collections;
 
 /// <summary>
 /// Provides dialect assembly rewriters controlled access to semantic-to-syntax transforms.
@@ -99,6 +103,38 @@ public sealed class ConcreteSyntaxBuilderContext
     public TypeSyntax BuildTypeSyntax(TypeReference type)
     {
         return builder.BuildTypeReference(type);
+    }
+
+    /// <summary>
+    /// Builds a bare comma-separated type list for variadic <c>type($operand)</c>
+    /// directives. Function type signatures contribute their input types; any other
+    /// type reference is treated as a single-item list for compatibility with existing
+    /// single-operand assembly formats.
+    /// </summary>
+    public SeparatedSyntaxList<TypeSyntax> BuildTypeListSyntax(TypeReference? type)
+    {
+        if (type is null)
+        {
+            return SeparatedSyntaxList<TypeSyntax>.Empty;
+        }
+
+        var typeSyntax = builder.BuildTypeReference(type);
+        if (typeSyntax is FunctionTypeSyntax functionType)
+        {
+            return new SeparatedSyntaxList<TypeSyntax>(
+                functionType.InputTypes.Items,
+                functionType.InputTypes.SeparatorTokens);
+        }
+
+        if (type is FunctionType functionTypeReference)
+        {
+            var items = functionTypeReference.Inputs.Select(builder.BuildTypeReference).ToArray();
+            return new SeparatedSyntaxList<TypeSyntax>(
+                items,
+                Enumerable.Range(0, Math.Max(0, items.Length - 1)).Select(static _ => TokenFactory.Comma()).ToArray());
+        }
+
+        return new SeparatedSyntaxList<TypeSyntax>([typeSyntax], []);
     }
 
     /// <summary>

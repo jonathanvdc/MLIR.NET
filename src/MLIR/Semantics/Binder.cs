@@ -686,6 +686,21 @@ public sealed class Binder
         return BindStructuredTypeReference(syntax);
     }
 
+    /// <summary>
+    /// Binds a bare type list from a variadic <c>type($operand)</c> directive.
+    /// A single type keeps the scalar type-signature shape; multiple
+    /// types are represented as a function type whose inputs are the listed types.
+    /// </summary>
+    public TypeReference BindTypeReferenceList(SeparatedSyntaxList<TypeSyntax> syntax)
+    {
+        if (syntax.Count == 1)
+        {
+            return BindTypeReference(syntax[0]);
+        }
+
+        return TypeFactory.Function(syntax.Items.Select(BindTypeReference).ToArray(), []);
+    }
+
     private TypeReference BindStructuredTypeReference(TypeSyntax syntax)
     {
         var registeredType = TryBindStructuredTypeDefinition(syntax);

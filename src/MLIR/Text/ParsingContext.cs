@@ -252,6 +252,14 @@ public readonly struct ParsingContext
     }
 
     /// <summary>
+    /// Parses a comma-separated list of types, preserving separator tokens.
+    /// </summary>
+    public ParseResult<SeparatedSyntaxList<TypeSyntax>> TryParseTypeSyntaxSeparatedList()
+    {
+        return Parser.TryParseTypeSyntaxSeparatedList();
+    }
+
+    /// <summary>
     /// Parses an optional attribute dictionary of the form <c>{ name = value, ... }</c>.
     /// Returns an empty list when no opening brace is present.
     /// </summary>

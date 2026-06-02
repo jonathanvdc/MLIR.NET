@@ -264,6 +264,11 @@ internal sealed class OperationFormatSubject : FormatSubject
 
         if (directive is TypeDirectiveChunk typeDirective)
         {
+            if (TryGetVariadicOperandName(typeDirective.Operand) is { } variadicOperandName)
+            {
+                return FormatSlot.ForTypeListDirective(variadicOperandName + "Type", ordinal, "context.TryParseTypeSyntaxSeparatedList()");
+            }
+
             return FormatSlot.ForTypeDirective(GetTypeDirectiveSlotName(typeDirective, ordinal), ordinal, "context.TryParseTypeSyntax()");
         }
 
@@ -284,6 +289,11 @@ internal sealed class OperationFormatSubject : FormatSubject
     {
         if (directive.Operand is TypeDirectiveOperand typeOperand)
         {
+            if (TryGetVariadicOperandName(typeOperand.Operand) is { } variadicOperandName)
+            {
+                return FormatSlot.ForTypeListDirective(variadicOperandName + "Type", ordinal, "context.TryParseTypeSyntaxSeparatedList()");
+            }
+
             return FormatSlot.ForTypeDirective(GetTypeDirectiveSlotName(new TypeDirectiveChunk(typeOperand.Operand), ordinal), ordinal, "context.TryParseTypeSyntax()");
         }
 
@@ -293,6 +303,17 @@ internal sealed class OperationFormatSubject : FormatSubject
         }
 
         return null;
+    }
+
+    private string? TryGetVariadicOperandName(DirectiveOperand operand)
+    {
+        if (operand is not VariableOperand variable)
+        {
+            return null;
+        }
+
+        var member = memberPlan.Operands.FirstOrDefault(m => string.Equals(m.SourceName, variable.Name, StringComparison.Ordinal));
+        return member is { IsVariadic: true } ? variable.Name : null;
     }
 
     public override void EmitTryParseSignature(StringBuilder builder)
@@ -360,6 +381,20 @@ internal sealed class OperationFormatSubject : FormatSubject
             else
             {
                 builder.AppendLine("        typeSignatureReference = binder.BindTypeReference(" + typeSlot.BodyAccessExpression + ");");
+            }
+        }
+
+        var typeListSlot = plan.Slots.OfType<TypeListSlot>().FirstOrDefault();
+        if (typeListSlot != null)
+        {
+            if (typeListSlot.ContainingOptionalSyntax != null)
+            {
+                builder.AppendLine("        if (body." + typeListSlot.ContainingOptionalSyntax.PropertyName + " != null)");
+                builder.AppendLine("            typeSignatureReference = binder.BindTypeReferenceList(" + typeListSlot.BodyAccessExpression + ");");
+            }
+            else
+            {
+                builder.AppendLine("        typeSignatureReference = binder.BindTypeReferenceList(" + typeListSlot.BodyAccessExpression + ");");
             }
         }
 
@@ -486,6 +521,9 @@ internal sealed class OperationFormatSubject : FormatSubject
             => EmitSlot(slot);
 
         public void VisitType(TypeSlot slot)
+            => EmitSlot(slot);
+
+        public void VisitTypeList(TypeListSlot slot)
             => EmitSlot(slot);
 
         public void VisitSsaValue(SsaValueSlot slot)
@@ -682,6 +720,9 @@ internal sealed class OperationFormatSubject : FormatSubject
         public void VisitType(TypeSlot slot)
             => Expression = "typed.TypeSignatureReference != null";
 
+        public void VisitTypeList(TypeListSlot slot)
+            => Expression = "typed.TypeSignatureReference != null";
+
         public void VisitSsaValue(SsaValueSlot slot)
             => Expression = owner.GetOperandPresenceExpression(slot.SourceName);
 
@@ -729,6 +770,9 @@ internal sealed class OperationFormatSubject : FormatSubject
 
         public void VisitType(TypeSlot slot)
             => Expression = "context.BuildTypeSyntax(typed.TypeSignatureReference!)";
+
+        public void VisitTypeList(TypeListSlot slot)
+            => Expression = "context.BuildTypeListSyntax(typed.TypeSignatureReference)";
 
         public void VisitSsaValue(SsaValueSlot slot)
         {

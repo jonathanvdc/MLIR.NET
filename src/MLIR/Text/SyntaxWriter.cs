@@ -222,6 +222,15 @@ public sealed class SyntaxWriter
     }
 
     /// <summary>
+    /// Writes a bare comma-separated list of type syntax nodes.
+    /// </summary>
+    /// <param name="types">The separated type list to write.</param>
+    public void WriteTypeList(SeparatedSyntaxList<TypeSyntax> types)
+    {
+        types.WriteTo(this, static (type, writer) => type.WriteTo(writer));
+    }
+
+    /// <summary>
     /// Writes a token using its preserved trivia when present, or the pending suggested trivia otherwise.
     /// The pending suggestion (set via <see cref="SuggestTrivia"/>) is consumed and cleared after this call.
     /// </summary>

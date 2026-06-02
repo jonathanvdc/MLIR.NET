@@ -137,23 +137,38 @@ public sealed partial class Parser
     /// <returns>A successful result with the list of parsed types, or a failure if any item fails to parse.</returns>
     internal ParseResult<IReadOnlyList<TypeSyntax>> TryParseTypeSyntaxList()
     {
+        var result = TryParseTypeSyntaxSeparatedList();
+        return result.IsSuccess
+            ? ParseResult<IReadOnlyList<TypeSyntax>>.Success(result.Value.Items)
+            : ParseResult<IReadOnlyList<TypeSyntax>>.Failure(result.Diagnostic!);
+    }
+
+    /// <summary>
+    /// Parses a comma-separated list of types while preserving the comma tokens.
+    /// </summary>
+    /// <returns>A successful result with the separated type syntax list, or a failure if any item fails to parse.</returns>
+    internal ParseResult<SeparatedSyntaxList<TypeSyntax>> TryParseTypeSyntaxSeparatedList()
+    {
         var items = new List<TypeSyntax>();
+        var separators = new List<Token>();
         while (true)
         {
             var itemResult = TryParseTypeSyntax();
             if (!itemResult.IsSuccess)
             {
-                return ParseResult<IReadOnlyList<TypeSyntax>>.Failure(itemResult.Diagnostic!);
+                return ParseResult<SeparatedSyntaxList<TypeSyntax>>.Failure(itemResult.Diagnostic!);
             }
 
             items.Add(itemResult.Value);
-            if (!TryMatch(TokenKind.Comma, out _))
+            if (!TryMatch(TokenKind.Comma, out var comma))
             {
                 break;
             }
+
+            separators.Add(comma);
         }
 
-        return ParseResult<IReadOnlyList<TypeSyntax>>.Success(items);
+        return ParseResult<SeparatedSyntaxList<TypeSyntax>>.Success(new SeparatedSyntaxList<TypeSyntax>(items, separators));
     }
 
     private ParseResult<TypeSyntax> CreateUnrecognizedTypeFailure()

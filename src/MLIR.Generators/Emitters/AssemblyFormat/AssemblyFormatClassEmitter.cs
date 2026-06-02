@@ -103,6 +103,9 @@ internal static class AssemblyFormatClassEmitter
         public void VisitType(TypeSlot slot)
             => EmitParseSlot(builder, subject, slot, indent);
 
+        public void VisitTypeList(TypeListSlot slot)
+            => EmitParseSlot(builder, subject, slot, indent);
+
         public void VisitSsaValue(SsaValueSlot slot)
             => EmitParseSlot(builder, subject, slot, indent);
 

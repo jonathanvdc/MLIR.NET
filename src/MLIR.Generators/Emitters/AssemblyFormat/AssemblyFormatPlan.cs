@@ -60,6 +60,8 @@ internal interface IFormatNodeVisitor
 
     void VisitType(TypeSlot slot);
 
+    void VisitTypeList(TypeListSlot slot);
+
     void VisitSsaValue(SsaValueSlot slot);
 
     void VisitSsaValueList(SsaValueListSlot slot);
@@ -239,6 +241,9 @@ internal abstract class FormatSlot : FormatNode
 
     public static TypeSlot ForTypeDirective(string name, int ordinal, string parseExpression)
         => new(name, name, parseExpression, null);
+
+    public static TypeListSlot ForTypeListDirective(string name, int ordinal, string parseExpression)
+        => new(name, name, parseExpression);
 }
 
 internal enum OperationVariableSlotKind
@@ -325,6 +330,22 @@ internal sealed class TypeSlot : FormatSlot
             ? ParameterModel.CsharpPrinterTemplate.Render("self", propertyExpression)
             : propertyExpression;
     }
+}
+
+internal sealed class TypeListSlot : FormatSlot
+{
+    public TypeListSlot(string sourceName, string baseName, string parseExpression)
+        : base(sourceName, baseName, "global::MLIR.Syntax.SeparatedSyntaxList<global::MLIR.Syntax.TypeSyntax>", parseExpression)
+    {
+    }
+
+    public override string RewriteExpression => "rewriter.VisitSeparatedList(" + PropertyName + ")";
+
+    public override void Accept(IFormatNodeVisitor visitor)
+        => visitor.VisitTypeList(this);
+
+    public override string BuildExpression(string typedLocalName)
+        => typedLocalName + "." + DialectGeneratorNaming.ToPascalCase(SourceName);
 }
 
 internal sealed class SsaValueSlot : FormatSlot

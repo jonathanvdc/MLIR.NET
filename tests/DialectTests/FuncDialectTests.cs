@@ -125,7 +125,7 @@ public sealed class FuncDialectTests : DialectIntegrationTestBase
     /// call that reads <c>i32</c> and leaves <c>, f32</c> stranded, causing a
     /// "Expected end of operation" error.
     /// </summary>
-    [Fact(Skip = "Temporarily disabled while variadic type lists are rebuilt on the unified emitter.")]
+    [Fact]
     public void BindsReturnOpWithMultipleOperands()
     {
         var op = BindSingleOperation<ReturnOp>(
